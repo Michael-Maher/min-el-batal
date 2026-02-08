@@ -9,6 +9,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link rel="stylesheet" href="style.css">
+    <script>
+        // Apply saved theme BEFORE first paint to prevent white flash
+        (function() {
+            try {
+                var s = localStorage.getItem('minElBatal_save');
+                if (s) {
+                    var d = JSON.parse(s);
+                    if (d && d.theme) {
+                        document.documentElement.setAttribute('data-theme', d.theme);
+                    }
+                }
+            } catch(e) {}
+        })();
+    </script>
 </head>
 <body data-theme="dark">
     <!-- Particles Background -->
@@ -45,16 +59,43 @@
             <div class="login-icon"><i class="fas fa-shield-halved"></i></div>
             <h2>تسجيل الدخول</h2>
             <p class="card-subtitle">سجّل عشان نحفظ تقدمك يا بطل</p>
-            <input type="text" id="player-name" class="input-field" placeholder="اسمك إيه؟" maxlength="20" autocomplete="off">
-            <input type="tel" id="player-phone" class="input-field" placeholder="رقم التليفون (01xxxxxxxxx)" maxlength="11" autocomplete="off" dir="ltr">
-            <div class="login-church-note">
-                <span>⛪</span>
-                <span>كنيسة الشهيدة رفقة - إعدادي أولاد</span>
+
+            <!-- Step 1: Name + Phone -->
+            <div id="login-step1">
+                <input type="text" id="player-name" class="input-field" placeholder="اسمك إيه؟" maxlength="20" autocomplete="off">
+                <input type="tel" id="player-phone" class="input-field" placeholder="رقم التليفون (01xxxxxxxxx)" maxlength="11" autocomplete="off" dir="ltr">
+                <div class="login-church-note">
+                    <span>⛪</span>
+                    <span>كنيسة الشهيدة رفقة - إعدادي أولاد</span>
+                </div>
+                <button class="btn btn-primary" id="btn-send-otp" onclick="sendOTP()">
+                    <span><i class="fas fa-paper-plane"></i> ابعتلي كود التحقق</span>
+                </button>
+                <div id="recaptcha-container"></div>
             </div>
-            <button class="btn btn-primary" onclick="submitLogin()">
-                <span>يلا نبدأ <i class="fas fa-arrow-left"></i></span>
-            </button>
-            <p class="login-hint"><i class="fas fa-cloud"></i> تقدمك محفوظ على السحابة (Firebase) - لو سجّلت قبل كده هنحمّل تقدمك تلقائي</p>
+
+            <!-- Step 2: OTP Verification -->
+            <div id="login-step2" style="display:none;">
+                <div class="otp-info">
+                    <i class="fas fa-sms"></i>
+                    <p>تم إرسال كود التحقق على رقمك</p>
+                    <p class="otp-phone-display" id="otp-phone-display"></p>
+                </div>
+                <input type="tel" id="otp-code" class="input-field otp-input" placeholder="اكتب كود التحقق (6 أرقام)" maxlength="6" autocomplete="one-time-code" dir="ltr">
+                <button class="btn btn-primary" id="btn-verify-otp" onclick="verifyOTP()">
+                    <span><i class="fas fa-check-circle"></i> تأكيد الكود</span>
+                </button>
+                <div class="otp-actions">
+                    <button class="btn btn-ghost" id="btn-resend-otp" onclick="resendOTP()" disabled>
+                        <span><i class="fas fa-redo"></i> إعادة إرسال الكود <span id="resend-timer"></span></span>
+                    </button>
+                    <button class="btn btn-ghost" onclick="backToStep1()">
+                        <span><i class="fas fa-arrow-right"></i> تغيير الرقم</span>
+                    </button>
+                </div>
+            </div>
+
+            <p class="login-hint"><i class="fas fa-cloud"></i> تقدمك محفوظ على السحابة - لو سجّلت قبل كده هنحمّل تقدمك تلقائي</p>
         </div>
     </div>
 

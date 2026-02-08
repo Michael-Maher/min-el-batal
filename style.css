@@ -97,7 +97,27 @@
     --particle-opacity: 0.12;
 }
 
+/* DEFAULT (fallback = dark) so no white flash before JS loads */
 :root {
+    --primary: #6C5CE7;
+    --primary-dark: #5A4BD1;
+    --secondary: #00CEC9;
+    --accent: #FD79A8;
+    --gold: #FDCB6E;
+    --success: #00B894;
+    --danger: #E17055;
+    --warning: #F9CA24;
+    --bg-dark: #0A0A1A;
+    --bg-card: #16162A;
+    --bg-card-hover: #1E1E3A;
+    --text-primary: #FFFFFF;
+    --text-secondary: #A0A0C0;
+    --text-muted: #6C6C8A;
+    --border: #2A2A4A;
+    --glow-primary: rgba(108, 92, 231, 0.4);
+    --glow-secondary: rgba(0, 206, 201, 0.4);
+    --glow-gold: rgba(253, 203, 110, 0.4);
+    --particle-opacity: 0.15;
     --radius: 16px;
     --radius-sm: 10px;
     --radius-full: 50px;
@@ -152,6 +172,21 @@ body {
 .login-icon { font-size: 48px; margin-bottom: 12px; color: var(--primary); }
 .login-church-note { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-muted); font-size: 12px; margin-bottom: 16px; background: var(--bg-dark); padding: 8px 16px; border-radius: var(--radius-full); }
 .login-hint { color: var(--text-muted); font-size: 11px; margin-top: 12px; }
+
+/* OTP Verification */
+.otp-info { text-align: center; margin-bottom: 16px; color: var(--text-secondary); }
+.otp-info i { font-size: 36px; color: var(--primary); margin-bottom: 8px; display: block; }
+.otp-info p { margin: 4px 0; font-size: 14px; }
+.otp-phone-display { font-size: 18px !important; font-weight: 800; color: var(--text-primary) !important; direction: ltr; letter-spacing: 1px; }
+.otp-input { text-align: center; font-size: 24px !important; font-weight: 800; letter-spacing: 8px; direction: ltr; }
+.otp-actions { display: flex; gap: 8px; justify-content: center; margin-top: 12px; flex-wrap: wrap; }
+.btn-ghost { background: none; border: 1px solid var(--border); color: var(--text-secondary); padding: 8px 16px; border-radius: var(--radius-full); font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer; transition: var(--transition); }
+.btn-ghost:hover { border-color: var(--primary); color: var(--primary); }
+.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+#recaptcha-container { display: flex; justify-content: center; margin-top: 8px; }
+.login-loading { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--text-secondary); font-size: 14px; margin-top: 8px; }
+.login-loading i { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
 /* ============ BUTTONS ============ */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 36px; border: none; border-radius: var(--radius-full); font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: var(--transition); position: relative; overflow: hidden; }

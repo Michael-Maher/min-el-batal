@@ -175,60 +175,7 @@ function loadLeaderboardFromCloud() {
         });
 }
 
-// --- Music Playlist System ---
-const MUSIC_PLAYLIST = [
-    { name: 'تين شوري', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3' },
-    { name: 'ابؤورو', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3' },
-    { name: 'غولغوثا', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3' },
-    { name: 'اريبسالين', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3' },
-    { name: 'افنوتي ناي نان', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3' },
-    { name: 'تاي شوري', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3' },
-    { name: 'بيك اثرونوس', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3' },
-    { name: 'كيريا ليسون', url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3' }
-];
-
-let currentTrackIndex = 0;
-let bgMusic = null;
-
-function initMusic() {
-    bgMusic = new Audio(MUSIC_PLAYLIST[0].url);
-    bgMusic.loop = false;
-    bgMusic.volume = GameState.volume;
-    bgMusic.addEventListener('ended', () => {
-        currentTrackIndex = (currentTrackIndex + 1) % MUSIC_PLAYLIST.length;
-        bgMusic.src = MUSIC_PLAYLIST[currentTrackIndex].url;
-        if (GameState.musicOn) bgMusic.play().catch(() => {});
-    });
-}
-
-function playMusic() {
-    if (!bgMusic) initMusic();
-    if (GameState.musicOn) {
-        bgMusic.volume = GameState.volume;
-        bgMusic.play().catch(() => {});
-    }
-}
-
-function stopMusic() {
-    if (bgMusic) {
-        bgMusic.pause();
-        bgMusic.currentTime = 0;
-    }
-}
-
-function toggleMusic() {
-    GameState.musicOn = !GameState.musicOn;
-    if (GameState.musicOn) {
-        playMusic();
-    } else {
-        stopMusic();
-    }
-}
-
-function setVolume(val) {
-    GameState.volume = val;
-    if (bgMusic) bgMusic.volume = val;
-}
+// --- Music (disabled) ---
 
 // --- Theme System ---
 function setTheme(theme) {
@@ -2408,34 +2355,6 @@ function renderSettings() {
         card.classList.remove('active');
         if (card.getAttribute('data-theme') === GameState.theme) card.classList.add('active');
     });
-    // Music
-    document.getElementById('music-toggle').checked = GameState.musicOn;
-    document.getElementById('volume-slider').value = GameState.volume * 100;
-    // Playlist
-    var tracks = document.getElementById('playlist-tracks');
-    if (tracks) {
-        tracks.innerHTML = '';
-        MUSIC_PLAYLIST.forEach(function(track, i) {
-            var el = document.createElement('div');
-            el.className = 'playlist-track' + (i === currentTrackIndex ? ' active' : '');
-            el.innerHTML = '<span>'+(i+1)+'. '+track.name+'</span>';
-            el.onclick = function() { currentTrackIndex = i; playMusic(); };
-            tracks.appendChild(el);
-        });
-    }
-}
-
-function toggleMusicSetting() {
-    GameState.musicOn = document.getElementById('music-toggle').checked;
-    if (GameState.musicOn) playMusic();
-    else stopMusic();
-    saveGame();
-}
-
-function changeVolume(val) {
-    GameState.volume = val / 100;
-    setVolume(GameState.volume);
-    saveGame();
 }
 
 // --- Achievements ---
@@ -2504,9 +2423,6 @@ document.addEventListener('DOMContentLoaded', function() {
     if (GameState.theme) {
         document.body.setAttribute('data-theme', GameState.theme || 'dark');
     }
-    
-    // Init music (will play on first user interaction)
-    initMusic();
     
     // Sync leaderboard
     syncLeaderboard();

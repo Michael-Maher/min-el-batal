@@ -75,9 +75,9 @@
         <div class="screen-inner">
             <div class="map-header">
                 <div class="player-info">
-                    <div class="player-avatar-container" id="map-avatar-container" onclick="showScreen('shop-screen')">
+                    <div class="player-avatar-container" id="map-avatar-container" onclick="showScreen('character-screen')">
                         <canvas id="avatar-canvas" width="64" height="64"></canvas>
-                        <div class="avatar-edit-badge"><i class="fas fa-cart-shopping fa-xs"></i></div>
+                        <div class="avatar-edit-badge"><i class="fas fa-masks-theater fa-xs"></i></div>
                     </div>
                     <div>
                         <h3 id="map-player-name"></h3>
@@ -477,25 +477,6 @@
                 </div>
             </div>
             <div class="settings-section">
-                <h3><i class="fas fa-music"></i> الترانيم</h3>
-                <div class="music-settings">
-                    <label class="toggle-label">
-                        <span>تشغيل الترانيم</span>
-                        <input type="checkbox" id="music-toggle" onchange="toggleMusicSetting()" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <div class="volume-control">
-                        <i class="fas fa-volume-low"></i>
-                        <input type="range" id="volume-slider" min="0" max="100" value="70" oninput="changeVolume(this.value)">
-                        <i class="fas fa-volume-high"></i>
-                    </div>
-                    <div class="playlist-info" id="playlist-info">
-                        <p><i class="fas fa-list"></i> قائمة الترانيم الحالية</p>
-                        <div class="playlist-tracks" id="playlist-tracks"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="settings-section">
                 <h3><i class="fas fa-info-circle"></i> عن اللعبة</h3>
                 <div class="about-info">
                     <p>مين البطل؟ - الإصدار 4.0</p>
@@ -514,25 +495,8 @@
         <button class="fab" onclick="showScreen('leaderboard-screen')" title="لوحة الأبطال"><i class="fas fa-trophy"></i></button>
         <button class="fab" onclick="showScreen('shop-screen')" title="متجر السلاح"><i class="fas fa-shield-halved"></i></button>
         <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
-        <button class="fab" onclick="toggleMusic()" id="music-btn" title="الموسيقى"><i class="fas fa-music"></i></button>
     </div>
 
-    <!-- Music Player -->
-    <div class="music-player" id="music-player">
-        <div class="music-visualizer">
-            <div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div>
-            <div class="music-bar"></div><div class="music-bar"></div>
-        </div>
-        <span class="music-label" id="music-label"><i class="fas fa-music"></i> ألحان قبطية</span>
-        <div class="music-controls">
-            <button class="music-ctrl-btn" onclick="prevTrack()"><i class="fas fa-backward-step"></i></button>
-            <button class="music-ctrl-btn" id="music-play-btn" onclick="toggleMusic()"><i class="fas fa-pause"></i></button>
-            <button class="music-ctrl-btn" onclick="nextTrack()"><i class="fas fa-forward-step"></i></button>
-        </div>
-    </div>
-
-    <!-- Hidden audio element for playlist -->
-    <audio id="bg-audio" preload="auto"></audio>
 
     <!-- Loading Overlay -->
     <div class="loading-overlay" id="loading-overlay" style="display:none;">

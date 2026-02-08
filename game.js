@@ -41,7 +41,7 @@ const GameState = {
     },
     musicOn: true,
     volume: 0.5,
-    theme: 'classic',
+    theme: 'dark',
     armor: [],
     equippedArmor: {},
     gamesPlayed: 0,
@@ -233,48 +233,12 @@ function setVolume(val) {
 // --- Theme System ---
 function setTheme(theme) {
     GameState.theme = theme;
-    document.body.className = '';
-    document.body.classList.add('theme-' + theme);
-    const root = document.documentElement;
-    switch (theme) {
-        case 'classic':
-            root.style.setProperty('--primary', '#667eea');
-            root.style.setProperty('--secondary', '#764ba2');
-            root.style.setProperty('--accent', '#f093fb');
-            root.style.setProperty('--bg', '#0f0c29');
-            root.style.setProperty('--card-bg', 'rgba(255,255,255,0.1)');
-            break;
-        case 'desert':
-            root.style.setProperty('--primary', '#d4a574');
-            root.style.setProperty('--secondary', '#8B6914');
-            root.style.setProperty('--accent', '#FFD700');
-            root.style.setProperty('--bg', '#2c1810');
-            root.style.setProperty('--card-bg', 'rgba(212,165,116,0.15)');
-            break;
-        case 'ocean':
-            root.style.setProperty('--primary', '#00b4d8');
-            root.style.setProperty('--secondary', '#0077b6');
-            root.style.setProperty('--accent', '#90e0ef');
-            root.style.setProperty('--bg', '#03045e');
-            root.style.setProperty('--card-bg', 'rgba(0,180,216,0.1)');
-            break;
-        case 'forest':
-            root.style.setProperty('--primary', '#52b788');
-            root.style.setProperty('--secondary', '#2d6a4f');
-            root.style.setProperty('--accent', '#95d5b2');
-            root.style.setProperty('--bg', '#1b4332');
-            root.style.setProperty('--card-bg', 'rgba(82,183,136,0.1)');
-            break;
-        case 'royal':
-            root.style.setProperty('--primary', '#9b5de5');
-            root.style.setProperty('--secondary', '#6a0572');
-            root.style.setProperty('--accent', '#f15bb5');
-            root.style.setProperty('--bg', '#240046');
-            root.style.setProperty('--card-bg', 'rgba(155,93,229,0.1)');
-            break;
-        default:
-            setTheme('classic');
-    }
+    document.body.setAttribute('data-theme', theme);
+    document.querySelectorAll('.theme-card').forEach(function(card) {
+        card.classList.remove('active');
+        if (card.getAttribute('data-theme') === theme) card.classList.add('active');
+    });
+    saveGame();
 }
 
 // --- Character Definitions ---
@@ -283,48 +247,52 @@ const CHARACTERS = {
         name: 'داود الملك',
         emoji: '👑',
         color: '#FFD700',
-        desc: 'محارب شجاع وملك عظيم',
-        power: 'ضربة المقلاع - قوة مضاعفة',
+        role: 'محارب شجاع وملك عظيم',
+        ability: 'ضربة المقلاع - قوة مضاعفة',
         unlocked: true
     },
     joshua: {
         name: 'يشوع بن نون',
         emoji: '⚔️',
         color: '#FF6B35',
-        desc: 'قائد شعب الله',
-        power: 'صيحة النصر - تجميد الوقت',
+        role: 'قائد شعب الله',
+        ability: 'صيحة النصر - تجميد الوقت',
         unlocked: true
     },
     daniel: {
         name: 'دانيال النبي',
         emoji: '🦁',
         color: '#4ECDC4',
-        desc: 'حكيم في جب الأسود',
-        power: 'حكمة إلهية - كشف الإجابة',
+        role: 'حكيم في جب الأسود',
+        ability: 'حكمة إلهية - كشف الإجابة',
+        cost: 30,
         unlocked: false
     },
     moses: {
         name: 'موسى النبي',
         emoji: '🔥',
         color: '#E63946',
-        desc: 'كليم الله',
-        power: 'عصا موسى - حذف إجابتين',
+        role: 'كليم الله',
+        ability: 'عصا موسى - حذف إجابتين',
+        cost: 50,
         unlocked: false
     },
     samson: {
         name: 'شمشون الجبار',
         emoji: '💪',
         color: '#2EC4B6',
-        desc: 'أقوى رجل في التاريخ',
-        power: 'قوة خارقة - نقاط إضافية',
+        role: 'أقوى رجل في التاريخ',
+        ability: 'قوة خارقة - نقاط إضافية',
+        cost: 80,
         unlocked: false
     },
     samuel: {
         name: 'صموئيل النبي',
         emoji: '📖',
         color: '#9B5DE5',
-        desc: 'سمع صوت الرب',
-        power: 'صوت الرب - تلميح إضافي',
+        role: 'سمع صوت الرب',
+        ability: 'صوت الرب - تلميح إضافي',
+        cost: 100,
         unlocked: false
     }
 };
@@ -367,55 +335,55 @@ function shadeColor(color, percent) {
 const ARMOR_ITEMS = {
     helmet: {
         name: 'خوذة الخلاص',
-        emoji: '⛑️',
+        icon: '⛑️',
         slot: 'head',
         desc: 'تحمي عقلك بكلمة الله',
-        bonus: 'وقت إضافي +5 ثواني',
+        verse: 'خوذة الخلاص - أف 6:17',
         cost: 50,
         effect: { extraTime: 5 }
     },
     breastplate: {
         name: 'درع البر',
-        emoji: '🛡️',
+        icon: '🛡️',
         slot: 'chest',
         desc: 'يحمي قلبك من الخطية',
-        bonus: 'حياة إضافية',
+        verse: 'درع البر - أف 6:14',
         cost: 80,
         effect: { extraLife: 1 }
     },
     belt: {
         name: 'منطقة الحق',
-        emoji: '📿',
+        icon: '📿',
         slot: 'waist',
         desc: 'الحق يحررك',
-        bonus: 'نقاط مضاعفة x1.5',
+        verse: 'منطقة الحق - أف 6:14',
         cost: 60,
         effect: { scoreMultiplier: 1.5 }
     },
     shoes: {
         name: 'حذاء الإنجيل',
-        emoji: '👟',
+        icon: '👟',
         slot: 'feet',
         desc: 'استعداد إنجيل السلام',
-        bonus: 'سرعة إضافية',
+        verse: 'إنجيل السلام - أف 6:15',
         cost: 40,
         effect: { speedBoost: true }
     },
     shield: {
         name: 'ترس الإيمان',
-        emoji: '🔰',
+        icon: '🔰',
         slot: 'hand',
         desc: 'يطفئ سهام الشرير',
-        bonus: 'حماية من خطأ واحد',
+        verse: 'ترس الإيمان - أف 6:16',
         cost: 100,
         effect: { errorShield: 1 }
     },
     sword: {
         name: 'سيف الروح',
-        emoji: '🗡️',
+        icon: '🗡️',
         slot: 'weapon',
         desc: 'كلمة الله الحية',
-        bonus: 'قوة هجوم مضاعفة',
+        verse: 'سيف الروح - أف 6:17',
         cost: 120,
         effect: { attackPower: 2 }
     }
@@ -423,116 +391,116 @@ const ARMOR_ITEMS = {
 
 // --- Levels ---
 const LEVELS = [
-    { id: 1,  name: 'بداية الرحلة',     type: 'normal',    questions: 5,  timePerQ: 20, starsNeeded: 0,  reward: 10 },
-    { id: 2,  name: 'أرض الموعد',       type: 'normal',    questions: 5,  timePerQ: 18, starsNeeded: 3,  reward: 15 },
+    { id: 1,  name: 'بداية الرحلة',     type: 'quiz',    questions: 5,  timePerQ: 20, starsNeeded: 0,  reward: 10 },
+    { id: 2,  name: 'أرض الموعد',       type: 'quiz',    questions: 5,  timePerQ: 18, starsNeeded: 3,  reward: 15 },
     { id: 3,  name: 'المزامير',          type: 'psalm',     questions: 5,  timePerQ: 25, starsNeeded: 5,  reward: 20 },
     { id: 4,  name: 'تحدي الإيمان',      type: 'truefalse', questions: 8,  timePerQ: 12, starsNeeded: 8,  reward: 20 },
-    { id: 5,  name: 'الوحش الأول',       type: 'boss',      questions: 10, timePerQ: 15, starsNeeded: 12, reward: 30 },
+    { id: 5,  name: 'الوحش الأول',       type: 'quiz',      questions: 10, timePerQ: 15, starsNeeded: 12, reward: 30 },
     { id: 6,  name: 'الترتيب المقدس',    type: 'order',     questions: 5,  timePerQ: 30, starsNeeded: 15, reward: 25 },
     { id: 7,  name: 'الفرق المخفي',      type: 'spotdiff',  questions: 5,  timePerQ: 20, starsNeeded: 18, reward: 25 },
     { id: 8,  name: 'أكمل الآية',        type: 'missing',   questions: 6,  timePerQ: 20, starsNeeded: 22, reward: 25 },
     { id: 9,  name: 'صل وتذكر',         type: 'memory',    questions: 6,  timePerQ: 30, starsNeeded: 25, reward: 30 },
-    { id: 10, name: 'الوحش الثاني',      type: 'boss',      questions: 12, timePerQ: 14, starsNeeded: 28, reward: 40 },
+    { id: 10, name: 'الوحش الثاني',      type: 'quiz',      questions: 12, timePerQ: 14, starsNeeded: 28, reward: 40 },
     { id: 11, name: 'صور مقدسة',        type: 'picguess',  questions: 5,  timePerQ: 20, starsNeeded: 32, reward: 30 },
     { id: 12, name: 'أوصل الخط',        type: 'connect',   questions: 6,  timePerQ: 25, starsNeeded: 35, reward: 30 },
     { id: 13, name: 'اللغز المقدس',      type: 'puzzle',    questions: 5,  timePerQ: 35, starsNeeded: 38, reward: 35 },
     { id: 14, name: 'صح أم خطأ ٢',      type: 'truefalse', questions: 10, timePerQ: 10, starsNeeded: 42, reward: 30 },
-    { id: 15, name: 'الوحش الثالث',      type: 'boss',      questions: 14, timePerQ: 13, starsNeeded: 45, reward: 50 },
+    { id: 15, name: 'الوحش الثالث',      type: 'quiz',      questions: 14, timePerQ: 13, starsNeeded: 45, reward: 50 },
     { id: 16, name: 'المتاهة',           type: 'maze',      questions: 3,  timePerQ: 45, starsNeeded: 50, reward: 40 },
     { id: 17, name: 'صور وألغاز',       type: 'imgpuzzle', questions: 5,  timePerQ: 30, starsNeeded: 54, reward: 35 },
     { id: 18, name: 'الذاكرة القوية',    type: 'memory',    questions: 8,  timePerQ: 25, starsNeeded: 58, reward: 35 },
-    { id: 19, name: 'تحدي السرعة',      type: 'normal',    questions: 10, timePerQ: 10, starsNeeded: 62, reward: 40 },
-    { id: 20, name: 'الوحش الرابع',      type: 'boss',      questions: 16, timePerQ: 12, starsNeeded: 66, reward: 60 },
+    { id: 19, name: 'تحدي السرعة',      type: 'quiz',    questions: 10, timePerQ: 10, starsNeeded: 62, reward: 40 },
+    { id: 20, name: 'الوحش الرابع',      type: 'quiz',      questions: 16, timePerQ: 12, starsNeeded: 66, reward: 60 },
     { id: 21, name: 'المزامير ٢',        type: 'psalm',     questions: 8,  timePerQ: 20, starsNeeded: 72, reward: 45 },
     { id: 22, name: 'أوصل ٢',          type: 'connect',   questions: 8,  timePerQ: 22, starsNeeded: 76, reward: 45 },
     { id: 23, name: 'الترتيب النهائي',   type: 'order',     questions: 8,  timePerQ: 25, starsNeeded: 80, reward: 50 },
-    { id: 24, name: 'التحدي الأخير',     type: 'normal',    questions: 15, timePerQ: 12, starsNeeded: 85, reward: 60 },
-    { id: 25, name: 'ملك الأبطال',       type: 'boss',      questions: 20, timePerQ: 10, starsNeeded: 90, reward: 100 }
+    { id: 24, name: 'التحدي الأخير',     type: 'quiz',    questions: 15, timePerQ: 12, starsNeeded: 85, reward: 60 },
+    { id: 25, name: 'ملك الأبطال',       type: 'quiz',      questions: 20, timePerQ: 10, starsNeeded: 90, reward: 100 }
 ];
 
 // --- Categories ---
 const CATEGORIES = [
-    { id: 'bible',   name: 'الكتاب المقدس', emoji: '📖', color: '#FFD700' },
-    { id: 'liturgy', name: 'الطقس الكنسي',   emoji: '⛪', color: '#E63946' },
-    { id: 'creed',   name: 'العقيدة',         emoji: '✝️', color: '#4ECDC4' },
-    { id: 'history', name: 'تاريخ الكنيسة',   emoji: '📜', color: '#9B5DE5' },
-    { id: 'service', name: 'الخدمة',          emoji: '🕊️', color: '#FF6B35' }
+    { id: 'bible',   name: 'الكتاب المقدس', icon: '📖', color: '#FFD700' },
+    { id: 'liturgy', name: 'الطقس الكنسي',   icon: '⛪', color: '#E63946' },
+    { id: 'creed',   name: 'العقيدة',         icon: '✝️', color: '#4ECDC4' },
+    { id: 'history', name: 'تاريخ الكنيسة',   icon: '📜', color: '#9B5DE5' },
+    { id: 'service', name: 'الخدمة',          icon: '🕊️', color: '#FF6B35' }
 ];
 
 // --- Questions Database ---
 const QUESTIONS = {
     bible: [
-        { q: 'من هو أول ملك على إسرائيل؟', a: ['شاول', 'داود', 'سليمان', 'رحبعام'], correct: 0 },
-        { q: 'كم يوم صام الرب يسوع في البرية؟', a: ['30', '40', '50', '70'], correct: 1 },
-        { q: 'من بنى الفلك؟', a: ['إبراهيم', 'موسى', 'نوح', 'داود'], correct: 2 },
-        { q: 'ما هو أول سفر في الكتاب المقدس؟', a: ['التكوين', 'الخروج', 'المزامير', 'يوحنا'], correct: 0 },
-        { q: 'من قتل جليات؟', a: ['شاول', 'يوناثان', 'داود', 'شمشون'], correct: 2 },
-        { q: 'كم عدد تلاميذ المسيح؟', a: ['7', '10', '12', '14'], correct: 2 },
-        { q: 'أين ولد الرب يسوع؟', a: ['الناصرة', 'أورشليم', 'بيت لحم', 'مصر'], correct: 2 },
-        { q: 'من هو النبي الذي ابتلعه الحوت؟', a: ['إيليا', 'يونان', 'إرميا', 'حزقيال'], correct: 1 },
-        { q: 'كم عدد أسفار الكتاب المقدس؟', a: ['66', '72', '73', '80'], correct: 2 },
-        { q: 'من خان الرب يسوع؟', a: ['بطرس', 'يوحنا', 'يهوذا', 'توما'], correct: 2 },
-        { q: 'ما هي أول معجزة للرب يسوع؟', a: ['تحويل الماء لخمر', 'شفاء الأعمى', 'إقامة لعازر', 'تكثير الخبز'], correct: 0 },
-        { q: 'من هو تلميذ المسيح المحبوب؟', a: ['بطرس', 'يعقوب', 'يوحنا', 'أندراوس'], correct: 2 },
-        { q: 'كم يوم مكث يونان في بطن الحوت؟', a: ['يوم', 'يومان', '3 أيام', '7 أيام'], correct: 2 },
-        { q: 'من هو أبو الآباء؟', a: ['آدم', 'نوح', 'إبراهيم', 'يعقوب'], correct: 2 },
-        { q: 'كم عدد أبناء يعقوب؟', a: ['10', '12', '14', '7'], correct: 1 },
-        { q: 'من فتح البحر الأحمر؟', a: ['يشوع', 'موسى', 'إيليا', 'إليشع'], correct: 1 },
-        { q: 'ما اسم أم صموئيل النبي؟', a: ['سارة', 'حنة', 'راعوث', 'أستير'], correct: 1 },
-        { q: 'أين صعد الرب يسوع إلى السماء؟', a: ['جبل سيناء', 'جبل الزيتون', 'جبل تابور', 'الجلجثة'], correct: 1 },
-        { q: 'كم عدد الوصايا العشر؟', a: ['7', '10', '12', '15'], correct: 1 },
-        { q: 'من كتب سفر المزامير بأغلبيته؟', a: ['موسى', 'سليمان', 'داود', 'آساف'], correct: 2 }
+        { q: 'من هو أول ملك على إسرائيل؟', options: ['شاول', 'داود', 'سليمان', 'رحبعام'], correct: 0 },
+        { q: 'كم يوم صام الرب يسوع في البرية؟', options: ['30', '40', '50', '70'], correct: 1 },
+        { q: 'من بنى الفلك؟', options: ['إبراهيم', 'موسى', 'نوح', 'داود'], correct: 2 },
+        { q: 'ما هو أول سفر في الكتاب المقدس؟', options: ['التكوين', 'الخروج', 'المزامير', 'يوحنا'], correct: 0 },
+        { q: 'من قتل جليات؟', options: ['شاول', 'يوناثان', 'داود', 'شمشون'], correct: 2 },
+        { q: 'كم عدد تلاميذ المسيح؟', options: ['7', '10', '12', '14'], correct: 2 },
+        { q: 'أين ولد الرب يسوع؟', options: ['الناصرة', 'أورشليم', 'بيت لحم', 'مصر'], correct: 2 },
+        { q: 'من هو النبي الذي ابتلعه الحوت؟', options: ['إيليا', 'يونان', 'إرميا', 'حزقيال'], correct: 1 },
+        { q: 'كم عدد أسفار الكتاب المقدس؟', options: ['66', '72', '73', '80'], correct: 2 },
+        { q: 'من خان الرب يسوع؟', options: ['بطرس', 'يوحنا', 'يهوذا', 'توما'], correct: 2 },
+        { q: 'ما هي أول معجزة للرب يسوع؟', options: ['تحويل الماء لخمر', 'شفاء الأعمى', 'إقامة لعازر', 'تكثير الخبز'], correct: 0 },
+        { q: 'من هو تلميذ المسيح المحبوب؟', options: ['بطرس', 'يعقوب', 'يوحنا', 'أندراوس'], correct: 2 },
+        { q: 'كم يوم مكث يونان في بطن الحوت؟', options: ['يوم', 'يومان', '3 أيام', '7 أيام'], correct: 2 },
+        { q: 'من هو أبو الآباء؟', options: ['آدم', 'نوح', 'إبراهيم', 'يعقوب'], correct: 2 },
+        { q: 'كم عدد أبناء يعقوب؟', options: ['10', '12', '14', '7'], correct: 1 },
+        { q: 'من فتح البحر الأحمر؟', options: ['يشوع', 'موسى', 'إيليا', 'إليشع'], correct: 1 },
+        { q: 'ما اسم أم صموئيل النبي؟', options: ['سارة', 'حنة', 'راعوث', 'أستير'], correct: 1 },
+        { q: 'أين صعد الرب يسوع إلى السماء؟', options: ['جبل سيناء', 'جبل الزيتون', 'جبل تابور', 'الجلجثة'], correct: 1 },
+        { q: 'كم عدد الوصايا العشر؟', options: ['7', '10', '12', '15'], correct: 1 },
+        { q: 'من كتب سفر المزامير بأغلبيته؟', options: ['موسى', 'سليمان', 'داود', 'آساف'], correct: 2 }
     ],
     liturgy: [
-        { q: 'كم عدد الأسرار الكنسية؟', a: ['5', '7', '9', '12'], correct: 1 },
-        { q: 'ما هو أول سر من أسرار الكنيسة؟', a: ['المعمودية', 'الميرون', 'التناول', 'الاعتراف'], correct: 0 },
-        { q: 'كم مرة نصلي المزامير في الأجبية يومياً؟', a: ['5', '7', '9', '12'], correct: 1 },
-        { q: 'ما اسم الصلاة قبل النوم؟', a: ['باكر', 'الغروب', 'النوم', 'نصف الليل'], correct: 2 },
-        { q: 'ما هو لون ملابس الكهنة في الأعياد؟', a: ['أسود', 'أبيض', 'أحمر', 'ذهبي'], correct: 1 },
-        { q: 'كم يوم صوم الميلاد؟', a: ['40', '43', '55', '50'], correct: 1 },
-        { q: 'ما اسم القداس الأكثر استخداماً؟', a: ['الباسيلي', 'الغريغوري', 'الكيرلسي', 'المرقسي'], correct: 0 },
-        { q: 'متى يبدأ الصوم الكبير؟', a: ['بعد عيد الغطاس', 'قبل القيامة ب55 يوم', 'في شهر مارس', 'بعد عيد الصليب'], correct: 1 },
-        { q: 'ما معنى كلمة "أوشية"؟', a: ['صلاة', 'طلبة', 'تسبحة', 'قراءة'], correct: 1 },
-        { q: 'ما هو أطول صوم في الكنيسة القبطية؟', a: ['صوم الميلاد', 'الصوم الكبير', 'صوم الرسل', 'صوم العذراء'], correct: 1 },
-        { q: 'كم عدد صلوات الأجبية؟', a: ['5', '7', '9', '12'], correct: 1 },
-        { q: 'ما معنى كلمة "إفنوتي"؟', a: ['الرب', 'الله', 'القدوس', 'الملك'], correct: 1 },
-        { q: 'في أي اتجاه يصلي الأقباط؟', a: ['الشمال', 'الجنوب', 'الشرق', 'الغرب'], correct: 2 }
+        { q: 'كم عدد الأسرار الكنسية؟', options: ['5', '7', '9', '12'], correct: 1 },
+        { q: 'ما هو أول سر من أسرار الكنيسة؟', options: ['المعمودية', 'الميرون', 'التناول', 'الاعتراف'], correct: 0 },
+        { q: 'كم مرة نصلي المزامير في الأجبية يومياً؟', options: ['5', '7', '9', '12'], correct: 1 },
+        { q: 'ما اسم الصلاة قبل النوم؟', options: ['باكر', 'الغروب', 'النوم', 'نصف الليل'], correct: 2 },
+        { q: 'ما هو لون ملابس الكهنة في الأعياد؟', options: ['أسود', 'أبيض', 'أحمر', 'ذهبي'], correct: 1 },
+        { q: 'كم يوم صوم الميلاد؟', options: ['40', '43', '55', '50'], correct: 1 },
+        { q: 'ما اسم القداس الأكثر استخداماً؟', options: ['الباسيلي', 'الغريغوري', 'الكيرلسي', 'المرقسي'], correct: 0 },
+        { q: 'متى يبدأ الصوم الكبير؟', options: ['بعد عيد الغطاس', 'قبل القيامة ب55 يوم', 'في شهر مارس', 'بعد عيد الصليب'], correct: 1 },
+        { q: 'ما معنى كلمة "أوشية"؟', options: ['صلاة', 'طلبة', 'تسبحة', 'قراءة'], correct: 1 },
+        { q: 'ما هو أطول صوم في الكنيسة القبطية؟', options: ['صوم الميلاد', 'الصوم الكبير', 'صوم الرسل', 'صوم العذراء'], correct: 1 },
+        { q: 'كم عدد صلوات الأجبية؟', options: ['5', '7', '9', '12'], correct: 1 },
+        { q: 'ما معنى كلمة "إفنوتي"؟', options: ['الرب', 'الله', 'القدوس', 'الملك'], correct: 1 },
+        { q: 'في أي اتجاه يصلي الأقباط؟', options: ['الشمال', 'الجنوب', 'الشرق', 'الغرب'], correct: 2 }
     ],
     creed: [
-        { q: 'كم عدد بنود قانون الإيمان؟', a: ['10', '12', '14', '7'], correct: 1 },
-        { q: 'في أي مجمع تم وضع قانون الإيمان؟', a: ['أفسس', 'نيقية', 'خلقيدونية', 'القسطنطينية'], correct: 1 },
-        { q: 'ما هي طبيعة المسيح حسب إيماننا؟', a: ['طبيعة واحدة', 'طبيعتان', 'ثلاث طبائع', 'لا طبيعة'], correct: 0 },
-        { q: 'من هو مؤسس الكنيسة القبطية؟', a: ['بولس', 'بطرس', 'مرقس', 'يوحنا'], correct: 2 },
-        { q: 'ما معنى كلمة "أرثوذكسي"؟', a: ['مسيحي', 'مستقيم الرأي', 'قبطي', 'شرقي'], correct: 1 },
-        { q: 'كم عدد أقانيم الثالوث القدوس؟', a: ['1', '2', '3', '4'], correct: 2 },
-        { q: 'ما هو مجمع نيقية سنة كام؟', a: ['300', '325', '350', '400'], correct: 1 },
-        { q: 'من دافع عن الإيمان ضد أريوس؟', a: ['كيرلس', 'أثناسيوس', 'ديسقوروس', 'ساويرس'], correct: 1 },
-        { q: 'ما معنى كلمة "هومو أوسيوس"؟', a: ['مشابه الجوهر', 'واحد الجوهر', 'مختلف الجوهر', 'بلا جوهر'], correct: 1 },
-        { q: 'كم عدد المجامع المسكونية التي تعترف بها الكنيسة القبطية؟', a: ['3', '4', '7', '2'], correct: 0 }
+        { q: 'كم عدد بنود قانون الإيمان؟', options: ['10', '12', '14', '7'], correct: 1 },
+        { q: 'في أي مجمع تم وضع قانون الإيمان؟', options: ['أفسس', 'نيقية', 'خلقيدونية', 'القسطنطينية'], correct: 1 },
+        { q: 'ما هي طبيعة المسيح حسب إيماننا؟', options: ['طبيعة واحدة', 'طبيعتان', 'ثلاث طبائع', 'لا طبيعة'], correct: 0 },
+        { q: 'من هو مؤسس الكنيسة القبطية؟', options: ['بولس', 'بطرس', 'مرقس', 'يوحنا'], correct: 2 },
+        { q: 'ما معنى كلمة "أرثوذكسي"؟', options: ['مسيحي', 'مستقيم الرأي', 'قبطي', 'شرقي'], correct: 1 },
+        { q: 'كم عدد أقانيم الثالوث القدوس؟', options: ['1', '2', '3', '4'], correct: 2 },
+        { q: 'ما هو مجمع نيقية سنة كام؟', options: ['300', '325', '350', '400'], correct: 1 },
+        { q: 'من دافع عن الإيمان ضد أريوس؟', options: ['كيرلس', 'أثناسيوس', 'ديسقوروس', 'ساويرس'], correct: 1 },
+        { q: 'ما معنى كلمة "هومو أوسيوس"؟', options: ['مشابه الجوهر', 'واحد الجوهر', 'مختلف الجوهر', 'بلا جوهر'], correct: 1 },
+        { q: 'كم عدد المجامع المسكونية التي تعترف بها الكنيسة القبطية؟', options: ['3', '4', '7', '2'], correct: 0 }
     ],
     history: [
-        { q: 'في أي سنة تأسست الكنيسة القبطية تقريباً؟', a: ['33 م', '55 م', '100 م', '200 م'], correct: 1 },
-        { q: 'من هو بابا الإسكندرية الحالي؟', a: ['شنودة الثالث', 'كيرلس السادس', 'تواضروس الثاني', 'بطرس'], correct: 2 },
-        { q: 'أين استشهد مارمرقس؟', a: ['روما', 'أورشليم', 'الإسكندرية', 'أنطاكية'], correct: 2 },
-        { q: 'من هو أبو الرهبنة؟', a: ['الأنبا بولا', 'الأنبا أنطونيوس', 'الأنبا مقار', 'الأنبا شنودة'], correct: 1 },
-        { q: 'أين يقع دير الأنبا أنطونيوس؟', a: ['الفيوم', 'وادي النطرون', 'البحر الأحمر', 'أسيوط'], correct: 2 },
-        { q: 'من هو البابا الذي لقب بعمود الدين؟', a: ['أثناسيوس', 'كيرلس الأول', 'ديسقوروس', 'بطرس'], correct: 0 },
-        { q: 'كم عدد باباوات الكنيسة القبطية حتى الآن تقريباً؟', a: ['100', '110', '118', '120'], correct: 2 },
-        { q: 'ما هي مدرسة الإسكندرية اللاهوتية؟', a: ['مدرسة حديثة', 'أقدم مدرسة لاهوتية', 'مدرسة كاثوليكية', 'مدرسة بروتستانتية'], correct: 1 },
-        { q: 'من هو أول شهيد في المسيحية؟', a: ['بطرس', 'بولس', 'استفانوس', 'يعقوب'], correct: 2 },
-        { q: 'متى بدأ التقويم القبطي (تقويم الشهداء)؟', a: ['سنة 1', 'سنة 284 م', 'سنة 325 م', 'سنة 451 م'], correct: 1 }
+        { q: 'في أي سنة تأسست الكنيسة القبطية تقريباً؟', options: ['33 م', '55 م', '100 م', '200 م'], correct: 1 },
+        { q: 'من هو بابا الإسكندرية الحالي؟', options: ['شنودة الثالث', 'كيرلس السادس', 'تواضروس الثاني', 'بطرس'], correct: 2 },
+        { q: 'أين استشهد مارمرقس؟', options: ['روما', 'أورشليم', 'الإسكندرية', 'أنطاكية'], correct: 2 },
+        { q: 'من هو أبو الرهبنة؟', options: ['الأنبا بولا', 'الأنبا أنطونيوس', 'الأنبا مقار', 'الأنبا شنودة'], correct: 1 },
+        { q: 'أين يقع دير الأنبا أنطونيوس؟', options: ['الفيوم', 'وادي النطرون', 'البحر الأحمر', 'أسيوط'], correct: 2 },
+        { q: 'من هو البابا الذي لقب بعمود الدين؟', options: ['أثناسيوس', 'كيرلس الأول', 'ديسقوروس', 'بطرس'], correct: 0 },
+        { q: 'كم عدد باباوات الكنيسة القبطية حتى الآن تقريباً؟', options: ['100', '110', '118', '120'], correct: 2 },
+        { q: 'ما هي مدرسة الإسكندرية اللاهوتية؟', options: ['مدرسة حديثة', 'أقدم مدرسة لاهوتية', 'مدرسة كاثوليكية', 'مدرسة بروتستانتية'], correct: 1 },
+        { q: 'من هو أول شهيد في المسيحية؟', options: ['بطرس', 'بولس', 'استفانوس', 'يعقوب'], correct: 2 },
+        { q: 'متى بدأ التقويم القبطي (تقويم الشهداء)؟', options: ['سنة 1', 'سنة 284 م', 'سنة 325 م', 'سنة 451 م'], correct: 1 }
     ],
     service: [
-        { q: 'ما هو هدف مدارس الأحد؟', a: ['اللعب', 'التعليم الديني', 'الرياضة', 'الموسيقى'], correct: 1 },
-        { q: 'من أسس مدارس الأحد في مصر؟', a: ['البابا شنودة', 'البابا كيرلس', 'حبيب جرجس', 'نظير جيد'], correct: 2 },
-        { q: 'ما هي أهم صفة في الخادم؟', a: ['الذكاء', 'المحبة', 'القوة', 'الغنى'], correct: 1 },
-        { q: 'ما هو دور الشماس في الكنيسة؟', a: ['التعليم فقط', 'خدمة المذبح والترتيل', 'الكهنوت', 'الرهبنة'], correct: 1 },
-        { q: 'كم سنة خدم حبيب جرجس مدارس الأحد؟', a: ['20', '30', '40', '50'], correct: 2 },
-        { q: 'ما هي أفضل وسيلة للخدمة؟', a: ['المال', 'القدوة الحسنة', 'الكلام فقط', 'الترفيه'], correct: 1 },
-        { q: 'ما معنى كلمة "دياكون"؟', a: ['كاهن', 'خادم', 'أسقف', 'راهب'], correct: 1 },
-        { q: 'ما هو أول شيء يجب أن يفعله الخادم؟', a: ['يقرأ', 'يصلي', 'يلعب', 'ينام'], correct: 1 },
-        { q: 'لماذا نخدم في الكنيسة؟', a: ['للشهرة', 'لمحبة المسيح', 'للمال', 'للواجب فقط'], correct: 1 },
-        { q: 'من قال "أنا هو الطريق والحق والحياة"؟', a: ['بولس', 'بطرس', 'الرب يسوع', 'موسى'], correct: 2 }
+        { q: 'ما هو هدف مدارس الأحد؟', options: ['اللعب', 'التعليم الديني', 'الرياضة', 'الموسيقى'], correct: 1 },
+        { q: 'من أسس مدارس الأحد في مصر؟', options: ['البابا شنودة', 'البابا كيرلس', 'حبيب جرجس', 'نظير جيد'], correct: 2 },
+        { q: 'ما هي أهم صفة في الخادم؟', options: ['الذكاء', 'المحبة', 'القوة', 'الغنى'], correct: 1 },
+        { q: 'ما هو دور الشماس في الكنيسة؟', options: ['التعليم فقط', 'خدمة المذبح والترتيل', 'الكهنوت', 'الرهبنة'], correct: 1 },
+        { q: 'كم سنة خدم حبيب جرجس مدارس الأحد؟', options: ['20', '30', '40', '50'], correct: 2 },
+        { q: 'ما هي أفضل وسيلة للخدمة؟', options: ['المال', 'القدوة الحسنة', 'الكلام فقط', 'الترفيه'], correct: 1 },
+        { q: 'ما معنى كلمة "دياكون"؟', options: ['كاهن', 'خادم', 'أسقف', 'راهب'], correct: 1 },
+        { q: 'ما هو أول شيء يجب أن يفعله الخادم؟', options: ['يقرأ', 'يصلي', 'يلعب', 'ينام'], correct: 1 },
+        { q: 'لماذا نخدم في الكنيسة؟', options: ['للشهرة', 'لمحبة المسيح', 'للمال', 'للواجب فقط'], correct: 1 },
+        { q: 'من قال "أنا هو الطريق والحق والحياة"؟', options: ['بولس', 'بطرس', 'الرب يسوع', 'موسى'], correct: 2 }
     ]
 };
 
@@ -573,40 +541,40 @@ const MEMORY_THEMES = [
     {
         name: 'رموز الكنيسة',
         pairs: [
-            { id: 'cross', display: '✝️', label: 'صليب' },
-            { id: 'dove', display: '🕊️', label: 'حمامة' },
-            { id: 'fish', display: '🐟', label: 'سمكة' },
-            { id: 'candle', display: '🕯️', label: 'شمعة' },
-            { id: 'book', display: '📖', label: 'كتاب' },
-            { id: 'bell', display: '🔔', label: 'جرس' },
-            { id: 'star', display: '⭐', label: 'نجمة' },
-            { id: 'heart', display: '❤️', label: 'قلب' }
+            { a: '✝️', b: 'صليب' },
+            { a: '🕊️', b: 'حمامة' },
+            { a: '🐟', b: 'سمكة' },
+            { a: '🕯️', b: 'شمعة' },
+            { a: '📖', b: 'كتاب' },
+            { a: '🔔', b: 'جرس' },
+            { a: '⭐', b: 'نجمة' },
+            { a: '❤️', b: 'قلب' }
         ]
     },
     {
         name: 'شخصيات كتابية',
         pairs: [
-            { id: 'moses', display: '🏔️', label: 'موسى' },
-            { id: 'david2', display: '👑', label: 'داود' },
-            { id: 'noah', display: '🚢', label: 'نوح' },
-            { id: 'jonah', display: '🐋', label: 'يونان' },
-            { id: 'abraham', display: '🌟', label: 'إبراهيم' },
-            { id: 'elijah', display: '🔥', label: 'إيليا' },
-            { id: 'joseph', display: '🌾', label: 'يوسف' },
-            { id: 'samson2', display: '🦁', label: 'شمشون' }
+            { a: '🏔️', b: 'موسى' },
+            { a: '👑', b: 'داود' },
+            { a: '🚢', b: 'نوح' },
+            { a: '🐋', b: 'يونان' },
+            { a: '🌟', b: 'إبراهيم' },
+            { a: '🔥', b: 'إيليا' },
+            { a: '🌾', b: 'يوسف' },
+            { a: '🦁', b: 'شمشون' }
         ]
     },
     {
         name: 'أعياد الكنيسة',
         pairs: [
-            { id: 'christmas', display: '🎄', label: 'الميلاد' },
-            { id: 'easter', display: '🥚', label: 'القيامة' },
-            { id: 'epiphany', display: '💧', label: 'الغطاس' },
-            { id: 'palm', display: '🌿', label: 'الشعانين' },
-            { id: 'pentecost', display: '🔥', label: 'العنصرة' },
-            { id: 'transfig', display: '✨', label: 'التجلي' },
-            { id: 'annunc', display: '👼', label: 'البشارة' },
-            { id: 'assumption', display: '☁️', label: 'العذراء' }
+            { a: '🎄', b: 'الميلاد' },
+            { a: '🥚', b: 'القيامة' },
+            { a: '💧', b: 'الغطاس' },
+            { a: '🌿', b: 'الشعانين' },
+            { a: '🔥', b: 'العنصرة' },
+            { a: '✨', b: 'التجلي' },
+            { a: '👼', b: 'البشارة' },
+            { a: '☁️', b: 'العذراء' }
         ]
     }
 ];
@@ -615,23 +583,23 @@ const MEMORY_THEMES = [
 const PSALMS = [
     {
         ref: 'مزمور 23',
-        fullText: 'الرب راعيّ فلا يعوزني شيء. في مراعٍ خضر يربضني. إلى مياه الراحة يوردني. يرد نفسي. يهديني إلى سبل البر من أجل اسمه.',
-        blanks: ['راعيّ', 'يعوزني', 'خضر', 'الراحة', 'نفسي', 'البر']
+        text: 'الرب راعيّ فلا يعوزني شيء. في مراعٍ خضر يربضني. إلى مياه الراحة يوردني. يرد نفسي. يهديني إلى سبل البر من أجل اسمه.',
+        missingWords: ['راعيّ', 'يعوزني', 'خضر', 'الراحة', 'نفسي', 'البر']
     },
     {
         ref: 'مزمور 1',
-        fullText: 'طوبى للرجل الذي لم يسلك في مشورة الأشرار وفي طريق الخطاة لم يقف وفي مجلس المستهزئين لم يجلس.',
-        blanks: ['طوبى', 'مشورة', 'الأشرار', 'الخطاة', 'المستهزئين', 'يجلس']
+        text: 'طوبى للرجل الذي لم يسلك في مشورة الأشرار وفي طريق الخطاة لم يقف وفي مجلس المستهزئين لم يجلس.',
+        missingWords: ['طوبى', 'مشورة', 'الأشرار', 'الخطاة', 'المستهزئين', 'يجلس']
     },
     {
         ref: 'مزمور 51',
-        fullText: 'ارحمني يا الله حسب رحمتك. حسب كثرة رأفتك امح معاصيّ. اغسلني كثيراً من إثمي ومن خطيتي طهرني.',
-        blanks: ['ارحمني', 'رحمتك', 'رأفتك', 'معاصيّ', 'إثمي', 'طهرني']
+        text: 'ارحمني يا الله حسب رحمتك. حسب كثرة رأفتك امح معاصيّ. اغسلني كثيراً من إثمي ومن خطيتي طهرني.',
+        missingWords: ['ارحمني', 'رحمتك', 'رأفتك', 'معاصيّ', 'إثمي', 'طهرني']
     },
     {
         ref: 'مزمور 150',
-        fullText: 'هللويا. سبحوا الله في قدسه. سبحوه في فلك قوته. سبحوه على قواته. سبحوه ككثرة عظمته.',
-        blanks: ['هللويا', 'قدسه', 'قوته', 'قواته', 'عظمته', 'سبحوه']
+        text: 'هللويا. سبحوا الله في قدسه. سبحوه في فلك قوته. سبحوه على قواته. سبحوه ككثرة عظمته.',
+        missingWords: ['هللويا', 'قدسه', 'قوته', 'قواته', 'عظمته', 'سبحوه']
     }
 ];
 
@@ -639,70 +607,71 @@ const PSALMS = [
 const SPOT_DIFF_SCENES = [
     {
         name: 'الكنيسة',
-        baseItems: [
-            { emoji: '⛪', x: 150, y: 80, size: 60 },
-            { emoji: '✝️', x: 150, y: 30, size: 30 },
-            { emoji: '🕯️', x: 60, y: 120, size: 25 },
-            { emoji: '🕯️', x: 240, y: 120, size: 25 },
-            { emoji: '📖', x: 150, y: 140, size: 30 },
-            { emoji: '🔔', x: 150, y: 10, size: 20 }
+        items: [
+            { x: 120, y: 50, w: 60, h: 80, color: '#8B4513', shape: 'rect', label: 'كنيسة' },
+            { x: 140, y: 20, w: 20, h: 30, color: '#FFD700', shape: 'rect', label: 'صليب' },
+            { x: 40, y: 100, w: 25, h: 30, color: '#FFA500', shape: 'rect', label: 'شمعة' },
+            { x: 220, y: 100, w: 25, h: 30, color: '#FFA500', shape: 'rect', label: 'شمعة' },
+            { x: 130, y: 140, w: 40, h: 30, color: '#8B0000', shape: 'rect', label: 'كتاب' },
+            { x: 140, y: 5, w: 20, h: 15, color: '#C0C0C0', shape: 'circle', label: 'جرس' }
         ],
-        differences: [
-            { type: 'missing', index: 2 },
-            { type: 'missing', index: 5 },
-            { type: 'color', index: 0 }
+        diffs: [
+            { index: 2, property: 'missing' },
+            { index: 5, property: 'missing' },
+            { index: 0, property: 'color', altValue: '#4169E1' }
         ]
     },
     {
         name: 'عيد الميلاد',
-        baseItems: [
-            { emoji: '⭐', x: 150, y: 20, size: 35 },
-            { emoji: '👶', x: 150, y: 100, size: 40 },
-            { emoji: '🐑', x: 60, y: 140, size: 25 },
-            { emoji: '🐑', x: 240, y: 140, size: 25 },
-            { emoji: '👼', x: 80, y: 40, size: 30 },
-            { emoji: '👼', x: 220, y: 40, size: 30 }
+        items: [
+            { x: 130, y: 10, w: 35, h: 35, color: '#FFD700', shape: 'circle', label: 'نجمة' },
+            { x: 130, y: 80, w: 40, h: 50, color: '#DEB887', shape: 'rect', label: 'مذود' },
+            { x: 40, y: 130, w: 30, h: 25, color: '#F5F5DC', shape: 'circle', label: 'خروف' },
+            { x: 220, y: 130, w: 30, h: 25, color: '#F5F5DC', shape: 'circle', label: 'خروف' },
+            { x: 60, y: 30, w: 30, h: 35, color: '#FFFFFF', shape: 'circle', label: 'ملاك' },
+            { x: 200, y: 30, w: 30, h: 35, color: '#FFFFFF', shape: 'circle', label: 'ملاك' }
         ],
-        differences: [
-            { type: 'missing', index: 0 },
-            { type: 'missing', index: 4 },
-            { type: 'color', index: 2 }
+        diffs: [
+            { index: 0, property: 'missing' },
+            { index: 4, property: 'missing' },
+            { index: 2, property: 'color', altValue: '#808080' }
         ]
     }
 ];
-
 // ============ MISSING ITEMS DATA ============
 const MISSING_ITEMS_DATA = [
     {
         scene: 'أدوات الخدمة',
-        items: ['📖', '✝️', '🕯️', '🔔', '💧', '🍞'],
-        rounds: [
-            { missing: '✝️', choices: ['✝️', '⭐', '🌙', '💎'] },
-            { missing: '🕯️', choices: ['🔥', '🕯️', '💡', '🌟'] },
-            { missing: '💧', choices: ['🌊', '☔', '💧', '❄️'] }
-        ]
+        items: ['📖', '🕯️', '🔔', '💧', '🍞'],
+        question: 'إيه الحاجة الناقصة من أدوات الخدمة؟',
+        correct: '✝️',
+        choices: ['✝️', '⭐', '🌙', '💎']
     },
     {
         scene: 'شخصيات الكتاب المقدس',
-        items: ['👑', '🏔️', '🚢', '🐋', '🦁', '🌾'],
-        rounds: [
-            { missing: '🚢', choices: ['🚢', '⛵', '🛶', '🚤'] },
-            { missing: '🦁', choices: ['🐯', '🐻', '🦁', '🐺'] },
-            { missing: '👑', choices: ['💍', '👑', '🎩', '⛑️'] }
-        ]
+        items: ['👑', '🏔️', '🐋', '🦁', '🌾'],
+        question: 'مين الشخصية الناقصة؟',
+        correct: '🚢',
+        choices: ['🚢', '⛵', '🛶', '🚤']
+    },
+    {
+        scene: 'أسرار الكنيسة',
+        items: ['💧', '🍞', '📿', '💒', '✋'],
+        question: 'إيه السر الناقص؟',
+        correct: '📖',
+        choices: ['📖', '🎵', '🕊️', '⭐']
     }
 ];
-
 // ============ WORD PUZZLES ============
 const WORD_PUZZLES = [
-    { word: 'محبة', hint: 'أعظم الفضائل المسيحية', letters: ['م','ح','ب','ة','ك','ل','و','ن'] },
-    { word: 'إيمان', hint: 'الثقة بما لا نراه', letters: ['إ','ي','م','ا','ن','ه','ب','ت'] },
-    { word: 'صلاة', hint: 'حديث مع الله', letters: ['ص','ل','ا','ة','م','ع','و','ك'] },
-    { word: 'رجاء', hint: 'الأمل في الحياة الأبدية', letters: ['ر','ج','ا','ء','ب','ت','م','ن'] },
-    { word: 'تواضع', hint: 'فضيلة السيد المسيح الأولى', letters: ['ت','و','ا','ض','ع','ب','م','ك'] },
-    { word: 'سلام', hint: 'ما تركه المسيح لتلاميذه', letters: ['س','ل','ا','م','ن','و','ك','ب'] },
-    { word: 'فداء', hint: 'ما فعله المسيح على الصليب', letters: ['ف','د','ا','ء','م','ب','ت','ل'] },
-    { word: 'نعمة', hint: 'عطية الله المجانية', letters: ['ن','ع','م','ة','ب','ك','ت','ل'] }
+    { word: 'محبة', clue: 'أعظم الفضائل المسيحية', letters: ['م','ح','ب','ة','ك','ل','و','ن'] },
+    { word: 'إيمان', clue: 'الثقة بما لا نراه', letters: ['إ','ي','م','ا','ن','ه','ب','ت'] },
+    { word: 'صلاة', clue: 'حديث مع الله', letters: ['ص','ل','ا','ة','م','ع','و','ك'] },
+    { word: 'رجاء', clue: 'الأمل في الحياة الأبدية', letters: ['ر','ج','ا','ء','ب','ت','م','ن'] },
+    { word: 'تواضع', clue: 'فضيلة السيد المسيح الأولى', letters: ['ت','و','ا','ض','ع','ب','م','ك'] },
+    { word: 'سلام', clue: 'ما تركه المسيح لتلاميذه', letters: ['س','ل','ا','م','ن','و','ك','ب'] },
+    { word: 'فداء', clue: 'ما فعله المسيح على الصليب', letters: ['ف','د','ا','ء','م','ب','ت','ل'] },
+    { word: 'نعمة', clue: 'عطية الله المجانية', letters: ['ن','ع','م','ة','ب','ك','ت','ل'] }
 ];
 
 // ============ CONNECT PAIRS DATA ============
@@ -764,44 +733,13 @@ const ORDER_EVENTS_DATA = [
 
 // ============ PICTURE GUESS DATA ============
 const PICTURE_GUESS_DATA = [
-    {
-        question: 'ما هذا الرمز؟',
-        answer: 'صليب',
-        choices: ['صليب', 'نجمة', 'هلال', 'مفتاح'],
-        drawFn: 'drawCross'
-    },
-    {
-        question: 'ما هذا الرمز؟',
-        answer: 'سمكة',
-        choices: ['سمكة', 'قارب', 'طائر', 'ورقة'],
-        drawFn: 'drawFish'
-    },
-    {
-        question: 'ما هذا المبنى؟',
-        answer: 'كنيسة',
-        choices: ['كنيسة', 'مدرسة', 'بيت', 'قلعة'],
-        drawFn: 'drawChurch'
-    },
-    {
-        question: 'ما هذا الشيء؟',
-        answer: 'شمعة',
-        choices: ['شمعة', 'مصباح', 'برج', 'عمود'],
-        drawFn: 'drawCandle'
-    },
-    {
-        question: 'ما هذا الرمز؟',
-        answer: 'حمامة',
-        choices: ['حمامة', 'نسر', 'فراشة', 'سمكة'],
-        drawFn: 'drawDove'
-    },
-    {
-        question: 'ما هذا الشيء؟',
-        answer: 'كتاب مقدس',
-        choices: ['كتاب مقدس', 'دفتر', 'لوح', 'رسالة'],
-        drawFn: 'drawBible'
-    }
+    { name: 'صليب', question: 'ما هذا الرمز؟', correct: 'صليب', choices: ['صليب', 'نجمة', 'هلال', 'مفتاح'], draw: 'drawCross' },
+    { name: 'سمكة', question: 'ما هذا الرمز؟', correct: 'سمكة', choices: ['سمكة', 'قارب', 'طائر', 'ورقة'], draw: 'drawFish' },
+    { name: 'كنيسة', question: 'ما هذا المبنى؟', correct: 'كنيسة', choices: ['كنيسة', 'مدرسة', 'بيت', 'قلعة'], draw: 'drawChurch' },
+    { name: 'شمعة', question: 'ما هذا الشيء؟', correct: 'شمعة', choices: ['شمعة', 'مصباح', 'برج', 'عمود'], draw: 'drawCandle' },
+    { name: 'حمامة', question: 'ما هذا الرمز؟', correct: 'حمامة', choices: ['حمامة', 'نسر', 'فراشة', 'سمكة'], draw: 'drawDove' },
+    { name: 'كتاب', question: 'ما هذا الشيء؟', correct: 'كتاب مقدس', choices: ['كتاب مقدس', 'دفتر', 'لوح', 'رسالة'], draw: 'drawBible' }
 ];
-
 // Picture draw functions
 const PIC_DRAW_FNS = {
     drawCross: function(ctx, w, h, reveal) {
@@ -964,11 +902,49 @@ const PIC_DRAW_FNS = {
 
 // ============ MAZE DATA ============
 const MAZE_DATA = [
-    { rows: 7, cols: 7, keys: 2 },
-    { rows: 9, cols: 9, keys: 3 },
-    { rows: 11, cols: 11, keys: 4 }
+    {
+        keys: 2,
+        grid: [
+            [4,0,1,1,1,1,1],
+            [1,0,0,0,1,0,1],
+            [1,0,1,0,0,0,1],
+            [1,0,1,1,1,0,1],
+            [1,0,0,2,1,0,1],
+            [1,1,1,0,0,2,1],
+            [1,1,1,1,1,0,3]
+        ]
+    },
+    {
+        keys: 3,
+        grid: [
+            [4,0,1,1,1,1,1,1,1],
+            [1,0,0,0,1,0,0,0,1],
+            [1,0,1,0,1,0,1,0,1],
+            [1,0,1,2,0,0,1,0,1],
+            [1,0,1,1,1,0,1,0,1],
+            [1,0,0,0,1,0,0,2,1],
+            [1,1,1,0,1,1,1,0,1],
+            [1,2,0,0,0,0,0,0,1],
+            [1,1,1,1,1,1,1,0,3]
+        ]
+    },
+    {
+        keys: 3,
+        grid: [
+            [1,1,1,1,4,1,1,1,1,1,1],
+            [1,0,0,0,0,0,1,0,0,0,1],
+            [1,0,1,1,1,0,1,0,1,0,1],
+            [1,0,1,2,0,0,0,0,1,0,1],
+            [1,0,1,1,1,1,1,0,1,0,1],
+            [1,0,0,0,0,0,0,0,1,0,1],
+            [1,1,1,0,1,1,1,1,1,0,1],
+            [1,0,0,0,0,2,1,0,0,0,1],
+            [1,0,1,1,1,0,1,0,1,1,1],
+            [1,0,0,0,1,0,0,0,2,0,1],
+            [1,1,1,1,1,1,1,1,1,0,3]
+        ]
+    }
 ];
-
 // ============ RANKS ============
 const RANKS = [
     { min: 0, title: 'مبتدئ', emoji: '🌱' },
@@ -2252,7 +2228,7 @@ function drawPicGuess(q, revealPct) {
     ctx.fillRect(0, 0, cv.width, cv.height);
     // Draw the picture
     if (PIC_DRAW_FNS[q.draw]) {
-        PIC_DRAW_FNS[q.draw](ctx, cv.width, cv.height);
+        PIC_DRAW_FNS[q.draw](ctx, cv.width, cv.height, revealPct);
     }
     // Mask (cover parts based on reveal percentage)
     var blockSize = 30;
@@ -2490,6 +2466,30 @@ function confetti() {
     }
 }
 
+
+// --- Logout ---
+function logout() {
+    GameState.playerName = '';
+    GameState.playerPhone = '';
+    GameState.character = 'david';
+    GameState.currentLevel = 1;
+    GameState.stars = 0;
+    GameState.gems = 0;
+    GameState.streak = 0;
+    GameState.bestStreak = 0;
+    GameState.totalCorrect = 0;
+    GameState.totalAnswered = 0;
+    GameState.levelsData = {};
+    GameState.powerUps = { fiftyFifty: 2, skip: 1, doublePoints: 1, freeze: 1, hint: 2 };
+    GameState.armor = [];
+    GameState.equippedArmor = {};
+    GameState.gamesPlayed = 0;
+    GameState.perfectLevels = 0;
+    localStorage.removeItem('minElBatal_save');
+    showScreen('splash-screen');
+    showToast('تم تسجيل الخروج');
+}
+
 // --- Init ---
 document.addEventListener('DOMContentLoaded', function() {
     createParticles();
@@ -2502,7 +2502,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set saved theme
     if (GameState.theme) {
-        document.body.setAttribute('data-theme', GameState.theme === 'classic' ? 'dark' : GameState.theme);
+        document.body.setAttribute('data-theme', GameState.theme || 'dark');
     }
     
     // Init music (will play on first user interaction)

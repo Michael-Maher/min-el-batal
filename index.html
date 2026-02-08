@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مين البطل؟ | كنيسة الشهيدة رفقة بالعمرانية</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body data-theme="dark">
+    <!-- Particles Background -->
+    <div id="particles"></div>
+
+    <!-- ============ SPLASH SCREEN ============ -->
+    <div id="splash-screen" class="screen active">
+        <div class="splash-content">
+            <div class="church-badge">
+                <span class="cross-icon">✝</span>
+                <p>كنيسة الشهيدة رفقة بالعمرانية</p>
+                <p class="sub-badge">خدمة إعدادي أولاد</p>
+            </div>
+            <h1 class="game-title">
+                <span class="title-accent">مين</span>
+                <span class="title-main">البطل؟</span>
+            </h1>
+            <p class="tagline">إثبت إنك بطل في معرفة كتابك المقدس وكنيستك</p>
+            <button class="btn btn-primary btn-glow" onclick="showScreen('login-screen')">
+                <span><i class="fas fa-play"></i> ابدأ المغامرة</span>
+            </button>
+            <div class="splash-features">
+                <div class="feature-item"><span>📖</span><p>كتاب مقدس</p></div>
+                <div class="feature-item"><span>⛪</span><p>طقس وعقيدة</p></div>
+                <div class="feature-item"><span>🏆</span><p>مستويات وجوائز</p></div>
+                <div class="feature-item"><span>🎮</span><p>تحديات ممتعة</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ LOGIN SCREEN ============ -->
+    <div id="login-screen" class="screen">
+        <div class="card card-center">
+            <div class="login-icon"><i class="fas fa-shield-halved"></i></div>
+            <h2>تسجيل الدخول</h2>
+            <p class="card-subtitle">سجّل عشان نحفظ تقدمك يا بطل</p>
+            <input type="text" id="player-name" class="input-field" placeholder="اسمك إيه؟" maxlength="20" autocomplete="off">
+            <input type="tel" id="player-phone" class="input-field" placeholder="رقم التليفون (01xxxxxxxxx)" maxlength="11" autocomplete="off" dir="ltr">
+            <div class="login-church-note">
+                <span>⛪</span>
+                <span>كنيسة الشهيدة رفقة - إعدادي أولاد</span>
+            </div>
+            <button class="btn btn-primary" onclick="submitLogin()">
+                <span>يلا نبدأ <i class="fas fa-arrow-left"></i></span>
+            </button>
+            <p class="login-hint"><i class="fas fa-cloud"></i> تقدمك محفوظ على السحابة (Firebase) - لو سجّلت قبل كده هنحمّل تقدمك تلقائي</p>
+        </div>
+    </div>
+
+    <!-- ============ CHARACTER SELECT ============ -->
+    <div id="character-screen" class="screen">
+        <div class="screen-inner">
+            <h2><i class="fas fa-masks-theater"></i> اختار شخصيتك</h2>
+            <p class="card-subtitle">كل شخصية ليها قدرة خاصة وشكل مميز</p>
+            <div class="characters-grid" id="characters-grid"></div>
+            <button class="btn btn-primary btn-locked" id="btn-select-char" onclick="confirmCharacter()" disabled>
+                <span>اختار الشخصية دي</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ MAP / LEVELS SCREEN ============ -->
+    <div id="map-screen" class="screen">
+        <div class="screen-inner">
+            <div class="map-header">
+                <div class="player-info">
+                    <div class="player-avatar-container" id="map-avatar-container" onclick="showScreen('shop-screen')">
+                        <canvas id="avatar-canvas" width="64" height="64"></canvas>
+                        <div class="avatar-edit-badge"><i class="fas fa-cart-shopping fa-xs"></i></div>
+                    </div>
+                    <div>
+                        <h3 id="map-player-name"></h3>
+                        <p class="rank-label" id="map-rank"></p>
+                    </div>
+                </div>
+                <div class="player-stats">
+                    <div class="stat"><span class="stat-icon">⭐</span><span id="map-stars">0</span></div>
+                    <div class="stat"><span class="stat-icon">🔥</span><span id="map-streak">0</span></div>
+                    <div class="stat"><span class="stat-icon">💎</span><span id="map-gems">0</span></div>
+                </div>
+            </div>
+            <div class="levels-path" id="levels-path"></div>
+        </div>
+    </div>
+
+    <!-- ============ CATEGORY SELECT ============ -->
+    <div id="category-screen" class="screen">
+        <div class="screen-inner">
+            <h2><i class="fas fa-book-open"></i> اختار نوع التحدي</h2>
+            <p class="card-subtitle" id="level-label"></p>
+            <div class="categories-grid" id="categories-grid"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')">
+                <span><i class="fas fa-arrow-right"></i> رجوع للخريطة</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- ============ QUIZ SCREEN ============ -->
+    <div id="quiz-screen" class="screen">
+        <div class="quiz-container">
+            <div class="quiz-top-bar">
+                <div class="quiz-progress"><div class="quiz-progress-fill" id="quiz-progress-fill"></div></div>
+                <div class="quiz-info-bar">
+                    <span id="quiz-category-label"></span>
+                    <span id="quiz-question-num"></span>
+                    <div class="quiz-timer" id="quiz-timer"><span class="timer-icon"><i class="fas fa-clock"></i></span><span id="timer-value">30</span></div>
+                </div>
+            </div>
+            <div class="quiz-body">
+                <div class="question-card" id="question-card">
+                    <div class="question-image-container" id="question-image-container" style="display:none;">
+                        <img id="question-image" class="question-image" src="" alt="">
+                    </div>
+                    <p class="question-text" id="question-text"></p>
+                </div>
+                <div class="answers-grid" id="answers-grid"></div>
+            </div>
+            <div class="quiz-footer">
+                <div class="power-ups" id="power-ups"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ RESULT SCREEN ============ -->
+    <div id="result-screen" class="screen">
+        <div class="card card-center result-card">
+            <div class="result-icon" id="result-icon"></div>
+            <h2 id="result-title"></h2>
+            <p class="result-subtitle" id="result-subtitle"></p>
+            <div class="result-stats" id="result-stats"></div>
+            <div class="result-rewards" id="result-rewards"></div>
+            <div class="result-buttons">
+                <button class="btn btn-primary" onclick="showScreen('map-screen')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>
+                <button class="btn btn-secondary" id="btn-retry" onclick="retryLevel()"><span><i class="fas fa-redo"></i> حاول تاني</span></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PSALM CHALLENGE ============ -->
+    <div id="psalm-screen" class="screen">
+        <div class="card card-center psalm-card">
+            <div class="psalm-header"><span class="psalm-icon"><i class="fas fa-scroll"></i></span><h2>تحدي حفظ المزمور</h2></div>
+            <p class="psalm-ref" id="psalm-ref"></p>
+            <div class="psalm-text" id="psalm-display"></div>
+            <div class="psalm-input-area">
+                <p class="psalm-instruction" id="psalm-instruction"></p>
+                <textarea id="psalm-input" class="psalm-textarea" placeholder="اكتب الكلمات الناقصة هنا..." rows="4"></textarea>
+            </div>
+            <div class="psalm-buttons">
+                <button class="btn btn-primary" onclick="checkPsalm()"><span><i class="fas fa-check"></i> تحقق</span></button>
+                <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+            </div>
+            <div class="psalm-result" id="psalm-result"></div>
+        </div>
+    </div>
+
+    <!-- ============ SPOT DIFFERENCE GAME ============ -->
+    <div id="spotdiff-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-magnifying-glass"></i> لعبة الاختلافات</h2>
+                <div class="minigame-info">
+                    <span id="spotdiff-found">0</span> / <span id="spotdiff-total">5</span>
+                    <div class="quiz-timer" id="spotdiff-timer"><span><i class="fas fa-clock"></i></span><span id="spotdiff-time">60</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle">اضغط على الاختلافات بين الصورتين</p>
+            <div class="spotdiff-container">
+                <div class="spotdiff-scene" id="spotdiff-left">
+                    <canvas id="spotdiff-canvas-left" width="340" height="280"></canvas>
+                </div>
+                <div class="spotdiff-divider">VS</div>
+                <div class="spotdiff-scene" id="spotdiff-right">
+                    <canvas id="spotdiff-canvas-right" width="340" height="280"></canvas>
+                </div>
+            </div>
+            <div class="spotdiff-hints" id="spotdiff-hints"></div>
+            <div class="spotdiff-result" id="spotdiff-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ MEMORY CARD GAME ============ -->
+    <div id="memory-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-brain"></i> لعبة الذاكرة</h2>
+                <div class="minigame-info">
+                    <span>أزواج: <span id="memory-matched">0</span> / <span id="memory-total">8</span></span>
+                    <span>محاولات: <span id="memory-moves">0</span></span>
+                    <div class="quiz-timer"><span><i class="fas fa-clock"></i></span><span id="memory-time">90</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle">اقلب الكروت ولاقي كل زوج متشابه</p>
+            <div class="memory-grid" id="memory-grid"></div>
+            <div class="memory-result" id="memory-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ IMAGE PUZZLE (Sliding Puzzle) ============ -->
+    <div id="imgpuzzle-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-puzzle-piece"></i> لغز الصورة</h2>
+                <div class="minigame-info">
+                    <span>حركات: <span id="imgpuzzle-moves">0</span></span>
+                    <div class="quiz-timer"><span><i class="fas fa-clock"></i></span><span id="imgpuzzle-time">120</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle" id="imgpuzzle-hint">رتّب أجزاء الصورة بالضغط على القطع</p>
+            <div class="imgpuzzle-preview" id="imgpuzzle-preview">
+                <img id="imgpuzzle-preview-img" src="" alt="الصورة الأصلية">
+                <span class="preview-toggle" onclick="togglePuzzlePreview()"><i class="fas fa-eye"></i></span>
+            </div>
+            <div class="imgpuzzle-grid" id="imgpuzzle-grid"></div>
+            <div class="imgpuzzle-result" id="imgpuzzle-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ TRUE/FALSE RAPID FIRE ============ -->
+    <div id="truefalse-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-bolt"></i> صح ولا غلط</h2>
+                <div class="minigame-info">
+                    <span>النتيجة: <span id="tf-score">0</span></span>
+                    <span>سلسلة: <span id="tf-streak">0</span> 🔥</span>
+                    <div class="quiz-timer"><span><i class="fas fa-clock"></i></span><span id="tf-time">60</span></div>
+                </div>
+            </div>
+            <div class="tf-progress">
+                <div class="tf-progress-bar" id="tf-progress-bar"></div>
+            </div>
+            <div class="tf-card" id="tf-card">
+                <div class="tf-question-num" id="tf-question-num">1</div>
+                <p class="tf-statement" id="tf-statement"></p>
+                <div class="tf-image-container" id="tf-image-container" style="display:none;">
+                    <img id="tf-image" class="tf-image" src="" alt="">
+                </div>
+            </div>
+            <div class="tf-buttons">
+                <button class="tf-btn tf-true" onclick="answerTF(true)">
+                    <i class="fas fa-check-circle"></i>
+                    <span>صح</span>
+                </button>
+                <button class="tf-btn tf-false" onclick="answerTF(false)">
+                    <i class="fas fa-times-circle"></i>
+                    <span>غلط</span>
+                </button>
+            </div>
+            <div class="tf-result" id="tf-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ MAZE GAME (NEW!) ============ -->
+    <div id="maze-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-route"></i> متاهة المعرفة</h2>
+                <div class="minigame-info">
+                    <span>خطوات: <span id="maze-steps">0</span></span>
+                    <span>مفاتيح: <span id="maze-keys">0</span>/<span id="maze-total-keys">3</span></span>
+                    <div class="quiz-timer"><span><i class="fas fa-clock"></i></span><span id="maze-time">90</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle" id="maze-hint">اجمع المفاتيح ووصل للباب! استخدم الأسهم أو اسحب</p>
+            <div class="maze-container" id="maze-container">
+                <canvas id="maze-canvas" width="360" height="360"></canvas>
+            </div>
+            <div class="maze-controls">
+                <button class="maze-btn" onclick="moveMaze('up')"><i class="fas fa-arrow-up"></i></button>
+                <div class="maze-btn-row">
+                    <button class="maze-btn" onclick="moveMaze('right')"><i class="fas fa-arrow-right"></i></button>
+                    <button class="maze-btn" onclick="moveMaze('down')"><i class="fas fa-arrow-down"></i></button>
+                    <button class="maze-btn" onclick="moveMaze('left')"><i class="fas fa-arrow-left"></i></button>
+                </div>
+            </div>
+            <div class="maze-result" id="maze-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ PICTURE GUESS GAME (NEW!) ============ -->
+    <div id="picguess-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-image"></i> اعرف الصورة</h2>
+                <div class="minigame-info">
+                    <span>النتيجة: <span id="picguess-score">0</span></span>
+                    <span>سؤال: <span id="picguess-num">1</span>/<span id="picguess-total">5</span></span>
+                    <div class="quiz-timer"><span><i class="fas fa-clock"></i></span><span id="picguess-time">60</span></div>
+                </div>
+            </div>
+            <div class="picguess-image-wrapper" id="picguess-image-wrapper">
+                <canvas id="picguess-canvas" width="300" height="300"></canvas>
+                <div class="picguess-reveal-bar" id="picguess-reveal-bar">
+                    <div class="reveal-progress" id="picguess-reveal-progress"></div>
+                </div>
+            </div>
+            <p class="picguess-question" id="picguess-question">مين ده / إيه ده؟</p>
+            <div class="picguess-choices" id="picguess-choices"></div>
+            <div class="picguess-result" id="picguess-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ MISSING ITEMS GAME ============ -->
+    <div id="missing-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-question-circle"></i> الحاجة الناقصة</h2>
+                <div class="minigame-info">
+                    <span id="missing-score">0</span> نقاط
+                    <div class="quiz-timer" id="missing-timer"><span><i class="fas fa-clock"></i></span><span id="missing-time">45</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle" id="missing-question"></p>
+            <div class="missing-scene" id="missing-scene"></div>
+            <div class="missing-choices" id="missing-choices"></div>
+            <div class="missing-result" id="missing-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ WORD PUZZLE GAME ============ -->
+    <div id="puzzle-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-spell-check"></i> لغز الكلمات</h2>
+                <div class="minigame-info">
+                    <span id="puzzle-score">0</span> نقاط
+                    <div class="quiz-timer" id="puzzle-timer"><span><i class="fas fa-clock"></i></span><span id="puzzle-time">90</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle" id="puzzle-clue"></p>
+            <div class="puzzle-display" id="puzzle-display"></div>
+            <div class="puzzle-letters" id="puzzle-letters"></div>
+            <div class="puzzle-buttons">
+                <button class="btn btn-small btn-secondary" onclick="puzzleClearInput()"><i class="fas fa-eraser"></i> مسح</button>
+                <button class="btn btn-small btn-primary" onclick="puzzleCheckAnswer()"><i class="fas fa-check"></i> تحقق</button>
+            </div>
+            <div class="puzzle-result" id="puzzle-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ CONNECT PAIRS GAME ============ -->
+    <div id="connect-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-link"></i> وصّل الأزواج</h2>
+                <div class="minigame-info">
+                    <span id="connect-matched">0</span> / <span id="connect-total">6</span>
+                    <div class="quiz-timer" id="connect-timer"><span><i class="fas fa-clock"></i></span><span id="connect-time">60</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle">وصّل كل عنصر بنظيره الصحيح</p>
+            <div class="connect-container">
+                <div class="connect-column" id="connect-left"></div>
+                <div class="connect-column" id="connect-right"></div>
+            </div>
+            <div class="connect-result" id="connect-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ ORDER GAME (NEW!) ============ -->
+    <div id="order-screen" class="screen">
+        <div class="screen-inner">
+            <div class="minigame-header">
+                <h2><i class="fas fa-sort-numeric-down"></i> رتّب الأحداث</h2>
+                <div class="minigame-info">
+                    <span>النتيجة: <span id="order-score">0</span></span>
+                    <div class="quiz-timer"><span><i class="fas fa-clock"></i></span><span id="order-time">60</span></div>
+                </div>
+            </div>
+            <p class="card-subtitle" id="order-hint">رتّب الأحداث من الأقدم للأحدث بالضغط عليها بالترتيب</p>
+            <div class="order-items" id="order-items"></div>
+            <div class="order-selected" id="order-selected"></div>
+            <div class="order-actions">
+                <button class="btn btn-small btn-secondary" onclick="resetOrder()"><i class="fas fa-undo"></i> إعادة</button>
+                <button class="btn btn-small btn-primary" onclick="checkOrder()"><i class="fas fa-check"></i> تحقق</button>
+            </div>
+            <div class="order-result" id="order-result"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ SHOP SCREEN (Armor of God) ============ -->
+    <div id="shop-screen" class="screen">
+        <div class="screen-inner">
+            <div class="shop-header">
+                <h2><i class="fas fa-shield-halved"></i> متجر سلاح الله الكامل</h2>
+                <p class="card-subtitle">"البسوا سلاح الله الكامل لكي تقدروا أن تثبتوا ضد مكايد إبليس" (أفسس 6:11)</p>
+                <div class="shop-gems">
+                    <span>💎</span>
+                    <span id="shop-gems">0</span>
+                    <span>جوهرة</span>
+                </div>
+            </div>
+            <div class="shop-character-preview">
+                <canvas id="shop-avatar-canvas" width="160" height="200"></canvas>
+                <p class="preview-label">شخصيتك الحالية</p>
+            </div>
+            <div class="shop-items-grid" id="shop-items-grid"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع للخريطة</span></button>
+        </div>
+    </div>
+
+    <!-- ============ LEADERBOARD ============ -->
+    <div id="leaderboard-screen" class="screen">
+        <div class="screen-inner">
+            <h2><i class="fas fa-trophy"></i> لوحة الأبطال</h2>
+            <div class="lb-tabs">
+                <button class="lb-tab active" onclick="switchLBTab('stars')"><i class="fas fa-star"></i> النجوم</button>
+                <button class="lb-tab" onclick="switchLBTab('streak')"><i class="fas fa-fire"></i> السلسلة</button>
+                <button class="lb-tab" onclick="switchLBTab('gems')"><i class="fas fa-gem"></i> الجواهر</button>
+                <button class="lb-tab" onclick="switchLBTab('levels')"><i class="fas fa-layer-group"></i> المستويات</button>
+            </div>
+            <!-- Player Card -->
+            <div class="lb-player-card" id="lb-player-card"></div>
+            <!-- Achievements -->
+            <h3 class="lb-section-title"><i class="fas fa-medal"></i> الإنجازات</h3>
+            <div class="lb-achievements" id="lb-achievements"></div>
+            <!-- List -->
+            <h3 class="lb-section-title"><i class="fas fa-ranking-star"></i> الترتيب</h3>
+            <div class="leaderboard-list" id="leaderboard-list"></div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- ============ SETTINGS / THEME ============ -->
+    <div id="settings-screen" class="screen">
+        <div class="screen-inner">
+            <h2><i class="fas fa-palette"></i> الإعدادات</h2>
+            <div class="settings-section">
+                <h3><i class="fas fa-paint-brush"></i> اختار الثيم</h3>
+                <div class="theme-grid" id="theme-grid">
+                    <div class="theme-card active" data-theme="dark" onclick="setTheme('dark')">
+                        <div class="theme-preview theme-preview-dark">
+                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
+                        </div>
+                        <span>الليلي <i class="fas fa-moon"></i></span>
+                    </div>
+                    <div class="theme-card" data-theme="light" onclick="setTheme('light')">
+                        <div class="theme-preview theme-preview-light">
+                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
+                        </div>
+                        <span>النهاري <i class="fas fa-sun"></i></span>
+                    </div>
+                    <div class="theme-card" data-theme="orthodox" onclick="setTheme('orthodox')">
+                        <div class="theme-preview theme-preview-orthodox">
+                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
+                        </div>
+                        <span>الذهبي <i class="fas fa-cross"></i></span>
+                    </div>
+                    <div class="theme-card" data-theme="ocean" onclick="setTheme('ocean')">
+                        <div class="theme-preview theme-preview-ocean">
+                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
+                        </div>
+                        <span>المحيط <i class="fas fa-water"></i></span>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3><i class="fas fa-music"></i> الترانيم</h3>
+                <div class="music-settings">
+                    <label class="toggle-label">
+                        <span>تشغيل الترانيم</span>
+                        <input type="checkbox" id="music-toggle" onchange="toggleMusicSetting()" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div class="volume-control">
+                        <i class="fas fa-volume-low"></i>
+                        <input type="range" id="volume-slider" min="0" max="100" value="70" oninput="changeVolume(this.value)">
+                        <i class="fas fa-volume-high"></i>
+                    </div>
+                    <div class="playlist-info" id="playlist-info">
+                        <p><i class="fas fa-list"></i> قائمة الترانيم الحالية</p>
+                        <div class="playlist-tracks" id="playlist-tracks"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h3><i class="fas fa-info-circle"></i> عن اللعبة</h3>
+                <div class="about-info">
+                    <p>مين البطل؟ - الإصدار 4.0</p>
+                    <p>كنيسة الشهيدة رفقة بالعمرانية</p>
+                    <p>خدمة إعدادي أولاد</p>
+                    <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">تصميم وبرمجة لخدمة الكنيسة ❤️</p>
+                </div>
+            </div>
+            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+        </div>
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <div class="fab-container" id="fab-container" style="display:none;">
+        <button class="fab" onclick="showScreen('leaderboard-screen')" title="لوحة الأبطال"><i class="fas fa-trophy"></i></button>
+        <button class="fab" onclick="showScreen('shop-screen')" title="متجر السلاح"><i class="fas fa-shield-halved"></i></button>
+        <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
+        <button class="fab" onclick="toggleMusic()" id="music-btn" title="الموسيقى"><i class="fas fa-music"></i></button>
+    </div>
+
+    <!-- Music Player -->
+    <div class="music-player" id="music-player">
+        <div class="music-visualizer">
+            <div class="music-bar"></div><div class="music-bar"></div><div class="music-bar"></div>
+            <div class="music-bar"></div><div class="music-bar"></div>
+        </div>
+        <span class="music-label" id="music-label"><i class="fas fa-music"></i> ألحان قبطية</span>
+        <div class="music-controls">
+            <button class="music-ctrl-btn" onclick="prevTrack()"><i class="fas fa-backward-step"></i></button>
+            <button class="music-ctrl-btn" id="music-play-btn" onclick="toggleMusic()"><i class="fas fa-pause"></i></button>
+            <button class="music-ctrl-btn" onclick="nextTrack()"><i class="fas fa-forward-step"></i></button>
+        </div>
+    </div>
+
+    <!-- Hidden audio element for playlist -->
+    <audio id="bg-audio" preload="auto"></audio>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay" style="display:none;">
+        <div class="loading-spinner">
+            <i class="fas fa-cross fa-spin"></i>
+            <p>جاري التحميل...</p>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script src="game.js"></script>
+</body>
+</html>

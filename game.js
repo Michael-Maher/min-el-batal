@@ -18,14 +18,12 @@ const firebaseConfig = {
 let firebaseApp = null;
 let firebaseAuth = null;
 let firebaseDb = null;
-let confirmationResult = null;
-let recaptchaVerifier = null;
-let resendTimerInterval = null;
 
 // --- Game State ---
 const GameState = {
     playerName: '',
     playerPhone: '',
+    academicYear: '',
     character: 'david',
     currentLevel: 1,
     stars: 0,
@@ -42,8 +40,6 @@ const GameState = {
         freeze: 1,
         hint: 2
     },
-    musicOn: true,
-    volume: 0.5,
     theme: 'dark',
     armor: [],
     equippedArmor: {},
@@ -51,14 +47,13 @@ const GameState = {
     perfectLevels: 0
 };
 
-// --- Firebase Initialization & Auth ---
+// --- Firebase Initialization ---
 function initFirebase() {
     try {
         if (typeof firebase !== 'undefined') {
             firebaseApp = firebase.initializeApp(firebaseConfig);
             firebaseAuth = firebase.auth();
             firebaseDb = firebase.firestore();
-            firebaseAuth.languageCode = 'ar';
             console.log('Firebase initialized successfully');
         } else {
             console.warn('Firebase SDK not loaded');
@@ -68,153 +63,98 @@ function initFirebase() {
     }
 }
 
-function setupRecaptcha() {
-    if (recaptchaVerifier) {
-        recaptchaVerifier.clear();
-        recaptchaVerifier = null;
-    }
-    recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-        'size': 'invisible',
-        'callback': function(response) {
-            console.log('reCAPTCHA solved');
-        },
-        'expired-callback': function() {
-            showToast('انتهت صلاحية التحقق، حاول تاني', 'error');
-            setupRecaptcha();
-        }
-    });
-    return recaptchaVerifier;
-}
-
-function sendOTP() {
+// --- Registration & Login ---
+function submitRegister() {
     var name = document.getElementById('player-name').value.trim();
+    var year = document.getElementById('player-year').value;
     var phone = document.getElementById('player-phone').value.trim();
+    var rememberMe = document.getElementById('remember-me').checked;
+
+    // Validate inputs
     if (!name || name.length < 2) { showToast('اكتب اسمك يا بطل (حرفين على الأقل)', 'error'); return; }
+    if (!year) { showToast('اختار السنة الدراسية', 'error'); return; }
     if (!phone || !/^01\d{9}$/.test(phone)) { showToast('اكتب رقم تليفون صحيح (01xxxxxxxxx)', 'error'); return; }
 
-    var fullPhone = '+2' + phone;
-    var sendBtn = document.getElementById('btn-send-otp');
-    sendBtn.disabled = true;
-    sendBtn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الإرسال...</span>';
+    var btn = document.getElementById('btn-register');
+    btn.disabled = true;
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري التحقق...</span>';
 
-    if (!recaptchaVerifier) setupRecaptcha();
-
-    firebaseAuth.signInWithPhoneNumber(fullPhone, recaptchaVerifier)
-        .then(function(result) {
-            confirmationResult = result;
-            GameState.playerName = name;
-            GameState.playerPhone = phone;
-
-            document.getElementById('login-step1').style.display = 'none';
-            document.getElementById('login-step2').style.display = 'block';
-            document.getElementById('otp-phone-display').textContent = fullPhone;
-            document.getElementById('otp-code').value = '';
-            document.getElementById('otp-code').focus();
-
-            showToast('تم إرسال كود التحقق بنجاح', 'success');
-            startResendTimer();
-        })
-        .catch(function(err) {
-            console.error('OTP send error:', err);
-            sendBtn.disabled = false;
-            sendBtn.innerHTML = '<span><i class="fas fa-paper-plane"></i> ابعتلي كود التحقق</span>';
-
-            if (err.code === 'auth/too-many-requests') {
-                showToast('طلبات كتير، استنى شوية وحاول تاني', 'error');
-            } else if (err.code === 'auth/invalid-phone-number') {
-                showToast('رقم التليفون مش صحيح', 'error');
-            } else if (err.code === 'auth/quota-exceeded') {
-                showToast('تم تجاوز الحد المسموح، حاول بعدين', 'error');
-            } else {
-                showToast('حصل مشكلة: ' + err.message, 'error');
-            }
-            // Reset recaptcha for retry
-            setupRecaptcha();
-        });
-}
-
-function verifyOTP() {
-    var code = document.getElementById('otp-code').value.trim();
-    if (!code || code.length !== 6 || !/^\d{6}$/.test(code)) {
-        showToast('اكتب كود التحقق (6 أرقام)', 'error');
+    if (!firebaseDb) {
+        showToast('مفيش اتصال بالسيرفر، حاول تاني', 'error');
+        resetRegisterBtn(btn);
         return;
     }
 
-    var verifyBtn = document.getElementById('btn-verify-otp');
-    verifyBtn.disabled = true;
-    verifyBtn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري التحقق...</span>';
+    // Step 1: Check if phone already exists
+    firebaseDb.collection('players').where('playerPhone', '==', phone).get()
+        .then(function(phoneSnapshot) {
+            if (!phoneSnapshot.empty) {
+                // Phone exists — this is a login attempt
+                var existingData = phoneSnapshot.docs[0].data();
+                if (existingData.playerName !== name) {
+                    showToast('الرقم ده مسجل باسم تاني', 'error');
+                    resetRegisterBtn(btn);
+                    return;
+                }
+                // Name matches — login successfully
+                Object.keys(existingData).forEach(function(key) {
+                    if (key in GameState && key !== 'lastUpdated') {
+                        GameState[key] = existingData[key];
+                    }
+                });
+                GameState.playerName = name;
+                GameState.playerPhone = phone;
+                GameState.academicYear = existingData.academicYear || year;
+                handleRememberMe(rememberMe, phone);
+                showToast('أهلاً بيك تاني يا بطل!', 'success');
+                showScreen('map-screen');
+                syncLeaderboard();
+                return;
+            }
 
-    confirmationResult.confirm(code)
-        .then(function(result) {
-            console.log('Phone auth success:', result.user.uid);
-            clearInterval(resendTimerInterval);
+            // Step 2: Phone doesn't exist — check if name is unique
+            firebaseDb.collection('players').where('playerName', '==', name).get()
+                .then(function(nameSnapshot) {
+                    if (!nameSnapshot.empty) {
+                        showToast('الاسم ده مستخدم قبل كده، اختار اسم تاني', 'error');
+                        resetRegisterBtn(btn);
+                        return;
+                    }
 
-            // Load cloud data using phone number
-            var phone = GameState.playerPhone;
-            var name = GameState.playerName;
-            loadFromCloud(phone).then(function(data) {
-                if (data) {
-                    Object.assign(GameState, data);
+                    // Step 3: Both unique — new registration
                     GameState.playerName = name;
                     GameState.playerPhone = phone;
-                    showToast('تم تحميل تقدمك السابق!', 'success');
-                    saveLocal();
-                    showScreen('map-screen');
-                } else {
-                    saveLocal();
+                    GameState.academicYear = year;
+                    handleRememberMe(rememberMe, phone);
+                    saveToCloud();
+                    showToast('تم التسجيل بنجاح!', 'success');
                     showScreen('character-screen');
-                }
-            }).catch(function() {
-                saveLocal();
-                showScreen('character-screen');
-            });
+                })
+                .catch(function(err) {
+                    console.error('Name check error:', err);
+                    showToast('حصل مشكلة، حاول تاني', 'error');
+                    resetRegisterBtn(btn);
+                });
         })
         .catch(function(err) {
-            console.error('OTP verify error:', err);
-            verifyBtn.disabled = false;
-            verifyBtn.innerHTML = '<span><i class="fas fa-check-circle"></i> تأكيد الكود</span>';
-
-            if (err.code === 'auth/invalid-verification-code') {
-                showToast('الكود غلط، حاول تاني', 'error');
-            } else if (err.code === 'auth/code-expired') {
-                showToast('الكود انتهت صلاحيته، ابعت كود جديد', 'error');
-            } else {
-                showToast('حصل مشكلة: ' + err.message, 'error');
-            }
+            console.error('Phone check error:', err);
+            showToast('حصل مشكلة، حاول تاني', 'error');
+            resetRegisterBtn(btn);
         });
 }
 
-function startResendTimer() {
-    var seconds = 60;
-    var resendBtn = document.getElementById('btn-resend-otp');
-    var timerSpan = document.getElementById('resend-timer');
-    resendBtn.disabled = true;
-
-    clearInterval(resendTimerInterval);
-    resendTimerInterval = setInterval(function() {
-        seconds--;
-        timerSpan.textContent = '(' + seconds + ')';
-        if (seconds <= 0) {
-            clearInterval(resendTimerInterval);
-            resendBtn.disabled = false;
-            timerSpan.textContent = '';
-        }
-    }, 1000);
+function resetRegisterBtn(btn) {
+    if (!btn) btn = document.getElementById('btn-register');
+    btn.disabled = false;
+    btn.innerHTML = '<span>يلا نبدأ <i class="fas fa-arrow-left"></i></span>';
 }
 
-function resendOTP() {
-    setupRecaptcha();
-    sendOTP();
-}
-
-function backToStep1() {
-    document.getElementById('login-step1').style.display = 'block';
-    document.getElementById('login-step2').style.display = 'none';
-    var sendBtn = document.getElementById('btn-send-otp');
-    sendBtn.disabled = false;
-    sendBtn.innerHTML = '<span><i class="fas fa-paper-plane"></i> ابعتلي كود التحقق</span>';
-    clearInterval(resendTimerInterval);
-    confirmationResult = null;
+function handleRememberMe(rememberMe, phone) {
+    if (rememberMe) {
+        try { localStorage.setItem('minElBatal_remember', phone); } catch(e) {}
+    } else {
+        try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
+    }
 }
 
 function saveToCloud() {
@@ -223,6 +163,7 @@ function saveToCloud() {
     const data = {
         playerName: GameState.playerName,
         playerPhone: GameState.playerPhone,
+        academicYear: GameState.academicYear,
         character: GameState.character,
         currentLevel: GameState.currentLevel,
         stars: GameState.stars,
@@ -233,8 +174,6 @@ function saveToCloud() {
         totalAnswered: GameState.totalAnswered,
         levelsData: GameState.levelsData,
         powerUps: GameState.powerUps,
-        musicOn: GameState.musicOn,
-        volume: GameState.volume,
         theme: GameState.theme,
         armor: GameState.armor,
         equippedArmor: GameState.equippedArmor,
@@ -278,6 +217,7 @@ function syncLeaderboard() {
     const entry = {
         playerName: GameState.playerName,
         playerPhone: GameState.playerPhone,
+        academicYear: GameState.academicYear,
         character: GameState.character,
         stars: GameState.stars,
         gems: GameState.gems,
@@ -321,6 +261,7 @@ function setTheme(theme) {
     GameState.theme = theme;
     document.documentElement.setAttribute('data-theme', theme);
     document.body.setAttribute('data-theme', theme);
+    try { localStorage.setItem('minElBatal_theme', theme); } catch(e) {}
     document.querySelectorAll('.theme-card').forEach(function(card) {
         card.classList.remove('active');
         if (card.getAttribute('data-theme') === theme) card.classList.add('active');
@@ -1108,21 +1049,9 @@ function getRank() {
     return rank;
 }
 
-function saveLocal() {
-    try { localStorage.setItem('minElBatal_save', JSON.stringify(GameState)); } catch(e) {}
-}
+function saveGame() { saveToCloud(); }
 
-function loadLocal() {
-    try {
-        var s = localStorage.getItem('minElBatal_save');
-        if (s) { Object.assign(GameState, JSON.parse(s)); return true; }
-    } catch(e) {}
-    return false;
-}
-
-function saveGame() { saveLocal(); saveToCloud(); }
-
-// --- Login (handled by sendOTP/verifyOTP above) ---
+// --- Login (handled by submitRegister above) ---
 
 // --- Character Select ---
 var selectedCharKey = null;
@@ -2506,6 +2435,7 @@ function confetti() {
 function logout() {
     GameState.playerName = '';
     GameState.playerPhone = '';
+    GameState.academicYear = '';
     GameState.character = 'david';
     GameState.currentLevel = 1;
     GameState.stars = 0;
@@ -2520,37 +2450,61 @@ function logout() {
     GameState.equippedArmor = {};
     GameState.gamesPlayed = 0;
     GameState.perfectLevels = 0;
-    localStorage.removeItem('minElBatal_save');
-    // Sign out of Firebase
-    if (firebaseAuth) firebaseAuth.signOut().catch(function(){});
-    confirmationResult = null;
-    // Reset login screen to step 1
-    var step1 = document.getElementById('login-step1');
-    var step2 = document.getElementById('login-step2');
-    if (step1) step1.style.display = 'block';
-    if (step2) step2.style.display = 'none';
+    // Clear remember me
+    try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
+    // Reset login form
+    var nameInput = document.getElementById('player-name');
+    var phoneInput = document.getElementById('player-phone');
+    var yearSelect = document.getElementById('player-year');
+    if (nameInput) nameInput.value = '';
+    if (phoneInput) phoneInput.value = '';
+    if (yearSelect) yearSelect.selectedIndex = 0;
+    resetRegisterBtn();
     showScreen('splash-screen');
     showToast('تم تسجيل الخروج');
 }
 
 // --- Init ---
 document.addEventListener('DOMContentLoaded', function() {
-    // Load local save first (for theme + auto-login)
-    var hasLocal = loadLocal();
-
     // Apply saved theme immediately (both html and body for consistency)
-    var theme = GameState.theme || 'dark';
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.setAttribute('data-theme', theme);
+    var savedTheme = 'dark';
+    try { savedTheme = localStorage.getItem('minElBatal_theme') || 'dark'; } catch(e) {}
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    document.body.setAttribute('data-theme', savedTheme);
+    GameState.theme = savedTheme;
 
     createParticles();
     initFirebase();
 
-    // Try auto-login from localStorage
-    if (hasLocal && GameState.playerName) {
-        showScreen('map-screen');
-    }
+    // Check "Remember Me" — auto-login from cloud
+    var rememberedPhone = null;
+    try { rememberedPhone = localStorage.getItem('minElBatal_remember'); } catch(e) {}
+    if (rememberedPhone && firebaseDb) {
+        // Show loading state
+        showScreen('login-screen');
+        var btn = document.getElementById('btn-register');
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري تسجيل الدخول...</span>';
+        }
 
-    // Sync leaderboard
-    syncLeaderboard();
+        loadFromCloud(rememberedPhone).then(function(data) {
+            if (data && data.playerName) {
+                showToast('أهلاً بيك يا ' + GameState.playerName + '!', 'success');
+                showScreen('map-screen');
+                syncLeaderboard();
+            } else {
+                // No cloud data found for this phone, clear remember
+                localStorage.removeItem('minElBatal_remember');
+                resetRegisterBtn(btn);
+                showScreen('splash-screen');
+            }
+        }).catch(function() {
+            resetRegisterBtn(btn);
+            showScreen('splash-screen');
+        });
+    } else {
+        // Sync leaderboard if we have data
+        syncLeaderboard();
+    }
 });

@@ -211,17 +211,22 @@ body {
 
 /* ============ CHARACTERS ============ */
 .characters-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.character-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px 12px; text-align: center; cursor: pointer; transition: var(--transition); position: relative; overflow: hidden; }
-.character-card:hover { border-color: var(--primary); transform: translateY(-4px); }
-.character-card.selected { border-color: var(--gold); box-shadow: 0 0 30px var(--glow-gold); background: linear-gradient(135deg, var(--bg-card), rgba(253,203,110,0.1)); }
-.char-avatar-preview { width: 80px; height: 80px; margin: 0 auto 8px; }
-.character-card .char-name { font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
-.character-card .char-title { font-size: 11px; color: var(--secondary); font-weight: 600; margin-bottom: 8px; }
-.character-card .char-power { font-size: 11px; color: var(--text-muted); background: var(--bg-dark); padding: 6px 10px; border-radius: var(--radius-full); display: inline-block; }
+.character-card, .char-card { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px 12px; text-align: center; cursor: pointer; transition: var(--transition); position: relative; overflow: hidden; }
+.character-card:hover, .char-card:hover { border-color: var(--primary); transform: translateY(-4px); }
+.character-card.selected, .char-card.selected { border-color: var(--gold); box-shadow: 0 0 30px var(--glow-gold); background: linear-gradient(135deg, var(--bg-card), rgba(253,203,110,0.1)); }
+.char-card.locked { opacity: 0.6; }
+.char-card.locked:hover { opacity: 0.8; }
+.char-avatar-wrap { width: 100px; height: 100px; margin: 0 auto 12px; border-radius: 50%; overflow: hidden; border: 3px solid var(--border); transition: var(--transition); }
+.char-card.selected .char-avatar-wrap { border-color: var(--gold); box-shadow: 0 0 20px var(--glow-gold); }
+.char-img { width: 100%; height: 100%; object-fit: cover; }
+.char-card h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
+.char-role { font-size: 11px; color: var(--secondary); font-weight: 600; margin-bottom: 6px; }
+.char-ability { font-size: 11px; color: var(--text-muted); background: var(--bg-dark); padding: 6px 10px; border-radius: var(--radius-full); display: inline-block; margin-bottom: 6px; }
+.char-lock { font-size: 12px; font-weight: 700; color: var(--gold); margin-top: 6px; }
 
 /* ============ AVATAR ============ */
 .player-avatar-container { width: 64px; height: 64px; position: relative; cursor: pointer; border-radius: 50%; overflow: visible; }
-.player-avatar-container canvas { border-radius: 50%; border: 2px solid var(--gold); }
+.avatar-img { width: 64px; height: 64px; border-radius: 50%; border: 2px solid var(--gold); object-fit: cover; background: var(--bg-card); }
 .avatar-edit-badge { position: absolute; bottom: -4px; right: -4px; background: var(--primary); width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; border: 2px solid var(--bg-card); color: white; }
 
 /* ============ MAP / LEVELS ============ */
@@ -413,7 +418,7 @@ body {
 .shop-header { text-align: center; margin-bottom: 24px; }
 .shop-gems { display: inline-flex; align-items: center; gap: 8px; background: var(--bg-card); border: 1px solid var(--gold); border-radius: var(--radius-full); padding: 8px 20px; font-size: 18px; font-weight: 800; color: var(--gold); margin-top: 12px; }
 .shop-character-preview { text-align: center; margin-bottom: 24px; }
-.shop-character-preview canvas { border: 3px solid var(--gold); border-radius: var(--radius); background: var(--bg-dark); }
+.shop-avatar-img { width: 160px; height: 160px; border: 3px solid var(--gold); border-radius: var(--radius); background: var(--bg-dark); object-fit: cover; }
 .preview-label { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
 .shop-items-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
 .shop-item { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: var(--transition); position: relative; }
@@ -455,6 +460,7 @@ body {
 .lb-item:nth-child(2) .lb-rank { color: var(--text-secondary); }
 .lb-item:nth-child(3) .lb-rank { color: #CD7F32; }
 .lb-avatar { font-size: 28px; }
+.lb-avatar-img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid var(--gold); }
 .lb-info { flex: 1; }
 .lb-name { font-weight: 700; font-size: 14px; }
 .lb-rank-title { font-size: 11px; color: var(--text-muted); }

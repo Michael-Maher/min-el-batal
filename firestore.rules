@@ -1,0 +1,13 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Players collection - allow read/write for game data
+    match /players/{playerId} {
+      allow read, write: if true;
+    }
+    // Leaderboard collection - allow read/write for rankings
+    match /leaderboard/{playerId} {
+      allow read, write: if true;
+    }
+  }
+}

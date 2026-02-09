@@ -103,7 +103,7 @@
             <div class="map-header">
                 <div class="player-info">
                     <div class="player-avatar-container" id="map-avatar-container" onclick="showScreen('character-screen')">
-                        <canvas id="avatar-canvas" width="64" height="64"></canvas>
+                        <img id="avatar-img" class="avatar-img" src="" alt="avatar">
                         <div class="avatar-edit-badge"><i class="fas fa-masks-theater fa-xs"></i></div>
                     </div>
                     <div>
@@ -440,7 +440,7 @@
                 </div>
             </div>
             <div class="shop-character-preview">
-                <canvas id="shop-avatar-canvas" width="160" height="200"></canvas>
+                <img id="shop-avatar-img" class="shop-avatar-img" src="" alt="avatar">
                 <p class="preview-label">شخصيتك الحالية</p>
             </div>
             <div class="shop-items-grid" id="shop-items-grid"></div>
@@ -538,7 +538,6 @@
 
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <script src="game.js"></script>

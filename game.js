@@ -16,7 +16,6 @@ const firebaseConfig = {
 };
 
 let firebaseApp = null;
-let firebaseAuth = null;
 let firebaseDb = null;
 
 // --- Game State ---
@@ -52,7 +51,6 @@ function initFirebase() {
     try {
         if (typeof firebase !== 'undefined') {
             firebaseApp = firebase.initializeApp(firebaseConfig);
-            firebaseAuth = firebase.auth();
             firebaseDb = firebase.firestore();
             console.log('Firebase initialized successfully');
         } else {
@@ -272,80 +270,100 @@ function setTheme(theme) {
 // --- Character Definitions ---
 const CHARACTERS = {
     david: {
-        name: 'داود الملك',
-        emoji: '👑',
-        color: '#FFD700',
-        role: 'محارب شجاع وملك عظيم',
+        name: 'داود النبي',
+        emoji: '🎵',
+        color: '#E8A838',
+        image: 'images/david.png',
+        role: 'المرنم الشجاع صاحب المقلاع',
         ability: 'ضربة المقلاع - قوة مضاعفة',
         unlocked: true
     },
-    joshua: {
-        name: 'يشوع بن نون',
-        emoji: '⚔️',
-        color: '#FF6B35',
-        role: 'قائد شعب الله',
-        ability: 'صيحة النصر - تجميد الوقت',
+    philomena: {
+        name: 'فيلومينا الأمينة',
+        emoji: '⚓',
+        color: '#F5A0B8',
+        image: 'images/philomena.png',
+        role: 'القديسة الأمينة حتى الموت',
+        ability: 'إيمان ثابت - حماية من الخطأ',
         unlocked: true
     },
-    daniel: {
-        name: 'دانيال النبي',
-        emoji: '🦁',
-        color: '#4ECDC4',
-        role: 'حكيم في جب الأسود',
-        ability: 'حكمة إلهية - كشف الإجابة',
+    paul: {
+        name: 'بولس الرسول',
+        emoji: '✉️',
+        color: '#7B5EA7',
+        image: 'images/paul.png',
+        role: 'رسول الأمم وكاتب الرسائل',
+        ability: 'سيف الروح - كشف الإجابة',
         cost: 30,
         unlocked: false
     },
-    moses: {
-        name: 'موسى النبي',
-        emoji: '🔥',
-        color: '#E63946',
-        role: 'كليم الله',
-        ability: 'عصا موسى - حذف إجابتين',
+    george: {
+        name: 'مارجرجس الروماني',
+        emoji: '🐴',
+        color: '#D4461A',
+        image: 'images/george.png',
+        role: 'الشهيد الشجاع قاتل التنين',
+        ability: 'رمح النصر - نقاط إضافية',
         cost: 50,
-        unlocked: false
-    },
-    samson: {
-        name: 'شمشون الجبار',
-        emoji: '💪',
-        color: '#2EC4B6',
-        role: 'أقوى رجل في التاريخ',
-        ability: 'قوة خارقة - نقاط إضافية',
-        cost: 80,
-        unlocked: false
-    },
-    samuel: {
-        name: 'صموئيل النبي',
-        emoji: '📖',
-        color: '#9B5DE5',
-        role: 'سمع صوت الرب',
-        ability: 'صوت الرب - تلميح إضافي',
-        cost: 100,
         unlocked: false
     }
 };
 
+// Preload character images
+var charImages = {};
+function preloadCharImages() {
+    Object.keys(CHARACTERS).forEach(function(key) {
+        var img = new Image();
+        img.src = CHARACTERS[key].image;
+        charImages[key] = img;
+    });
+}
+
 function drawCharacter(ctx, charKey, x, y, size) {
     const ch = CHARACTERS[charKey];
     if (!ch) return;
-    // Body circle
-    ctx.save();
-    ctx.beginPath();
-    ctx.arc(x, y, size, 0, Math.PI * 2);
-    const gradient = ctx.createRadialGradient(x, y, size * 0.2, x, y, size);
-    gradient.addColorStop(0, ch.color);
-    gradient.addColorStop(1, shadeColor(ch.color, -30));
-    ctx.fillStyle = gradient;
-    ctx.fill();
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 2;
-    ctx.stroke();
-    // Emoji
-    ctx.font = `${size}px serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(ch.emoji, x, y);
-    ctx.restore();
+    var img = charImages[charKey];
+    if (img && img.complete && img.naturalWidth > 0) {
+        // Draw circular clipped image
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, x - size, y - size, size * 2, size * 2);
+        ctx.restore();
+        // Draw border
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.strokeStyle = ch.color;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+    } else {
+        // Fallback: colored circle with emoji
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        var gradient = ctx.createRadialGradient(x, y, size * 0.2, x, y, size);
+        gradient.addColorStop(0, ch.color);
+        gradient.addColorStop(1, shadeColor(ch.color, -30));
+        ctx.fillStyle = gradient;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        ctx.font = size + 'px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(ch.emoji, x, y);
+        ctx.restore();
+        // Retry when image loads
+        if (img) {
+            img.onload = function() {
+                ctx.clearRect(x - size - 4, y - size - 4, size * 2 + 8, size * 2 + 8);
+                drawCharacter(ctx, charKey, x, y, size);
+            };
+        }
+    }
 }
 
 function shadeColor(color, percent) {
@@ -1064,7 +1082,7 @@ function renderCharacters() {
         var ch = CHARACTERS[key];
         var card = document.createElement('div');
         card.className = 'char-card' + (key === GameState.character ? ' selected' : '') + (ch.unlocked ? '' : ' locked');
-        var inner = '<div class="char-avatar-wrap"><canvas class="char-canvas" width="100" height="100" data-char="'+key+'"></canvas></div>';
+        var inner = '<div class="char-avatar-wrap"><img class="char-img" src="'+ch.image+'" alt="'+ch.name+'" onerror="this.style.display=\'none\'"></div>';
         inner += '<h3>' + ch.name + '</h3>';
         inner += '<p class="char-role">' + ch.role + '</p>';
         inner += '<p class="char-ability"><i class="fas fa-star"></i> ' + ch.ability + '</p>';
@@ -1076,7 +1094,7 @@ function renderCharacters() {
                     if (GameState.stars >= (CHARACTERS[k].cost||0)) {
                         CHARACTERS[k].unlocked = true;
                         GameState.stars -= (CHARACTERS[k].cost||0);
-                        showToast('🎉 تم فتح ' + CHARACTERS[k].name);
+                        showToast('تم فتح ' + CHARACTERS[k].name);
                         renderCharacters();
                     } else {
                         showToast('محتاج ' + (CHARACTERS[k].cost||0) + ' نجمة لفتح ' + CHARACTERS[k].name);
@@ -1091,8 +1109,6 @@ function renderCharacters() {
             };
         })(key, ch, card);
         grid.appendChild(card);
-        var cv = card.querySelector('.char-canvas');
-        if (cv) { var ctx = cv.getContext('2d'); drawCharacter(ctx, key, 50, 50, 45); }
     });
     if (GameState.character) selectedCharKey = GameState.character;
 }
@@ -1113,8 +1129,9 @@ function renderMap() {
     document.getElementById('map-stars').textContent = GameState.stars;
     document.getElementById('map-streak').textContent = GameState.streak;
     document.getElementById('map-gems').textContent = GameState.gems;
-    var ac = document.getElementById('avatar-canvas');
-    if (ac) { var ctx = ac.getContext('2d'); ctx.clearRect(0,0,64,64); drawCharacter(ctx, GameState.character, 32, 32, 28); }
+    var avatarImg = document.getElementById('avatar-img');
+    var ch = CHARACTERS[GameState.character];
+    if (avatarImg && ch) { avatarImg.src = ch.image; avatarImg.alt = ch.name; }
     var path = document.getElementById('levels-path');
     path.innerHTML = '';
     var icons = {quiz:'fa-question-circle',psalm:'fa-scroll',spotdiff:'fa-magnifying-glass',memory:'fa-brain',truefalse:'fa-bolt',imgpuzzle:'fa-puzzle-piece',missing:'fa-question',puzzle:'fa-spell-check',connect:'fa-link',maze:'fa-route',picguess:'fa-image',order:'fa-sort-numeric-down'};
@@ -2279,13 +2296,10 @@ function endPicGuess() {
 // --- Shop ---
 function renderShop() {
     document.getElementById('shop-gems').textContent = GameState.gems;
-    // Draw character preview
-    var cv = document.getElementById('shop-avatar-canvas');
-    if (cv) {
-        var ctx = cv.getContext('2d');
-        ctx.clearRect(0, 0, cv.width, cv.height);
-        drawCharacter(ctx, GameState.character, 80, 100, 70);
-    }
+    // Show character preview
+    var shopAvatar = document.getElementById('shop-avatar-img');
+    var shopCh = CHARACTERS[GameState.character];
+    if (shopAvatar && shopCh) { shopAvatar.src = shopCh.image; shopAvatar.alt = shopCh.name; }
     var grid = document.getElementById('shop-items-grid');
     grid.innerHTML = '';
     Object.entries(ARMOR_ITEMS).forEach(function(entry) {
@@ -2331,9 +2345,8 @@ var currentLBTab = 'stars';
 function renderLeaderboard() {
     // Player card
     var rank = getRank();
-    document.getElementById('lb-player-card').innerHTML = '<div class="lb-avatar"><canvas id="lb-avatar-canvas" width="48" height="48"></canvas></div><div class="lb-info"><h3>'+GameState.playerName+'</h3><p>'+rank.emoji+' '+rank.title+'</p></div><div class="lb-stats"><span>⭐ '+GameState.stars+'</span><span>🔥 '+GameState.bestStreak+'</span><span>💎 '+GameState.gems+'</span></div>';
-    var lbCv = document.getElementById('lb-avatar-canvas');
-    if (lbCv) { var ctx = lbCv.getContext('2d'); drawCharacter(ctx, GameState.character, 24, 24, 20); }
+    var lbCh = CHARACTERS[GameState.character] || {};
+    document.getElementById('lb-player-card').innerHTML = '<div class="lb-avatar"><img class="lb-avatar-img" src="'+(lbCh.image||'')+'" alt="avatar"></div><div class="lb-info"><h3>'+GameState.playerName+'</h3><p>'+rank.emoji+' '+rank.title+'</p></div><div class="lb-stats"><span>⭐ '+GameState.stars+'</span><span>🔥 '+GameState.bestStreak+'</span><span>💎 '+GameState.gems+'</span></div>';
     // Achievements
     var achDiv = document.getElementById('lb-achievements');
     achDiv.innerHTML = '';
@@ -2474,6 +2487,7 @@ document.addEventListener('DOMContentLoaded', function() {
     GameState.theme = savedTheme;
 
     createParticles();
+    preloadCharImages();
     initFirebase();
 
     // Check "Remember Me" — auto-login from cloud

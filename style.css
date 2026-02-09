@@ -99,25 +99,25 @@
 
 /* DEFAULT (fallback = dark) so no white flash before JS loads */
 :root {
-    --primary: #6C5CE7;
-    --primary-dark: #5A4BD1;
+    --primary: #0984E3;
+    --primary-dark: #0652DD;
     --secondary: #00CEC9;
-    --accent: #FD79A8;
+    --accent: #6C5CE7;
     --gold: #FDCB6E;
     --success: #00B894;
     --danger: #E17055;
-    --warning: #F9CA24;
-    --bg-dark: #0A0A1A;
-    --bg-card: #16162A;
-    --bg-card-hover: #1E1E3A;
-    --text-primary: #FFFFFF;
-    --text-secondary: #A0A0C0;
-    --text-muted: #6C6C8A;
-    --border: #2A2A4A;
-    --glow-primary: rgba(108, 92, 231, 0.4);
+    --warning: #FFEAA7;
+    --bg-dark: #041C32;
+    --bg-card: #04293A;
+    --bg-card-hover: #064663;
+    --text-primary: #ECF0F1;
+    --text-secondary: #87CEEB;
+    --text-muted: #5F8CA0;
+    --border: #0A4D68;
+    --glow-primary: rgba(9, 132, 227, 0.4);
     --glow-secondary: rgba(0, 206, 201, 0.4);
-    --glow-gold: rgba(253, 203, 110, 0.4);
-    --particle-opacity: 0.15;
+    --glow-gold: rgba(253, 203, 110, 0.3);
+    --particle-opacity: 0.12;
     --radius: 16px;
     --radius-sm: 10px;
     --radius-full: 50px;
@@ -138,6 +138,9 @@ body {
 }
 
 #particles { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; overflow: hidden; }
+[data-theme="ocean"] #particles {
+    background: radial-gradient(circle at center, #064663 0%, #041C32 100%);
+}
 .particle { position: absolute; border-radius: 50%; background: var(--primary, #667eea); animation-name: floatParticle; animation-timing-function: linear; animation-iteration-count: infinite; opacity: var(--particle-opacity); }
 @keyframes floatParticle {
     0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }

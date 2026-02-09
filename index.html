@@ -13,13 +13,13 @@
         // Apply saved theme BEFORE first paint to prevent white flash
         (function() {
             try {
-                var t = localStorage.getItem('minElBatal_theme');
+                var t = localStorage.getItem('minElBatal_theme')|| 'ocean'; // Add 'ocean' as fallback
                 if (t) document.documentElement.setAttribute('data-theme', t);
             } catch(e) {}
         })();
     </script>
 </head>
-<body data-theme="dark">
+<body data-theme="ocean">
     <!-- Particles Background -->
     <div id="particles"></div>
 

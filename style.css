@@ -537,8 +537,8 @@ body {
 /* ============ TOAST ============ */
 .toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 12px 28px; font-size: 14px; font-weight: 700; z-index: 1000; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; box-shadow: var(--shadow); }
 .toast.show { transform: translateX(-50%) translateY(0); }
-.toast.success { border-color: var(--success); color: var(--success); }
-.toast.error { border-color: var(--danger); color: var(--danger); }
+.toast.success { border-color: var(--success); color: var(--success); background: linear-gradient(135deg, rgba(0,184,148,0.15), var(--bg-card)); }
+.toast.error { border-color: var(--danger); color: var(--danger); background: linear-gradient(135deg, rgba(225,112,85,0.15), var(--bg-card)); }
 .toast.info { border-color: var(--primary); color: var(--primary); }
 .toast.reward { border-color: var(--gold); color: var(--gold); }
 

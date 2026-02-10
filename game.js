@@ -1134,12 +1134,19 @@ const ACHIEVEMENTS = [
 // ============ PART 2B: GAME LOGIC ============
 
 // --- Utilities ---
-function showToast(msg, dur) {
-    dur = dur || 2500;
+function showToast(msg, durOrType, type) {
+    var dur = 2500;
+    var toastType = '';
+    if (typeof durOrType === 'string') {
+        toastType = durOrType;
+    } else if (typeof durOrType === 'number') {
+        dur = durOrType;
+        if (type) toastType = type;
+    }
     var t = document.getElementById('toast');
     t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(function() { t.classList.remove('show'); }, dur);
+    t.className = 'toast show' + (toastType ? ' ' + toastType : '');
+    setTimeout(function() { t.className = 'toast'; }, dur);
 }
 
 function showScreen(id) {

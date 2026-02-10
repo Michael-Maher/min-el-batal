@@ -17,7 +17,6 @@ const firebaseConfig = {
 
 let firebaseApp = null;
 let firebaseDb = null;
-let firebaseStorage = null;
 
 // --- Game State ---
 const GameState = {
@@ -56,7 +55,6 @@ function initFirebase() {
         if (typeof firebase !== 'undefined') {
             firebaseApp = firebase.initializeApp(firebaseConfig);
             firebaseDb = firebase.firestore();
-            firebaseStorage = firebase.storage();
             console.log('Firebase initialized successfully');
         } else {
             console.warn('Firebase SDK not loaded');
@@ -187,6 +185,26 @@ function saveToCloud() {
         weeklyChallengeLog: GameState.weeklyChallengeLog,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
+    // Safety: trim old media if doc is approaching 1MB Firestore limit
+    try {
+        var docSize = new Blob([JSON.stringify(data)]).size;
+        if (docSize > 900000) {
+            console.warn('Doc approaching 1MB limit:', docSize, 'bytes. Trimming old media...');
+            var vKeys = Object.keys(data.dailyVerseLog || {}).sort();
+            for (var ti = 0; ti < vKeys.length && new Blob([JSON.stringify(data)]).size > 800000; ti++) {
+                if (data.dailyVerseLog[vKeys[ti]] && data.dailyVerseLog[vKeys[ti]].mediaDataURLs) {
+                    data.dailyVerseLog[vKeys[ti]].mediaDataURLs = [];
+                }
+            }
+            var cKeys = Object.keys(data.weeklyChallengeLog || {}).sort();
+            for (var ci = 0; ci < cKeys.length && new Blob([JSON.stringify(data)]).size > 800000; ci++) {
+                if (data.weeklyChallengeLog[cKeys[ci]] && data.weeklyChallengeLog[cKeys[ci]].mediaDataURLs) {
+                    data.weeklyChallengeLog[cKeys[ci]].mediaDataURLs = [];
+                }
+            }
+        }
+    } catch(e) { console.warn('Size check error:', e); }
+
     return docRef.set(data, { merge: true })
         .then(() => console.log('Game saved to cloud'))
         .catch(err => console.error('Cloud save error:', err));
@@ -2640,27 +2658,102 @@ function isWeeklyChallengeCompleted() {
     return !!(GameState.weeklyChallengeLog[key] && GameState.weeklyChallengeLog[key].completed);
 }
 
-// --- Media Attachment System ---
+// --- Media Attachment System (Base64 in Firestore) ---
 var pendingMedia = { verse: [], challenge: [] };
 var activeRecorder = null;
 var activeRecorderType = null;
 var recordingTimer = null;
 var recordingTimeLeft = 0;
-var MAX_RECORDING_SECONDS = 120;
+var MAX_RECORDING_SECONDS = 30;
+var MAX_TOTAL_MEDIA_SIZE = 500 * 1024; // 500KB total per submission
+
+function compressImageToBase64(file, maxW, maxH, quality) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            var img = new Image();
+            img.onload = function() {
+                var canvas = document.createElement('canvas');
+                var w = img.width, h = img.height;
+                if (w > maxW || h > maxH) {
+                    var ratio = Math.min(maxW / w, maxH / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+function blobToBase64(blob) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onloadend = function() { resolve(reader.result); };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+}
+
+function getPendingMediaTotalSize(screenType) {
+    var total = 0;
+    pendingMedia[screenType].forEach(function(item) {
+        total += (item.dataURL || '').length;
+    });
+    return total;
+}
 
 function handleMediaSelect(input, screenType, mediaType) {
     var file = input.files[0];
     if (!file) return;
-    var sizeLimits = { image: 5, video: 20, audio: 5 };
-    var maxMB = sizeLimits[mediaType] || 5;
-    var maxSize = maxMB * 1024 * 1024;
-    if (file.size > maxSize) {
-        showToast('الملف كبير أوي! الحد الأقصى ' + maxMB + ' ميجا', 'error');
+
+    if (mediaType === 'video') {
+        showToast('الفيديو غير متاح حاليا - استخدم صورة أو تسجيل صوتي', 'error');
         input.value = '';
         return;
     }
-    pendingMedia[screenType].push({ file: file, type: mediaType, name: file.name });
-    renderMediaPreview(screenType);
+
+    var maxSize = 5 * 1024 * 1024; // 5MB raw input limit
+    if (file.size > maxSize) {
+        showToast('الملف كبير أوي! الحد الأقصى 5 ميجا', 'error');
+        input.value = '';
+        return;
+    }
+
+    if (mediaType === 'image') {
+        compressImageToBase64(file, 800, 800, 0.5).then(function(dataURL) {
+            if (dataURL.length > 300 * 1024) {
+                return compressImageToBase64(file, 600, 600, 0.35);
+            }
+            return dataURL;
+        }).then(function(dataURL) {
+            if (getPendingMediaTotalSize(screenType) + dataURL.length > MAX_TOTAL_MEDIA_SIZE) {
+                showToast('وصلت الحد الأقصى للملفات المرفقة', 'error');
+                return;
+            }
+            pendingMedia[screenType].push({ dataURL: dataURL, type: 'image', name: file.name });
+            renderMediaPreview(screenType);
+        }).catch(function() {
+            showToast('مشكلة في تحضير الصورة', 'error');
+        });
+    } else if (mediaType === 'audio') {
+        blobToBase64(file).then(function(dataURL) {
+            if (getPendingMediaTotalSize(screenType) + dataURL.length > MAX_TOTAL_MEDIA_SIZE) {
+                showToast('وصلت الحد الأقصى للملفات المرفقة', 'error');
+                return;
+            }
+            pendingMedia[screenType].push({ dataURL: dataURL, type: 'audio', name: file.name });
+            renderMediaPreview(screenType);
+        }).catch(function() {
+            showToast('مشكلة في تحضير الملف الصوتي', 'error');
+        });
+    }
     input.value = '';
 }
 
@@ -2671,8 +2764,14 @@ function renderMediaPreview(screenType) {
     pendingMedia[screenType].forEach(function(item, idx) {
         var div = document.createElement('div');
         div.className = 'media-preview-item';
-        var iconMap = { image: 'fa-image', video: 'fa-video', audio: 'fa-microphone' };
-        div.innerHTML = '<i class="fas ' + (iconMap[item.type] || 'fa-file') + '"></i>' +
+        var content = '';
+        if (item.type === 'image' && item.dataURL) {
+            content = '<img src="' + item.dataURL + '" class="media-preview-thumb" alt="">';
+        } else {
+            var iconMap = { image: 'fa-image', audio: 'fa-microphone' };
+            content = '<i class="fas ' + (iconMap[item.type] || 'fa-file') + '"></i>';
+        }
+        div.innerHTML = content +
             '<span class="media-preview-name">' + (item.name || item.type) + '</span>' +
             '<button class="media-remove-btn" onclick="removeMedia(\'' + screenType + '\',' + idx + ')"><i class="fas fa-times"></i></button>';
         container.appendChild(div);
@@ -2684,19 +2783,10 @@ function removeMedia(screenType, idx) {
     renderMediaPreview(screenType);
 }
 
-function uploadMediaFiles(screenType, dateKey) {
-    if (!firebaseStorage || !GameState.playerPhone) return Promise.resolve([]);
-    var files = pendingMedia[screenType];
-    if (!files.length) return Promise.resolve([]);
-    var promises = files.map(function(item, i) {
-        var ext = item.file.name ? item.file.name.split('.').pop() : 'webm';
-        var path = 'challenges/' + GameState.playerPhone + '/' + screenType + '_' + dateKey + '_' + i + '.' + ext;
-        var ref = firebaseStorage.ref(path);
-        return ref.put(item.file).then(function(snapshot) {
-            return snapshot.ref.getDownloadURL();
-        });
+function processMediaFiles(screenType) {
+    return pendingMedia[screenType].map(function(item) {
+        return { type: item.type, dataURL: item.dataURL, name: item.name };
     });
-    return Promise.all(promises);
 }
 
 // --- Voice Recording ---
@@ -2716,24 +2806,28 @@ function toggleRecording(screenType) {
         activeRecorder.ondataavailable = function(e) { chunks.push(e.data); };
         activeRecorder.onstop = function() {
             var blob = new Blob(chunks, { type: 'audio/webm' });
-            if (blob.size > 5 * 1024 * 1024) {
-                showToast('التسجيل كبير أوي! الحد الأقصى 5 ميجا', 'error');
+            if (blob.size > 200 * 1024) {
+                showToast('التسجيل كبير أوي', 'error');
                 stream.getTracks().forEach(function(t) { t.stop(); });
                 activeRecorder = null;
                 activeRecorderType = null;
                 clearRecordingTimer(screenType);
                 return;
             }
-            var file = new File([blob], 'recording.webm', { type: 'audio/webm' });
-            pendingMedia[screenType].push({ file: file, type: 'audio', name: 'تسجيل صوتي' });
-            renderMediaPreview(screenType);
+            blobToBase64(blob).then(function(dataURL) {
+                if (getPendingMediaTotalSize(screenType) + dataURL.length > MAX_TOTAL_MEDIA_SIZE) {
+                    showToast('وصلت الحد الأقصى للملفات المرفقة', 'error');
+                } else {
+                    pendingMedia[screenType].push({ dataURL: dataURL, type: 'audio', name: 'تسجيل صوتي' });
+                    renderMediaPreview(screenType);
+                }
+            });
             stream.getTracks().forEach(function(t) { t.stop(); });
             activeRecorder = null;
             activeRecorderType = null;
             clearRecordingTimer(screenType);
         };
         activeRecorder.start();
-        // Start duration countdown
         recordingTimeLeft = MAX_RECORDING_SECONDS;
         var recEl = document.getElementById(screenType + '-recording');
         if (recEl) recEl.style.display = 'flex';
@@ -2743,7 +2837,7 @@ function toggleRecording(screenType) {
             updateRecordingTimerDisplay(screenType);
             if (recordingTimeLeft <= 0) {
                 stopRecording(screenType);
-                showToast('التسجيل وصل للحد الأقصى (دقيقتين)', 'info');
+                showToast('التسجيل وصل للحد الأقصى (30 ثانية)', 'info');
             }
         }, 1000);
     }).catch(function(err) {
@@ -2755,7 +2849,6 @@ function toggleRecording(screenType) {
 function stopRecording(screenType) {
     if (activeRecorder && activeRecorderType === screenType) {
         activeRecorder.stop();
-        // Timer cleanup handled in onstop callback via clearRecordingTimer
     }
 }
 
@@ -2776,6 +2869,15 @@ function clearRecordingTimer(screenType) {
     recordingTimeLeft = 0;
     var recEl = document.getElementById(screenType + '-recording');
     if (recEl) recEl.style.display = 'none';
+}
+
+function openMediaFullscreen(src) {
+    var overlay = document.createElement('div');
+    overlay.className = 'media-fullscreen-overlay';
+    overlay.innerHTML = '<img src="' + src + '" class="media-fullscreen-img">' +
+        '<button class="media-fullscreen-close" onclick="this.parentElement.remove()"><i class="fas fa-times"></i></button>';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    document.body.appendChild(overlay);
 }
 
 // --- Verse Detail Screen ---
@@ -2800,11 +2902,23 @@ function openVerseDetail() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
         statusEl.innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! سلمت تأمل آية اليوم</div>';
-        if (log.mediaURLs && log.mediaURLs.length) {
-            var mediaHtml = '<div class="saved-media">';
-            log.mediaURLs.forEach(function(url) { mediaHtml += '<a href="' + url + '" target="_blank" class="saved-media-link"><i class="fas fa-link"></i> ملف مرفق</a>'; });
+        var mediaItems = log.mediaDataURLs || [];
+        if (mediaItems.length) {
+            var mediaHtml = '<div class="saved-media-inline">';
+            mediaItems.forEach(function(item) {
+                if (item.type === 'image') {
+                    mediaHtml += '<div class="saved-media-item"><img src="' + item.dataURL + '" class="saved-media-img" alt="صورة مرفقة" onclick="openMediaFullscreen(this.src)"></div>';
+                } else if (item.type === 'audio') {
+                    mediaHtml += '<div class="saved-media-item"><div class="saved-audio-player"><i class="fas fa-microphone"></i> ' + (item.name || 'تسجيل صوتي') + '<audio src="' + item.dataURL + '" controls></audio></div></div>';
+                }
+            });
             mediaHtml += '</div>';
             statusEl.innerHTML += mediaHtml;
+        } else if (log.mediaURLs && log.mediaURLs.length) {
+            var mediaHtml2 = '<div class="saved-media">';
+            log.mediaURLs.forEach(function(url) { mediaHtml2 += '<a href="' + url + '" target="_blank" class="saved-media-link"><i class="fas fa-link"></i> ملف مرفق</a>'; });
+            mediaHtml2 += '</div>';
+            statusEl.innerHTML += mediaHtml2;
         }
     } else {
         textarea.value = '';
@@ -2829,31 +2943,25 @@ function submitVerseReflection() {
     }
     var btn = document.getElementById('btn-submit-verse');
     btn.disabled = true;
-    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</span>';
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الحفظ...</span>';
 
-    uploadMediaFiles('verse', key).then(function(urls) {
-        GameState.dailyVerseLog[key] = {
-            completed: true,
-            text: text,
-            mediaURLs: urls,
-            completedAt: new Date().toISOString(),
-            verseRef: getDailyVerse().ref
-        };
-        GameState.stars += 1;
-        pendingMedia.verse = [];
-        btn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
-        document.getElementById('verse-reflection').disabled = true;
-        document.getElementById('verse-detail-status').innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! كسبت 1 نجمة</div>';
-        confetti();
-        saveGame();
-        syncLeaderboard();
-        showToast('تم تسليم تأمل الآية!', 3500);
-    }).catch(function(err) {
-        console.error('Upload error:', err);
-        btn.disabled = false;
-        btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم التأمل</span>';
-        showToast('حصل مشكلة في الرفع، حاول تاني', 'error');
-    });
+    var mediaItems = processMediaFiles('verse');
+    GameState.dailyVerseLog[key] = {
+        completed: true,
+        text: text,
+        mediaDataURLs: mediaItems,
+        completedAt: new Date().toISOString(),
+        verseRef: getDailyVerse().ref
+    };
+    GameState.stars += 1;
+    pendingMedia.verse = [];
+    btn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+    document.getElementById('verse-reflection').disabled = true;
+    document.getElementById('verse-detail-status').innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! كسبت 1 نجمة</div>';
+    confetti();
+    saveGame();
+    syncLeaderboard();
+    showToast('تم تسليم تأمل الآية!', 3500, 'success');
 }
 
 // --- Challenge Detail Screen ---
@@ -2879,11 +2987,23 @@ function openChallengeDetail() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
         statusEl.innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! سلمت تحدي الأسبوع</div>';
-        if (log.mediaURLs && log.mediaURLs.length) {
-            var mediaHtml = '<div class="saved-media">';
-            log.mediaURLs.forEach(function(url) { mediaHtml += '<a href="' + url + '" target="_blank" class="saved-media-link"><i class="fas fa-link"></i> ملف مرفق</a>'; });
+        var mediaItems = log.mediaDataURLs || [];
+        if (mediaItems.length) {
+            var mediaHtml = '<div class="saved-media-inline">';
+            mediaItems.forEach(function(item) {
+                if (item.type === 'image') {
+                    mediaHtml += '<div class="saved-media-item"><img src="' + item.dataURL + '" class="saved-media-img" alt="صورة مرفقة" onclick="openMediaFullscreen(this.src)"></div>';
+                } else if (item.type === 'audio') {
+                    mediaHtml += '<div class="saved-media-item"><div class="saved-audio-player"><i class="fas fa-microphone"></i> ' + (item.name || 'تسجيل صوتي') + '<audio src="' + item.dataURL + '" controls></audio></div></div>';
+                }
+            });
             mediaHtml += '</div>';
             statusEl.innerHTML += mediaHtml;
+        } else if (log.mediaURLs && log.mediaURLs.length) {
+            var mediaHtml2 = '<div class="saved-media">';
+            log.mediaURLs.forEach(function(url) { mediaHtml2 += '<a href="' + url + '" target="_blank" class="saved-media-link"><i class="fas fa-link"></i> ملف مرفق</a>'; });
+            mediaHtml2 += '</div>';
+            statusEl.innerHTML += mediaHtml2;
         }
     } else {
         textarea.value = '';
@@ -2909,32 +3029,26 @@ function submitChallengeReflection() {
     }
     var btn = document.getElementById('btn-submit-challenge');
     btn.disabled = true;
-    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</span>';
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الحفظ...</span>';
 
-    uploadMediaFiles('challenge', key).then(function(urls) {
-        GameState.weeklyChallengeLog[key] = {
-            completed: true,
-            text: text,
-            mediaURLs: urls,
-            completedAt: new Date().toISOString(),
-            challengeTitle: challenge.title,
-            rewardClaimed: true
-        };
-        GameState.stars += challenge.reward;
-        pendingMedia.challenge = [];
-        btn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
-        document.getElementById('challenge-reflection').disabled = true;
-        document.getElementById('challenge-detail-status').innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! كسبت ' + challenge.reward + ' نجوم</div>';
-        confetti();
-        saveGame();
-        syncLeaderboard();
-        showToast('تم تسليم التحدي!', 3500);
-    }).catch(function(err) {
-        console.error('Upload error:', err);
-        btn.disabled = false;
-        btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم التحدي</span>';
-        showToast('حصل مشكلة في الرفع، حاول تاني', 'error');
-    });
+    var mediaItems = processMediaFiles('challenge');
+    GameState.weeklyChallengeLog[key] = {
+        completed: true,
+        text: text,
+        mediaDataURLs: mediaItems,
+        completedAt: new Date().toISOString(),
+        challengeTitle: challenge.title,
+        rewardClaimed: true
+    };
+    GameState.stars += challenge.reward;
+    pendingMedia.challenge = [];
+    btn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+    document.getElementById('challenge-reflection').disabled = true;
+    document.getElementById('challenge-detail-status').innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! كسبت ' + challenge.reward + ' نجوم</div>';
+    confetti();
+    saveGame();
+    syncLeaderboard();
+    showToast('تم تسليم التحدي!', 3500, 'success');
 }
 
 // --- Leaderboard ---

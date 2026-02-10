@@ -499,27 +499,22 @@
                 <textarea id="verse-reflection" class="detail-textarea" placeholder="اكتب تأملك في الآية دي..." rows="4"></textarea>
                 <h3 class="detail-section-title"><i class="fas fa-paperclip"></i> أرفق صورة أو فيديو أو تسجيل صوتي</h3>
                 <div class="media-attach-area" id="verse-media-area">
-                    <div class="media-buttons">
+                    <div class="media-buttons media-buttons-2col">
                         <label class="media-btn">
                             <i class="fas fa-camera"></i> صورة
                             <small class="media-hint">حتى 5 ميجا</small>
                             <input type="file" accept="image/*" capture="environment" onchange="handleMediaSelect(this, 'verse', 'image')" hidden>
                         </label>
-                        <label class="media-btn">
-                            <i class="fas fa-video"></i> فيديو
-                            <small class="media-hint">حتى 20 ميجا</small>
-                            <input type="file" accept="video/*" capture="environment" onchange="handleMediaSelect(this, 'verse', 'video')" hidden>
-                        </label>
                         <button class="media-btn" onclick="toggleRecording('verse')">
                             <i class="fas fa-microphone"></i> تسجيل صوتي
-                            <small class="media-hint">حتى دقيقتين</small>
+                            <small class="media-hint">حتى 30 ثانية</small>
                         </button>
                     </div>
                     <div class="media-preview" id="verse-media-preview"></div>
                     <div class="recording-indicator" id="verse-recording" style="display:none">
                         <div class="rec-dot"></div>
                         <span>جاري التسجيل...</span>
-                        <span class="rec-timer" id="verse-rec-timer">2:00</span>
+                        <span class="rec-timer" id="verse-rec-timer">0:30</span>
                         <button class="rec-stop-btn" onclick="stopRecording('verse')"><i class="fas fa-stop"></i> إيقاف</button>
                     </div>
                 </div>
@@ -550,27 +545,22 @@
                 <textarea id="challenge-reflection" class="detail-textarea" placeholder="اكتب إيه اللي عملته في التحدي..." rows="4"></textarea>
                 <h3 class="detail-section-title"><i class="fas fa-paperclip"></i> أرفق صورة أو فيديو أو تسجيل صوتي</h3>
                 <div class="media-attach-area" id="challenge-media-area">
-                    <div class="media-buttons">
+                    <div class="media-buttons media-buttons-2col">
                         <label class="media-btn">
                             <i class="fas fa-camera"></i> صورة
                             <small class="media-hint">حتى 5 ميجا</small>
                             <input type="file" accept="image/*" capture="environment" onchange="handleMediaSelect(this, 'challenge', 'image')" hidden>
                         </label>
-                        <label class="media-btn">
-                            <i class="fas fa-video"></i> فيديو
-                            <small class="media-hint">حتى 20 ميجا</small>
-                            <input type="file" accept="video/*" capture="environment" onchange="handleMediaSelect(this, 'challenge', 'video')" hidden>
-                        </label>
                         <button class="media-btn" onclick="toggleRecording('challenge')">
                             <i class="fas fa-microphone"></i> تسجيل صوتي
-                            <small class="media-hint">حتى دقيقتين</small>
+                            <small class="media-hint">حتى 30 ثانية</small>
                         </button>
                     </div>
                     <div class="media-preview" id="challenge-media-preview"></div>
                     <div class="recording-indicator" id="challenge-recording" style="display:none">
                         <div class="rec-dot"></div>
                         <span>جاري التسجيل...</span>
-                        <span class="rec-timer" id="challenge-rec-timer">2:00</span>
+                        <span class="rec-timer" id="challenge-rec-timer">0:30</span>
                         <button class="rec-stop-btn" onclick="stopRecording('challenge')"><i class="fas fa-stop"></i> إيقاف</button>
                     </div>
                 </div>
@@ -712,7 +702,6 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
     <script src="game.js"></script>
 </body>

@@ -2733,6 +2733,10 @@ function handleMediaSelect(input, screenType, mediaType) {
             }
             return dataURL;
         }).then(function(dataURL) {
+            // Remove existing image (overwrite — only 1 image allowed)
+            pendingMedia[screenType] = pendingMedia[screenType].filter(function(item) {
+                return item.type !== 'image';
+            });
             if (getPendingMediaTotalSize(screenType) + dataURL.length > MAX_TOTAL_MEDIA_SIZE) {
                 showToast('وصلت الحد الأقصى للملفات المرفقة', 'error');
                 return;
@@ -2744,6 +2748,10 @@ function handleMediaSelect(input, screenType, mediaType) {
         });
     } else if (mediaType === 'audio') {
         blobToBase64(file).then(function(dataURL) {
+            // Remove existing audio (overwrite — only 1 audio allowed)
+            pendingMedia[screenType] = pendingMedia[screenType].filter(function(item) {
+                return item.type !== 'audio';
+            });
             if (getPendingMediaTotalSize(screenType) + dataURL.length > MAX_TOTAL_MEDIA_SIZE) {
                 showToast('وصلت الحد الأقصى للملفات المرفقة', 'error');
                 return;
@@ -2815,6 +2823,10 @@ function toggleRecording(screenType) {
                 return;
             }
             blobToBase64(blob).then(function(dataURL) {
+                // Remove existing audio (overwrite — only 1 audio allowed)
+                pendingMedia[screenType] = pendingMedia[screenType].filter(function(item) {
+                    return item.type !== 'audio';
+                });
                 if (getPendingMediaTotalSize(screenType) + dataURL.length > MAX_TOTAL_MEDIA_SIZE) {
                     showToast('وصلت الحد الأقصى للملفات المرفقة', 'error');
                 } else {

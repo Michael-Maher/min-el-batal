@@ -43,7 +43,8 @@ const GameState = {
     armor: [],
     equippedArmor: {},
     gamesPlayed: 0,
-    perfectLevels: 0
+    perfectLevels: 0,
+    missionsCompleted: 0
 };
 
 // --- Firebase Initialization ---
@@ -177,6 +178,7 @@ function saveToCloud() {
         equippedArmor: GameState.equippedArmor,
         gamesPlayed: GameState.gamesPlayed,
         perfectLevels: GameState.perfectLevels,
+        missionsCompleted: GameState.missionsCompleted,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     return docRef.set(data, { merge: true })
@@ -435,6 +437,106 @@ const ARMOR_ITEMS = {
     }
 };
 
+// --- Mission Types ---
+const MISSION_TYPES = {
+    recordPsalm: { name: 'تسجيل مزمور', icon: 'fa-microphone', color: '#9C27B0', description: 'سجّل نفسك وأنت بتقول المزمور' },
+    explainStory: { name: 'شرح قصة', icon: 'fa-book-open-reader', color: '#2196F3', description: 'اشرح قصة من الكتاب المقدس بأسلوبك' },
+    goodDeed: { name: 'عمل خير', icon: 'fa-hand-holding-heart', color: '#4CAF50', description: 'زيارة مريض أو عمل خير وصوّره' },
+    churchAttend: { name: 'حضور قداس', icon: 'fa-church', color: '#FF9800', description: 'احضر القداس وصوّر نفسك في الكنيسة' },
+    prayerChallenge: { name: 'تحدي الصلاة', icon: 'fa-pray', color: '#E91E63', description: 'صلّي أجبية كاملة وسجّل اسم الساعة' },
+    bibleReading: { name: 'قراءة كتاب مقدس', icon: 'fa-bible', color: '#795548', description: 'اقرأ إصحاح وسجّل ملخصه' }
+};
+
+// --- Mission Data ---
+const MISSION_DATA = [
+    { id: 1, type: 'recordPsalm', title: 'سجّل مزمور 23 (الرب راعيّ)', description: 'احفظ مزمور 23 وسجّل نفسك وأنت بتقوله. اكتب إيه اللي اتعلمته من المزمور.', reward: 15, starsReward: 3 },
+    { id: 2, type: 'explainStory', title: 'اشرح قصة يونان النبي', description: 'اشرح قصة يونان النبي بأسلوبك الخاص. إيه الدرس اللي اتعلمته من القصة؟', reward: 20, starsReward: 3 },
+    { id: 3, type: 'goodDeed', title: 'زُر مريض أو ساعد حد محتاج', description: 'زور مريض أو ساعد حد محتاج واكتب إيه اللي عملته وإزاي حسيت.', reward: 25, starsReward: 4 },
+    { id: 4, type: 'churchAttend', title: 'احضر قداس الأحد', description: 'احضر القداس يوم الأحد واكتب إيه اللي استفدته من العظة.', reward: 15, starsReward: 3 },
+    { id: 5, type: 'prayerChallenge', title: 'صلّي ساعة باكر', description: 'صلّي ساعة باكر من الأجبية واكتب إيه اللي حسيت بيه بعد الصلاة.', reward: 15, starsReward: 3 },
+    { id: 6, type: 'bibleReading', title: 'اقرأ أفسس 6 واكتب ملخص', description: 'اقرأ إصحاح 6 من رسالة أفسس واكتب ملخص بسيط للي فهمته.', reward: 20, starsReward: 3 },
+    { id: 7, type: 'recordPsalm', title: 'سجّل مزمور 51 (ارحمني يا الله)', description: 'احفظ مزمور 51 (مزمور التوبة) واكتب إيه اللي علمك إياه عن التوبة.', reward: 20, starsReward: 3 },
+    { id: 8, type: 'explainStory', title: 'اشرح قصة داود وجليات', description: 'اشرح قصة داود وجليات وإيه الدرس اللي نتعلمه من شجاعة داود.', reward: 20, starsReward: 3 },
+    { id: 9, type: 'goodDeed', title: 'ساعد في خدمة الكنيسة', description: 'شارك في خدمة الكنيسة (تنظيف/ترتيب/مساعدة) واكتب إيه اللي عملته.', reward: 25, starsReward: 4 },
+    { id: 10, type: 'bibleReading', title: 'اقرأ إنجيل متى 5 (التطويبات)', description: 'اقرأ إنجيل متى إصحاح 5 (التطويبات) واكتب أكتر تطويبة أثرت فيك وليه.', reward: 20, starsReward: 3 }
+];
+
+// --- Daily Verses ---
+const DAILY_VERSES = [
+    { text: 'لأَنَّ اللهَ هكَذا أَحَبَّ العالَمَ حتّى بَذَلَ ابنَهُ الوحيدَ', ref: 'يوحنا 3:16' },
+    { text: 'أَمّا أَنا فَقَد أَتَيتُ لتَكونَ لَهم حَياةٌ وليَكونَ لَهم أَفضَل', ref: 'يوحنا 10:10' },
+    { text: 'تَعالَوا إلَيَّ يا جَميعَ المتعَبينَ والثقيلي الأَحمال وأَنا أُريحُكم', ref: 'متى 11:28' },
+    { text: 'الرَبُّ راعيَّ فلا يُعوِزُني شَيءٌ', ref: 'مزمور 23:1' },
+    { text: 'أَستَطيعُ كُلَّ شَيءٍ في المَسيح الذي يُقَوّيني', ref: 'فيلبي 4:13' },
+    { text: 'لا تَخَفْ لأَنّي مَعَكَ، لا تَتَلَفَّتْ لأَنّي إلهُكَ', ref: 'إشعياء 41:10' },
+    { text: 'أَحِبّوا بَعضُكم بَعضًا كَما أَحبَبتُكم', ref: 'يوحنا 15:12' },
+    { text: 'أَنا هوَ الطَّريقُ والحَقُّ والحَياةُ', ref: 'يوحنا 14:6' },
+    { text: 'فَإنَّ كُلَّ الأَشياء تَعمَلُ مَعًا للخَير للذينَ يُحِبّونَ اللهَ', ref: 'رومية 8:28' },
+    { text: 'فَليُضِئْ نورُكم هكَذا قُدّامَ النّاسِ', ref: 'متى 5:16' },
+    { text: 'اُطلُبوا أَوَّلًا مَلَكوتَ الله وبِرَّهُ', ref: 'متى 6:33' },
+    { text: 'سَلِّموا أُمورَكم للرَبِّ فَهوَ يُعولُكم', ref: 'مزمور 55:22' },
+    { text: 'كونوا لُطَفاءَ بَعضُكم نَحوَ بَعضٍ، شَفوقينَ، مُتَسامحينَ', ref: 'أفسس 4:32' },
+    { text: 'المَحَبَّةُ تَصبِرُ وتَرفُقُ، المَحَبَّةُ لا تَحسُدُ', ref: '1 كورنثوس 13:4' },
+    { text: 'إنْ اعتَرَفنا بخَطايانا فَهوَ أَمينٌ وعادِلٌ', ref: '1 يوحنا 1:9' },
+    { text: 'الرَبُّ قَريبٌ لمُنكَسِري القَلبِ', ref: 'مزمور 34:18' },
+    { text: 'افرَحوا في الرَبِّ كُلَّ حينٍ، وأَقولُ أَيضًا افرَحوا', ref: 'فيلبي 4:4' },
+    { text: 'كُلُّ شَيءٍ جَميلٌ في وَقتِهِ', ref: 'جامعة 3:11' },
+    { text: 'أَحِبَّ الرَبَّ إلهَكَ من كُلِّ قَلبِكَ', ref: 'متى 22:37' },
+    { text: 'الرَبُّ نوري وخَلاصي، مِمَّنْ أَخافُ؟', ref: 'مزمور 27:1' },
+    { text: 'السَّماواتُ تُحَدِّثُ بمَجدِ اللهِ', ref: 'مزمور 19:1' },
+    { text: 'لا تَهتَمّوا للغَدِ، لأَنَّ الغَدَ يَهتَمُّ بما لنَفسِهِ', ref: 'متى 6:34' },
+    { text: 'كُن أَمينًا إلى المَوت فَسأُعطيكَ إكليلَ الحَياةِ', ref: 'رؤيا 2:10' },
+    { text: 'أَحِبَّ قَريبَكَ كَنَفسِكَ', ref: 'متى 22:39' },
+    { text: 'وَها أَنا مَعَكم كُلَّ الأَيّامِ إلى انقِضاءِ الدَّهرِ', ref: 'متى 28:20' },
+    { text: 'ليَكُنْ كَلامُكم كُلَّ حينٍ بنِعمَةٍ، مُمَلَّحًا بمِلحٍ', ref: 'كولوسي 4:6' },
+    { text: 'ثِقَ في الرَبِّ من كُلِّ قَلبِكَ', ref: 'أمثال 3:5' },
+    { text: 'اُصنَعوا الخَيرَ ولا تَمَلّوا', ref: 'غلاطية 6:9' },
+    { text: 'يَا بَنيَّ، لا نُحِبَّ بالكَلامِ ولا باللِّسانِ، بَلْ بالعَمَلِ والحَقِّ', ref: '1 يوحنا 3:18' },
+    { text: 'صَلّوا بلا انقِطاعٍ', ref: '1 تسالونيكي 5:17' },
+    { text: 'أَقوياءُ في الرَبِّ وفي شِدَّةِ قوَّتِهِ', ref: 'أفسس 6:10' },
+    { text: 'اُشكُروا في كُلِّ شَيءٍ', ref: '1 تسالونيكي 5:18' },
+    { text: 'الرَبُّ إلهي، إليكَ أُبَكِّرُ، اللهَ روحي تَعطَشُ إليكَ', ref: 'مزمور 63:1' },
+    { text: 'الأَبرارُ يُضيئونَ كالشَّمسِ في مَلَكوتِ أَبيهم', ref: 'متى 13:43' },
+    { text: 'ها أَنا أَصنَعُ كُلَّ شَيءٍ جَديدًا', ref: 'رؤيا 21:5' },
+    { text: 'عَظيمٌ هوَ سِرُّ التَّقوى', ref: '1 تيموثاوس 3:16' },
+    { text: 'قَلبًا نَقيًّا اخلُقْ فيَّ يا اللهُ', ref: 'مزمور 51:10' },
+    { text: 'إنْ كانَ اللهُ مَعَنا، فَمَنْ عَلَينا؟', ref: 'رومية 8:31' },
+    { text: 'طُوبى للرُّحَماء لأَنَّهم يُرحَمونَ', ref: 'متى 5:7' },
+    { text: 'الرَبُّ حِصني في يَومِ الضّيقِ', ref: 'ناحوم 1:7' },
+    { text: 'طُوبى لصانعي السَّلام لأَنَّهم أَبناءَ الله يُدعَونَ', ref: 'متى 5:9' },
+    { text: 'الأَرضُ للرَبِّ ومِلؤها', ref: 'مزمور 24:1' },
+    { text: 'مُبارَكٌ الإنسانُ الذي يَتَّكِلُ عَلى الرَبِّ', ref: 'إرميا 17:7' },
+    { text: 'خَيرٌ لي أَنْ أَقتَرِبَ إلى اللهِ', ref: 'مزمور 73:28' },
+    { text: 'عَلِّمني يا رَبُّ طَريقَكَ', ref: 'مزمور 27:11' },
+    { text: 'تَوكَّلْ عَلى الرَبِّ واصنَعِ الخَيرَ', ref: 'مزمور 37:3' },
+    { text: 'افتَحْ عَينَيَّ فَأَرى عَجائِبَ من شَريعَتِكَ', ref: 'مزمور 119:18' },
+    { text: 'لأَنَّ عِندَكَ ينبوعَ الحَياةِ، بنورِكَ نَرى نورًا', ref: 'مزمور 36:9' },
+    { text: 'انتَظِرِ الرَبَّ، تَقَوَّ وليَتَشجَّعْ قَلبُكَ', ref: 'مزمور 27:14' },
+    { text: 'بارِكي يا نَفسي الرَبَّ ولا تَنسَي كُلَّ حَسَناتِهِ', ref: 'مزمور 103:2' },
+    { text: 'مَعَ الله كُلُّ شَيءٍ مُستَطاعٌ', ref: 'متى 19:26' },
+    { text: 'يَا أَبنائي وأَحِبّائي، لنَكُنْ راسِخينَ غَيرَ مُتَزَعزِعينَ', ref: '1 كورنثوس 15:58' }
+];
+
+// --- Weekly Challenges ---
+const WEEKLY_CHALLENGES = [
+    { title: 'تحدي الصلاة', description: 'صلّي كُل يوم الصبح أول ما تصحى لمدة أسبوع', icon: 'fa-pray', reward: 5 },
+    { title: 'تحدي القراءة', description: 'اقرأ إصحاح من الكتاب المقدس كُل يوم', icon: 'fa-bible', reward: 5 },
+    { title: 'تحدي الحفظ', description: 'احفظ آية جديدة كُل يوم من أيام الأسبوع', icon: 'fa-brain', reward: 5 },
+    { title: 'تحدي الخدمة', description: 'ساعد حد محتاج كُل يوم (زميل، جار، أهل)', icon: 'fa-hand-holding-heart', reward: 5 },
+    { title: 'تحدي الشكر', description: 'اكتب 3 حاجات شاكر عليها ربنا كُل يوم', icon: 'fa-heart', reward: 5 },
+    { title: 'تحدي الكنيسة', description: 'احضر كُل الاجتماعات والقداسات الأسبوع ده', icon: 'fa-church', reward: 5 },
+    { title: 'تحدي التسبيح', description: 'اسمع ترنيمة روحية كُل يوم واحفظ كلماتها', icon: 'fa-music', reward: 5 },
+    { title: 'تحدي الصوم', description: 'صوّم يوم الأربعاء والجمعة الأسبوع ده', icon: 'fa-utensils', reward: 5 },
+    { title: 'تحدي المسامحة', description: 'سامح حد زعلك وصالحه الأسبوع ده', icon: 'fa-handshake', reward: 5 },
+    { title: 'تحدي الاعتراف', description: 'اعترف عند أبونا الأسبوع ده', icon: 'fa-cross', reward: 5 },
+    { title: 'تحدي التناول', description: 'اتناول في القداس الأسبوع ده', icon: 'fa-wine-glass', reward: 5 },
+    { title: 'تحدي المحبة', description: 'قول كلمة حلوة لحد كُل يوم وفرّحه', icon: 'fa-smile', reward: 5 },
+    { title: 'تحدي التواضع', description: 'اخدم حد في البيت بدون ما حد يطلب منك', icon: 'fa-hands-helping', reward: 5 },
+    { title: 'تحدي الصمت', description: 'خصّص 10 دقايق كُل يوم للصمت والتأمل مع ربنا', icon: 'fa-moon', reward: 5 },
+    { title: 'تحدي البركة', description: 'قول بركة الأكل قبل كُل وجبة الأسبوع ده', icon: 'fa-utensils', reward: 5 },
+    { title: 'تحدي العائلة', description: 'صلّي مع أهلك كُل يوم قبل النوم', icon: 'fa-users', reward: 5 }
+];
+
 // --- Levels ---
 const LEVELS = [
     { id: 1,  name: 'بداية الرحلة',     type: 'quiz',    questions: 5,  timePerQ: 20, starsNeeded: 0,  reward: 10 },
@@ -445,23 +547,26 @@ const LEVELS = [
     { id: 6,  name: 'الترتيب المقدس',    type: 'order',     questions: 5,  timePerQ: 30, starsNeeded: 15, reward: 25 },
     { id: 7,  name: 'الفرق المخفي',      type: 'spotdiff',  questions: 5,  timePerQ: 20, starsNeeded: 18, reward: 25 },
     { id: 8,  name: 'أكمل الآية',        type: 'missing',   questions: 6,  timePerQ: 20, starsNeeded: 22, reward: 25 },
-    { id: 9,  name: 'صل وتذكر',         type: 'memory',    questions: 6,  timePerQ: 30, starsNeeded: 25, reward: 30 },
-    { id: 10, name: 'الوحش الثاني',      type: 'quiz',      questions: 12, timePerQ: 14, starsNeeded: 28, reward: 40 },
-    { id: 11, name: 'صور مقدسة',        type: 'picguess',  questions: 5,  timePerQ: 20, starsNeeded: 32, reward: 30 },
-    { id: 12, name: 'أوصل الخط',        type: 'connect',   questions: 6,  timePerQ: 25, starsNeeded: 35, reward: 30 },
-    { id: 13, name: 'اللغز المقدس',      type: 'puzzle',    questions: 5,  timePerQ: 35, starsNeeded: 38, reward: 35 },
-    { id: 14, name: 'صح أم خطأ ٢',      type: 'truefalse', questions: 10, timePerQ: 10, starsNeeded: 42, reward: 30 },
-    { id: 15, name: 'الوحش الثالث',      type: 'quiz',      questions: 14, timePerQ: 13, starsNeeded: 45, reward: 50 },
-    { id: 16, name: 'المتاهة',           type: 'maze',      questions: 3,  timePerQ: 45, starsNeeded: 50, reward: 40 },
-    { id: 17, name: 'صور وألغاز',       type: 'imgpuzzle', questions: 5,  timePerQ: 30, starsNeeded: 54, reward: 35 },
-    { id: 18, name: 'الذاكرة القوية',    type: 'memory',    questions: 8,  timePerQ: 25, starsNeeded: 58, reward: 35 },
-    { id: 19, name: 'تحدي السرعة',      type: 'quiz',    questions: 10, timePerQ: 10, starsNeeded: 62, reward: 40 },
-    { id: 20, name: 'الوحش الرابع',      type: 'quiz',      questions: 16, timePerQ: 12, starsNeeded: 66, reward: 60 },
-    { id: 21, name: 'المزامير ٢',        type: 'psalm',     questions: 8,  timePerQ: 20, starsNeeded: 72, reward: 45 },
-    { id: 22, name: 'أوصل ٢',          type: 'connect',   questions: 8,  timePerQ: 22, starsNeeded: 76, reward: 45 },
-    { id: 23, name: 'الترتيب النهائي',   type: 'order',     questions: 8,  timePerQ: 25, starsNeeded: 80, reward: 50 },
-    { id: 24, name: 'التحدي الأخير',     type: 'quiz',    questions: 15, timePerQ: 12, starsNeeded: 85, reward: 60 },
-    { id: 25, name: 'ملك الأبطال',       type: 'quiz',      questions: 20, timePerQ: 10, starsNeeded: 90, reward: 100 }
+    { id: 9,  name: 'مهمة: تسجيل مزمور',  type: 'mission', missionId: 1, starsNeeded: 24, reward: 15 },
+    { id: 10, name: 'صل وتذكر',         type: 'memory',    questions: 6,  timePerQ: 30, starsNeeded: 27, reward: 30 },
+    { id: 11, name: 'الوحش الثاني',      type: 'quiz',      questions: 12, timePerQ: 14, starsNeeded: 30, reward: 40 },
+    { id: 12, name: 'صور مقدسة',        type: 'picguess',  questions: 5,  timePerQ: 20, starsNeeded: 34, reward: 30 },
+    { id: 13, name: 'أوصل الخط',        type: 'connect',   questions: 6,  timePerQ: 25, starsNeeded: 37, reward: 30 },
+    { id: 14, name: 'اللغز المقدس',      type: 'puzzle',    questions: 5,  timePerQ: 35, starsNeeded: 40, reward: 35 },
+    { id: 15, name: 'صح أم خطأ ٢',      type: 'truefalse', questions: 10, timePerQ: 10, starsNeeded: 44, reward: 30 },
+    { id: 16, name: 'الوحش الثالث',      type: 'quiz',      questions: 14, timePerQ: 13, starsNeeded: 47, reward: 50 },
+    { id: 17, name: 'المتاهة',           type: 'maze',      questions: 3,  timePerQ: 45, starsNeeded: 52, reward: 40 },
+    { id: 18, name: 'مهمة: شرح قصة',       type: 'mission', missionId: 2, starsNeeded: 55, reward: 20 },
+    { id: 19, name: 'صور وألغاز',       type: 'imgpuzzle', questions: 5,  timePerQ: 30, starsNeeded: 58, reward: 35 },
+    { id: 20, name: 'الذاكرة القوية',    type: 'memory',    questions: 8,  timePerQ: 25, starsNeeded: 62, reward: 35 },
+    { id: 21, name: 'تحدي السرعة',      type: 'quiz',    questions: 10, timePerQ: 10, starsNeeded: 65, reward: 40 },
+    { id: 22, name: 'الوحش الرابع',      type: 'quiz',      questions: 16, timePerQ: 12, starsNeeded: 70, reward: 60 },
+    { id: 23, name: 'المزامير ٢',        type: 'psalm',     questions: 8,  timePerQ: 20, starsNeeded: 75, reward: 45 },
+    { id: 24, name: 'مهمة: عمل خير',      type: 'mission', missionId: 3, starsNeeded: 78, reward: 25 },
+    { id: 25, name: 'أوصل ٢',          type: 'connect',   questions: 8,  timePerQ: 22, starsNeeded: 82, reward: 45 },
+    { id: 26, name: 'الترتيب النهائي',   type: 'order',     questions: 8,  timePerQ: 25, starsNeeded: 86, reward: 50 },
+    { id: 27, name: 'التحدي الأخير',     type: 'quiz',    questions: 15, timePerQ: 12, starsNeeded: 90, reward: 60 },
+    { id: 28, name: 'ملك الأبطال',       type: 'quiz',      questions: 20, timePerQ: 10, starsNeeded: 95, reward: 100 }
 ];
 
 // --- Categories ---
@@ -1014,7 +1119,9 @@ const ACHIEVEMENTS = [
     { id: 'gems50', name: 'جامع الجواهر', icon: '💰', desc: 'اجمع 50 جوهرة', check: () => GameState.gems >= 50 },
     { id: 'all_chars', name: 'الفريق الكامل', icon: '👥', desc: 'افتح جميع الشخصيات', check: () => Object.values(CHARACTERS).every(c => c.unlocked) },
     { id: 'games10', name: 'مثابر', icon: '🎮', desc: 'العب 10 مرات', check: () => GameState.gamesPlayed >= 10 },
-    { id: 'armor3', name: 'محارب الإيمان', icon: '🛡️', desc: 'اشترِ 3 قطع درع', check: () => GameState.armor.length >= 3 }
+    { id: 'armor3', name: 'محارب الإيمان', icon: '🛡️', desc: 'اشترِ 3 قطع درع', check: () => GameState.armor.length >= 3 },
+    { id: 'mission1', name: 'أول مهمة', icon: '📋', desc: 'أكمل أول مهمة', check: () => GameState.missionsCompleted >= 1 },
+    { id: 'mission3', name: 'خادم نشيط', icon: '🙏', desc: 'أكمل 3 مهمات', check: () => GameState.missionsCompleted >= 3 }
 ];
 
 
@@ -1132,10 +1239,27 @@ function renderMap() {
     var avatarImg = document.getElementById('avatar-img');
     var ch = CHARACTERS[GameState.character];
     if (avatarImg && ch) { avatarImg.src = ch.image; avatarImg.alt = ch.name; }
+
+    // Daily Verse
+    var verse = getDailyVerse();
+    var dvText = document.getElementById('dv-text');
+    var dvRef = document.getElementById('dv-ref');
+    if (dvText && verse) { dvText.textContent = verse.text; }
+    if (dvRef && verse) { dvRef.textContent = verse.ref; }
+
+    // Weekly Challenge
+    var challenge = getWeeklyChallenge();
+    var wcTitle = document.getElementById('wc-title');
+    var wcDesc = document.getElementById('wc-desc');
+    var wcReward = document.getElementById('wc-reward');
+    if (wcTitle && challenge) { wcTitle.textContent = challenge.title; }
+    if (wcDesc && challenge) { wcDesc.textContent = challenge.description; }
+    if (wcReward && challenge) { wcReward.textContent = '+' + challenge.reward + ' نجوم'; }
+
     var path = document.getElementById('levels-path');
     path.innerHTML = '';
-    var icons = {quiz:'fa-question-circle',psalm:'fa-scroll',spotdiff:'fa-magnifying-glass',memory:'fa-brain',truefalse:'fa-bolt',imgpuzzle:'fa-puzzle-piece',missing:'fa-question',puzzle:'fa-spell-check',connect:'fa-link',maze:'fa-route',picguess:'fa-image',order:'fa-sort-numeric-down'};
-    var colors = {quiz:'#4CAF50',psalm:'#9C27B0',spotdiff:'#FF9800',memory:'#2196F3',truefalse:'#F44336',imgpuzzle:'#00BCD4',missing:'#E91E63',puzzle:'#FF5722',connect:'#3F51B5',maze:'#795548',picguess:'#607D8B',order:'#009688'};
+    var icons = {quiz:'fa-question-circle',psalm:'fa-scroll',spotdiff:'fa-magnifying-glass',memory:'fa-brain',truefalse:'fa-bolt',imgpuzzle:'fa-puzzle-piece',missing:'fa-question',puzzle:'fa-spell-check',connect:'fa-link',maze:'fa-route',picguess:'fa-image',order:'fa-sort-numeric-down',mission:'fa-clipboard-check'};
+    var colors = {quiz:'#4CAF50',psalm:'#9C27B0',spotdiff:'#FF9800',memory:'#2196F3',truefalse:'#F44336',imgpuzzle:'#00BCD4',missing:'#E91E63',puzzle:'#FF5722',connect:'#3F51B5',maze:'#795548',picguess:'#607D8B',order:'#009688',mission:'#FF6B35'};
     LEVELS.forEach(function(lv, i) {
         var num = i + 1;
         var ld = GameState.levelsData[num] || {};
@@ -1143,10 +1267,13 @@ function renderMap() {
         var completed = !!ld.completed;
         var starsE = ld.stars || 0;
         var node = document.createElement('div');
-        node.className = 'level-node' + (unlocked?' unlocked':'') + (completed?' completed':'') + (num===GameState.currentLevel && !completed?' current':'');
+        var isMission = lv.type === 'mission';
+        node.className = 'level-node' + (unlocked?' unlocked':'') + (completed?' completed':'') + (num===GameState.currentLevel && !completed?' current':'') + (isMission?' mission-node':'');
         var starStr = '';
         for (var s = 0; s < 3; s++) starStr += s < starsE ? '⭐' : '☆';
-        node.innerHTML = '<div class="level-circle" style="'+(unlocked?'border-color:'+(colors[lv.type]||'#4CAF50'):'')+'"><i class="fas '+(icons[lv.type]||'fa-question-circle')+'"></i><span class="level-num">'+num+'</span></div><p class="level-name">'+lv.name+'</p><div class="level-stars">'+starStr+'</div>' + (lv.starsNeeded>0 ? '<span class="level-req">'+lv.starsNeeded+'⭐ مطلوب</span>' : '');
+        var badgeHtml = '';
+        if (isMission) badgeHtml = '<span class="level-badge badge-mission">📋 مهمة</span>';
+        node.innerHTML = '<div class="level-circle" style="'+(unlocked?'border-color:'+(colors[lv.type]||'#4CAF50'):'')+'"><i class="fas '+(icons[lv.type]||'fa-question-circle')+'"></i><span class="level-num">'+num+'</span></div><p class="level-name">'+lv.name+'</p><div class="level-stars">'+starStr+'</div>' + (lv.starsNeeded>0 ? '<span class="level-req">'+lv.starsNeeded+'⭐ مطلوب</span>' : '') + badgeHtml;
         if (unlocked) { (function(n) { node.onclick = function() { startLevel(n); }; })(num); }
         path.appendChild(node);
         if (i < LEVELS.length - 1) {
@@ -1175,6 +1302,7 @@ function startLevel(num) {
     else if (t==='maze') startMaze(num);
     else if (t==='picguess') startPicGuess(num);
     else if (t==='order') startOrder(num);
+    else if (t==='mission') startMission(num);
     else { showScreen('category-screen'); renderCategories(lv); }
 }
 
@@ -2338,33 +2466,159 @@ function equipArmor(key) {
     saveGame();
 }
 
+// --- Mission System ---
+var currentMissionLevel = null;
+
+function startMission(num) {
+    var lv = LEVELS[num - 1];
+    if (!lv || lv.type !== 'mission') return;
+    currentMissionLevel = num;
+    var mission = MISSION_DATA.find(function(m) { return m.id === lv.missionId; });
+    if (!mission) { showToast('مفيش مهمة متاحة'); return; }
+    var mtype = MISSION_TYPES[mission.type] || {};
+
+    // Set icon
+    var iconWrap = document.getElementById('mission-icon-wrap');
+    if (iconWrap) iconWrap.innerHTML = '<i class="fas ' + (mtype.icon || 'fa-clipboard-check') + '"></i>';
+    if (iconWrap) iconWrap.style.background = 'linear-gradient(135deg, ' + (mtype.color || '#FF6B35') + ', ' + (mtype.color || '#FF6B35') + '44)';
+
+    document.getElementById('mission-title').textContent = mission.title;
+    document.getElementById('mission-description').textContent = mtype.description || '';
+
+    // Instructions
+    var instrEl = document.getElementById('mission-instructions');
+    instrEl.innerHTML = '<div class="mission-instr-item"><i class="fas fa-info-circle"></i><p>' + mission.description + '</p></div>' +
+        '<div class="mission-instr-item"><i class="fas fa-pen"></i><p>اكتب وصف لما عملته (10 حروف على الأقل)</p></div>';
+
+    // Reward preview
+    var rewardEl = document.getElementById('mission-reward-preview');
+    rewardEl.innerHTML = '<span>🎁 المكافأة: </span><span>⭐ ' + mission.starsReward + ' نجوم</span><span>💎 ' + mission.reward + ' جواهر</span>';
+
+    // Check if already completed
+    var ld = GameState.levelsData[num] || {};
+    var textarea = document.getElementById('mission-text');
+    var statusEl = document.getElementById('mission-status');
+    var submitBtn = document.getElementById('btn-submit-mission');
+
+    if (ld.completed && ld.missionText) {
+        textarea.value = ld.missionText;
+        textarea.disabled = true;
+        statusEl.innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> تم تسليم المهمة دي - أحسنت يا بطل!</div>';
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+    } else {
+        textarea.value = '';
+        textarea.disabled = false;
+        statusEl.innerHTML = '';
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم المهمة</span>';
+    }
+
+    showScreen('mission-screen');
+}
+
+function submitMission() {
+    var text = document.getElementById('mission-text').value.trim();
+    if (!text || text.length < 10) {
+        showToast('اكتب وصف أطول (10 حروف على الأقل)', 'error');
+        return;
+    }
+
+    var num = currentMissionLevel;
+    if (!num) return;
+    var lv = LEVELS[num - 1];
+    if (!lv) return;
+    var mission = MISSION_DATA.find(function(m) { return m.id === lv.missionId; });
+    if (!mission) return;
+
+    // Check if already completed
+    if (GameState.levelsData[num] && GameState.levelsData[num].completed) {
+        showToast('المهمة دي اتسلمت قبل كده');
+        return;
+    }
+
+    // Save mission
+    if (!GameState.levelsData[num]) GameState.levelsData[num] = {};
+    GameState.levelsData[num].completed = true;
+    GameState.levelsData[num].missionText = text;
+    GameState.levelsData[num].stars = mission.starsReward;
+    GameState.levelsData[num].submittedAt = new Date().toISOString();
+
+    // Award rewards
+    GameState.stars += mission.starsReward;
+    GameState.gems += mission.reward;
+    GameState.missionsCompleted++;
+
+    // Advance level
+    if (num >= GameState.currentLevel && num < LEVELS.length) {
+        GameState.currentLevel = num + 1;
+    }
+
+    // Update UI
+    var textarea = document.getElementById('mission-text');
+    textarea.disabled = true;
+    var statusEl = document.getElementById('mission-status');
+    statusEl.innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت يا بطل! كسبت ⭐' + mission.starsReward + ' نجوم و 💎' + mission.reward + ' جواهر</div>';
+    var submitBtn = document.getElementById('btn-submit-mission');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+
+    confetti();
+    checkAchievements();
+    saveGame();
+    syncLeaderboard();
+    showToast('🎉 تم تسليم المهمة بنجاح!', 3500);
+}
+
+// --- Daily Verse & Weekly Challenge Helpers ---
+function getDailyVerse() {
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 0);
+    var diff = now - start;
+    var dayOfYear = Math.floor(diff / 86400000);
+    return DAILY_VERSES[dayOfYear % DAILY_VERSES.length];
+}
+
+function getWeeklyChallenge() {
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 1);
+    var diff = now - start;
+    var weekOfYear = Math.floor(diff / 86400000 / 7);
+    return WEEKLY_CHALLENGES[weekOfYear % WEEKLY_CHALLENGES.length];
+}
+
 // --- Leaderboard ---
 var leaderboardData = [];
 var currentLBTab = 'stars';
 
 function renderLeaderboard() {
-    // Player card
+    // Player card (glassmorphism)
     var rank = getRank();
     var lbCh = CHARACTERS[GameState.character] || {};
-    document.getElementById('lb-player-card').innerHTML = '<div class="lb-avatar"><img class="lb-avatar-img" src="'+(lbCh.image||'')+'" alt="avatar"></div><div class="lb-info"><h3>'+GameState.playerName+'</h3><p>'+rank.emoji+' '+rank.title+'</p></div><div class="lb-stats"><span>⭐ '+GameState.stars+'</span><span>🔥 '+GameState.bestStreak+'</span><span>💎 '+GameState.gems+'</span></div>';
-    // Achievements
+    var playerCardEl = document.getElementById('lb-player-card');
+    playerCardEl.innerHTML = '<div class="lb-my-avatar"><img class="lb-avatar-img" src="'+(lbCh.image||'')+'" alt="avatar"></div>' +
+        '<div class="lb-my-info"><h3>'+GameState.playerName+'</h3><p class="lb-my-rank">'+rank.emoji+' '+rank.title+'</p></div>' +
+        '<div class="lb-my-stats">' +
+        '<div class="lb-my-stat"><span class="lb-my-stat-value">'+GameState.stars+'</span><span class="lb-my-stat-label">نجوم ⭐</span></div>' +
+        '<div class="lb-my-stat"><span class="lb-my-stat-value">'+GameState.bestStreak+'</span><span class="lb-my-stat-label">سلسلة 🔥</span></div>' +
+        '<div class="lb-my-stat"><span class="lb-my-stat-value">'+GameState.gems+'</span><span class="lb-my-stat-label">جواهر 💎</span></div>' +
+        '</div>';
+
+    // Achievements grid
     var achDiv = document.getElementById('lb-achievements');
     achDiv.innerHTML = '';
     ACHIEVEMENTS.forEach(function(ach) {
         var earned = false;
         try { earned = ach.check(); } catch(e) {}
         var el = document.createElement('div');
-        el.className = 'achievement-item' + (earned ? ' earned' : '');
-        el.innerHTML = '<span class="ach-icon">'+ach.icon+'</span><div><strong>'+ach.name+'</strong><p>'+ach.desc+'</p></div>';
+        el.className = 'achievement-card' + (earned ? ' earned' : '');
+        el.innerHTML = '<span class="ach-icon">'+ach.icon+'</span><div class="ach-name">'+ach.name+'</div><div class="ach-desc">'+ach.desc+'</div>';
         achDiv.appendChild(el);
     });
-    // Tab highlight
-    document.querySelectorAll('.lb-tab').forEach(function(tab) {
-        tab.classList.remove('active');
-        if (tab.textContent.indexOf(currentLBTab === 'stars' ? 'النجوم' : currentLBTab === 'streak' ? 'السلسلة' : currentLBTab === 'gems' ? 'الجواهر' : 'المستويات') >= 0) {
-            tab.classList.add('active');
-        }
-    });
+
+    // Tab highlight + indicator
+    updateLBTabIndicator();
+
     // List
     loadLeaderboardFromCloud().then(function(data) {
         leaderboardData = data || [];
@@ -2374,35 +2628,87 @@ function renderLeaderboard() {
     });
 }
 
+function updateLBTabIndicator() {
+    var tabs = document.querySelectorAll('.lb-tab-modern');
+    var indicator = document.querySelector('.lb-tab-indicator');
+    tabs.forEach(function(tab) {
+        tab.classList.remove('active');
+        if (tab.getAttribute('data-tab') === currentLBTab) {
+            tab.classList.add('active');
+            if (indicator) {
+                indicator.style.width = tab.offsetWidth + 'px';
+                indicator.style.left = tab.offsetLeft + 'px';
+            }
+        }
+    });
+}
+
 function renderLeaderboardList() {
     var list = document.getElementById('leaderboard-list');
+    var podium = document.getElementById('lb-podium');
     list.innerHTML = '';
-    // Add current player
+    podium.innerHTML = '';
+
+    // Combine all players
     var allPlayers = leaderboardData.slice();
     var meExists = allPlayers.find(function(p) { return p.phone === GameState.playerPhone; });
     if (!meExists && GameState.playerName) {
-        allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel });
+        allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel, character: GameState.character });
     }
-    // Sort
+    // Update current player data in list
+    allPlayers.forEach(function(p) {
+        if (p.phone === GameState.playerPhone) {
+            p.stars = GameState.stars;
+            p.streak = GameState.bestStreak;
+            p.gems = GameState.gems;
+            p.level = GameState.currentLevel;
+            p.character = GameState.character;
+        }
+    });
+
     var sortKey = currentLBTab === 'stars' ? 'stars' : currentLBTab === 'streak' ? 'streak' : currentLBTab === 'gems' ? 'gems' : 'level';
     allPlayers.sort(function(a, b) { return (b[sortKey] || 0) - (a[sortKey] || 0); });
-    allPlayers.slice(0, 20).forEach(function(p, i) {
+
+    // Top 3 Podium
+    var podiumClasses = ['gold', 'silver', 'bronze'];
+    var podiumOrder = [1, 0, 2]; // Display: silver(1), gold(0), bronze(2)
+    podiumOrder.forEach(function(idx) {
+        var p = allPlayers[idx];
+        if (!p) return;
+        var pCh = CHARACTERS[p.character] || {};
+        var isMe = p.phone === GameState.playerPhone;
+        var item = document.createElement('div');
+        item.className = 'lb-podium-item ' + podiumClasses[idx];
+        var crown = idx === 0 ? '<div class="lb-podium-crown">👑</div>' : '';
+        var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+        item.innerHTML = crown +
+            '<div class="lb-podium-rank">' + medal + '</div>' +
+            '<img class="lb-podium-avatar" src="'+(pCh.image||'')+'" alt="avatar">' +
+            '<div class="lb-podium-name">' + p.name + (isMe ? ' (أنت)' : '') + '</div>' +
+            '<div class="lb-podium-score">' + (p[sortKey] || 0) + '</div>';
+        podium.appendChild(item);
+    });
+
+    // 4th+ as list items
+    allPlayers.slice(3, 20).forEach(function(p, i) {
         var el = document.createElement('div');
         var isMe = p.phone === GameState.playerPhone;
-        el.className = 'lb-item' + (isMe ? ' me' : '');
-        var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.';
-        el.innerHTML = '<span class="lb-rank">'+medal+'</span><span class="lb-name">'+p.name+(isMe?' (أنت)':'')+'</span><span class="lb-score">'+(p[sortKey]||0)+'</span>';
+        el.className = 'lb-item-modern' + (isMe ? ' me' : '');
+        el.style.animationDelay = (i * 0.05) + 's';
+        el.innerHTML = '<span class="lb-rank-num">' + (i + 4) + '</span>' +
+            '<span class="lb-name">' + p.name + (isMe ? ' (أنت)' : '') + '</span>' +
+            '<span class="lb-score">' + (p[sortKey] || 0) + '</span>';
         list.appendChild(el);
     });
+
     if (allPlayers.length === 0) {
-        list.innerHTML = '<p style="text-align:center;padding:20px;color:var(--text-muted)">مفيش بيانات لسه - كون أول بطل!</p>';
+        podium.innerHTML = '<p style="text-align:center;padding:40px;color:var(--text-muted);width:100%">مفيش بيانات لسه - كون أول بطل!</p>';
     }
 }
 
 function switchLBTab(tab) {
     currentLBTab = tab;
-    document.querySelectorAll('.lb-tab').forEach(function(t) { t.classList.remove('active'); });
-    event.target.classList.add('active');
+    updateLBTabIndicator();
     renderLeaderboardList();
 }
 
@@ -2463,6 +2769,7 @@ function logout() {
     GameState.equippedArmor = {};
     GameState.gamesPlayed = 0;
     GameState.perfectLevels = 0;
+    GameState.missionsCompleted = 0;
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
     // Reset login form

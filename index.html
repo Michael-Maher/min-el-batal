@@ -117,6 +117,27 @@
                     <div class="stat"><span class="stat-icon">💎</span><span id="map-gems">0</span></div>
                 </div>
             </div>
+
+            <!-- Daily Verse -->
+            <div class="daily-verse-card" id="daily-verse">
+                <div class="dv-icon"><i class="fas fa-book-bible"></i></div>
+                <div class="dv-content">
+                    <p class="dv-label">آية اليوم</p>
+                    <p class="dv-text" id="dv-text"></p>
+                    <span class="dv-ref" id="dv-ref"></span>
+                </div>
+            </div>
+
+            <!-- Weekly Challenge -->
+            <div class="weekly-challenge-card" id="weekly-challenge">
+                <div class="wc-badge"><i class="fas fa-fire"></i> تحدي الأسبوع</div>
+                <div class="wc-content">
+                    <h4 id="wc-title"></h4>
+                    <p id="wc-desc"></p>
+                    <span class="wc-reward" id="wc-reward"></span>
+                </div>
+            </div>
+
             <div class="levels-path" id="levels-path"></div>
         </div>
     </div>
@@ -427,6 +448,33 @@
         </div>
     </div>
 
+    <!-- ============ MISSION SCREEN ============ -->
+    <div id="mission-screen" class="screen">
+        <div class="screen-inner">
+            <div class="mission-header">
+                <div class="mission-icon-wrap" id="mission-icon-wrap">
+                    <i class="fas fa-clipboard-check" id="mission-icon"></i>
+                </div>
+                <h2 id="mission-title"></h2>
+                <p class="card-subtitle" id="mission-description"></p>
+            </div>
+            <div class="mission-card" id="mission-card">
+                <div class="mission-instructions" id="mission-instructions"></div>
+                <textarea id="mission-text" class="mission-textarea" placeholder="اكتب هنا وصف لما عملته... (10 حروف على الأقل)" rows="5"></textarea>
+                <div class="mission-status" id="mission-status"></div>
+            </div>
+            <div class="mission-reward-preview" id="mission-reward-preview"></div>
+            <div class="mission-buttons">
+                <button class="btn btn-primary" id="btn-submit-mission" onclick="submitMission()">
+                    <span><i class="fas fa-paper-plane"></i> تسليم المهمة</span>
+                </button>
+                <button class="btn btn-secondary" onclick="showScreen('map-screen')">
+                    <span><i class="fas fa-arrow-right"></i> رجوع للخريطة</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ============ SHOP SCREEN (Armor of God) ============ -->
     <div id="shop-screen" class="screen">
         <div class="screen-inner">
@@ -451,21 +499,34 @@
     <!-- ============ LEADERBOARD ============ -->
     <div id="leaderboard-screen" class="screen">
         <div class="screen-inner">
-            <h2><i class="fas fa-trophy"></i> لوحة الأبطال</h2>
-            <div class="lb-tabs">
-                <button class="lb-tab active" onclick="switchLBTab('stars')"><i class="fas fa-star"></i> النجوم</button>
-                <button class="lb-tab" onclick="switchLBTab('streak')"><i class="fas fa-fire"></i> السلسلة</button>
-                <button class="lb-tab" onclick="switchLBTab('gems')"><i class="fas fa-gem"></i> الجواهر</button>
-                <button class="lb-tab" onclick="switchLBTab('levels')"><i class="fas fa-layer-group"></i> المستويات</button>
+            <div class="lb-header-modern">
+                <h2><i class="fas fa-trophy"></i> لوحة الأبطال</h2>
+                <p class="card-subtitle">شوف مين الأبطال في خدمتنا</p>
             </div>
+
+            <!-- Tabs with sliding indicator -->
+            <div class="lb-tabs-modern" id="lb-tabs-modern">
+                <button class="lb-tab-modern active" onclick="switchLBTab('stars')" data-tab="stars"><i class="fas fa-star"></i> النجوم</button>
+                <button class="lb-tab-modern" onclick="switchLBTab('streak')" data-tab="streak"><i class="fas fa-fire"></i> السلسلة</button>
+                <button class="lb-tab-modern" onclick="switchLBTab('gems')" data-tab="gems"><i class="fas fa-gem"></i> الجواهر</button>
+                <button class="lb-tab-modern" onclick="switchLBTab('levels')" data-tab="levels"><i class="fas fa-layer-group"></i> المستويات</button>
+                <div class="lb-tab-indicator"></div>
+            </div>
+
+            <!-- Top 3 Podium -->
+            <div class="lb-podium" id="lb-podium"></div>
+
             <!-- Player Card -->
-            <div class="lb-player-card" id="lb-player-card"></div>
+            <div class="lb-my-card" id="lb-player-card"></div>
+
             <!-- Achievements -->
-            <h3 class="lb-section-title"><i class="fas fa-medal"></i> الإنجازات</h3>
-            <div class="lb-achievements" id="lb-achievements"></div>
-            <!-- List -->
-            <h3 class="lb-section-title"><i class="fas fa-ranking-star"></i> الترتيب</h3>
+            <h3 class="lb-section-title-modern"><i class="fas fa-medal"></i> الإنجازات</h3>
+            <div class="lb-achievements-grid" id="lb-achievements"></div>
+
+            <!-- Ranked List -->
+            <h3 class="lb-section-title-modern"><i class="fas fa-ranking-star"></i> الترتيب</h3>
             <div class="leaderboard-list" id="leaderboard-list"></div>
+
             <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
         </div>
     </div>

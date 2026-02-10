@@ -824,3 +824,12 @@ body {
     .login-logo { width: 64px; height: 64px; }
     .map-logo { width: 44px; height: 44px; }
 }
+
+/* ============ RECORDING TIMER + MEDIA HINTS ============ */
+.rec-timer { font-size: 16px; font-weight: 800; color: var(--danger); min-width: 45px; text-align: center; font-family: 'Cairo', monospace; }
+.media-hint { font-size: 9px; font-weight: 600; color: var(--text-muted); opacity: 0.7; margin-top: -2px; display: block; }
+
+@media (max-width: 600px) {
+    .rec-timer { font-size: 14px; }
+    .media-hint { font-size: 8px; }
+}

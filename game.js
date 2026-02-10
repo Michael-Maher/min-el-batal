@@ -2644,13 +2644,18 @@ function isWeeklyChallengeCompleted() {
 var pendingMedia = { verse: [], challenge: [] };
 var activeRecorder = null;
 var activeRecorderType = null;
+var recordingTimer = null;
+var recordingTimeLeft = 0;
+var MAX_RECORDING_SECONDS = 120;
 
 function handleMediaSelect(input, screenType, mediaType) {
     var file = input.files[0];
     if (!file) return;
-    var maxSize = mediaType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    var sizeLimits = { image: 5, video: 20, audio: 5 };
+    var maxMB = sizeLimits[mediaType] || 5;
+    var maxSize = maxMB * 1024 * 1024;
     if (file.size > maxSize) {
-        showToast('الملف كبير أوي! الحد الأقصى ' + (mediaType === 'video' ? '50' : '10') + ' ميجا', 'error');
+        showToast('الملف كبير أوي! الحد الأقصى ' + maxMB + ' ميجا', 'error');
         input.value = '';
         return;
     }
@@ -2711,16 +2716,36 @@ function toggleRecording(screenType) {
         activeRecorder.ondataavailable = function(e) { chunks.push(e.data); };
         activeRecorder.onstop = function() {
             var blob = new Blob(chunks, { type: 'audio/webm' });
+            if (blob.size > 5 * 1024 * 1024) {
+                showToast('التسجيل كبير أوي! الحد الأقصى 5 ميجا', 'error');
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                activeRecorder = null;
+                activeRecorderType = null;
+                clearRecordingTimer(screenType);
+                return;
+            }
             var file = new File([blob], 'recording.webm', { type: 'audio/webm' });
             pendingMedia[screenType].push({ file: file, type: 'audio', name: 'تسجيل صوتي' });
             renderMediaPreview(screenType);
             stream.getTracks().forEach(function(t) { t.stop(); });
             activeRecorder = null;
             activeRecorderType = null;
+            clearRecordingTimer(screenType);
         };
         activeRecorder.start();
+        // Start duration countdown
+        recordingTimeLeft = MAX_RECORDING_SECONDS;
         var recEl = document.getElementById(screenType + '-recording');
         if (recEl) recEl.style.display = 'flex';
+        updateRecordingTimerDisplay(screenType);
+        recordingTimer = setInterval(function() {
+            recordingTimeLeft--;
+            updateRecordingTimerDisplay(screenType);
+            if (recordingTimeLeft <= 0) {
+                stopRecording(screenType);
+                showToast('التسجيل وصل للحد الأقصى (دقيقتين)', 'info');
+            }
+        }, 1000);
     }).catch(function(err) {
         console.error('Mic access error:', err);
         showToast('مقدرش أفتح الميكروفون - اسمح بالإذن', 'error');
@@ -2730,9 +2755,27 @@ function toggleRecording(screenType) {
 function stopRecording(screenType) {
     if (activeRecorder && activeRecorderType === screenType) {
         activeRecorder.stop();
-        var recEl = document.getElementById(screenType + '-recording');
-        if (recEl) recEl.style.display = 'none';
+        // Timer cleanup handled in onstop callback via clearRecordingTimer
     }
+}
+
+function updateRecordingTimerDisplay(screenType) {
+    var timerEl = document.getElementById(screenType + '-rec-timer');
+    if (timerEl) {
+        var mins = Math.floor(recordingTimeLeft / 60);
+        var secs = recordingTimeLeft % 60;
+        timerEl.textContent = mins + ':' + String(secs).padStart(2, '0');
+    }
+}
+
+function clearRecordingTimer(screenType) {
+    if (recordingTimer) {
+        clearInterval(recordingTimer);
+        recordingTimer = null;
+    }
+    recordingTimeLeft = 0;
+    var recEl = document.getElementById(screenType + '-recording');
+    if (recEl) recEl.style.display = 'none';
 }
 
 // --- Verse Detail Screen ---

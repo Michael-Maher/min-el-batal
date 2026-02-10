@@ -271,7 +271,7 @@ body {
 
 /* ============ QUIZ ============ */
 .quiz-container { max-width: 700px; width: 100%; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; padding: 20px; }
-.quiz-top-bar { margin-bottom: 24px; }
+.quiz-top-bar { margin-bottom: 24px; position: relative; }
 .quiz-progress { height: 8px; background: var(--bg-card); border-radius: var(--radius-full); overflow: hidden; margin-bottom: 12px; }
 .quiz-progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--secondary)); border-radius: var(--radius-full); transition: width 0.5s ease; width: 0%; }
 .quiz-info-bar { display: flex; justify-content: space-between; align-items: center; color: var(--text-secondary); font-size: 13px; font-weight: 600; }
@@ -787,4 +787,40 @@ body {
     .media-btn { padding: 10px 6px; font-size: 10px; }
     .media-btn i { font-size: 16px; }
     .detail-icon-wrap { width: 56px; height: 56px; font-size: 24px; }
+}
+
+/* ============ CHURCH LOGO ============ */
+.church-logo { object-fit: contain; display: block; margin: 0 auto; border-radius: 50%; }
+
+/* Splash screen — large centered logo */
+.splash-logo { width: 120px; height: 120px; margin-bottom: 12px; animation: logoBounce 0.8s cubic-bezier(0.4,0,0.2,1); filter: drop-shadow(0 4px 16px rgba(0,0,0,0.3)); }
+
+/* Login screen — medium logo */
+.login-logo { width: 90px; height: 90px; animation: logoBounce 0.6s ease; filter: drop-shadow(0 4px 12px rgba(0,0,0,0.2)); }
+
+/* Map/dashboard — small logo bar */
+.map-logo-bar { text-align: center; padding: 8px 0 4px; }
+.map-logo { width: 60px; height: 60px; opacity: 0.9; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15)); }
+
+/* Quiz screen — tiny watermark in corner */
+.quiz-logo { width: 32px; height: 32px; opacity: 0.7; position: absolute; top: 8px; left: 8px; z-index: 2; }
+
+@keyframes logoBounce {
+    0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+    60% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Logo responsive */
+@media (max-width: 600px) {
+    .splash-logo { width: 100px; height: 100px; }
+    .login-logo { width: 75px; height: 75px; }
+    .map-logo { width: 50px; height: 50px; }
+    .quiz-logo { width: 28px; height: 28px; }
+}
+
+@media (max-width: 360px) {
+    .splash-logo { width: 80px; height: 80px; }
+    .login-logo { width: 64px; height: 64px; }
+    .map-logo { width: 44px; height: 44px; }
 }

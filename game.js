@@ -17,6 +17,7 @@ const firebaseConfig = {
 
 let firebaseApp = null;
 let firebaseDb = null;
+let firebaseStorage = null;
 
 // --- Game State ---
 const GameState = {
@@ -44,7 +45,9 @@ const GameState = {
     equippedArmor: {},
     gamesPlayed: 0,
     perfectLevels: 0,
-    missionsCompleted: 0
+    missionsCompleted: 0,
+    dailyVerseLog: {},
+    weeklyChallengeLog: {}
 };
 
 // --- Firebase Initialization ---
@@ -53,6 +56,7 @@ function initFirebase() {
         if (typeof firebase !== 'undefined') {
             firebaseApp = firebase.initializeApp(firebaseConfig);
             firebaseDb = firebase.firestore();
+            firebaseStorage = firebase.storage();
             console.log('Firebase initialized successfully');
         } else {
             console.warn('Firebase SDK not loaded');
@@ -179,6 +183,8 @@ function saveToCloud() {
         gamesPlayed: GameState.gamesPlayed,
         perfectLevels: GameState.perfectLevels,
         missionsCompleted: GameState.missionsCompleted,
+        dailyVerseLog: GameState.dailyVerseLog,
+        weeklyChallengeLog: GameState.weeklyChallengeLog,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     return docRef.set(data, { merge: true })
@@ -1246,6 +1252,14 @@ function renderMap() {
     var dvRef = document.getElementById('dv-ref');
     if (dvText && verse) { dvText.textContent = verse.text; }
     if (dvRef && verse) { dvRef.textContent = verse.ref; }
+    var dvStatus = document.getElementById('dv-status');
+    if (dvStatus) {
+        if (isDailyVerseCompleted()) {
+            dvStatus.innerHTML = '<span class="status-badge completed"><i class="fas fa-check-circle"></i> تم</span>';
+        } else {
+            dvStatus.innerHTML = '<span class="status-badge pending"><i class="fas fa-arrow-left"></i> اضغط</span>';
+        }
+    }
 
     // Weekly Challenge
     var challenge = getWeeklyChallenge();
@@ -1255,6 +1269,14 @@ function renderMap() {
     if (wcTitle && challenge) { wcTitle.textContent = challenge.title; }
     if (wcDesc && challenge) { wcDesc.textContent = challenge.description; }
     if (wcReward && challenge) { wcReward.textContent = '+' + challenge.reward + ' نجوم'; }
+    var wcStatus = document.getElementById('wc-status');
+    if (wcStatus) {
+        if (isWeeklyChallengeCompleted()) {
+            wcStatus.innerHTML = '<span class="status-badge completed"><i class="fas fa-check-circle"></i> تم</span>';
+        } else {
+            wcStatus.innerHTML = '<span class="status-badge pending"><i class="fas fa-arrow-left"></i> اضغط</span>';
+        }
+    }
 
     var path = document.getElementById('levels-path');
     path.innerHTML = '';
@@ -2587,6 +2609,284 @@ function getWeeklyChallenge() {
     return WEEKLY_CHALLENGES[weekOfYear % WEEKLY_CHALLENGES.length];
 }
 
+
+// --- Date Key Helpers ---
+function getTodayKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getWeekKey() {
+    var now = new Date();
+    var start = new Date(now.getFullYear(), 0, 1);
+    var weekNum = Math.floor(((now - start) / 86400000) / 7);
+    return now.getFullYear() + '-W' + String(weekNum).padStart(2,'0');
+}
+
+function isDailyVerseCompleted() {
+    var key = getTodayKey();
+    return !!(GameState.dailyVerseLog[key] && GameState.dailyVerseLog[key].completed);
+}
+
+function isWeeklyChallengeCompleted() {
+    var key = getWeekKey();
+    return !!(GameState.weeklyChallengeLog[key] && GameState.weeklyChallengeLog[key].completed);
+}
+
+// --- Media Attachment System ---
+var pendingMedia = { verse: [], challenge: [] };
+var activeRecorder = null;
+var activeRecorderType = null;
+
+function handleMediaSelect(input, screenType, mediaType) {
+    var file = input.files[0];
+    if (!file) return;
+    var maxSize = mediaType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showToast('الملف كبير أوي! الحد الأقصى ' + (mediaType === 'video' ? '50' : '10') + ' ميجا', 'error');
+        input.value = '';
+        return;
+    }
+    pendingMedia[screenType].push({ file: file, type: mediaType, name: file.name });
+    renderMediaPreview(screenType);
+    input.value = '';
+}
+
+function renderMediaPreview(screenType) {
+    var container = document.getElementById(screenType + '-media-preview');
+    if (!container) return;
+    container.innerHTML = '';
+    pendingMedia[screenType].forEach(function(item, idx) {
+        var div = document.createElement('div');
+        div.className = 'media-preview-item';
+        var iconMap = { image: 'fa-image', video: 'fa-video', audio: 'fa-microphone' };
+        div.innerHTML = '<i class="fas ' + (iconMap[item.type] || 'fa-file') + '"></i>' +
+            '<span class="media-preview-name">' + (item.name || item.type) + '</span>' +
+            '<button class="media-remove-btn" onclick="removeMedia(\'' + screenType + '\',' + idx + ')"><i class="fas fa-times"></i></button>';
+        container.appendChild(div);
+    });
+}
+
+function removeMedia(screenType, idx) {
+    pendingMedia[screenType].splice(idx, 1);
+    renderMediaPreview(screenType);
+}
+
+function uploadMediaFiles(screenType, dateKey) {
+    if (!firebaseStorage || !GameState.playerPhone) return Promise.resolve([]);
+    var files = pendingMedia[screenType];
+    if (!files.length) return Promise.resolve([]);
+    var promises = files.map(function(item, i) {
+        var ext = item.file.name ? item.file.name.split('.').pop() : 'webm';
+        var path = 'challenges/' + GameState.playerPhone + '/' + screenType + '_' + dateKey + '_' + i + '.' + ext;
+        var ref = firebaseStorage.ref(path);
+        return ref.put(item.file).then(function(snapshot) {
+            return snapshot.ref.getDownloadURL();
+        });
+    });
+    return Promise.all(promises);
+}
+
+// --- Voice Recording ---
+function toggleRecording(screenType) {
+    if (activeRecorder && activeRecorderType === screenType) {
+        stopRecording(screenType);
+        return;
+    }
+    if (activeRecorder) {
+        showToast('في تسجيل شغال بالفعل', 'error');
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        activeRecorder = new MediaRecorder(stream);
+        activeRecorderType = screenType;
+        var chunks = [];
+        activeRecorder.ondataavailable = function(e) { chunks.push(e.data); };
+        activeRecorder.onstop = function() {
+            var blob = new Blob(chunks, { type: 'audio/webm' });
+            var file = new File([blob], 'recording.webm', { type: 'audio/webm' });
+            pendingMedia[screenType].push({ file: file, type: 'audio', name: 'تسجيل صوتي' });
+            renderMediaPreview(screenType);
+            stream.getTracks().forEach(function(t) { t.stop(); });
+            activeRecorder = null;
+            activeRecorderType = null;
+        };
+        activeRecorder.start();
+        var recEl = document.getElementById(screenType + '-recording');
+        if (recEl) recEl.style.display = 'flex';
+    }).catch(function(err) {
+        console.error('Mic access error:', err);
+        showToast('مقدرش أفتح الميكروفون - اسمح بالإذن', 'error');
+    });
+}
+
+function stopRecording(screenType) {
+    if (activeRecorder && activeRecorderType === screenType) {
+        activeRecorder.stop();
+        var recEl = document.getElementById(screenType + '-recording');
+        if (recEl) recEl.style.display = 'none';
+    }
+}
+
+// --- Verse Detail Screen ---
+function openVerseDetail() {
+    var verse = getDailyVerse();
+    var key = getTodayKey();
+    var log = GameState.dailyVerseLog[key] || {};
+
+    document.getElementById('verse-detail-text').textContent = verse.text;
+    document.getElementById('verse-detail-ref').textContent = verse.ref;
+
+    var textarea = document.getElementById('verse-reflection');
+    var submitBtn = document.getElementById('btn-submit-verse');
+    var statusEl = document.getElementById('verse-detail-status');
+
+    pendingMedia.verse = [];
+    renderMediaPreview('verse');
+
+    if (log.completed) {
+        textarea.value = log.text || '';
+        textarea.disabled = true;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+        statusEl.innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! سلمت تأمل آية اليوم</div>';
+        if (log.mediaURLs && log.mediaURLs.length) {
+            var mediaHtml = '<div class="saved-media">';
+            log.mediaURLs.forEach(function(url) { mediaHtml += '<a href="' + url + '" target="_blank" class="saved-media-link"><i class="fas fa-link"></i> ملف مرفق</a>'; });
+            mediaHtml += '</div>';
+            statusEl.innerHTML += mediaHtml;
+        }
+    } else {
+        textarea.value = '';
+        textarea.disabled = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم التأمل</span>';
+        statusEl.innerHTML = '';
+    }
+    showScreen('verse-detail-screen');
+}
+
+function submitVerseReflection() {
+    var text = document.getElementById('verse-reflection').value.trim();
+    if (!text || text.length < 10) {
+        showToast('اكتب تأمل أطول (10 حروف على الأقل)', 'error');
+        return;
+    }
+    var key = getTodayKey();
+    if (GameState.dailyVerseLog[key] && GameState.dailyVerseLog[key].completed) {
+        showToast('سلمت تأمل اليوم بالفعل');
+        return;
+    }
+    var btn = document.getElementById('btn-submit-verse');
+    btn.disabled = true;
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</span>';
+
+    uploadMediaFiles('verse', key).then(function(urls) {
+        GameState.dailyVerseLog[key] = {
+            completed: true,
+            text: text,
+            mediaURLs: urls,
+            completedAt: new Date().toISOString(),
+            verseRef: getDailyVerse().ref
+        };
+        GameState.stars += 1;
+        pendingMedia.verse = [];
+        btn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+        document.getElementById('verse-reflection').disabled = true;
+        document.getElementById('verse-detail-status').innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! كسبت 1 نجمة</div>';
+        confetti();
+        saveGame();
+        syncLeaderboard();
+        showToast('تم تسليم تأمل الآية!', 3500);
+    }).catch(function(err) {
+        console.error('Upload error:', err);
+        btn.disabled = false;
+        btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم التأمل</span>';
+        showToast('حصل مشكلة في الرفع، حاول تاني', 'error');
+    });
+}
+
+// --- Challenge Detail Screen ---
+function openChallengeDetail() {
+    var challenge = getWeeklyChallenge();
+    var key = getWeekKey();
+    var log = GameState.weeklyChallengeLog[key] || {};
+
+    document.getElementById('challenge-detail-title').textContent = challenge.title;
+    document.getElementById('challenge-detail-desc').textContent = challenge.description;
+    document.getElementById('challenge-reward-preview').innerHTML = '<span>المكافأة: </span><span>' + challenge.reward + ' نجوم</span>';
+
+    var textarea = document.getElementById('challenge-reflection');
+    var submitBtn = document.getElementById('btn-submit-challenge');
+    var statusEl = document.getElementById('challenge-detail-status');
+
+    pendingMedia.challenge = [];
+    renderMediaPreview('challenge');
+
+    if (log.completed) {
+        textarea.value = log.text || '';
+        textarea.disabled = true;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+        statusEl.innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! سلمت تحدي الأسبوع</div>';
+        if (log.mediaURLs && log.mediaURLs.length) {
+            var mediaHtml = '<div class="saved-media">';
+            log.mediaURLs.forEach(function(url) { mediaHtml += '<a href="' + url + '" target="_blank" class="saved-media-link"><i class="fas fa-link"></i> ملف مرفق</a>'; });
+            mediaHtml += '</div>';
+            statusEl.innerHTML += mediaHtml;
+        }
+    } else {
+        textarea.value = '';
+        textarea.disabled = false;
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم التحدي</span>';
+        statusEl.innerHTML = '';
+    }
+    showScreen('challenge-detail-screen');
+}
+
+function submitChallengeReflection() {
+    var text = document.getElementById('challenge-reflection').value.trim();
+    if (!text || text.length < 10) {
+        showToast('اكتب وصف أطول (10 حروف على الأقل)', 'error');
+        return;
+    }
+    var key = getWeekKey();
+    var challenge = getWeeklyChallenge();
+    if (GameState.weeklyChallengeLog[key] && GameState.weeklyChallengeLog[key].completed) {
+        showToast('سلمت تحدي الأسبوع بالفعل');
+        return;
+    }
+    var btn = document.getElementById('btn-submit-challenge');
+    btn.disabled = true;
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</span>';
+
+    uploadMediaFiles('challenge', key).then(function(urls) {
+        GameState.weeklyChallengeLog[key] = {
+            completed: true,
+            text: text,
+            mediaURLs: urls,
+            completedAt: new Date().toISOString(),
+            challengeTitle: challenge.title,
+            rewardClaimed: true
+        };
+        GameState.stars += challenge.reward;
+        pendingMedia.challenge = [];
+        btn.innerHTML = '<span><i class="fas fa-check"></i> تم التسليم</span>';
+        document.getElementById('challenge-reflection').disabled = true;
+        document.getElementById('challenge-detail-status').innerHTML = '<div class="mission-done"><i class="fas fa-check-circle"></i> أحسنت! كسبت ' + challenge.reward + ' نجوم</div>';
+        confetti();
+        saveGame();
+        syncLeaderboard();
+        showToast('تم تسليم التحدي!', 3500);
+    }).catch(function(err) {
+        console.error('Upload error:', err);
+        btn.disabled = false;
+        btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> تسليم التحدي</span>';
+        showToast('حصل مشكلة في الرفع، حاول تاني', 'error');
+    });
+}
+
 // --- Leaderboard ---
 var leaderboardData = [];
 var currentLBTab = 'stars';
@@ -2770,6 +3070,8 @@ function logout() {
     GameState.gamesPlayed = 0;
     GameState.perfectLevels = 0;
     GameState.missionsCompleted = 0;
+    GameState.dailyVerseLog = {};
+    GameState.weeklyChallengeLog = {};
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
     // Reset login form

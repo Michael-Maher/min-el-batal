@@ -119,23 +119,25 @@
             </div>
 
             <!-- Daily Verse -->
-            <div class="daily-verse-card" id="daily-verse">
+            <div class="daily-verse-card" id="daily-verse" onclick="openVerseDetail()">
                 <div class="dv-icon"><i class="fas fa-book-bible"></i></div>
                 <div class="dv-content">
                     <p class="dv-label">آية اليوم</p>
                     <p class="dv-text" id="dv-text"></p>
                     <span class="dv-ref" id="dv-ref"></span>
                 </div>
+                <div class="card-status" id="dv-status"></div>
             </div>
 
             <!-- Weekly Challenge -->
-            <div class="weekly-challenge-card" id="weekly-challenge">
+            <div class="weekly-challenge-card" id="weekly-challenge" onclick="openChallengeDetail()">
                 <div class="wc-badge"><i class="fas fa-fire"></i> تحدي الأسبوع</div>
                 <div class="wc-content">
                     <h4 id="wc-title"></h4>
                     <p id="wc-desc"></p>
                     <span class="wc-reward" id="wc-reward"></span>
                 </div>
+                <div class="card-status" id="wc-status"></div>
             </div>
 
             <div class="levels-path" id="levels-path"></div>
@@ -475,6 +477,100 @@
         </div>
     </div>
 
+    <!-- ============ VERSE DETAIL SCREEN ============ -->
+    <div id="verse-detail-screen" class="screen">
+        <div class="screen-inner">
+            <div class="detail-header">
+                <div class="detail-icon-wrap verse-icon"><i class="fas fa-book-bible"></i></div>
+                <h2>آية اليوم</h2>
+                <p class="card-subtitle" id="verse-detail-ref"></p>
+            </div>
+            <div class="detail-verse-text" id="verse-detail-text"></div>
+            <div class="detail-card" id="verse-detail-card">
+                <h3 class="detail-section-title"><i class="fas fa-pen"></i> تأملك في الآية</h3>
+                <textarea id="verse-reflection" class="detail-textarea" placeholder="اكتب تأملك في الآية دي..." rows="4"></textarea>
+                <h3 class="detail-section-title"><i class="fas fa-paperclip"></i> أرفق صورة أو فيديو أو تسجيل صوتي</h3>
+                <div class="media-attach-area" id="verse-media-area">
+                    <div class="media-buttons">
+                        <label class="media-btn">
+                            <i class="fas fa-camera"></i> صورة
+                            <input type="file" accept="image/*" capture="environment" onchange="handleMediaSelect(this, 'verse', 'image')" hidden>
+                        </label>
+                        <label class="media-btn">
+                            <i class="fas fa-video"></i> فيديو
+                            <input type="file" accept="video/*" capture="environment" onchange="handleMediaSelect(this, 'verse', 'video')" hidden>
+                        </label>
+                        <button class="media-btn" onclick="toggleRecording('verse')">
+                            <i class="fas fa-microphone"></i> تسجيل صوتي
+                        </button>
+                    </div>
+                    <div class="media-preview" id="verse-media-preview"></div>
+                    <div class="recording-indicator" id="verse-recording" style="display:none">
+                        <div class="rec-dot"></div>
+                        <span>جاري التسجيل...</span>
+                        <button class="rec-stop-btn" onclick="stopRecording('verse')"><i class="fas fa-stop"></i> إيقاف</button>
+                    </div>
+                </div>
+                <div class="detail-status" id="verse-detail-status"></div>
+            </div>
+            <div class="detail-buttons">
+                <button class="btn btn-primary" id="btn-submit-verse" onclick="submitVerseReflection()">
+                    <span><i class="fas fa-paper-plane"></i> تسليم التأمل</span>
+                </button>
+                <button class="btn btn-secondary" onclick="showScreen('map-screen')">
+                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ CHALLENGE DETAIL SCREEN ============ -->
+    <div id="challenge-detail-screen" class="screen">
+        <div class="screen-inner">
+            <div class="detail-header">
+                <div class="detail-icon-wrap challenge-icon"><i class="fas fa-fire"></i></div>
+                <h2 id="challenge-detail-title"></h2>
+                <p class="card-subtitle" id="challenge-detail-desc"></p>
+            </div>
+            <div class="detail-reward-preview" id="challenge-reward-preview"></div>
+            <div class="detail-card" id="challenge-detail-card">
+                <h3 class="detail-section-title"><i class="fas fa-pen"></i> إيه اللي عملته</h3>
+                <textarea id="challenge-reflection" class="detail-textarea" placeholder="اكتب إيه اللي عملته في التحدي..." rows="4"></textarea>
+                <h3 class="detail-section-title"><i class="fas fa-paperclip"></i> أرفق صورة أو فيديو أو تسجيل صوتي</h3>
+                <div class="media-attach-area" id="challenge-media-area">
+                    <div class="media-buttons">
+                        <label class="media-btn">
+                            <i class="fas fa-camera"></i> صورة
+                            <input type="file" accept="image/*" capture="environment" onchange="handleMediaSelect(this, 'challenge', 'image')" hidden>
+                        </label>
+                        <label class="media-btn">
+                            <i class="fas fa-video"></i> فيديو
+                            <input type="file" accept="video/*" capture="environment" onchange="handleMediaSelect(this, 'challenge', 'video')" hidden>
+                        </label>
+                        <button class="media-btn" onclick="toggleRecording('challenge')">
+                            <i class="fas fa-microphone"></i> تسجيل صوتي
+                        </button>
+                    </div>
+                    <div class="media-preview" id="challenge-media-preview"></div>
+                    <div class="recording-indicator" id="challenge-recording" style="display:none">
+                        <div class="rec-dot"></div>
+                        <span>جاري التسجيل...</span>
+                        <button class="rec-stop-btn" onclick="stopRecording('challenge')"><i class="fas fa-stop"></i> إيقاف</button>
+                    </div>
+                </div>
+                <div class="detail-status" id="challenge-detail-status"></div>
+            </div>
+            <div class="detail-buttons">
+                <button class="btn btn-primary" id="btn-submit-challenge" onclick="submitChallengeReflection()">
+                    <span><i class="fas fa-paper-plane"></i> تسليم التحدي</span>
+                </button>
+                <button class="btn btn-secondary" onclick="showScreen('map-screen')">
+                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ============ SHOP SCREEN (Armor of God) ============ -->
     <div id="shop-screen" class="screen">
         <div class="screen-inner">
@@ -600,6 +696,7 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 
     <script src="game.js"></script>
 </body>

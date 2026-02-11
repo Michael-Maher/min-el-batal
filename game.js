@@ -46,7 +46,9 @@ const GameState = {
     perfectLevels: 0,
     missionsCompleted: 0,
     dailyVerseLog: {},
-    weeklyChallengeLog: {}
+    weeklyChallengeLog: {},
+    paulJourneyStation: 1,
+    paulJourneyData: {}
 };
 
 // --- Firebase Initialization ---
@@ -183,6 +185,8 @@ function saveToCloud() {
         missionsCompleted: GameState.missionsCompleted,
         dailyVerseLog: GameState.dailyVerseLog,
         weeklyChallengeLog: GameState.weeklyChallengeLog,
+        paulJourneyStation: GameState.paulJourneyStation,
+        paulJourneyData: GameState.paulJourneyData,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -591,6 +595,91 @@ const LEVELS = [
     { id: 26, name: 'الترتيب النهائي',   type: 'order',     questions: 8,  timePerQ: 25, starsNeeded: 86, reward: 50 },
     { id: 27, name: 'التحدي الأخير',     type: 'quiz',    questions: 15, timePerQ: 12, starsNeeded: 90, reward: 60 },
     { id: 28, name: 'ملك الأبطال',       type: 'quiz',      questions: 20, timePerQ: 10, starsNeeded: 95, reward: 100 }
+];
+
+// --- Paul's First Journey Stations ---
+const PAUL_JOURNEY_STATIONS = [
+    {
+        id: 1, name: 'أنطاكية',
+        x: 88, y: 42,
+        icon: 'fa-flag-checkered',
+        desc: 'نقطة بداية رحلة بولس — الكنيسة أرسلته مع برنابا ليبشر الأمم',
+        question: { q: 'من أرسل بولس وبرنابا في الرحلة التبشيرية الأولى؟', options: ['بطرس الرسول', 'كنيسة أنطاكية', 'الرومان', 'مجمع أورشليم'], correct: 1 },
+        verse: 'فصاموا حينئذ وصلوا ووضعوا عليهما الأيادي ثم أطلقوهما — أعمال 13:3',
+        reward: 3
+    },
+    {
+        id: 2, name: 'سلوكية',
+        x: 82, y: 58,
+        icon: 'fa-ship',
+        desc: 'ميناء سلوكية — منها أبحر بولس وبرنابا إلى جزيرة قبرص',
+        question: { q: 'مين سافر مع بولس في رحلته التبشيرية الأولى؟', options: ['بطرس', 'برنابا ويوحنا مرقس', 'تيموثاوس', 'سيلا'], correct: 1 },
+        verse: 'فهذان إذ أُرسلا من الروح القدس انحدرا إلى سلوكية — أعمال 13:4',
+        reward: 3
+    },
+    {
+        id: 3, name: 'سلاميس',
+        x: 65, y: 62,
+        icon: 'fa-book-open',
+        desc: 'أول مدينة بشّر فيها بولس في قبرص — نادى بكلمة الله في مجامع اليهود',
+        question: { q: 'أين بشّر بولس لأول مرة في قبرص؟', options: ['في الشوارع', 'في مجامع اليهود', 'في القصر الروماني', 'في السوق'], correct: 1 },
+        verse: 'ولما صارا في سلاميس ناديا بكلمة الله في مجامع اليهود — أعمال 13:5',
+        reward: 3
+    },
+    {
+        id: 4, name: 'بافوس',
+        x: 50, y: 68,
+        icon: 'fa-wand-magic-sparkles',
+        desc: 'بولس واجه الساحر عليم (بار يشوع) وأعمى عينيه بقوة الروح القدس',
+        question: { q: 'إيه اللي حصل لعليم الساحر في بافوس؟', options: ['آمن بالمسيح', 'هرب من المدينة', 'أصابه العمى', 'اتسجن'], correct: 2 },
+        verse: 'فالآن هوذا يد الرب عليك فتكون أعمى لا تبصر الشمس إلى حين — أعمال 13:11',
+        reward: 4
+    },
+    {
+        id: 5, name: 'برجة',
+        x: 28, y: 38,
+        icon: 'fa-person-walking-arrow-right',
+        desc: 'في برجة يوحنا مرقس سابهم ورجع لأورشليم',
+        question: { q: 'مين سابهم ورجع أورشليم لما وصلوا برجة؟', options: ['برنابا', 'تيموثاوس', 'يوحنا مرقس', 'سيلا'], correct: 2 },
+        verse: 'وأما يوحنا فانفصل عنهما ورجع إلى أورشليم — أعمال 13:13',
+        reward: 3
+    },
+    {
+        id: 6, name: 'أنطاكية بيسيدية',
+        x: 25, y: 15,
+        icon: 'fa-bullhorn',
+        desc: 'بولس ألقى عظة عظيمة في المجمع عن تاريخ الخلاص — ناس كتير آمنت',
+        question: { q: 'إيه رد فعل اليهود لما الأمم آمنوا في أنطاكية بيسيدية؟', options: ['فرحوا', 'امتلأوا غيرة وحسد', 'ساعدوهم', 'سكتوا'], correct: 1 },
+        verse: 'وكانت كلمة الرب تنتشر في جميع الكورة — أعمال 13:49',
+        reward: 4
+    },
+    {
+        id: 7, name: 'أيقونية',
+        x: 42, y: 14,
+        icon: 'fa-people-group',
+        desc: 'في أيقونية آمن جمع كبير من اليهود واليونانيين لكن حاولوا يرجموهم',
+        question: { q: 'إيه اللي اضطر بولس يعمله لما حاولوا يرجموه في أيقونية؟', options: ['استسلم لهم', 'هرب إلى لسترة ودربة', 'رجع أنطاكية', 'اتخبى في بيت'], correct: 1 },
+        verse: 'فدخلا معاً إلى مجمع اليهود وتكلما حتى آمن جمع كثير — أعمال 14:1',
+        reward: 4
+    },
+    {
+        id: 8, name: 'لسترة',
+        x: 55, y: 25,
+        icon: 'fa-hand-sparkles',
+        desc: 'بولس شفى رجل مقعد من بطن أمه — الناس فاكرينهم آلهة!',
+        question: { q: 'الناس في لسترة فاكرين بولس وبرنابا مين؟', options: ['أنبياء عظام', 'ملوك أقوياء', 'الإلهين زفس وهرمس', 'ملائكة من السماء'], correct: 2 },
+        verse: 'فنادوا برنابا زفس وبولس هرمس إذ كان هو المتقدم في الكلام — أعمال 14:12',
+        reward: 5
+    },
+    {
+        id: 9, name: 'دربة',
+        x: 68, y: 22,
+        icon: 'fa-trophy',
+        desc: 'آخر محطة في الرحلة — بشّروا وتلمذوا كثيرين ثم رجعوا يشجعوا المؤمنين',
+        question: { q: 'بعد ما بولس بشّر في دربة عمل إيه؟', options: ['كمّل لبلاد جديدة', 'رجع على نفس المدن يشجع المؤمنين', 'راح أورشليم مباشرة', 'استقر في دربة'], correct: 1 },
+        verse: 'فبشرا في تلك المدينة وتلمذا كثيرين ثم رجعا إلى لسترة وأيقونية وأنطاكية — أعمال 14:21',
+        reward: 5
+    }
 ];
 
 // --- Categories ---
@@ -1175,6 +1264,7 @@ function showScreen(id) {
     var fab = document.getElementById('fab-container');
     if (fab) fab.style.display = fabScreens.indexOf(id) >= 0 ? 'flex' : 'none';
     if (id === 'map-screen') renderMap();
+    if (id === 'paul-journey-screen') renderPaulMap();
     if (id === 'character-screen') renderCharacters();
     if (id === 'shop-screen') renderShop();
     if (id === 'leaderboard-screen') renderLeaderboard();
@@ -2617,6 +2707,212 @@ function submitMission() {
     showToast('🎉 تم تسليم المهمة بنجاح!', 3500);
 }
 
+// --- Paul's First Journey Map ---
+function renderPaulMap() {
+    // Set avatar
+    var ch = CHARACTERS[GameState.character];
+    var avatarImg = document.getElementById('paul-avatar-img');
+    if (avatarImg && ch) avatarImg.src = ch.image;
+
+    // Calculate totals
+    var totalStars = 0;
+    var earnedStars = 0;
+    PAUL_JOURNEY_STATIONS.forEach(function(st) {
+        totalStars += (st.reward || 3);
+        var sd = GameState.paulJourneyData[st.id];
+        if (sd && sd.completed) earnedStars += (st.reward || 3);
+    });
+    var starsEarnedEl = document.getElementById('paul-stars-earned');
+    var starsTotalEl = document.getElementById('paul-stars-total');
+    if (starsEarnedEl) starsEarnedEl.textContent = earnedStars;
+    if (starsTotalEl) starsTotalEl.textContent = totalStars;
+
+    // Render stations
+    var container = document.getElementById('paul-stations');
+    container.innerHTML = '';
+    var curStation = GameState.paulJourneyStation || 1;
+
+    PAUL_JOURNEY_STATIONS.forEach(function(st) {
+        var sd = GameState.paulJourneyData[st.id] || {};
+        var completed = !!sd.completed;
+        var isCurrent = st.id === curStation && !completed;
+        var locked = st.id > curStation;
+
+        var marker = document.createElement('div');
+        marker.className = 'paul-station-marker' + (completed ? ' completed' : '') + (isCurrent ? ' current' : '') + (locked ? ' locked' : '');
+        marker.style.left = st.x + '%';
+        marker.style.top = st.y + '%';
+        marker.innerHTML = '<span class="station-num">' + (completed ? '<i class="fas fa-check"></i>' : st.id) + '</span>';
+
+        if (!locked) {
+            (function(station) {
+                marker.onclick = function() { openPaulStation(station.id); };
+            })(st);
+        }
+
+        container.appendChild(marker);
+    });
+
+    // Position avatar at current station
+    var targetStation = PAUL_JOURNEY_STATIONS.find(function(s) { return s.id === curStation; });
+    if (!targetStation && curStation > PAUL_JOURNEY_STATIONS.length) {
+        targetStation = PAUL_JOURNEY_STATIONS[PAUL_JOURNEY_STATIONS.length - 1];
+    }
+    var avatar = document.getElementById('paul-avatar');
+    if (avatar && targetStation) {
+        avatar.style.left = targetStation.x + '%';
+        avatar.style.top = targetStation.y + '%';
+    }
+
+    // Update mini progress on dashboard
+    updatePaulProgressMini();
+}
+
+function updatePaulProgressMini() {
+    var miniEl = document.getElementById('paul-progress-mini');
+    if (!miniEl) return;
+    var completed = 0;
+    PAUL_JOURNEY_STATIONS.forEach(function(st) {
+        if (GameState.paulJourneyData[st.id] && GameState.paulJourneyData[st.id].completed) completed++;
+    });
+    var total = PAUL_JOURNEY_STATIONS.length;
+    if (completed >= total) {
+        miniEl.innerHTML = '<span class="paul-mini-done"><i class="fas fa-check-circle"></i> اكتملت!</span>';
+    } else {
+        var pct = Math.round((completed / total) * 100);
+        miniEl.innerHTML = '<div class="paul-mini-bar"><div class="paul-mini-fill" style="width:' + pct + '%"></div></div><span class="paul-mini-text">' + completed + '/' + total + '</span>';
+    }
+}
+
+function openPaulStation(stationId) {
+    var st = PAUL_JOURNEY_STATIONS.find(function(s) { return s.id === stationId; });
+    if (!st) return;
+
+    var curStation = GameState.paulJourneyStation || 1;
+    var sd = GameState.paulJourneyData[stationId] || {};
+
+    document.getElementById('paul-station-icon').innerHTML = '<i class="fas ' + st.icon + '"></i>';
+    document.getElementById('paul-station-name').textContent = st.name;
+    document.getElementById('paul-station-num').textContent = 'محطة ' + st.id + ' من ' + PAUL_JOURNEY_STATIONS.length;
+    document.getElementById('paul-station-desc').textContent = st.desc;
+    document.getElementById('paul-station-verse').textContent = st.verse;
+
+    var qArea = document.getElementById('paul-question-area');
+    var resultEl = document.getElementById('paul-station-result');
+    resultEl.innerHTML = '';
+
+    if (sd.completed) {
+        // Already completed
+        qArea.style.display = 'none';
+        resultEl.innerHTML = '<div class="paul-done-msg"><i class="fas fa-check-circle"></i> تم اجتياز المحطة دي — أحسنت يا بطل! (⭐+' + (st.reward || 3) + ')</div>';
+    } else if (stationId > curStation) {
+        // Locked
+        qArea.style.display = 'none';
+        resultEl.innerHTML = '<div class="paul-locked-msg"><i class="fas fa-lock"></i> أكمل المحطة السابقة الأول</div>';
+    } else {
+        // Show question
+        qArea.style.display = 'block';
+        document.getElementById('paul-q-text').textContent = st.question.q;
+        var answersEl = document.getElementById('paul-answers');
+        answersEl.innerHTML = '';
+        st.question.options.forEach(function(opt, idx) {
+            var btn = document.createElement('button');
+            btn.className = 'paul-answer-btn';
+            btn.textContent = opt;
+            (function(sId, aIdx) {
+                btn.onclick = function() { answerPaulQuestion(sId, aIdx); };
+            })(stationId, idx);
+            answersEl.appendChild(btn);
+        });
+    }
+
+    document.getElementById('paul-station-info').style.display = 'flex';
+}
+
+function answerPaulQuestion(stationId, answerIdx) {
+    var st = PAUL_JOURNEY_STATIONS.find(function(s) { return s.id === stationId; });
+    if (!st) return;
+
+    var btns = document.querySelectorAll('#paul-answers .paul-answer-btn');
+    var resultEl = document.getElementById('paul-station-result');
+
+    if (answerIdx === st.question.correct) {
+        // Correct!
+        btns[answerIdx].classList.add('correct');
+        btns.forEach(function(b) { b.disabled = true; });
+
+        // Award rewards
+        var reward = st.reward || 3;
+        GameState.paulJourneyData[stationId] = { completed: true, completedAt: new Date().toISOString() };
+        GameState.stars += reward;
+
+        // Advance to next station
+        if (stationId >= GameState.paulJourneyStation) {
+            GameState.paulJourneyStation = stationId + 1;
+        }
+
+        var allDone = GameState.paulJourneyStation > PAUL_JOURNEY_STATIONS.length;
+
+        resultEl.innerHTML = '<div class="paul-correct-msg"><i class="fas fa-check-circle"></i> إجابة صحيحة! كسبت ⭐' + reward + ' نجوم</div>';
+
+        saveGame();
+
+        // Animate avatar to next station after delay
+        setTimeout(function() {
+            closePaulStationInfo();
+            animatePaulAvatar(stationId + 1);
+
+            if (allDone) {
+                setTimeout(function() {
+                    showToast('🎉 أحسنت! أكملت رحلة بولس الأولى كلها!', 4000);
+                    confetti();
+                }, 1200);
+            }
+        }, 1200);
+
+    } else {
+        // Wrong
+        btns[answerIdx].classList.add('wrong');
+        btns[st.question.correct].classList.add('correct');
+        btns.forEach(function(b) { b.disabled = true; });
+
+        resultEl.innerHTML = '<div class="paul-wrong-msg"><i class="fas fa-times-circle"></i> إجابة خاطئة — حاول تاني!</div>';
+
+        // Allow retry after 2 seconds
+        setTimeout(function() {
+            resultEl.innerHTML = '';
+            btns.forEach(function(b) {
+                b.disabled = false;
+                b.classList.remove('wrong', 'correct');
+            });
+        }, 2000);
+    }
+}
+
+function animatePaulAvatar(targetStationId) {
+    var target = PAUL_JOURNEY_STATIONS.find(function(s) { return s.id === targetStationId; });
+    if (!target) {
+        // Journey complete, stay at last station
+        target = PAUL_JOURNEY_STATIONS[PAUL_JOURNEY_STATIONS.length - 1];
+    }
+
+    var avatar = document.getElementById('paul-avatar');
+    if (!avatar) return;
+
+    avatar.classList.add('moving');
+    avatar.style.left = target.x + '%';
+    avatar.style.top = target.y + '%';
+
+    setTimeout(function() {
+        avatar.classList.remove('moving');
+        renderPaulMap();
+    }, 1200);
+}
+
+function closePaulStationInfo() {
+    document.getElementById('paul-station-info').style.display = 'none';
+}
+
 // --- Daily Verse & Weekly Challenge Helpers ---
 function getDailyVerse() {
     var now = new Date();
@@ -3248,6 +3544,8 @@ function logout() {
     GameState.missionsCompleted = 0;
     GameState.dailyVerseLog = {};
     GameState.weeklyChallengeLog = {};
+    GameState.paulJourneyStation = 1;
+    GameState.paulJourneyData = {};
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
     // Reset login form

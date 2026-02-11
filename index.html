@@ -147,7 +147,62 @@
                 <div class="card-status" id="wc-status"></div>
             </div>
 
+            <!-- Paul Journey Button -->
+            <div class="paul-journey-btn" onclick="showScreen('paul-journey-screen');">
+                <img src="images/map1.jpg" class="paul-journey-thumb" alt="">
+                <div class="paul-journey-btn-text">
+                    <h4><i class="fas fa-route"></i> رحلة بولس الأولى</h4>
+                    <p>مغامرة الإيمان — 9 محطات</p>
+                    <div class="paul-progress-mini" id="paul-progress-mini"></div>
+                </div>
+            </div>
+
             <div class="levels-path" id="levels-path"></div>
+        </div>
+    </div>
+
+    <!-- ============ PAUL JOURNEY MAP ============ -->
+    <div id="paul-journey-screen" class="screen">
+        <div class="screen-inner paul-journey-inner">
+            <div class="paul-map-header">
+                <button class="btn btn-secondary btn-sm" onclick="showScreen('map-screen')">
+                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+                </button>
+                <h2><i class="fas fa-route"></i> رحلة بولس الأولى</h2>
+                <div class="paul-stars-count"><span id="paul-stars-earned">0</span>/<span id="paul-stars-total">0</span> ⭐</div>
+            </div>
+
+            <div class="paul-map-container" id="paul-map-container">
+                <img src="images/map1.jpg" class="paul-map-bg" alt="خريطة رحلة بولس">
+                <div class="paul-avatar" id="paul-avatar">
+                    <img id="paul-avatar-img" src="" alt="avatar">
+                </div>
+                <div id="paul-stations"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paul Station Popup (outside screen for fixed positioning) -->
+    <div class="paul-station-info" id="paul-station-info" style="display:none">
+        <div class="paul-station-card">
+            <div class="paul-station-header">
+                <span class="paul-station-icon" id="paul-station-icon"><i class="fas fa-map-marker-alt"></i></span>
+                <h3 id="paul-station-name"></h3>
+                <span class="paul-station-num" id="paul-station-num"></span>
+            </div>
+            <p class="paul-station-desc" id="paul-station-desc"></p>
+            <div class="paul-station-verse-box" id="paul-station-verse-box">
+                <i class="fas fa-book-bible"></i>
+                <p id="paul-station-verse"></p>
+            </div>
+            <div class="paul-question-area" id="paul-question-area">
+                <h4 id="paul-q-text"></h4>
+                <div class="paul-answers" id="paul-answers"></div>
+            </div>
+            <div id="paul-station-result"></div>
+            <button class="btn btn-secondary btn-sm paul-close-btn" onclick="closePaulStationInfo()">
+                <span><i class="fas fa-times"></i> إغلاق</span>
+            </button>
         </div>
     </div>
 

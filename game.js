@@ -1270,6 +1270,9 @@ function showScreen(id) {
     var fabScreens = ['map-screen','category-screen','shop-screen','leaderboard-screen','settings-screen','lamp-screen'];
     var fab = document.getElementById('fab-container');
     if (fab) fab.style.display = fabScreens.indexOf(id) >= 0 ? 'flex' : 'none';
+    // Hide lamp fixed element when leaving lamp screen
+    var lampBottom = document.getElementById('lamp-fixed-bottom');
+    if (lampBottom) lampBottom.style.display = (id === 'lamp-screen') ? 'block' : 'none';
     if (id === 'map-screen') renderMap();
     if (id === 'paul-journey-screen') renderPaulMap();
     if (id === 'lamp-screen') renderLampScreen();
@@ -2750,7 +2753,9 @@ function renderPaulMap() {
         marker.className = 'paul-station-marker' + (completed ? ' completed' : '') + (isCurrent ? ' current' : '') + (locked ? ' locked' : '');
         marker.style.left = st.x + '%';
         marker.style.top = st.y + '%';
-        marker.innerHTML = '<span class="station-num">' + (completed ? '<i class="fas fa-check"></i>' : st.id) + '</span>';
+        marker.innerHTML = '<span class="station-num">' + (completed ? '<i class="fas fa-check"></i>' : st.id) + '</span>' +
+            '<span class="station-label">' + st.name + '</span>' +
+            (isCurrent ? '<span class="station-ping"></span>' : '');
 
         if (!locked) {
             (function(station) {
@@ -2761,7 +2766,7 @@ function renderPaulMap() {
         container.appendChild(marker);
     });
 
-    // Position avatar at current station
+    // Position avatar at current station with pin
     var targetStation = PAUL_JOURNEY_STATIONS.find(function(s) { return s.id === curStation; });
     if (!targetStation && curStation > PAUL_JOURNEY_STATIONS.length) {
         targetStation = PAUL_JOURNEY_STATIONS[PAUL_JOURNEY_STATIONS.length - 1];
@@ -2770,6 +2775,7 @@ function renderPaulMap() {
     if (avatar && targetStation) {
         avatar.style.left = targetStation.x + '%';
         avatar.style.top = targetStation.y + '%';
+        avatar.innerHTML = '<img id="paul-avatar-img" src="' + (ch ? ch.image : '') + '" alt="avatar"><div class="paul-pin-spike"></div>';
     }
 
     // Update mini progress on dashboard
@@ -3698,6 +3704,16 @@ function renderLampScreen() {
     if (pointsEl) pointsEl.textContent = ld.points || 0;
     if (streakEl) streakEl.textContent = (ld.streakDays || 0) + ' يوم';
 
+    // Render week goal header
+    var weekIdx = getLampCurrentWeek();
+    var weekData = LAMP_FASTING_WEEKS[weekIdx];
+    var weekHeader = document.getElementById('lamp-week-header');
+    if (weekHeader && weekData) {
+        weekHeader.innerHTML =
+            '<p class="lamp-week-goal"><i class="fas fa-bullseye"></i> هدف الأسبوع: ' + weekData.goal + '</p>' +
+            '<p class="lamp-week-desc">الأسبوع ' + (weekIdx + 1) + ' — ' + weekData.chapters.length + ' اصحاحات للقراءة</p>';
+    }
+
     // Check lamp state
     var todayLog = ld.dailyLog[todayKey] || {};
     var missions = getLampDailyMissions();
@@ -3707,12 +3723,15 @@ function renderLampScreen() {
     });
     var allDone = completedCount === missions.length;
 
-    // Update lamp image
+    // Update lamp image (fixed bottom-left)
     var lampImg = document.getElementById('lamp-main-image');
     if (lampImg) {
         lampImg.src = allDone ? 'images/on_lamp.png' : 'images/off_lamp.png';
         lampImg.className = 'lamp-main-image' + (allDone ? ' lamp-lit' : '');
     }
+    // Show/hide lamp container
+    var lampBottom = document.getElementById('lamp-fixed-bottom');
+    if (lampBottom) lampBottom.style.display = 'block';
 
     // Update XP bar
     var xpFill = document.getElementById('lamp-xp-fill');
@@ -3724,7 +3743,7 @@ function renderLampScreen() {
     if (xpText) xpText.textContent = completedCount + '/' + missions.length + ' مهمات';
     if (levelLabel) levelLabel.textContent = 'المستوى ' + level;
 
-    // Render missions
+    // Render missions with chapter text shown
     var grid = document.getElementById('lamp-missions-grid');
     if (!grid) return;
     grid.innerHTML = '';
@@ -3738,6 +3757,7 @@ function renderLampScreen() {
             '<div class="lamp-mission-info">' +
                 '<h4>' + mission.title + '</h4>' +
                 '<p>' + mission.desc + '</p>' +
+                '<span class="lamp-mission-chapter">' + mission.content + '</span>' +
                 '<span class="lamp-mission-points">+' + mission.points + ' نقاط</span>' +
             '</div>' +
             '<div class="lamp-mission-status">' +

@@ -48,7 +48,13 @@ const GameState = {
     dailyVerseLog: {},
     weeklyChallengeLog: {},
     paulJourneyStation: 1,
-    paulJourneyData: {}
+    paulJourneyData: {},
+    lampData: {
+        points: 0,
+        streakDays: 0,
+        lastActiveDate: '',
+        dailyLog: {}
+    }
 };
 
 // --- Firebase Initialization ---
@@ -187,6 +193,7 @@ function saveToCloud() {
         weeklyChallengeLog: GameState.weeklyChallengeLog,
         paulJourneyStation: GameState.paulJourneyStation,
         paulJourneyData: GameState.paulJourneyData,
+        lampData: GameState.lampData,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -1260,11 +1267,12 @@ function showScreen(id) {
     document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
     var el = document.getElementById(id);
     if (el) el.classList.add('active');
-    var fabScreens = ['map-screen','category-screen','shop-screen','leaderboard-screen','settings-screen'];
+    var fabScreens = ['map-screen','category-screen','shop-screen','leaderboard-screen','settings-screen','lamp-screen'];
     var fab = document.getElementById('fab-container');
     if (fab) fab.style.display = fabScreens.indexOf(id) >= 0 ? 'flex' : 'none';
     if (id === 'map-screen') renderMap();
     if (id === 'paul-journey-screen') renderPaulMap();
+    if (id === 'lamp-screen') renderLampScreen();
     if (id === 'character-screen') renderCharacters();
     if (id === 'shop-screen') renderShop();
     if (id === 'leaderboard-screen') renderLeaderboard();
@@ -3546,6 +3554,7 @@ function logout() {
     GameState.weeklyChallengeLog = {};
     GameState.paulJourneyStation = 1;
     GameState.paulJourneyData = {};
+    GameState.lampData = { points: 0, streakDays: 0, lastActiveDate: '', dailyLog: {} };
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
     // Reset login form
@@ -3561,6 +3570,401 @@ function logout() {
 }
 
 // --- Init ---
+// ============================================================
+// LAMP GAME — نوّر مصباحك
+// ============================================================
+
+// --- Lamp Fasting Weeks Data ---
+var LAMP_FASTING_WEEKS = [
+    {
+        week: 1,
+        goal: 'التوبة والرجوع إلى الله',
+        chapters: ['يونان 1', 'يونان 2', 'يونان 3', 'لوقا 15:11-32', 'مزمور 51'],
+        fatherSaying: 'مَن يتوب توبة حقيقية لا يعود للخطية كما لا يعود المريض المتعافي لأكل ما أمرضه — القديس يوحنا ذهبي الفم',
+        hymn: 'لحن "أجيوس" — قدوس الله قدوس القوي قدوس الحي الذي لا يموت'
+    },
+    {
+        week: 2,
+        goal: 'الصلاة والتواصل مع الله',
+        chapters: ['متى 6:5-15', 'لوقا 11:1-13', 'مزمور 63', 'دانيال 6', 'فيلبي 4:6-7'],
+        fatherSaying: 'الصلاة هي مفتاح النهار وقفل الليل — القديس أمبروسيوس',
+        hymn: 'لحن "كيرياليسون" — يا ربي يسوع المسيح ارحمنا'
+    },
+    {
+        week: 3,
+        goal: 'الإيمان والثقة بالله',
+        chapters: ['عبرانيين 11:1-16', 'مرقس 4:35-41', 'دانيال 3', 'متى 14:22-33', 'مزمور 27'],
+        fatherSaying: 'الإيمان هو أن تثق فيما لا تراه، ومكافأته أن ترى ما آمنت به — القديس أغسطينوس',
+        hymn: 'لحن "إفنوتي ناي نان" — يا الله ارحمنا'
+    },
+    {
+        week: 4,
+        goal: 'المحبة والخدمة',
+        chapters: ['1 كورنثوس 13', 'يوحنا 13:1-17', 'متى 25:31-46', 'لوقا 10:25-37', 'أمثال 3:27-28'],
+        fatherSaying: 'المحبة لا تعرف حدودًا، ولا تحسب خسارة — القديسة تريزا الطفل يسوع',
+        hymn: 'لحن "تين أوأوشت" — نسجد لك يا مسيح مع أبيك الصالح والروح القدس لأنك أتيت وخلصتنا'
+    },
+    {
+        week: 5,
+        goal: 'الصبر والاحتمال',
+        chapters: ['أيوب 1', 'أيوب 2', 'يعقوب 1:2-12', 'رومية 5:1-5', 'مزمور 40'],
+        fatherSaying: 'الصبر هو جذر كل الفضائل وحارسها — القديس البابا كيرلس الكبير',
+        hymn: 'لحن "إبؤرو" — الملك، أسبّح اسمك'
+    },
+    {
+        week: 6,
+        goal: 'التواضع والوداعة',
+        chapters: ['متى 11:28-30', 'فيلبي 2:1-11', 'لوقا 18:9-14', 'أمثال 22:4', '1 بطرس 5:5-7'],
+        fatherSaying: 'التواضع هو أن تعرف نفسك على حقيقتها، لا أكثر ولا أقل — القديس باسيليوس الكبير',
+        hymn: 'لحن "بي أويك" — خبز الحياة الذي نزل من السماء وأعطى العالم حياة'
+    },
+    {
+        week: 7,
+        goal: 'الاستعداد للفصح والقيامة',
+        chapters: ['يوحنا 12:1-19', 'إشعياء 53', 'متى 26:36-46', 'لوقا 23:33-46', 'يوحنا 20:1-18'],
+        fatherSaying: 'المسيح قام من الأموات بغلبته داس على الذين في القبور وأنعم بالحياة — القديس أثناسيوس الرسولي',
+        hymn: 'لحن "خريستوس أنيستي" — المسيح قام من الأموات بالموت داس الموت والذين في القبور أنعم لهم بالحياة الأبدية'
+    }
+];
+
+function getLampCurrentWeek() {
+    // Get current week number within the fasting season (cycle through 7 weeks)
+    var now = new Date();
+    var startOfYear = new Date(now.getFullYear(), 0, 1);
+    var weekNum = Math.ceil(((now - startOfYear) / 86400000 + startOfYear.getDay() + 1) / 7);
+    return ((weekNum - 1) % LAMP_FASTING_WEEKS.length);
+}
+
+function getLampDailyMissions() {
+    var weekIdx = getLampCurrentWeek();
+    var weekData = LAMP_FASTING_WEEKS[weekIdx];
+    var today = new Date().getDay(); // 0=Sun, 1=Mon...
+    var chapterIdx = today % weekData.chapters.length;
+
+    return [
+        {
+            id: 'bible_reading',
+            title: 'قراءة الكتاب المقدس',
+            desc: 'هدف الأسبوع: ' + weekData.goal,
+            content: 'اصحاح اليوم: ' + weekData.chapters[chapterIdx],
+            icon: 'fa-book-bible',
+            color: '#4CAF50',
+            points: 10,
+            detail: weekData.chapters[chapterIdx]
+        },
+        {
+            id: 'father_saying',
+            title: 'أقوال الآباء',
+            desc: 'تأمل في قول أحد آباء الكنيسة',
+            content: weekData.fatherSaying,
+            icon: 'fa-cross',
+            color: '#FF9800',
+            points: 10,
+            detail: weekData.fatherSaying
+        },
+        {
+            id: 'hymn',
+            title: 'جزء من التسبحة',
+            desc: 'احفظ أو رنم جزء من التسبحة',
+            content: weekData.hymn,
+            icon: 'fa-music',
+            color: '#9C27B0',
+            points: 10,
+            detail: weekData.hymn
+        }
+    ];
+}
+
+var lampPendingMedia = [];
+var lampCurrentMissionId = null;
+
+function renderLampScreen() {
+    var ld = GameState.lampData || { points: 0, streakDays: 0, lastActiveDate: '', dailyLog: {} };
+    GameState.lampData = ld;
+
+    // Update streak
+    var todayKey = getTodayKey();
+    var yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    var yesterdayKey = yesterday.toISOString().split('T')[0];
+
+    if (ld.lastActiveDate && ld.lastActiveDate !== todayKey && ld.lastActiveDate !== yesterdayKey) {
+        ld.streakDays = 0; // streak broken
+    }
+
+    // Update score display
+    var pointsEl = document.getElementById('lamp-points');
+    var streakEl = document.getElementById('lamp-streak-days');
+    if (pointsEl) pointsEl.textContent = ld.points || 0;
+    if (streakEl) streakEl.textContent = (ld.streakDays || 0) + ' يوم';
+
+    // Check lamp state
+    var todayLog = ld.dailyLog[todayKey] || {};
+    var missions = getLampDailyMissions();
+    var completedCount = 0;
+    missions.forEach(function(m) {
+        if (todayLog[m.id] && todayLog[m.id].completed) completedCount++;
+    });
+    var allDone = completedCount === missions.length;
+
+    // Update lamp image
+    var lampImg = document.getElementById('lamp-main-image');
+    if (lampImg) {
+        lampImg.src = allDone ? 'images/on_lamp.png' : 'images/off_lamp.png';
+        lampImg.className = 'lamp-main-image' + (allDone ? ' lamp-lit' : '');
+    }
+
+    // Update XP bar
+    var xpFill = document.getElementById('lamp-xp-fill');
+    var xpText = document.getElementById('lamp-xp-text');
+    var levelLabel = document.getElementById('lamp-level-label');
+    var level = Math.floor((ld.points || 0) / 30) + 1;
+    var xpInLevel = (ld.points || 0) % 30;
+    if (xpFill) xpFill.style.width = ((xpInLevel / 30) * 100) + '%';
+    if (xpText) xpText.textContent = completedCount + '/' + missions.length + ' مهمات';
+    if (levelLabel) levelLabel.textContent = 'المستوى ' + level;
+
+    // Render missions
+    var grid = document.getElementById('lamp-missions-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+
+    missions.forEach(function(mission) {
+        var done = todayLog[mission.id] && todayLog[mission.id].completed;
+        var card = document.createElement('div');
+        card.className = 'lamp-mission-card' + (done ? ' completed' : '');
+        card.innerHTML =
+            '<div class="lamp-mission-icon" style="background:' + mission.color + '"><i class="fas ' + mission.icon + '"></i></div>' +
+            '<div class="lamp-mission-info">' +
+                '<h4>' + mission.title + '</h4>' +
+                '<p>' + mission.desc + '</p>' +
+                '<span class="lamp-mission-points">+' + mission.points + ' نقاط</span>' +
+            '</div>' +
+            '<div class="lamp-mission-status">' +
+                (done ? '<i class="fas fa-check-circle lamp-done-icon"></i>' : '<i class="fas fa-chevron-left lamp-arrow-icon"></i>') +
+            '</div>';
+        if (!done) {
+            (function(m) {
+                card.onclick = function() { openLampMission(m); };
+            })(mission);
+        }
+        grid.appendChild(card);
+    });
+
+    // Update mini progress on dashboard
+    updateLampProgressMini();
+}
+
+function updateLampProgressMini() {
+    var miniEl = document.getElementById('lamp-progress-mini');
+    if (!miniEl) return;
+    var todayKey = getTodayKey();
+    var ld = GameState.lampData || {};
+    var todayLog = (ld.dailyLog || {})[todayKey] || {};
+    var missions = getLampDailyMissions();
+    var completed = 0;
+    missions.forEach(function(m) { if (todayLog[m.id] && todayLog[m.id].completed) completed++; });
+    var total = missions.length;
+    if (completed >= total) {
+        miniEl.innerHTML = '<span class="lamp-mini-done"><i class="fas fa-check-circle"></i> مصباحك منوّر!</span>';
+    } else {
+        var pct = Math.round((completed / total) * 100);
+        miniEl.innerHTML = '<div class="lamp-mini-bar"><div class="lamp-mini-fill" style="width:' + pct + '%"></div></div><span class="lamp-mini-text">' + completed + '/' + total + '</span>';
+    }
+}
+
+function openLampMission(mission) {
+    lampCurrentMissionId = mission.id;
+    lampPendingMedia = [];
+
+    document.getElementById('lamp-popup-icon').innerHTML = '<i class="fas ' + mission.icon + '" style="color:' + mission.color + '"></i>';
+    document.getElementById('lamp-popup-title').textContent = mission.title;
+    document.getElementById('lamp-popup-desc').textContent = mission.desc;
+
+    // Build content area
+    var contentEl = document.getElementById('lamp-popup-content');
+    contentEl.innerHTML = '<div class="lamp-content-box"><p>' + mission.content + '</p></div>';
+
+    // Reset form
+    document.getElementById('lamp-popup-text').value = '';
+    document.getElementById('lamp-popup-text').disabled = false;
+    document.getElementById('lamp-popup-submit').disabled = false;
+    document.getElementById('lamp-popup-submit').innerHTML = '<span><i class="fas fa-check-circle"></i> تم - نوّر المصباح!</span>';
+    document.getElementById('lamp-popup-status').innerHTML = '';
+    document.getElementById('lamp-popup-media-preview').innerHTML = '';
+    document.getElementById('lamp-recording').style.display = 'none';
+
+    document.getElementById('lamp-mission-popup').style.display = 'flex';
+}
+
+function closeLampMissionPopup() {
+    document.getElementById('lamp-mission-popup').style.display = 'none';
+    lampCurrentMissionId = null;
+    lampPendingMedia = [];
+}
+
+function handleLampMedia(input, type) {
+    if (!input.files || !input.files[0]) return;
+    var file = input.files[0];
+    if (file.size > 5 * 1024 * 1024) {
+        showToast('الملف كبير (أقصى حجم 5 ميجا)', 'error');
+        return;
+    }
+    compressImageToBase64(file, 800, 800, 0.7).then(function(dataURL) {
+        lampPendingMedia.push({ type: 'image', dataURL: dataURL, name: file.name });
+        renderLampMediaPreview();
+    }).catch(function() {
+        // Fallback to direct read
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            lampPendingMedia.push({ type: 'image', dataURL: e.target.result, name: file.name });
+            renderLampMediaPreview();
+        };
+        reader.readAsDataURL(file);
+    });
+    input.value = '';
+}
+
+var lampMediaRecorder = null;
+var lampRecordChunks = [];
+var lampRecTimer = null;
+
+function toggleLampRecording() {
+    var recEl = document.getElementById('lamp-recording');
+    if (lampMediaRecorder && lampMediaRecorder.state === 'recording') {
+        stopLampRecording();
+        return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+        lampMediaRecorder = new MediaRecorder(stream);
+        lampRecordChunks = [];
+        lampMediaRecorder.ondataavailable = function(e) { if (e.data.size > 0) lampRecordChunks.push(e.data); };
+        lampMediaRecorder.onstop = function() {
+            stream.getTracks().forEach(function(t) { t.stop(); });
+            var blob = new Blob(lampRecordChunks, { type: 'audio/webm' });
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                lampPendingMedia.push({ type: 'audio', dataURL: e.target.result, name: 'تسجيل صوتي' });
+                renderLampMediaPreview();
+            };
+            reader.readAsDataURL(blob);
+            recEl.style.display = 'none';
+            clearInterval(lampRecTimer);
+        };
+        lampMediaRecorder.start();
+        recEl.style.display = 'flex';
+        var sec = 30;
+        var timerEl = document.getElementById('lamp-rec-timer');
+        lampRecTimer = setInterval(function() {
+            sec--;
+            timerEl.textContent = '0:' + (sec < 10 ? '0' : '') + sec;
+            if (sec <= 0) stopLampRecording();
+        }, 1000);
+    }).catch(function() { showToast('مفيش إذن للميكروفون', 'error'); });
+}
+
+function stopLampRecording() {
+    if (lampMediaRecorder && lampMediaRecorder.state === 'recording') {
+        lampMediaRecorder.stop();
+    }
+    clearInterval(lampRecTimer);
+}
+
+function renderLampMediaPreview() {
+    var container = document.getElementById('lamp-popup-media-preview');
+    if (!container) return;
+    container.innerHTML = '';
+    lampPendingMedia.forEach(function(item, idx) {
+        var el = document.createElement('div');
+        el.className = 'lamp-media-preview-item';
+        if (item.type === 'image') {
+            el.innerHTML = '<img src="' + item.dataURL + '" class="lamp-preview-img"><button class="lamp-media-remove" onclick="removeLampMedia(' + idx + ')"><i class="fas fa-times"></i></button>';
+        } else {
+            el.innerHTML = '<div class="lamp-preview-audio"><i class="fas fa-microphone"></i> ' + item.name + '<audio src="' + item.dataURL + '" controls></audio></div><button class="lamp-media-remove" onclick="removeLampMedia(' + idx + ')"><i class="fas fa-times"></i></button>';
+        }
+        container.appendChild(el);
+    });
+}
+
+function removeLampMedia(idx) {
+    lampPendingMedia.splice(idx, 1);
+    renderLampMediaPreview();
+}
+
+function submitLampMission() {
+    if (!lampCurrentMissionId) return;
+    var text = document.getElementById('lamp-popup-text').value.trim();
+    if (!text || text.length < 5) {
+        showToast('اكتب تأمل أو ملخص (5 حروف على الأقل)', 'error');
+        return;
+    }
+    var todayKey = getTodayKey();
+    var ld = GameState.lampData;
+    if (!ld.dailyLog) ld.dailyLog = {};
+    if (!ld.dailyLog[todayKey]) ld.dailyLog[todayKey] = {};
+
+    if (ld.dailyLog[todayKey][lampCurrentMissionId] && ld.dailyLog[todayKey][lampCurrentMissionId].completed) {
+        showToast('المهمة دي خلصتها بالفعل');
+        return;
+    }
+
+    var btn = document.getElementById('lamp-popup-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الحفظ...</span>';
+
+    var missions = getLampDailyMissions();
+    var mission = missions.find(function(m) { return m.id === lampCurrentMissionId; });
+    var points = mission ? mission.points : 10;
+
+    ld.dailyLog[todayKey][lampCurrentMissionId] = {
+        completed: true,
+        text: text,
+        mediaDataURLs: lampPendingMedia.slice(),
+        completedAt: new Date().toISOString()
+    };
+
+    ld.points = (ld.points || 0) + points;
+    GameState.stars += 1;
+
+    // Update streak
+    if (ld.lastActiveDate !== todayKey) {
+        var yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        var yesterdayKey = yesterday.toISOString().split('T')[0];
+        if (ld.lastActiveDate === yesterdayKey) {
+            ld.streakDays = (ld.streakDays || 0) + 1;
+        } else if (!ld.lastActiveDate) {
+            ld.streakDays = 1;
+        } else {
+            ld.streakDays = 1;
+        }
+        ld.lastActiveDate = todayKey;
+    }
+
+    lampPendingMedia = [];
+    btn.innerHTML = '<span><i class="fas fa-check"></i> تم!</span>';
+    document.getElementById('lamp-popup-text').disabled = true;
+    document.getElementById('lamp-popup-status').innerHTML = '<div class="lamp-done-msg"><i class="fas fa-check-circle"></i> أحسنت! كسبت ' + points + ' نقاط + 1 نجمة</div>';
+
+    confetti();
+    saveGame();
+    syncLeaderboard();
+
+    // Check if all missions done today
+    var todayLog = ld.dailyLog[todayKey] || {};
+    var allDone = missions.every(function(m) { return todayLog[m.id] && todayLog[m.id].completed; });
+
+    setTimeout(function() {
+        closeLampMissionPopup();
+        renderLampScreen();
+        if (allDone) {
+            showToast('مصباحك اتنوّر النهاردة!', 4000, 'success');
+        } else {
+            showToast('تم! كمّل باقي المهمات عشان تنوّر مصباحك', 3000, 'success');
+        }
+    }, 1500);
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Apply saved theme immediately (both html and body for consistency)
     var savedTheme = 'dark';

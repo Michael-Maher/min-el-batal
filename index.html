@@ -157,6 +157,16 @@
                 </div>
             </div>
 
+            <!-- Lamp Game Button -->
+            <div class="lamp-journey-btn" onclick="showScreen('lamp-screen');">
+                <img src="images/map2.png" class="lamp-journey-thumb" alt="">
+                <div class="lamp-journey-btn-text">
+                    <h4><i class="fas fa-fire"></i> نوّر مصباحك</h4>
+                    <p>مهمات يومية لإنارة حياتك</p>
+                    <div class="lamp-progress-mini" id="lamp-progress-mini"></div>
+                </div>
+            </div>
+
             <div class="levels-path" id="levels-path"></div>
         </div>
     </div>
@@ -203,6 +213,94 @@
             <button class="btn btn-secondary btn-sm paul-close-btn" onclick="closePaulStationInfo()">
                 <span><i class="fas fa-times"></i> إغلاق</span>
             </button>
+        </div>
+    </div>
+
+    <!-- ============ LAMP GAME SCREEN ============ -->
+    <div id="lamp-screen" class="screen">
+        <div class="lamp-bg-wrapper">
+            <img src="images/map2.png" class="lamp-bg-image" alt="">
+            <div class="lamp-overlay"></div>
+        </div>
+        <div class="screen-inner lamp-screen-inner">
+            <!-- Top Bar -->
+            <div class="lamp-top-bar">
+                <button class="btn btn-secondary btn-sm lamp-back-btn" onclick="showScreen('map-screen')">
+                    <span><i class="fas fa-arrow-right"></i></span>
+                </button>
+                <h2 class="lamp-title"><i class="fas fa-fire"></i> نوّر مصباحك</h2>
+                <div class="lamp-score-area">
+                    <div class="lamp-score-item">
+                        <i class="fas fa-fire-flame-curved"></i>
+                        <span id="lamp-points">0</span>
+                    </div>
+                    <div class="lamp-score-item">
+                        <i class="fas fa-calendar-check"></i>
+                        <span id="lamp-streak-days">0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Lamp Display -->
+            <div class="lamp-display-area" id="lamp-display-area">
+                <div class="lamp-image-container" id="lamp-image-container">
+                    <img src="images/off_lamp.png" id="lamp-main-image" class="lamp-main-image" alt="مصباح">
+                </div>
+                <div class="lamp-level-info" id="lamp-level-info">
+                    <span class="lamp-level-label" id="lamp-level-label">المستوى 1</span>
+                    <div class="lamp-xp-bar">
+                        <div class="lamp-xp-fill" id="lamp-xp-fill" style="width:0%"></div>
+                    </div>
+                    <span class="lamp-xp-text" id="lamp-xp-text">0/3 مهمات</span>
+                </div>
+            </div>
+
+            <!-- Daily Missions -->
+            <div class="lamp-missions-container">
+                <h3 class="lamp-section-title"><i class="fas fa-scroll"></i> مهمات اليوم</h3>
+                <div class="lamp-missions-grid" id="lamp-missions-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lamp Mission Detail Popup -->
+    <div class="lamp-mission-popup" id="lamp-mission-popup" style="display:none">
+        <div class="lamp-mission-popup-card">
+            <div class="lamp-popup-header">
+                <span class="lamp-popup-icon" id="lamp-popup-icon"><i class="fas fa-book-bible"></i></span>
+                <h3 id="lamp-popup-title"></h3>
+                <button class="lamp-popup-close" onclick="closeLampMissionPopup()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="lamp-popup-body">
+                <p class="lamp-popup-desc" id="lamp-popup-desc"></p>
+                <div class="lamp-popup-content" id="lamp-popup-content"></div>
+                <div class="lamp-popup-share-area" id="lamp-popup-share-area">
+                    <h4><i class="fas fa-paperclip"></i> شارك ما تعلمته</h4>
+                    <textarea id="lamp-popup-text" class="lamp-popup-textarea" placeholder="اكتب تأملك أو ملخص ما قرأت..." rows="3"></textarea>
+                    <div class="lamp-popup-media-btns">
+                        <label class="lamp-media-btn">
+                            <i class="fas fa-camera"></i> صورة
+                            <input type="file" accept="image/*" capture="environment" onchange="handleLampMedia(this, 'image')" hidden>
+                        </label>
+                        <button class="lamp-media-btn" onclick="toggleLampRecording()">
+                            <i class="fas fa-microphone"></i> تسجيل
+                        </button>
+                    </div>
+                    <div class="lamp-popup-media-preview" id="lamp-popup-media-preview"></div>
+                    <div class="recording-indicator" id="lamp-recording" style="display:none">
+                        <div class="rec-dot"></div>
+                        <span>جاري التسجيل...</span>
+                        <span class="rec-timer" id="lamp-rec-timer">0:30</span>
+                        <button class="rec-stop-btn" onclick="stopLampRecording()"><i class="fas fa-stop"></i> إيقاف</button>
+                    </div>
+                </div>
+                <div class="lamp-popup-status" id="lamp-popup-status"></div>
+            </div>
+            <div class="lamp-popup-footer">
+                <button class="btn btn-primary lamp-popup-submit" id="lamp-popup-submit" onclick="submitLampMission()">
+                    <span><i class="fas fa-check-circle"></i> تم - نوّر المصباح!</span>
+                </button>
+            </div>
         </div>
     </div>
 

@@ -54,7 +54,8 @@ const GameState = {
         streakDays: 0,
         lastActiveDate: '',
         dailyLog: {}
-    }
+    },
+    level2Data: {}
 };
 
 // --- Firebase Initialization ---
@@ -116,7 +117,7 @@ function submitRegister() {
                 GameState.academicYear = existingData.academicYear || year;
                 handleRememberMe(rememberMe, phone);
                 showToast('أهلاً بيك تاني يا بطل!', 'success');
-                showScreen('map-screen');
+                showScreen('home-hub-screen');
                 syncLeaderboard();
                 return;
             }
@@ -194,6 +195,7 @@ function saveToCloud() {
         paulJourneyStation: GameState.paulJourneyStation,
         paulJourneyData: GameState.paulJourneyData,
         lampData: GameState.lampData,
+        level2Data: GameState.level2Data || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -1273,6 +1275,7 @@ function showScreen(id) {
     // Hide lamp fixed element when leaving lamp screen
     var lampBottom = document.getElementById('lamp-fixed-bottom');
     if (lampBottom) lampBottom.style.display = (id === 'lamp-screen') ? 'block' : 'none';
+    if (id === 'home-hub-screen') renderHomeHub();
     if (id === 'map-screen') renderMap();
     if (id === 'paul-journey-screen') renderPaulMap();
     if (id === 'lamp-screen') renderLampScreen();
@@ -1280,6 +1283,8 @@ function showScreen(id) {
     if (id === 'shop-screen') renderShop();
     if (id === 'leaderboard-screen') renderLeaderboard();
     if (id === 'settings-screen') renderSettings();
+    if (id === 'level2-subjects-screen') renderLevel2Subjects();
+    if (id === 'level2-map-screen') renderLevel2Map();
 }
 
 function createParticles() {
@@ -1356,7 +1361,7 @@ function confirmCharacter() {
     if (selectedCharKey) {
         GameState.character = selectedCharKey;
         saveGame();
-        showScreen('map-screen');
+        showScreen('home-hub-screen');
     }
 }
 
@@ -3985,6 +3990,733 @@ function submitLampMission() {
     }, 1500);
 }
 
+// ============================================================
+// LEVEL 2 - مدرسة أتبعني للتلمذة
+// ============================================================
+
+// --- Level 2 Subjects & Lessons Data ---
+var LEVEL2_SUBJECTS = {
+    faith: {
+        name: 'إيماننا الأرثوذوكسي',
+        desc: 'لاهوت وعقيدة',
+        icon: '✝️',
+        color: '#e74c3c',
+        lessons: [
+            {
+                name: 'الثالوث القدوس',
+                desc: 'الله الواحد في ثالوث: الآب والابن والروح القدس',
+                verse: '"اذهبوا وتلمذوا جميع الأمم وعمدوهم باسم الآب والابن والروح القدس" (متى 28:19)',
+                content: 'نؤمن بإله واحد في ثلاثة أقانيم: الآب والابن والروح القدس. الثالوث ليس ثلاثة آلهة بل إله واحد. الآب هو الأصل، والابن هو الكلمة المولود من الآب، والروح القدس هو المنبثق من الآب. كل أقنوم كامل في ذاته لكنهم واحد في الجوهر.',
+                questions: [
+                    { q: 'كم عدد أقانيم الثالوث القدوس؟', options: ['٢', '٣', '٤', '١'], correct: 1 },
+                    { q: 'الابن مولود من...؟', options: ['الروح القدس', 'مريم فقط', 'الآب', 'لا أحد'], correct: 2 },
+                    { q: 'الروح القدس...من الآب', options: ['مولود', 'منبثق', 'مخلوق', 'منفصل'], correct: 1 },
+                    { q: 'هل الثالوث يعني ثلاثة آلهة؟', options: ['نعم', 'أحياناً', 'لا، إله واحد', 'غير محدد'], correct: 2 },
+                    { q: 'ما الآية التي تذكر الثالوث في متى؟', options: ['متى 1:1', 'متى 28:19', 'متى 5:3', 'متى 10:1'], correct: 1 }
+                ]
+            },
+            {
+                name: 'التجسد الإلهي',
+                desc: 'لماذا تجسد الله وصار إنساناً؟',
+                verse: '"والكلمة صار جسداً وحل بيننا" (يوحنا 1:14)',
+                content: 'التجسد هو أن الله الكلمة (الأقنوم الثاني) أخذ جسداً بشرياً من العذراء مريم بحلول الروح القدس. تجسد لأجل خلاصنا، ليفدينا من الخطية والموت. المسيح إله كامل وإنسان كامل في نفس الوقت بغير اختلاط ولا امتزاج ولا تغيير.',
+                questions: [
+                    { q: 'من أي أقنوم تجسد؟', options: ['الآب', 'الابن', 'الروح القدس', 'الثلاثة'], correct: 1 },
+                    { q: 'تجسد المسيح من...؟', options: ['العدم', 'العذراء مريم', 'السماء مباشرة', 'الملائكة'], correct: 1 },
+                    { q: 'لماذا تجسد الله؟', options: ['للتسلية', 'لخلاصنا', 'لم يتجسد', 'للعقاب'], correct: 1 },
+                    { q: 'المسيح هو...', options: ['إله فقط', 'إنسان فقط', 'إله كامل وإنسان كامل', 'ملاك'], correct: 2 },
+                    { q: '"والكلمة صار جسداً" من أي إنجيل؟', options: ['متى', 'مرقس', 'لوقا', 'يوحنا'], correct: 3 }
+                ]
+            },
+            {
+                name: 'الفداء والصليب',
+                desc: 'معنى الصليب وأهمية الفداء في حياتنا',
+                verse: '"هكذا أحب الله العالم حتى بذل ابنه الوحيد" (يوحنا 3:16)',
+                content: 'الفداء هو عمل المسيح على الصليب لأجل خلاصنا. بسبب خطية آدم دخل الموت للعالم، والمسيح بموته على الصليب دفع ثمن خطايانا وانتصر على الموت بقيامته. الصليب ليس ضعف بل قوة الله للخلاص.',
+                questions: [
+                    { q: 'من دفع ثمن خطايانا؟', options: ['الملائكة', 'الأنبياء', 'المسيح', 'نحن'], correct: 2 },
+                    { q: 'بسبب من دخل الموت للعالم؟', options: ['إبراهيم', 'موسى', 'آدم', 'داود'], correct: 2 },
+                    { q: 'الصليب هو رمز...', options: ['الضعف', 'قوة الله للخلاص', 'النهاية', 'العقاب فقط'], correct: 1 },
+                    { q: 'انتصر المسيح على الموت بـ...', options: ['السيف', 'القيامة', 'الهروب', 'الحرب'], correct: 1 },
+                    { q: '"هكذا أحب الله العالم" في أي سفر؟', options: ['التكوين', 'المزامير', 'يوحنا', 'الرؤيا'], correct: 2 }
+                ]
+            },
+            {
+                name: 'القيامة والحياة الأبدية',
+                desc: 'قيامة المسيح ورجاؤنا في الحياة الأبدية',
+                verse: '"أنا هو القيامة والحياة. من آمن بي ولو مات فسيحيا" (يوحنا 11:25)',
+                content: 'قام المسيح من الأموات في اليوم الثالث منتصراً على الموت. القيامة هي أساس إيماننا المسيحي. بدون القيامة يكون إيماننا باطلاً. نحن نؤمن أن كل من يؤمن بالمسيح سيقوم في اليوم الأخير وينال الحياة الأبدية.',
+                questions: [
+                    { q: 'في أي يوم قام المسيح؟', options: ['الأول', 'الثاني', 'الثالث', 'السابع'], correct: 2 },
+                    { q: 'القيامة هي أساس...', options: ['الشريعة', 'إيماننا المسيحي', 'العهد القديم فقط', 'التقليد'], correct: 1 },
+                    { q: 'من قال "أنا هو القيامة والحياة"؟', options: ['بولس', 'بطرس', 'المسيح', 'يوحنا'], correct: 2 },
+                    { q: 'ماذا ينال المؤمن في اليوم الأخير؟', options: ['لا شيء', 'الحياة الأبدية', 'الفناء', 'النوم'], correct: 1 },
+                    { q: 'بدون القيامة إيماننا يكون...', options: ['قوياً', 'عادياً', 'باطلاً', 'مختلفاً'], correct: 2 }
+                ]
+            },
+            {
+                name: 'الكنيسة جسد المسيح',
+                desc: 'مفهوم الكنيسة كجسد واحد للمسيح',
+                verse: '"وأما أنتم فجسد المسيح وأعضاؤه أفراداً" (١ كورنثوس 12:27)',
+                content: 'الكنيسة ليست مبنى بل هي جماعة المؤمنين. المسيح هو رأس الكنيسة ونحن أعضاء في جسده. كل عضو له دور مهم. الكنيسة واحدة مقدسة جامعة رسولية. نحن مدعوون لنكون أعضاء فاعلين في الكنيسة.',
+                questions: [
+                    { q: 'من هو رأس الكنيسة؟', options: ['البابا', 'المسيح', 'بطرس', 'بولس'], correct: 1 },
+                    { q: 'الكنيسة هي...', options: ['مبنى فقط', 'جماعة المؤمنين', 'مكان للعبادة فقط', 'تنظيم بشري'], correct: 1 },
+                    { q: 'صفات الكنيسة هي واحدة مقدسة جامعة و...', options: ['كبيرة', 'قديمة', 'رسولية', 'محلية'], correct: 2 },
+                    { q: 'كل عضو في الكنيسة له...', options: ['نفس الدور', 'دور مهم', 'لا دور', 'دور بسيط'], correct: 1 },
+                    { q: '"أنتم جسد المسيح" في أي رسالة؟', options: ['رومية', 'غلاطية', 'كورنثوس', 'أفسس'], correct: 2 }
+                ]
+            },
+            {
+                name: 'الأسرار الكنسية السبعة',
+                desc: 'الأسرار السبعة التي أسسها المسيح لكنيسته',
+                verse: '"إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله" (يوحنا 3:5)',
+                content: 'الأسرار الكنسية السبعة هي: المعمودية، الميرون، التوبة والاعتراف، الإفخارستيا (التناول)، مسحة المرضى، الزواج، والكهنوت. كل سر هو عمل إلهي غير منظور يُمنح من خلال عمل منظور. الأسرار هي وسائط النعمة.',
+                questions: [
+                    { q: 'كم عدد الأسرار الكنسية؟', options: ['٥', '٦', '٧', '١٠'], correct: 2 },
+                    { q: 'أي سر يعني التناول؟', options: ['المعمودية', 'الميرون', 'الإفخارستيا', 'الكهنوت'], correct: 2 },
+                    { q: 'الولادة من الماء والروح تشير إلى...', options: ['الصلاة', 'المعمودية', 'الصوم', 'القراءة'], correct: 1 },
+                    { q: 'سر الميرون هو مسحة بـ...', options: ['الماء', 'الزيت المقدس', 'الطيب', 'العسل'], correct: 1 },
+                    { q: 'الأسرار هي وسائط...', options: ['التعليم', 'النعمة', 'المعرفة', 'الترفيه'], correct: 1 }
+                ]
+            }
+        ]
+    },
+    bible: {
+        name: 'روح وحياة',
+        desc: 'كتاب مقدس',
+        icon: '📖',
+        color: '#3498db',
+        lessons: [
+            {
+                name: 'الكتاب المقدس كلمة الله',
+                desc: 'كيف أُعطينا الكتاب المقدس ولماذا هو مهم',
+                verse: '"كل الكتاب هو موحى به من الله" (٢ تيموثاوس 3:16)',
+                content: 'الكتاب المقدس هو كلمة الله الموحى بها. كُتب بواسطة أكثر من 40 كاتباً على مدار 1500 سنة بإلهام الروح القدس. يتكون من 66 سفراً: 39 في العهد القديم و27 في العهد الجديد. الكتاب المقدس هو المصدر الأساسي لإيماننا.',
+                questions: [
+                    { q: 'كم عدد أسفار الكتاب المقدس؟', options: ['50', '66', '73', '80'], correct: 1 },
+                    { q: 'كم كاتباً كتبوا الكتاب المقدس تقريباً؟', options: ['12', '20', '40+', '100'], correct: 2 },
+                    { q: 'الكتاب المقدس موحى به من...', options: ['البشر', 'الملائكة', 'الله', 'القديسين'], correct: 2 },
+                    { q: 'كم سفراً في العهد الجديد؟', options: ['27', '39', '22', '14'], correct: 0 },
+                    { q: 'على مدار كم سنة كُتب الكتاب المقدس؟', options: ['100', '500', '1000', '1500'], correct: 3 }
+                ]
+            },
+            {
+                name: 'شخصيات العهد القديم',
+                desc: 'أبطال الإيمان في العهد القديم',
+                verse: '"بالإيمان قدم هابيل لله ذبيحة أفضل من قايين" (عبرانيين 11:4)',
+                content: 'العهد القديم مليء بأبطال الإيمان: إبراهيم أبو الآباء الذي آمن بالله، موسى الذي قاد الشعب من مصر، داود الملك بحسب قلب الله، إيليا النبي الناري، دانيال في جب الأسود. كل واحد منهم يعلمنا درساً مهماً عن الإيمان.',
+                questions: [
+                    { q: 'من هو أبو الآباء؟', options: ['موسى', 'إبراهيم', 'يعقوب', 'إسحق'], correct: 1 },
+                    { q: 'من قاد الشعب خروجاً من مصر؟', options: ['يشوع', 'داود', 'موسى', 'صموئيل'], correct: 2 },
+                    { q: 'من كان ملكاً بحسب قلب الله؟', options: ['شاول', 'سليمان', 'داود', 'حزقيا'], correct: 2 },
+                    { q: 'من أُلقي في جب الأسود؟', options: ['إيليا', 'إرميا', 'دانيال', 'يونان'], correct: 2 },
+                    { q: 'عبرانيين 11 يتحدث عن...', options: ['الشريعة', 'أبطال الإيمان', 'النبوات', 'المزامير'], correct: 1 }
+                ]
+            },
+            {
+                name: 'حياة المسيح على الأرض',
+                desc: 'ميلاد المسيح وخدمته ومعجزاته',
+                verse: '"جال يصنع خيراً ويشفي جميع المتسلط عليهم إبليس" (أعمال 10:38)',
+                content: 'وُلد المسيح في بيت لحم، ونشأ في الناصرة. بدأ خدمته بعد المعمودية من يوحنا المعمدان. صنع معجزات كثيرة: شفى المرضى، أقام الموتى، أطعم الجموع، مشى على الماء. علّم بأمثال عظيمة وقدم لنا نموذجاً للحياة الكاملة.',
+                questions: [
+                    { q: 'أين وُلد المسيح؟', options: ['الناصرة', 'أورشليم', 'بيت لحم', 'مصر'], correct: 2 },
+                    { q: 'من عمّد المسيح؟', options: ['بطرس', 'يوحنا المعمدان', 'أندراوس', 'يعقوب'], correct: 1 },
+                    { q: 'أين نشأ المسيح؟', options: ['بيت لحم', 'أورشليم', 'الناصرة', 'كفرناحوم'], correct: 2 },
+                    { q: 'من المعجزات: أطعم المسيح...', options: ['100 شخص', '1000 شخص', '5000 شخص', '500 شخص'], correct: 2 },
+                    { q: 'المسيح علّم بـ...', options: ['القوانين فقط', 'الأمثال', 'الحروب', 'السياسة'], correct: 1 }
+                ]
+            },
+            {
+                name: 'أمثال المسيح',
+                desc: 'أهم أمثال المسيح ومعانيها العميقة',
+                verse: '"هذا كله كلم به يسوع الجموع بأمثال" (متى 13:34)',
+                content: 'استخدم المسيح الأمثال لتعليم حقائق روحية عميقة بطريقة بسيطة. من أشهر الأمثال: الابن الضال (محبة الآب)، الزارع (أنواع القلوب)، السامري الصالح (محبة القريب)، العذارى العشر (الاستعداد)، الوزنات (استثمار المواهب).',
+                questions: [
+                    { q: 'مثل الابن الضال يعلمنا عن...', options: ['العقاب', 'محبة الآب', 'المال', 'السفر'], correct: 1 },
+                    { q: 'مثل الزارع يتحدث عن أنواع...', options: ['البذور', 'الأرض/القلوب', 'الأشجار', 'الماء'], correct: 1 },
+                    { q: 'من ساعد الإنسان الجريح في مثل السامري؟', options: ['الكاهن', 'اللاوي', 'السامري', 'الفريسي'], correct: 2 },
+                    { q: 'مثل العذارى العشر يعلمنا عن...', options: ['الزواج', 'الاستعداد', 'الجمال', 'النوم'], correct: 1 },
+                    { q: 'مثل الوزنات يعلمنا عن...', options: ['المال', 'استثمار المواهب', 'البنوك', 'التجارة'], correct: 1 }
+                ]
+            },
+            {
+                name: 'رسائل بولس الرسول',
+                desc: 'رسائل بولس وتأثيرها على الكنيسة',
+                verse: '"لي الحياة هي المسيح والموت هو ربح" (فيلبي 1:21)',
+                content: 'بولس الرسول كتب 14 رسالة في العهد الجديد. كان في البداية يضطهد المسيحيين ثم ظهر له المسيح في طريق دمشق فتحول وصار أعظم مبشر. رسائله تشمل: رومية، كورنثوس، غلاطية، أفسس، فيلبي، وغيرها. علّم عن النعمة والإيمان والمحبة.',
+                questions: [
+                    { q: 'كم رسالة كتب بولس؟', options: ['7', '10', '14', '21'], correct: 2 },
+                    { q: 'أين ظهر المسيح لبولس؟', options: ['أورشليم', 'طريق دمشق', 'روما', 'أنطاكية'], correct: 1 },
+                    { q: 'ماذا كان بولس يفعل قبل إيمانه؟', options: ['يبشر', 'يصلي', 'يضطهد المسيحيين', 'يكتب'], correct: 2 },
+                    { q: '"لي الحياة هي المسيح" في أي رسالة؟', options: ['رومية', 'فيلبي', 'كورنثوس', 'غلاطية'], correct: 1 },
+                    { q: 'بولس علّم عن النعمة والإيمان و...', options: ['القوة', 'المحبة', 'المعرفة', 'الحكمة'], correct: 1 }
+                ]
+            },
+            {
+                name: 'سفر الرؤيا والرجاء',
+                desc: 'رؤيا يوحنا ورجاؤنا في المجيء الثاني',
+                verse: '"ها أنا آتي سريعاً وأجرتي معي" (رؤيا 22:12)',
+                content: 'سفر الرؤيا هو آخر أسفار الكتاب المقدس، كتبه يوحنا الرسول في جزيرة بطمس. يتحدث عن انتصار المسيح النهائي على الشر، والسماء الجديدة والأرض الجديدة. رسالته الأساسية هي الرجاء: مهما كانت الضيقات، المسيح غالب ونحن معه منتصرون.',
+                questions: [
+                    { q: 'من كتب سفر الرؤيا؟', options: ['بولس', 'بطرس', 'يوحنا', 'يعقوب'], correct: 2 },
+                    { q: 'أين كان يوحنا عندما كتب الرؤيا؟', options: ['أورشليم', 'روما', 'بطمس', 'أفسس'], correct: 2 },
+                    { q: 'الرسالة الأساسية لسفر الرؤيا هي...', options: ['الخوف', 'الرجاء', 'الحزن', 'الانتقام'], correct: 1 },
+                    { q: 'سفر الرؤيا يتحدث عن انتصار...', options: ['الإنسان', 'الملائكة', 'المسيح', 'الطبيعة'], correct: 2 },
+                    { q: '"ها أنا آتي سريعاً" في أي إصحاح؟', options: ['رؤيا 1', 'رؤيا 7', 'رؤيا 15', 'رؤيا 22'], correct: 3 }
+                ]
+            }
+        ]
+    },
+    life: {
+        name: 'جيل يصنع التغيير',
+        desc: 'مهارات الحياة والقيادة',
+        icon: '🌟',
+        color: '#f39c12',
+        lessons: [
+            {
+                name: 'اعرف نفسك',
+                desc: 'اكتشاف الذات والمواهب التي أعطاها الله لك',
+                verse: '"لأنك أنت اقتنيت كليتيّ. نسجتني في بطن أمي. أحمدك من أجل أني قد امتزت عجباً" (مزمور 139:13-14)',
+                content: 'الله خلق كل واحد فينا بطريقة فريدة ومميزة. لكل شخص مواهب وقدرات مختلفة. اكتشاف ذاتك هو أول خطوة للنجاح. اسأل نفسك: ما الذي أحبه؟ ما الذي أجيده؟ كيف أخدم الله والآخرين بمواهبي؟',
+                questions: [
+                    { q: 'أول خطوة للنجاح هي...', options: ['المال', 'الشهرة', 'اكتشاف الذات', 'القوة'], correct: 2 },
+                    { q: 'الله خلق كل واحد...', options: ['متشابهاً', 'فريداً ومميزاً', 'ضعيفاً', 'بلا هدف'], correct: 1 },
+                    { q: 'المواهب هي عطية من...', options: ['المجتمع', 'المدرسة', 'الله', 'الأصدقاء'], correct: 2 },
+                    { q: 'ما السؤال المهم لاكتشاف الذات؟', options: ['كم عمري؟', 'ما الذي أجيده؟', 'أين أسكن؟', 'من أصدقائي؟'], correct: 1 },
+                    { q: '"امتزت عجباً" تعني أن الله صنعنا...', options: ['عادياً', 'بطريقة عجيبة ورائعة', 'بسرعة', 'بدون تخطيط'], correct: 1 }
+                ]
+            },
+            {
+                name: 'قوة الكلمة',
+                desc: 'تأثير الكلمات وكيف نتكلم بحكمة',
+                verse: '"الموت والحياة في يد اللسان" (أمثال 18:21)',
+                content: 'الكلمات لها قوة هائلة. يمكنها أن تبني أو تهدم، تشجع أو تحبط. المسيحي مدعو لاستخدام كلماته للبناء والتشجيع. تجنب الكلام الجارح والنميمة والكذب. تعلّم أن تفكر قبل أن تتكلم، واسأل نفسك: هل كلامي يمجد الله؟',
+                questions: [
+                    { q: 'الكلمات يمكنها أن...', options: ['تبني فقط', 'تهدم فقط', 'تبني وتهدم', 'لا تأثير لها'], correct: 2 },
+                    { q: '"الموت والحياة في يد..." ماذا؟', options: ['العقل', 'القلب', 'اللسان', 'اليد'], correct: 2 },
+                    { q: 'المسيحي مدعو لاستخدام كلماته لـ...', options: ['النقد', 'البناء والتشجيع', 'النميمة', 'المزاح فقط'], correct: 1 },
+                    { q: 'قبل أن أتكلم يجب أن...', options: ['أصرخ', 'أفكر', 'أغضب', 'أتجاهل'], correct: 1 },
+                    { q: 'من الأشياء التي يجب تجنبها...', options: ['التشجيع', 'المدح', 'النميمة', 'الابتسامة'], correct: 2 }
+                ]
+            },
+            {
+                name: 'إدارة الوقت',
+                desc: 'كيف تستثمر وقتك بحكمة لمجد الله',
+                verse: '"فانظروا كيف تسلكون بالتدقيق... مفتدين الوقت لأن الأيام شريرة" (أفسس 5:15-16)',
+                content: 'الوقت هو أغلى ما نملك ولا يمكن استرجاعه. إدارة الوقت تعني ترتيب أولوياتك: الله أولاً، ثم الدراسة والعمل، ثم الراحة والترفيه. ضع جدولاً يومياً، تجنب المشتتات، وتعلم أن تقول "لا" للأشياء غير المفيدة.',
+                questions: [
+                    { q: 'الأولوية الأولى في حياة المسيحي هي...', options: ['الدراسة', 'الترفيه', 'الله', 'العمل'], correct: 2 },
+                    { q: 'الوقت لا يمكن...', options: ['استثماره', 'استرجاعه', 'تنظيمه', 'تقسيمه'], correct: 1 },
+                    { q: '"مفتدين الوقت" تعني...', options: ['شراء الوقت', 'استثمار الوقت بحكمة', 'إضاعة الوقت', 'نسيان الوقت'], correct: 1 },
+                    { q: 'لإدارة الوقت يجب أن تضع...', options: ['أحلاماً فقط', 'جدولاً يومياً', 'قيوداً', 'لا شيء'], correct: 1 },
+                    { q: 'يجب تجنب...', options: ['التخطيط', 'المشتتات', 'الأهداف', 'الصلاة'], correct: 1 }
+                ]
+            },
+            {
+                name: 'القيادة الخادمة',
+                desc: 'كيف تكون قائداً على مثال المسيح',
+                verse: '"من أراد أن يكون فيكم عظيماً فليكن لكم خادماً" (متى 20:26)',
+                content: 'القيادة المسيحية مختلفة عن قيادة العالم. المسيح كان القائد الأعظم لكنه غسل أرجل تلاميذه. القائد الحقيقي يخدم الآخرين، يستمع لهم، يشجعهم، ويكون قدوة. القيادة ليست سلطة بل مسؤولية.',
+                questions: [
+                    { q: 'القيادة المسيحية أساسها...', options: ['السلطة', 'القوة', 'الخدمة', 'المال'], correct: 2 },
+                    { q: 'المسيح غسل أرجل...', options: ['الفريسيين', 'الجموع', 'التلاميذ', 'الكهنة'], correct: 2 },
+                    { q: '"من أراد أن يكون عظيماً فليكن..."', options: ['ملكاً', 'غنياً', 'خادماً', 'مشهوراً'], correct: 2 },
+                    { q: 'القائد الحقيقي يفعل كل هذا ما عدا...', options: ['يخدم', 'يستمع', 'يتكبر', 'يشجع'], correct: 2 },
+                    { q: 'القيادة ليست سلطة بل...', options: ['شهرة', 'مسؤولية', 'راحة', 'امتياز'], correct: 1 }
+                ]
+            },
+            {
+                name: 'التعامل مع الضغوط',
+                desc: 'كيف تواجه التحديات والمشاكل بإيمان',
+                verse: '"في العالم سيكون لكم ضيق ولكن ثقوا أنا قد غلبت العالم" (يوحنا 16:33)',
+                content: 'كلنا نواجه ضغوطاً: في الدراسة، مع الأصدقاء، في البيت. المهم هو كيف نتعامل معها. أولاً: صلِّ وألقِ همك على الله. ثانياً: تكلم مع شخص تثق فيه. ثالثاً: لا تستسلم. رابعاً: تذكر أن الله معك في كل ظرف.',
+                questions: [
+                    { q: 'أول خطوة عند مواجهة الضغوط...', options: ['الهروب', 'الصلاة', 'الغضب', 'العزلة'], correct: 1 },
+                    { q: '"ألقِ على الرب همك" تعني...', options: ['انسى مشاكلك', 'سلّم مشاكلك لله', 'لا تهتم', 'اشتكِ'], correct: 1 },
+                    { q: 'عند مواجهة مشكلة يجب أن تتكلم مع...', options: ['لا أحد', 'شخص تثق فيه', 'الجميع', 'وسائل التواصل'], correct: 1 },
+                    { q: '"أنا قد غلبت العالم" قالها...', options: ['بولس', 'بطرس', 'المسيح', 'داود'], correct: 2 },
+                    { q: 'الخطوة الرابعة هي تذكر أن...', options: ['أنت وحدك', 'الله معك', 'لا أمل', 'المشكلة كبيرة'], correct: 1 }
+                ]
+            },
+            {
+                name: 'صانع السلام',
+                desc: 'كيف تكون صانع سلام في مجتمعك',
+                verse: '"طوبى لصانعي السلام لأنهم أبناء الله يُدعون" (متى 5:9)',
+                content: 'صانع السلام هو من يسعى لحل الخلافات بدلاً من تصعيدها. يحتاج صبراً وحكمة ومحبة. تعلم أن تستمع للطرفين، لا تنحاز بظلم، وساعد الناس على التصالح. المسيح هو ملك السلام وقد صالحنا مع الله.',
+                questions: [
+                    { q: 'صانع السلام يسعى لـ...', options: ['تصعيد المشاكل', 'حل الخلافات', 'الانسحاب', 'التجاهل'], correct: 1 },
+                    { q: 'صانعو السلام يُدعون...', options: ['أبطالاً', 'حكماء', 'أبناء الله', 'قضاة'], correct: 2 },
+                    { q: 'يحتاج صانع السلام إلى...', options: ['قوة بدنية', 'صبر وحكمة ومحبة', 'مال', 'سلطة'], correct: 1 },
+                    { q: 'المسيح صالحنا مع...', options: ['أنفسنا', 'العالم', 'الله', 'الطبيعة'], correct: 2 },
+                    { q: 'عند حل خلاف يجب أن تستمع لـ...', options: ['طرف واحد', 'الطرفين', 'لا أحد', 'نفسك فقط'], correct: 1 }
+                ]
+            }
+        ]
+    },
+    ritual: {
+        name: 'حركة ومعنى',
+        desc: 'طقس',
+        icon: '⛪',
+        color: '#9b59b6',
+        lessons: [
+            {
+                name: 'القداس الإلهي',
+                desc: 'رحلة روحية في القداس من البداية للنهاية',
+                verse: '"اصنعوا هذا لذكري" (لوقا 22:19)',
+                content: 'القداس الإلهي هو أهم صلاة في الكنيسة. يبدأ بتقدمة الحمل ثم صلاة رفع بخور باكر، ثم قراءات الكتاب المقدس، ثم صلاة الصلح، ثم الأنافورا (صلاة الشكر)، وأخيراً التناول. في القداس نتحد بالمسيح ونأكل جسده ونشرب دمه.',
+                questions: [
+                    { q: 'القداس يبدأ بـ...', options: ['التناول', 'تقدمة الحمل', 'القراءات', 'البخور'], correct: 1 },
+                    { q: 'الأنافورا تعني...', options: ['التناول', 'صلاة الشكر', 'البخور', 'القراءات'], correct: 1 },
+                    { q: 'في القداس نتناول...', options: ['خبز عادي', 'جسد ودم المسيح', 'ماء مقدس', 'فاكهة'], correct: 1 },
+                    { q: '"اصنعوا هذا لذكري" قالها...', options: ['بولس', 'بطرس', 'المسيح', 'موسى'], correct: 2 },
+                    { q: 'القداس الإلهي هو أهم...في الكنيسة', options: ['اجتماع', 'صلاة', 'عيد', 'تعليم'], correct: 1 }
+                ]
+            },
+            {
+                name: 'المعمودية والميرون',
+                desc: 'سر الولادة الجديدة والختم الملوكي',
+                verse: '"إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله" (يوحنا 3:5)',
+                content: 'المعمودية هي الولادة الجديدة بالماء والروح. يُغطس المعمَّد ثلاث مرات باسم الثالوث القدوس. الميرون هو سر حلول الروح القدس على المعمَّد من خلال المسحة بالزيت المقدس (36 رشمة). بالمعمودية نموت مع المسيح ونقوم معه.',
+                questions: [
+                    { q: 'كم مرة يُغطس المعمَّد؟', options: ['مرة', 'مرتين', 'ثلاث مرات', 'أربع مرات'], correct: 2 },
+                    { q: 'كم رشمة في الميرون؟', options: ['12', '24', '36', '40'], correct: 2 },
+                    { q: 'المعمودية هي الولادة...', options: ['الطبيعية', 'الجديدة', 'الثالثة', 'المتكررة'], correct: 1 },
+                    { q: 'الميرون هو سر حلول...', options: ['الملائكة', 'الروح القدس', 'البركة', 'الشفاء'], correct: 1 },
+                    { q: 'بالمعمودية نموت مع المسيح و...', options: ['نبقى أمواتاً', 'نقوم معه', 'نحزن', 'ننتظر'], correct: 1 }
+                ]
+            },
+            {
+                name: 'الصوم والصلاة',
+                desc: 'أسلحة روحية قوية في حياة المسيحي',
+                verse: '"هذا الجنس لا يخرج إلا بالصلاة والصوم" (متى 17:21)',
+                content: 'الصوم والصلاة هما جناحا الحياة الروحية. الصوم هو انقطاع عن الطعام لفترة ثم أكل نباتي. أصوام الكنيسة تشمل: الصوم الكبير (55 يوماً)، صوم الرسل، صوم العذراء، وصوم الميلاد. الصلاة هي حديثنا مع الله، نصلي الأجبية (7 صلوات يومية).',
+                questions: [
+                    { q: 'كم يوماً الصوم الكبير؟', options: ['40', '43', '55', '60'], correct: 2 },
+                    { q: 'الأجبية تحتوي على...صلوات يومية', options: ['3', '5', '7', '12'], correct: 2 },
+                    { q: 'الصوم يشمل أكل...', options: ['لحوم', 'نباتي', 'أي شيء', 'أسماك فقط'], correct: 1 },
+                    { q: 'الصلاة هي...مع الله', options: ['حديثنا', 'صمتنا', 'عملنا', 'نومنا'], correct: 0 },
+                    { q: 'من أصوام الكنيسة كل هذه ما عدا...', options: ['الصوم الكبير', 'صوم الرسل', 'صوم العذراء', 'صوم الأحد'], correct: 3 }
+                ]
+            },
+            {
+                name: 'الأعياد السيدية',
+                desc: 'الأعياد الكبرى في الكنيسة القبطية',
+                verse: '"هذا هو اليوم الذي صنعه الرب. نبتهج ونفرح فيه" (مزمور 118:24)',
+                content: 'الأعياد السيدية الكبرى سبعة: البشارة، الميلاد، الغطاس، أحد الشعانين، القيامة، الصعود، وحلول الروح القدس (البنطقستي). والأعياد السيدية الصغرى سبعة أيضاً. كل عيد يذكرنا بحدث مهم في حياة المسيح.',
+                questions: [
+                    { q: 'كم عدد الأعياد السيدية الكبرى؟', options: ['5', '7', '10', '12'], correct: 1 },
+                    { q: 'عيد حلول الروح القدس يُسمى أيضاً...', options: ['الغطاس', 'الشعانين', 'البنطقستي', 'النيروز'], correct: 2 },
+                    { q: 'أهم عيد مسيحي هو عيد...', options: ['الميلاد', 'القيامة', 'الصعود', 'البشارة'], correct: 1 },
+                    { q: 'أحد الشعانين يحتفل بدخول المسيح...', options: ['بيت لحم', 'الهيكل', 'أورشليم', 'مصر'], correct: 2 },
+                    { q: 'الأعياد السيدية الصغرى عددها...', options: ['5', '7', '9', '12'], correct: 1 }
+                ]
+            },
+            {
+                name: 'التسبحة والألحان',
+                desc: 'كنوز الألحان القبطية وأهميتها',
+                verse: '"رنموا للرب ترنيمة جديدة" (مزمور 96:1)',
+                content: 'الألحان القبطية هي كنز روحي عمره أكثر من 2000 سنة. التسبحة تُرفع كل ليلة في الكنيسة وتتكون من 4 هوسات (تسابيح). الألحان لها 3 أنواع: فرايحي (فرح)، حزايني (حزن)، وشعانيني. الموسيقى القبطية تُعتبر أقدم موسيقى كنسية في العالم.',
+                questions: [
+                    { q: 'كم هوس في التسبحة؟', options: ['3', '4', '5', '7'], correct: 1 },
+                    { q: 'كم نوع من الألحان القبطية؟', options: ['2', '3', '4', '5'], correct: 1 },
+                    { q: 'اللحن الفرايحي يعني لحن...', options: ['الحزن', 'الفرح', 'الصمت', 'السرعة'], correct: 1 },
+                    { q: 'عمر الألحان القبطية أكثر من...سنة', options: ['500', '1000', '2000', '3000'], correct: 2 },
+                    { q: 'التسبحة تُرفع كل...', options: ['صباح', 'ليلة', 'أسبوع', 'شهر'], correct: 1 }
+                ]
+            },
+            {
+                name: 'الكنيسة من الداخل',
+                desc: 'أجزاء الكنيسة ومعناها الروحي',
+                verse: '"بيتي بيت الصلاة يُدعى" (متى 21:13)',
+                content: 'الكنيسة القبطية تنقسم إلى 3 أجزاء: الهيكل (قدس الأقداس حيث المذبح)، صحن الكنيسة (حيث يقف الشعب)، والخورس (بين الهيكل والصحن). المذبح يرمز لعرش الله. حامل الأيقونات يفصل الهيكل عن الصحن. الكنيسة دائماً تتجه ناحية الشرق.',
+                questions: [
+                    { q: 'كم جزءاً في الكنيسة القبطية؟', options: ['2', '3', '4', '5'], correct: 1 },
+                    { q: 'أين يوجد المذبح؟', options: ['الصحن', 'الخورس', 'الهيكل', 'الباب'], correct: 2 },
+                    { q: 'الكنيسة القبطية تتجه ناحية...', options: ['الشمال', 'الجنوب', 'الشرق', 'الغرب'], correct: 2 },
+                    { q: 'الخورس يقع بين...', options: ['الباب والصحن', 'الهيكل والصحن', 'الهيكل والسقف', 'الصحن والباب'], correct: 1 },
+                    { q: 'المذبح يرمز لـ...', options: ['الجبل', 'عرش الله', 'البحر', 'السماء'], correct: 1 }
+                ]
+            }
+        ]
+    }
+};
+
+// --- Level 2 State ---
+var level2State = {
+    currentSubject: null,
+    currentLesson: -1,
+    currentStage: 'learn', // learn, quiz, result
+    quizIndex: 0,
+    quizScore: 0,
+    quizAnswers: [],
+    timerInterval: null,
+    timeLeft: 0
+};
+
+// Add level2 data to GameState
+if (!GameState.level2Data) {
+    GameState.level2Data = {};
+}
+
+// --- Home Hub Render ---
+function renderHomeHub() {
+    var ch = CHARACTERS[GameState.character];
+    var avatarImg = document.getElementById('hub-avatar-img');
+    if (avatarImg && ch) { avatarImg.src = ch.image; }
+    var nameEl = document.getElementById('hub-player-name');
+    if (nameEl) nameEl.textContent = GameState.playerName;
+    var rankEl = document.getElementById('hub-rank');
+    if (rankEl) { var rank = getRank(); rankEl.textContent = rank.emoji + ' ' + rank.title; }
+    var starsEl = document.getElementById('hub-stars');
+    if (starsEl) starsEl.textContent = GameState.stars;
+    var gemsEl = document.getElementById('hub-gems');
+    if (gemsEl) gemsEl.textContent = GameState.gems;
+}
+
+// --- Level 2 Subjects Render ---
+function renderLevel2Subjects() {
+    var totalStars = 0;
+    var subjects = ['faith', 'bible', 'life', 'ritual'];
+    subjects.forEach(function(subKey) {
+        var completed = 0;
+        var subjectData = (GameState.level2Data && GameState.level2Data[subKey]) || {};
+        for (var i = 0; i < 6; i++) {
+            var lessonData = subjectData['lesson_' + i];
+            if (lessonData && lessonData.stars > 0) {
+                completed++;
+                totalStars += lessonData.stars;
+            }
+        }
+        var progressFill = document.getElementById('l2-progress-' + subKey);
+        var progressText = document.getElementById('l2-progress-' + subKey + '-text');
+        if (progressFill) progressFill.style.width = (completed / 6 * 100) + '%';
+        if (progressText) progressText.textContent = completed + '/6';
+    });
+    var totalStarsEl = document.getElementById('l2-total-stars');
+    if (totalStarsEl) totalStarsEl.textContent = totalStars;
+}
+
+// --- Open Subject Map ---
+function openLevel2Subject(subjectKey) {
+    level2State.currentSubject = subjectKey;
+    showScreen('level2-map-screen');
+}
+
+// --- Level 2 Map Render ---
+function renderLevel2Map() {
+    var subKey = level2State.currentSubject;
+    if (!subKey || !LEVEL2_SUBJECTS[subKey]) return;
+    var subject = LEVEL2_SUBJECTS[subKey];
+    var subjectData = (GameState.level2Data && GameState.level2Data[subKey]) || {};
+
+    // Update header
+    var iconEl = document.getElementById('l2-map-subject-icon');
+    var nameEl = document.getElementById('l2-map-subject-name');
+    if (iconEl) iconEl.textContent = subject.icon;
+    if (nameEl) nameEl.textContent = subject.name;
+
+    // Calculate stars
+    var earnedStars = 0;
+    for (var s = 0; s < subject.lessons.length; s++) {
+        var ld = subjectData['lesson_' + s];
+        if (ld) earnedStars += (ld.stars || 0);
+    }
+    var earnedEl = document.getElementById('l2-map-stars-earned');
+    var totalEl = document.getElementById('l2-map-stars-total');
+    if (earnedEl) earnedEl.textContent = earnedStars;
+    if (totalEl) totalEl.textContent = subject.lessons.length * 3;
+
+    // Render lesson nodes
+    var container = document.getElementById('l2-map-path');
+    container.innerHTML = '';
+
+    for (var i = 0; i < subject.lessons.length; i++) {
+        var lesson = subject.lessons[i];
+        var lessonData = subjectData['lesson_' + i] || {};
+        var stars = lessonData.stars || 0;
+        var isCompleted = stars > 0;
+
+        // Determine if available (first lesson or previous completed)
+        var isAvailable = (i === 0);
+        if (i > 0) {
+            var prevData = subjectData['lesson_' + (i - 1)] || {};
+            isAvailable = (prevData.stars || 0) > 0;
+        }
+
+        var stateClass = isCompleted ? 'l2-map-node-completed' : (isAvailable ? 'l2-map-node-available' : 'l2-map-node-locked');
+
+        // Connector (not before first)
+        if (i > 0) {
+            var connector = document.createElement('div');
+            connector.className = 'l2-map-connector' + (isCompleted || isAvailable ? ' active' : '');
+            container.appendChild(connector);
+        }
+
+        // Node
+        var node = document.createElement('div');
+        node.className = 'l2-map-node ' + stateClass;
+
+        var circleContent = isCompleted ? '<i class="fas fa-check"></i>' : (i + 1);
+        var starsHTML = '';
+        for (var st = 0; st < 3; st++) {
+            starsHTML += '<i class="fas fa-star ' + (st < stars ? 'earned' : '') + '"></i>';
+        }
+
+        var lockHTML = '';
+        if (!isAvailable && !isCompleted) {
+            lockHTML = '<div class="l2-node-lock"><i class="fas fa-lock"></i></div>';
+        }
+
+        node.innerHTML = '<div class="l2-node-circle" style="border-color: ' + (isCompleted ? 'var(--success)' : (isAvailable ? subject.color : 'var(--border)')) + '">' +
+            circleContent + lockHTML + '</div>' +
+            '<div class="l2-node-info"><h4>' + lesson.name + '</h4>' +
+            '<p>' + lesson.desc + '</p>' +
+            '<div class="l2-node-stars">' + starsHTML + '</div></div>';
+
+        if (isAvailable || isCompleted) {
+            (function(idx) {
+                node.onclick = function() { startLevel2Lesson(idx); };
+            })(i);
+        } else {
+            node.onclick = function() { showToast('أكمل الدرس السابق الأول! 🔒', 'warning'); };
+        }
+
+        container.appendChild(node);
+    }
+}
+
+// --- Start Level 2 Lesson ---
+function startLevel2Lesson(lessonIdx) {
+    var subKey = level2State.currentSubject;
+    var subject = LEVEL2_SUBJECTS[subKey];
+    if (!subject || !subject.lessons[lessonIdx]) return;
+
+    level2State.currentLesson = lessonIdx;
+    level2State.currentStage = 'learn';
+    level2State.quizIndex = 0;
+    level2State.quizScore = 0;
+    level2State.quizAnswers = [];
+
+    showScreen('level2-lesson-screen');
+    renderLevel2Lesson();
+}
+
+// --- Render Level 2 Lesson ---
+function renderLevel2Lesson() {
+    var subKey = level2State.currentSubject;
+    var subject = LEVEL2_SUBJECTS[subKey];
+    var lesson = subject.lessons[level2State.currentLesson];
+
+    // Back button
+    var backBtn = document.getElementById('l2-lesson-back-btn');
+    backBtn.onclick = function() {
+        if (level2State.timerInterval) clearInterval(level2State.timerInterval);
+        showScreen('level2-map-screen');
+    };
+
+    // Title
+    document.getElementById('l2-lesson-title').textContent = lesson.name;
+
+    var body = document.getElementById('l2-lesson-body');
+    body.innerHTML = '';
+
+    if (level2State.currentStage === 'learn') {
+        renderLevel2Learn(body, lesson, subject);
+    } else if (level2State.currentStage === 'quiz') {
+        renderLevel2Quiz(body, lesson, subject);
+    } else if (level2State.currentStage === 'result') {
+        renderLevel2Result(body, lesson, subject);
+    }
+
+    // Stage label
+    var stageLabel = document.getElementById('l2-lesson-stage-label');
+    if (level2State.currentStage === 'learn') stageLabel.textContent = '📚 تعلّم';
+    else if (level2State.currentStage === 'quiz') stageLabel.textContent = '❓ اختبار';
+    else stageLabel.textContent = '🏆 النتيجة';
+}
+
+// --- Learn Stage ---
+function renderLevel2Learn(container, lesson, subject) {
+    var html = '<div class="l2-stage-tabs">' +
+        '<button class="l2-stage-tab active"><i class="fas fa-book-open"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-question-circle"></i> اختبار</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
+        '</div>';
+
+    html += '<div class="l2-learn-content">';
+    html += '<h3>' + subject.icon + ' ' + lesson.name + '</h3>';
+    html += '<p>' + lesson.content + '</p>';
+    html += '<div class="l2-learn-verse"><i class="fas fa-book-bible"></i> ' + lesson.verse + '</div>';
+    html += '</div>';
+
+    html += '<button class="btn btn-primary" onclick="startLevel2Quiz()" style="width:100%;margin-top:16px;">' +
+        '<span><i class="fas fa-play"></i> يلا نبدأ الاختبار!</span></button>';
+
+    container.innerHTML = html;
+}
+
+// --- Start Quiz ---
+function startLevel2Quiz() {
+    level2State.currentStage = 'quiz';
+    level2State.quizIndex = 0;
+    level2State.quizScore = 0;
+    level2State.quizAnswers = [];
+    renderLevel2Lesson();
+}
+
+// --- Quiz Stage ---
+function renderLevel2Quiz(container, lesson, subject) {
+    var qIdx = level2State.quizIndex;
+    var questions = lesson.questions;
+    if (qIdx >= questions.length) {
+        // Quiz finished
+        level2State.currentStage = 'result';
+        renderLevel2Lesson();
+        return;
+    }
+
+    var q = questions[qIdx];
+    var total = questions.length;
+
+    // Progress tabs
+    var html = '<div class="l2-stage-tabs">' +
+        '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab active"><i class="fas fa-question-circle"></i> اختبار</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
+        '</div>';
+
+    // Progress dots
+    html += '<div class="l2-quiz-progress">';
+    for (var d = 0; d < total; d++) {
+        var dotClass = 'l2-quiz-dot';
+        if (d === qIdx) dotClass += ' active';
+        else if (d < qIdx) dotClass += (level2State.quizAnswers[d] ? ' correct' : ' wrong');
+        html += '<div class="' + dotClass + '"></div>';
+    }
+    html += '</div>';
+
+    // Timer bar
+    html += '<div class="l2-timer-bar"><div class="l2-timer-fill" id="l2-timer-fill" style="width:100%"></div></div>';
+
+    // Question
+    html += '<div class="l2-quiz-container">';
+    html += '<p style="text-align:center;color:var(--text-muted);font-size:12px;margin:0 0 8px;">سؤال ' + (qIdx + 1) + ' من ' + total + '</p>';
+    html += '<p class="l2-quiz-question">' + q.q + '</p>';
+    html += '<div class="l2-quiz-options">';
+    for (var o = 0; o < q.options.length; o++) {
+        html += '<button class="l2-quiz-option" data-idx="' + o + '" onclick="answerLevel2Quiz(' + o + ')">' + q.options[o] + '</button>';
+    }
+    html += '</div></div>';
+
+    container.innerHTML = html;
+
+    // Start timer (20 seconds per question)
+    level2State.timeLeft = 20;
+    if (level2State.timerInterval) clearInterval(level2State.timerInterval);
+    var timerFill = document.getElementById('l2-timer-fill');
+    level2State.timerInterval = setInterval(function() {
+        level2State.timeLeft--;
+        if (timerFill) timerFill.style.width = (level2State.timeLeft / 20 * 100) + '%';
+        if (level2State.timeLeft <= 0) {
+            clearInterval(level2State.timerInterval);
+            // Time's up - wrong answer
+            answerLevel2Quiz(-1);
+        }
+    }, 1000);
+}
+
+// --- Answer Quiz ---
+function answerLevel2Quiz(selectedIdx) {
+    if (level2State.timerInterval) clearInterval(level2State.timerInterval);
+
+    var subKey = level2State.currentSubject;
+    var lesson = LEVEL2_SUBJECTS[subKey].lessons[level2State.currentLesson];
+    var q = lesson.questions[level2State.quizIndex];
+    var isCorrect = selectedIdx === q.correct;
+
+    if (isCorrect) level2State.quizScore++;
+    level2State.quizAnswers.push(isCorrect);
+
+    // Highlight correct/wrong
+    var options = document.querySelectorAll('.l2-quiz-option');
+    options.forEach(function(opt) {
+        opt.classList.add('disabled');
+        var idx = parseInt(opt.getAttribute('data-idx'));
+        if (idx === q.correct) opt.classList.add('correct');
+        else if (idx === selectedIdx && !isCorrect) opt.classList.add('wrong');
+    });
+
+    // Next question after delay
+    setTimeout(function() {
+        level2State.quizIndex++;
+        renderLevel2Lesson();
+    }, 1200);
+}
+
+// --- Result Stage ---
+function renderLevel2Result(container, lesson, subject) {
+    var total = lesson.questions.length;
+    var score = level2State.quizScore;
+    var percentage = Math.round(score / total * 100);
+
+    // Calculate stars
+    var stars = 0;
+    if (percentage >= 40) stars = 1;
+    if (percentage >= 70) stars = 2;
+    if (percentage >= 90) stars = 3;
+
+    // Save progress
+    if (!GameState.level2Data) GameState.level2Data = {};
+    if (!GameState.level2Data[level2State.currentSubject]) GameState.level2Data[level2State.currentSubject] = {};
+    var existingStars = (GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] || {}).stars || 0;
+    if (stars > existingStars) {
+        GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] = { stars: stars, score: score, total: total };
+        var newStars = stars - existingStars;
+        GameState.stars += newStars;
+        GameState.gems += stars;
+        saveToCloud();
+    }
+
+    var icon = stars >= 3 ? '🏆' : (stars >= 2 ? '⭐' : (stars >= 1 ? '👍' : '😔'));
+    var title = stars >= 3 ? 'ممتاز! أداء رائع!' : (stars >= 2 ? 'أحسنت! كويس جداً' : (stars >= 1 ? 'محتاج تذاكر أكتر' : 'حاول تاني يا بطل!'));
+
+    var html = '<div class="l2-stage-tabs">' +
+        '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> اختبار</button>' +
+        '<button class="l2-stage-tab active"><i class="fas fa-trophy"></i> النتيجة</button>' +
+        '</div>';
+
+    html += '<div class="l2-result-card">';
+    html += '<div class="l2-result-icon">' + icon + '</div>';
+    html += '<h2 class="l2-result-title">' + title + '</h2>';
+    html += '<p class="l2-result-subtitle">درس: ' + lesson.name + '</p>';
+
+    // Stars
+    html += '<div class="l2-result-stars">';
+    for (var s = 0; s < 3; s++) {
+        html += '<i class="fas fa-star ' + (s < stars ? 'earned' : '') + '" style="animation-delay:' + (s * 0.3) + 's"></i>';
+    }
+    html += '</div>';
+
+    // Stats
+    html += '<div class="l2-result-stats">';
+    html += '<div class="l2-result-stat"><div class="l2-result-stat-value">' + score + '/' + total + '</div><div class="l2-result-stat-label">إجابات صحيحة</div></div>';
+    html += '<div class="l2-result-stat"><div class="l2-result-stat-value">' + percentage + '%</div><div class="l2-result-stat-label">النسبة</div></div>';
+    if (stars > existingStars) {
+        html += '<div class="l2-result-stat"><div class="l2-result-stat-value" style="color:var(--gold)">+' + (stars - existingStars) + '</div><div class="l2-result-stat-label">نجوم جديدة</div></div>';
+    }
+    html += '</div>';
+
+    // Buttons
+    html += '<div class="l2-result-buttons">';
+    html += '<button class="btn btn-secondary" onclick="startLevel2Lesson(' + level2State.currentLesson + ')"><span><i class="fas fa-redo"></i> حاول تاني</span></button>';
+    html += '<button class="btn btn-primary" onclick="showScreen(\'level2-map-screen\')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>';
+    html += '</div></div>';
+
+    container.innerHTML = html;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Apply saved theme immediately (both html and body for consistency)
     var savedTheme = 'dark';
@@ -4012,7 +4744,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadFromCloud(rememberedPhone).then(function(data) {
             if (data && data.playerName) {
                 showToast('أهلاً بيك يا ' + GameState.playerName + '!', 'success');
-                showScreen('map-screen');
+                showScreen('home-hub-screen');
                 syncLeaderboard();
             } else {
                 // No cloud data found for this phone, clear remember

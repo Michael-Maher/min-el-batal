@@ -101,6 +101,204 @@
         </div>
     </div>
 
+    <!-- ============ HOME HUB SCREEN ============ -->
+    <div id="home-hub-screen" class="screen">
+        <div class="screen-inner hub-screen-inner">
+            <div class="hub-header">
+                <div class="hub-player-row">
+                    <div class="hub-avatar-wrap" onclick="showScreen('character-screen')">
+                        <img id="hub-avatar-img" class="avatar-img" src="" alt="avatar">
+                    </div>
+                    <div class="hub-player-info">
+                        <h3 id="hub-player-name"></h3>
+                        <p class="hub-rank" id="hub-rank"></p>
+                    </div>
+                    <div class="hub-stats">
+                        <div class="stat"><span class="stat-icon">⭐</span><span id="hub-stars">0</span></div>
+                        <div class="stat"><span class="stat-icon">💎</span><span id="hub-gems">0</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <h2 class="hub-title"><i class="fas fa-gamepad"></i> اختار مغامرتك</h2>
+            <p class="hub-subtitle">اختار المستوى اللي عايز تبدأ فيه</p>
+
+            <div class="hub-cards-grid">
+                <!-- Level 1 - LOCKED -->
+                <div class="hub-card hub-card-locked" onclick="showToast('المستوى الأول مقفول حالياً - ترقبوا التحديث القادم! 🔒', 'warning')">
+                    <div class="hub-card-bg" style="background: linear-gradient(135deg, #1a1a3e 0%, #2d1b69 100%);">
+                        <div class="hub-card-overlay"></div>
+                        <div class="hub-lock-badge"><i class="fas fa-lock"></i></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon"><i class="fas fa-scroll"></i></div>
+                            <h3>المستوى الأول</h3>
+                            <p>مين البطل؟</p>
+                            <div class="hub-card-tag">قريباً</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Level 2 - OPEN -->
+                <div class="hub-card hub-card-active" onclick="showScreen('level2-subjects-screen')">
+                    <div class="hub-card-bg hub-card-level2">
+                        <div class="hub-card-overlay hub-card-overlay-light"></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon"><i class="fas fa-graduation-cap"></i></div>
+                            <h3>المستوى الثاني</h3>
+                            <p>مدرسة أتبعني للتلمذة</p>
+                            <div class="hub-card-tag hub-tag-active"><i class="fas fa-play"></i> ابدأ</div>
+                        </div>
+                        <div class="hub-card-shine"></div>
+                    </div>
+                </div>
+
+                <!-- Competitions - ONLINE -->
+                <div class="hub-card hub-card-compete" onclick="showToast('المنافسات الجماعية قريباً - جهّز فريقك! 🏆', 'warning')">
+                    <div class="hub-card-bg" style="background: linear-gradient(135deg, #0c3547 0%, #1a5276 50%, #0e4d6e 100%);">
+                        <div class="hub-card-overlay"></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon"><i class="fas fa-users"></i></div>
+                            <h3>المنافسات الجماعية</h3>
+                            <p>تحدّي أصحابك أونلاين</p>
+                            <div class="hub-card-tag">قريباً</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hub-footer-btns">
+                <button class="fab" onclick="showScreen('leaderboard-screen')" title="لوحة الأبطال"><i class="fas fa-trophy"></i></button>
+                <button class="fab" onclick="showScreen('shop-screen')" title="متجر السلاح"><i class="fas fa-shield-halved"></i></button>
+                <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ LEVEL 2 - SUBJECTS SCREEN ============ -->
+    <div id="level2-subjects-screen" class="screen">
+        <div class="screen-inner l2-subjects-inner">
+            <div class="l2-top-bar">
+                <button class="btn btn-secondary btn-sm" onclick="showScreen('home-hub-screen')">
+                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+                </button>
+                <h2><i class="fas fa-graduation-cap"></i> مدرسة أتبعني</h2>
+                <div class="l2-stats-mini">
+                    <span>⭐ <span id="l2-total-stars">0</span></span>
+                </div>
+            </div>
+
+            <div class="l2-hero-banner">
+                <img src="images/level2-bg.jpg" alt="مدرسة أتبعني للتلمذة" class="l2-hero-img">
+                <div class="l2-hero-overlay">
+                    <h3>مدرسة أتبعني للتلمذة</h3>
+                    <p>4 مواد × 6 دروس = رحلة تلمذة كاملة</p>
+                </div>
+            </div>
+
+            <div class="l2-subjects-grid">
+                <!-- Subject 1: Our Orthodox Faith -->
+                <div class="l2-subject-card l2-subject-faith" onclick="openLevel2Subject('faith')">
+                    <div class="l2-subject-icon">✝️</div>
+                    <div class="l2-subject-info">
+                        <h4>إيماننا الأرثوذوكسي</h4>
+                        <p class="l2-subject-desc">لاهوت وعقيدة</p>
+                        <div class="l2-subject-progress">
+                            <div class="l2-progress-bar"><div class="l2-progress-fill" id="l2-progress-faith" style="width:0%"></div></div>
+                            <span class="l2-progress-text" id="l2-progress-faith-text">0/6</span>
+                        </div>
+                    </div>
+                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                </div>
+
+                <!-- Subject 2: Spirit & Life -->
+                <div class="l2-subject-card l2-subject-bible" onclick="openLevel2Subject('bible')">
+                    <div class="l2-subject-icon">📖</div>
+                    <div class="l2-subject-info">
+                        <h4>روح وحياة</h4>
+                        <p class="l2-subject-desc">كتاب مقدس</p>
+                        <div class="l2-subject-progress">
+                            <div class="l2-progress-bar"><div class="l2-progress-fill" id="l2-progress-bible" style="width:0%"></div></div>
+                            <span class="l2-progress-text" id="l2-progress-bible-text">0/6</span>
+                        </div>
+                    </div>
+                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                </div>
+
+                <!-- Subject 3: Generation of Change -->
+                <div class="l2-subject-card l2-subject-life" onclick="openLevel2Subject('life')">
+                    <div class="l2-subject-icon">🌟</div>
+                    <div class="l2-subject-info">
+                        <h4>جيل يصنع التغيير</h4>
+                        <p class="l2-subject-desc">مهارات الحياة والقيادة</p>
+                        <div class="l2-subject-progress">
+                            <div class="l2-progress-bar"><div class="l2-progress-fill" id="l2-progress-life" style="width:0%"></div></div>
+                            <span class="l2-progress-text" id="l2-progress-life-text">0/6</span>
+                        </div>
+                    </div>
+                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                </div>
+
+                <!-- Subject 4: Movement & Meaning -->
+                <div class="l2-subject-card l2-subject-ritual" onclick="openLevel2Subject('ritual')">
+                    <div class="l2-subject-icon">⛪</div>
+                    <div class="l2-subject-info">
+                        <h4>حركة ومعنى</h4>
+                        <p class="l2-subject-desc">طقس</p>
+                        <div class="l2-subject-progress">
+                            <div class="l2-progress-bar"><div class="l2-progress-fill" id="l2-progress-ritual" style="width:0%"></div></div>
+                            <span class="l2-progress-text" id="l2-progress-ritual-text">0/6</span>
+                        </div>
+                    </div>
+                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ LEVEL 2 - SUBJECT MAP (6 Lessons) ============ -->
+    <div id="level2-map-screen" class="screen">
+        <div class="screen-inner l2-map-inner">
+            <div class="l2-map-top-bar">
+                <button class="btn btn-secondary btn-sm" onclick="showScreen('level2-subjects-screen')">
+                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+                </button>
+                <div class="l2-map-title-area">
+                    <span class="l2-map-icon" id="l2-map-subject-icon"></span>
+                    <h2 id="l2-map-subject-name"></h2>
+                </div>
+                <div class="l2-map-stars-count">
+                    <span id="l2-map-stars-earned">0</span>/<span id="l2-map-stars-total">18</span> ⭐
+                </div>
+            </div>
+
+            <div class="l2-map-container" id="l2-map-container">
+                <div class="l2-map-path" id="l2-map-path">
+                    <!-- 6 lesson nodes rendered by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ LEVEL 2 - LESSON SCREEN ============ -->
+    <div id="level2-lesson-screen" class="screen">
+        <div class="screen-inner l2-lesson-inner">
+            <div class="l2-lesson-top-bar">
+                <button class="btn btn-secondary btn-sm" id="l2-lesson-back-btn">
+                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+                </button>
+                <h2 id="l2-lesson-title"></h2>
+                <div class="l2-lesson-progress-mini">
+                    <span id="l2-lesson-stage-label"></span>
+                </div>
+            </div>
+
+            <!-- Lesson stages container -->
+            <div class="l2-lesson-body" id="l2-lesson-body">
+                <!-- Stage content rendered by JS: Learn → Quiz → Challenge -->
+            </div>
+        </div>
+    </div>
+
     <!-- ============ MAP / LEVELS SCREEN ============ -->
     <div id="map-screen" class="screen">
         <div class="screen-inner">
@@ -746,7 +944,7 @@
                 <p class="preview-label">شخصيتك الحالية</p>
             </div>
             <div class="shop-items-grid" id="shop-items-grid"></div>
-            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع للخريطة</span></button>
+            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
         </div>
     </div>
 
@@ -781,7 +979,7 @@
             <h3 class="lb-section-title-modern"><i class="fas fa-ranking-star"></i> الترتيب</h3>
             <div class="leaderboard-list" id="leaderboard-list"></div>
 
-            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
         </div>
     </div>
 
@@ -827,7 +1025,7 @@
                     <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">تصميم وبرمجة لخدمة الكنيسة ❤️</p>
                 </div>
             </div>
-            <button class="btn btn-secondary" onclick="showScreen('map-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
+            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>
             <button class="btn btn-danger" onclick="logout()" style="margin-top:10px;background:#e74c3c;"><span><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</span></button>
         </div>
     </div>

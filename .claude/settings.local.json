@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la /Users/mmichaelmaher/Documents/min-el-batal/images/level2*)",
+      "Read(//Users/mmichaelmaher/Desktop/**)",
+      "Bash(node -c game.js)",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

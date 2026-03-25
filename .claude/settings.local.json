@@ -4,7 +4,10 @@
       "Bash(ls -la /Users/mmichaelmaher/Documents/min-el-batal/images/level2*)",
       "Read(//Users/mmichaelmaher/Desktop/**)",
       "Bash(node -c game.js)",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/mmichaelmaher/Documents/min-el-batal/images/level2-bg.png /Users/mmichaelmaher/Documents/min-el-batal/images/level2-full-bg.png)",
+      "Bash(sips -s format jpeg -s formatOptions 75 -Z 2000 level2-bg.png --out level2-bg-opt.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 75 -Z 2000 level2-full-bg.png --out level2-full-bg-opt.jpg)"
     ]
   }
 }

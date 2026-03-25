@@ -1259,6 +1259,8 @@ function showToast(msg, durOrType, type) {
         dur = durOrType;
         if (type) toastType = type;
     }
+    // Errors stay longer and are more prominent
+    if (toastType === 'error') dur = 4000;
     var t = document.getElementById('toast');
     t.textContent = msg;
     t.className = 'toast show' + (toastType ? ' ' + toastType : '');
@@ -4001,7 +4003,7 @@ var LEVEL2_SUBJECTS = {
         desc: 'لاهوت وعقيدة',
         icon: '✝️',
         color: '#e74c3c',
-        mapImage: 'images/level2-full-bg.png',
+        mapImage: 'images/level2-full-bg-opt.jpg',
         lessons: [
             {
                 name: 'التثليث والتوحيد',
@@ -4028,7 +4030,22 @@ var LEVEL2_SUBJECTS = {
                     { q: 'في عماد المسيح ظهر الثالوث: الآب من السماء والابن في الأردن والروح القدس في هيئة...', options: ['نار', 'حمامة', 'سحابة', 'ريح'], correct: 1 },
                     { q: 'عيد الظهور الإلهي يحتفل بـ...', options: ['الميلاد', 'القيامة', 'عماد المسيح', 'الصعود'], correct: 2 },
                     { q: 'مارمرقس تعرف على أنيانوس لما صرخ "أيها الإله..."', options: ['العظيم', 'الواحد', 'القوي', 'الحي'], correct: 1 },
-                    { q: 'للاهوت مبدأ أو مصدر واحد هو...', options: ['الابن', 'الروح القدس', 'الآب', 'الثلاثة معاً'], correct: 2 }
+                    { q: 'للاهوت مبدأ أو مصدر واحد هو...', options: ['الابن', 'الروح القدس', 'الآب', 'الثلاثة معاً'], correct: 2 },
+                    { q: 'الآب هو خاصية... الله', options: ['العقل', 'الوجود', 'الحياة', 'النطق'], correct: 1 },
+                    { q: 'الابن هو خاصية... الله', options: ['الوجود', 'العقل والنطق', 'الحياة', 'القدرة'], correct: 1 },
+                    { q: 'كلمة "لوجوس" معناها...', options: ['الحياة', 'النور', 'الكلمة', 'القوة'], correct: 2 },
+                    { q: 'التشبيه بالشمس: القرص يشبه...', options: ['الابن', 'الروح', 'الآب', 'الثلاثة'], correct: 2 },
+                    { q: 'التشبيه بالشمس: الشعاع يشبه...', options: ['الآب', 'الابن', 'الروح', 'الثلاثة'], correct: 1 },
+                    { q: 'التشبيه بالشمس: الحرارة تشبه...', options: ['الآب', 'الابن', 'الروح القدس', 'لا أحد'], correct: 2 },
+                    { q: 'هل الأقانيم أجزاء من الله؟', options: ['نعم', 'أحياناً', 'لا، كل أقنوم هو الله كله', 'غير معروف'], correct: 2 },
+                    { q: 'في البسملة نقول "باسم الآب و..."', options: ['الروح والابن', 'الابن والروح القدس', 'الملائكة', 'القديسين'], correct: 1 },
+                    { q: 'الثالوث ظاهر في قصة... في العهد القديم', options: ['نوح', 'إبراهيم والثلاث ملائكة', 'موسى', 'داود'], correct: 1 },
+                    { q: 'في سفر التكوين قال الله "نعمل الإنسان على..." بصيغة الجمع', options: ['أمرنا', 'صورتنا', 'قدرتنا', 'حكمتنا'], correct: 1 },
+                    { q: 'الآب غير مولود، الابن مولود، الروح القدس...', options: ['مولود أيضاً', 'منبثق', 'مخلوق', 'غير موجود'], correct: 1 },
+                    { q: 'مثلث الإيمان: الثالوث = إله واحد في...', options: ['جوهر واحد', 'ثلاثة جواهر', 'جوهرين', 'أربعة جواهر'], correct: 0 },
+                    { q: 'في تقديس المياه يقول الكاهن "قدوس قدوس قدوس" كم مرة؟', options: ['مرة', 'مرتين', 'ثلاث مرات', 'أربع مرات'], correct: 2 },
+                    { q: 'إشعياء النبي رأى السيرافيم يقولون "قدوس قدوس قدوس رب..."', options: ['الأرض', 'السماء', 'الجنود', 'الكون'], correct: 2 },
+                    { q: 'أقنوم الآب هو... اللاهوت', options: ['بداية', 'مصدر', 'نهاية', 'جزء من'], correct: 1 }
                 ]
             },
             {
@@ -4056,7 +4073,22 @@ var LEVEL2_SUBJECTS = {
                     { q: 'مثال على اتحاد اللاهوت بالناسوت هو...', options: ['الماء والزيت', 'الحديد المحمي بالنار', 'الرمل والحصى', 'الهواء والتراب'], correct: 1 },
                     { q: '"الذي هو صورة الله غير المنظور" في أي رسالة؟', options: ['رومية', 'كولوسي', 'غلاطية', 'أفسس'], correct: 1 },
                     { q: 'بنقول على المسيح "ابن الإنسان" لأنه...', options: ['ضعيف', 'أخذ الجسد من إنسان (مريم)', 'ليس إلهاً', 'بشر عادي'], correct: 1 },
-                    { q: 'القديس أغسطينوس قال عن التجسد: "أنت أردت أن تكون إلهاً فضللت وهو أراد أن يكون... لكي يرد الضال"', options: ['ملاكاً', 'إنساناً', 'ملكاً', 'نبياً'], correct: 1 }
+                    { q: 'القديس أغسطينوس قال عن التجسد: "أنت أردت أن تكون إلهاً فضللت وهو أراد أن يكون... لكي يرد الضال"', options: ['ملاكاً', 'إنساناً', 'ملكاً', 'نبياً'], correct: 1 },
+                    { q: 'الموت الأدبي يعني فقدان...', options: ['المال', 'الكرامة والبر', 'الصحة', 'الأصدقاء'], correct: 1 },
+                    { q: 'الموت الروحي يعني الانفصال عن...', options: ['الناس', 'العالم', 'الله', 'الملائكة'], correct: 2 },
+                    { q: 'الموت الأبدي يعني...', options: ['النوم الطويل', 'العذاب الأبدي بعيداً عن الله', 'الاختفاء', 'النسيان'], correct: 1 },
+                    { q: 'العذراء مريم حبلت بالمسيح بقوة...', options: ['يوسف', 'الملائكة', 'الروح القدس', 'البشر'], correct: 2 },
+                    { q: 'حلول الروح القدس على العذراء كان لتطهير و... الرحم', options: ['تدمير', 'تقديس', 'توسيع', 'إغلاق'], correct: 1 },
+                    { q: 'المسيح طبيعة... من طبيعتين', options: ['اثنتين', 'واحدة', 'ثلاثة', 'لا طبيعة'], correct: 1 },
+                    { q: 'اتحاد اللاهوت والناسوت بغير...', options: ['قوة', 'اختلاط ولا امتزاج ولا تغيير', 'بداية', 'نهاية'], correct: 1 },
+                    { q: 'العذراء مريم لُقبت بـ"ثيؤطوكوس" أي...', options: ['القديسة', 'والدة الإله', 'أم النور', 'العذراء فقط'], correct: 1 },
+                    { q: 'المسيح جاع وعطش لأنه...', options: ['ضعيف', 'إنسان حقيقي', 'ممثل', 'ليس إلهاً'], correct: 1 },
+                    { q: 'في سفر إشعياء "ها العذراء تحبل وتلد ابناً وتدعو اسمه..."', options: ['يسوع', 'عمانوئيل', 'ميخائيل', 'جبرائيل'], correct: 1 },
+                    { q: 'عمانوئيل معناها...', options: ['الله قوي', 'الله معنا', 'الله عظيم', 'الله محب'], correct: 1 },
+                    { q: 'الخلاص تطلب تجسد الله لأن الإنسان وحده لا يقدر أن...', options: ['يصلي', 'يصوم', 'يخلص نفسه', 'يتعلم'], correct: 2 },
+                    { q: 'مجمع خلقيدونية أخطأ لأنه قال المسيح له... طبيعتين', options: ['واحدة', 'اثنتين منفصلتين', 'ثلاث', 'لا طبيعة'], correct: 1 },
+                    { q: '"الكلمة صار جسداً" في إنجيل...', options: ['متى', 'مرقس', 'لوقا', 'يوحنا'], correct: 3 },
+                    { q: 'التجسد حدث في ملء...', options: ['القوة', 'الزمان', 'المكان', 'العدد'], correct: 1 }
                 ]
             },
             {
@@ -4084,7 +4116,22 @@ var LEVEL2_SUBJECTS = {
                     { q: '"وليس بأحد غيره الخلاص" تعني أن الخلاص فقط بـ...', options: ['الأعمال', 'المال', 'المسيح وحده', 'الأنبياء'], correct: 2 },
                     { q: 'في القداس نقول "حولت لي العقوبة..."', options: ['هلاكاً', 'خلاصاً', 'حزناً', 'فرحاً'], correct: 1 },
                     { q: 'في صلاة الساعة السادسة نقول "صنعت خلاصاً في وسط..."', options: ['السماء', 'الأرض كلها', 'البحر', 'الجبل'], correct: 1 },
-                    { q: '"افتديتم لا بأشياء تفنى بل بدم كريم" في أي رسالة؟', options: ['رومية', 'بطرس الأولى', 'كورنثوس', 'يعقوب'], correct: 1 }
+                    { q: '"افتديتم لا بأشياء تفنى بل بدم كريم" في أي رسالة؟', options: ['رومية', 'بطرس الأولى', 'كورنثوس', 'يعقوب'], correct: 1 },
+                    { q: 'الذبائح في العهد القديم كانت... للفداء الحقيقي', options: ['بديلاً', 'رمزاً', 'نهاية', 'تكراراً'], correct: 1 },
+                    { q: 'الحمل في عيد الفصح كان يُذبح رمزاً لـ...', options: ['موسى', 'المسيح', 'إبراهيم', 'داود'], correct: 1 },
+                    { q: 'المسيح قدم نفسه بإرادته يعني...', options: ['أُجبر', 'اختار الموت بحريته', 'لم يكن يعرف', 'هرب'], correct: 1 },
+                    { q: 'الصليب هو رمز لـ...', options: ['الهزيمة', 'المحبة والانتصار', 'الضعف', 'الخوف'], correct: 1 },
+                    { q: '"هكذا أحب الله العالم حتى بذل ابنه الوحيد" في إنجيل...', options: ['متى', 'مرقس', 'يوحنا 3:16', 'لوقا'], correct: 2 },
+                    { q: 'ستار الهيكل انشق عند صلب المسيح من... إلى أسفل', options: ['الوسط', 'فوق', 'الجانب', 'تحت'], correct: 1 },
+                    { q: 'انشقاق ستار الهيكل يعني أن الطريق لله أصبح...', options: ['مغلقاً', 'مفتوحاً', 'صعباً', 'مستحيلاً'], correct: 1 },
+                    { q: 'المسيح صُلب يوم...', options: ['السبت', 'الأحد', 'الجمعة', 'الخميس'], correct: 2 },
+                    { q: 'قام المسيح من الأموات في اليوم...', options: ['الأول', 'الثاني', 'الثالث', 'السابع'], correct: 2 },
+                    { q: 'عبارة "الله محبة" تتجلى أعظم تجلي في...', options: ['الخلق', 'الصليب', 'المعجزات', 'التعاليم'], correct: 1 },
+                    { q: 'لماذا لم يصلح ملاك للفداء؟ لأن الملاك...', options: ['قوي جداً', 'محدود ومخلوق', 'مشغول', 'رفض'], correct: 1 },
+                    { q: 'الفادي لازم يكون من نفس... المفدي', options: ['بلد', 'لغة', 'جنس (طبيعة)', 'عمر'], correct: 2 },
+                    { q: 'دم المسيح يطهر من...', options: ['المرض الجسدي فقط', 'كل خطية', 'بعض الخطايا', 'لا شيء'], correct: 1 },
+                    { q: 'في القداس نقول "بالصليب... فرحٌ في العالم كله"', options: ['حزن', 'خوف', 'جاء', 'انتهى'], correct: 2 },
+                    { q: '"ملعون كل من عُلّق على خشبة" والمسيح حمل... بدلاً عنا', options: ['الحكمة', 'البركة', 'اللعنة', 'المجد'], correct: 2 }
                 ]
             },
             {
@@ -4112,7 +4159,22 @@ var LEVEL2_SUBJECTS = {
                     { q: 'هل المسيح سيملك على الأرض ألف سنة؟', options: ['نعم', 'لا، هذا خطأ', 'ربما', 'غير معروف'], correct: 1 },
                     { q: '"سنخطف جميعاً في السحب لملاقاة الرب في..."', options: ['الأرض', 'البحر', 'الهواء', 'الجبل'], correct: 2 },
                     { q: 'قبل ظهور المسيح في المجيء الثاني تظهر علامة ابن الإنسان وهي...', options: ['نجمة', 'الصليب', 'قوس قزح', 'سحابة'], correct: 1 },
-                    { q: '"اسهروا إذاً لأنكم لا تعلمون في أية ساعة يأتي..." من؟', options: ['النبي', 'الملاك', 'ربكم', 'الضيف'], correct: 2 }
+                    { q: '"اسهروا إذاً لأنكم لا تعلمون في أية ساعة يأتي..." من؟', options: ['النبي', 'الملاك', 'ربكم', 'الضيف'], correct: 2 },
+                    { q: 'قام المسيح فجر يوم...', options: ['السبت', 'الأحد', 'الجمعة', 'الاثنين'], correct: 1 },
+                    { q: 'أول من رأى المسيح بعد القيامة كانت...', options: ['بطرس', 'يوحنا', 'مريم المجدلية', 'توما'], correct: 2 },
+                    { q: 'جسد المسيح بعد القيامة كان يدخل والأبواب...', options: ['مفتوحة', 'مغلقة', 'مكسورة', 'لا توجد أبواب'], correct: 1 },
+                    { q: 'توما آمن بالقيامة عندما...', options: ['سمع عنها', 'رأى ولمس المسيح', 'حلم', 'قرأ'], correct: 1 },
+                    { q: 'المسيح بقي على الأرض بعد القيامة... يوماً', options: ['٣', '٧', '٤٠', '١٢٠'], correct: 2 },
+                    { q: 'صعد المسيح إلى السماء من جبل...', options: ['سيناء', 'الزيتون', 'تابور', 'حرمون'], correct: 1 },
+                    { q: '"أين شوكتك يا موت؟" تعني أن القيامة...', options: ['أضعفت الموت', 'انتصرت على الموت', 'تجاهلت الموت', 'خافت من الموت'], correct: 1 },
+                    { q: 'عيد القيامة هو عيد...', options: ['الحزن', 'الأعياد', 'الفرح الأعظم', 'الصوم'], correct: 2 },
+                    { q: 'المسيح الثاني يدين...', options: ['الأشرار فقط', 'الأحياء والأموات', 'الأحياء فقط', 'الملائكة فقط'], correct: 1 },
+                    { q: 'في المجيء الثاني كل عين سوف...', options: ['تُغلق', 'تبصره', 'تنام', 'تخاف'], correct: 1 },
+                    { q: 'المسيح قال "في بيت أبي..."', options: ['غرفة واحدة', 'منازل كثيرة', 'لا مكان', 'حجرتان'], correct: 1 },
+                    { q: 'نقول في القداس "نعلن موتك يا رب ونعترف بقيامتك..."', options: ['المجيدة', 'المقدسة', 'إلى أن تجيء', 'الأبدية'], correct: 2 },
+                    { q: 'القيامة تعطينا... في مواجهة الموت', options: ['خوفاً', 'قلقاً', 'رجاءً', 'حزناً'], correct: 2 },
+                    { q: 'الحجر الذي كان على القبر...', options: ['بقي مكانه', 'دُحرج بعيداً', 'تحطم', 'اختفى'], correct: 1 },
+                    { q: 'الملائكة قالت للنساء عند القبر "لماذا تطلبن الحي بين..."', options: ['الناس', 'الأموات', 'الملائكة', 'القبور'], correct: 1 }
                 ]
             },
             {
@@ -4140,7 +4202,22 @@ var LEVEL2_SUBJECTS = {
                     { q: 'رشم الصلب والظهر يقدس...', options: ['الحواس', 'الإرادة', 'المشاعر', 'المسيرة'], correct: 1 },
                     { q: 'الولد يُعمَّد بعد... يوم', options: ['٨', '٤٠', '٨٠', '١٠٠'], correct: 1 },
                     { q: 'البنت تُعمَّد بعد... يوم', options: ['٤٠', '٦٠', '٨٠', '١٠٠'], correct: 2 },
-                    { q: 'بعد المعمودية علاج الخطية يكون بـ...', options: ['إعادة المعمودية', 'التوبة والاعتراف', 'لا علاج', 'الصوم فقط'], correct: 1 }
+                    { q: 'بعد المعمودية علاج الخطية يكون بـ...', options: ['إعادة المعمودية', 'التوبة والاعتراف', 'لا علاج', 'الصوم فقط'], correct: 1 },
+                    { q: 'في المعمودية يموت الإنسان... ويقوم مع المسيح', options: ['جسدياً', 'عن الخطية', 'حقيقياً', 'مجازياً'], correct: 1 },
+                    { q: 'الماء في المعمودية يرمز لـ...', options: ['الحياة والموت معاً', 'الغسل فقط', 'النظافة', 'الشرب'], correct: 0 },
+                    { q: 'المعمودية بالتغطيس تشير للدفن مع...', options: ['آدم', 'موسى', 'المسيح', 'إبراهيم'], correct: 2 },
+                    { q: 'الخروج من الماء يشير لـ... مع المسيح', options: ['الموت', 'القيامة', 'الصعود', 'الحزن'], correct: 1 },
+                    { q: 'نعمان السرياني اغتسل في نهر... ٧ مرات وطهر', options: ['النيل', 'الأردن', 'دجلة', 'الفرات'], correct: 1 },
+                    { q: 'قصة نعمان تُشير لسر...', options: ['الصلاة', 'المعمودية', 'الزواج', 'الكهنوت'], correct: 1 },
+                    { q: 'الخصي الحبشي اعتمد على يد...', options: ['بطرس', 'بولس', 'فيلبس', 'يوحنا'], correct: 2 },
+                    { q: 'الجرن المعمودية شكله يشبه...', options: ['المربع', 'القبر', 'الدائرة', 'المثلث'], correct: 1 },
+                    { q: 'الطفل يلبس ملابس بيضاء بعد المعمودية رمزاً لـ...', options: ['الجمال', 'الطهارة والنقاء', 'العادات', 'لا سبب'], correct: 1 },
+                    { q: 'كورنيليوس وأهل بيته اعتمدوا بعد أن حلّ عليهم...', options: ['المطر', 'الروح القدس', 'الملائكة', 'النوم'], correct: 1 },
+                    { q: 'المعمودية تعطينا... في المسيح', options: ['بنوة لله', 'مال', 'شهرة', 'قوة جسدية'], correct: 0 },
+                    { q: 'زيت الغاليلاون يُستخدم في المعمودية لـ...', options: ['التزيين', 'الطبخ', 'مسحة الشفاء والفرح', 'لا سبب'], correct: 2 },
+                    { q: 'سر الميرون يُقام مرة واحدة مثل...', options: ['التوبة', 'التناول', 'المعمودية', 'الصلاة'], correct: 2 },
+                    { q: 'كلمة "ميرون" معناها...', options: ['ماء', 'زيت', 'طيب مقدس', 'عطر عادي'], correct: 2 },
+                    { q: 'في سر الميرون يحل... على المعمَّد', options: ['الملاك', 'الروح القدس', 'البركة فقط', 'لا شيء'], correct: 1 }
                 ]
             },
             {
@@ -4168,7 +4245,22 @@ var LEVEL2_SUBJECTS = {
                     { q: 'لازم نعترف بكل ضعف ومنتكسفش لأن الكاهن هو...', options: ['قاضي', 'عدو', 'طبيب الروح', 'غريب'], correct: 2 },
                     { q: 'بعد الاعتراف لازم ننفذ... اللي أب الاعتراف يطلبها', options: ['الأوامر العسكرية', 'الأدوية الروحية (التداريب)', 'العقوبات', 'الغرامات'], correct: 1 },
                     { q: 'الأنبا موسى تاب ورجع بمساعدة أبوه الروحي الأنبا...', options: ['أنطونيوس', 'مقار', 'إيسيذورس', 'باخوميوس'], correct: 2 },
-                    { q: 'الخجل من الاعتراف هو... من الشيطان', options: ['نعمة', 'بركة', 'فخ', 'هدية'], correct: 2 }
+                    { q: 'الخجل من الاعتراف هو... من الشيطان', options: ['نعمة', 'بركة', 'فخ', 'هدية'], correct: 2 },
+                    { q: 'داود النبي اعترف بخطيته أمام... النبي', options: ['إيليا', 'إشعياء', 'ناثان', 'صموئيل'], correct: 2 },
+                    { q: 'مزمور التوبة الشهير هو مزمور...', options: ['٢٣', 'الخمسين (٥٠)', '٩١', '١٠٠'], correct: 1 },
+                    { q: 'بطرس أنكر المسيح... مرات', options: ['مرة', 'مرتين', 'ثلاث', 'أربع'], correct: 2 },
+                    { q: 'بعد إنكاره بكى بطرس...', options: ['قليلاً', 'بكاءً مراً', 'لم يبكِ', 'ابتسم'], correct: 1 },
+                    { q: 'يهوذا ندم لكنه لم...', options: ['يبكِ', 'يتوب توبة حقيقية', 'يفكر', 'ينم'], correct: 1 },
+                    { q: 'الفرق بين الندم والتوبة أن التوبة تتضمن...', options: ['البكاء فقط', 'التغيير والرجوع لله', 'الحزن فقط', 'الكلام'], correct: 1 },
+                    { q: 'المرأة الخاطئة غسلت قدمي المسيح بـ...', options: ['ماء', 'دموعها', 'عطر فقط', 'زيت'], correct: 1 },
+                    { q: 'زكا العشّار تاب ورد أضعاف ما أخذه بالظلم...', options: ['مرتين', 'ثلاث', 'أربعة أضعاف', 'لم يرد'], correct: 2 },
+                    { q: 'سرية الاعتراف تعني أن الكاهن لا يحق له أن...', options: ['يستمع', 'يفشي ما سمعه', 'يصلي', 'ينصح'], correct: 1 },
+                    { q: 'التوبة في اليونانية "ميتانويا" معناها...', options: ['الحزن', 'تغيير الفكر والاتجاه', 'البكاء', 'الخوف'], correct: 1 },
+                    { q: 'مثل الخروف الضال يوضح أن الله...', options: ['يعاقب الخاطئ', 'يبحث عن الخاطئ ليرده', 'يتجاهل الخاطئ', 'يغضب من الخاطئ'], correct: 1 },
+                    { q: 'في مثل الابن الضال الأب...', options: ['رفض ابنه', 'ركض نحوه وقبّله', 'عاقبه', 'طرده'], correct: 1 },
+                    { q: 'الاعتراف يجب أن يكون... وليس عاماً', options: ['مختصراً', 'تفصيلياً', 'سرياً', 'مكتوباً'], correct: 1 },
+                    { q: 'محاسبة النفس تعني أن أسأل نفسي كل يوم عن...', options: ['المال', 'خطاياي وتصرفاتي', 'الطعام', 'الأصدقاء'], correct: 1 },
+                    { q: 'أب الاعتراف يعطي "أدوية روحية" أي...', options: ['حبوب', 'تداريب روحية', 'عقوبات', 'غرامات'], correct: 1 }
                 ]
             }
         ]
@@ -4551,23 +4643,48 @@ function toggleMapFullscreen() {
 
 // --- Confetti / Celebration Effects ---
 function showCorrectCelebration() {
-    // Create confetti burst
+    // Create confetti burst container
     var container = document.createElement('div');
     container.className = 'celebration-container';
     document.body.appendChild(container);
 
-    var colors = ['#FFD700', '#00B894', '#6C5CE7', '#FD79A8', '#00CEC9', '#FFEAA7'];
-    for (var i = 0; i < 30; i++) {
+    // Confetti pieces burst from center
+    var colors = ['#FFD700', '#00B894', '#6C5CE7', '#FD79A8', '#00CEC9', '#FFEAA7', '#E17055', '#A29BFE'];
+    for (var i = 0; i < 40; i++) {
         var confetti = document.createElement('div');
         confetti.className = 'confetti-piece';
-        confetti.style.left = (40 + Math.random() * 20) + '%';
+        confetti.style.left = (35 + Math.random() * 30) + '%';
+        confetti.style.top = (30 + Math.random() * 20) + '%';
         confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
         confetti.style.animationDelay = (Math.random() * 0.3) + 's';
-        confetti.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+        confetti.style.animationDuration = (0.6 + Math.random() * 0.8) + 's';
+        // Random directions
+        var angle = Math.random() * 360;
+        var dist = 80 + Math.random() * 150;
+        confetti.style.setProperty('--tx', Math.cos(angle * Math.PI / 180) * dist + 'px');
+        confetti.style.setProperty('--ty', Math.sin(angle * Math.PI / 180) * dist + 'px');
+        confetti.style.setProperty('--rot', (Math.random() * 720 - 360) + 'deg');
         container.appendChild(confetti);
     }
 
-    // Show big checkmark
+    // Flying emojis 🎉✨🌟💫⭐🎊
+    var emojis = ['🎉', '✨', '🌟', '💫', '⭐', '🎊', '🔥', '💪', '👏'];
+    for (var e = 0; e < 8; e++) {
+        var emoji = document.createElement('div');
+        emoji.className = 'flying-emoji';
+        emoji.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        emoji.style.left = (20 + Math.random() * 60) + '%';
+        emoji.style.animationDelay = (Math.random() * 0.5) + 's';
+        emoji.style.setProperty('--drift', (Math.random() * 100 - 50) + 'px');
+        container.appendChild(emoji);
+    }
+
+    // Sparkle ring burst
+    var ring = document.createElement('div');
+    ring.className = 'sparkle-ring';
+    container.appendChild(ring);
+
+    // Show big checkmark with glow
     var check = document.createElement('div');
     check.className = 'answer-feedback correct-feedback';
     check.innerHTML = '<i class="fas fa-check-circle"></i><span>صح! 🎉</span>';
@@ -4576,7 +4693,7 @@ function showCorrectCelebration() {
     setTimeout(function() {
         container.remove();
         check.remove();
-    }, 1500);
+    }, 1800);
 }
 
 function showWrongFeedback() {
@@ -4587,13 +4704,36 @@ function showWrongFeedback() {
         setTimeout(function() { qContainer.classList.remove('shake-animation'); }, 600);
     }
 
-    // Show X feedback
+    // Red flash overlay
+    var flash = document.createElement('div');
+    flash.className = 'wrong-flash-overlay';
+    document.body.appendChild(flash);
+
+    // Show X feedback with sad emojis
     var x = document.createElement('div');
     x.className = 'answer-feedback wrong-feedback';
     x.innerHTML = '<i class="fas fa-times-circle"></i><span>غلط 😔</span>';
     document.body.appendChild(x);
 
-    setTimeout(function() { x.remove(); }, 1500);
+    // Falling sad emojis
+    var container = document.createElement('div');
+    container.className = 'celebration-container';
+    document.body.appendChild(container);
+    var sadEmojis = ['😔', '😢', '💔', '😞'];
+    for (var i = 0; i < 4; i++) {
+        var emoji = document.createElement('div');
+        emoji.className = 'falling-sad-emoji';
+        emoji.textContent = sadEmojis[i % sadEmojis.length];
+        emoji.style.left = (20 + Math.random() * 60) + '%';
+        emoji.style.animationDelay = (Math.random() * 0.3) + 's';
+        container.appendChild(emoji);
+    }
+
+    setTimeout(function() {
+        x.remove();
+        flash.remove();
+        container.remove();
+    }, 1500);
 }
 
 // --- Power-Up Functions ---
@@ -4605,7 +4745,7 @@ function usePowerUp(type) {
             showToast('محتاج ' + POWER_UPS.fiftyFifty.cost + ' نجوم! ⭐', 'warning');
             return;
         }
-        var q = LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson].questions[level2State.quizIndex];
+        var q = (level2State.activeQuestions || LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson].questions)[level2State.quizIndex];
         var wrongOptions = [];
         for (var i = 0; i < q.options.length; i++) {
             if (i !== q.correct) wrongOptions.push(i);
@@ -4655,7 +4795,7 @@ function usePowerUp(type) {
         saveToCloud();
         showCorrectCelebration();
         // Highlight correct answer
-        var q = LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson].questions[level2State.quizIndex];
+        var q = (level2State.activeQuestions || LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson].questions)[level2State.quizIndex];
         var btns = document.querySelectorAll('.l2-quiz-option');
         btns.forEach(function(opt, idx) {
             opt.classList.add('disabled');
@@ -4726,9 +4866,22 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
     if (imgContainer) imgContainer.style.display = 'block';
     if (listContainer) listContainer.style.display = 'none';
 
-    // Set background image
+    // Set background image with loading indicator
     var bgImg = document.getElementById('l2-imgmap-bg');
-    if (bgImg) bgImg.src = subject.mapImage;
+    if (bgImg) {
+        // Show loading state
+        if (!bgImg.src || !bgImg.src.includes(subject.mapImage)) {
+            imgContainer.classList.add('l2-imgmap-loading');
+            bgImg.onload = function() {
+                imgContainer.classList.remove('l2-imgmap-loading');
+            };
+            bgImg.onerror = function() {
+                imgContainer.classList.remove('l2-imgmap-loading');
+                showToast('خطأ في تحميل الخريطة - تأكد من الاتصال بالإنترنت', 'error');
+            };
+        }
+        bgImg.src = subject.mapImage;
+    }
 
     // Set character avatar
     var avatarImg = document.getElementById('l2-imgmap-avatar-img');
@@ -4988,13 +5141,26 @@ function startLevel2Quiz() {
     level2State.quizIndex = 0;
     level2State.quizScore = 0;
     level2State.quizAnswers = [];
+
+    // Shuffle and pick 20 questions from the bank
+    var subKey = level2State.currentSubject;
+    var lesson = LEVEL2_SUBJECTS[subKey].lessons[level2State.currentLesson];
+    var allQs = lesson.questions.slice(); // copy
+    // Fisher-Yates shuffle
+    for (var i = allQs.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = allQs[i];
+        allQs[i] = allQs[j];
+        allQs[j] = temp;
+    }
+    level2State.activeQuestions = allQs.slice(0, 20);
     renderLevel2Lesson();
 }
 
 // --- Quiz Stage ---
 function renderLevel2Quiz(container, lesson, subject) {
     var qIdx = level2State.quizIndex;
-    var questions = lesson.questions;
+    var questions = level2State.activeQuestions || lesson.questions;
     if (qIdx >= questions.length) {
         // Quiz finished
         level2State.currentStage = 'result';
@@ -5089,7 +5255,7 @@ function answerLevel2Quiz(selectedIdx) {
 
     var subKey = level2State.currentSubject;
     var lesson = LEVEL2_SUBJECTS[subKey].lessons[level2State.currentLesson];
-    var q = lesson.questions[level2State.quizIndex];
+    var q = (level2State.activeQuestions || lesson.questions)[level2State.quizIndex];
     var isCorrect = selectedIdx === q.correct;
 
     if (isCorrect) level2State.quizScore++;
@@ -5226,6 +5392,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
     createParticles();
     preloadCharImages();
+    // Preload heavy map images in background
+    (function() {
+        var preloadImgs = ['images/level2-full-bg-opt.jpg', 'images/level2-bg-opt.jpg'];
+        preloadImgs.forEach(function(src) {
+            var img = new Image();
+            img.src = src;
+        });
+    })();
     initFirebase();
 
     // Check "Remember Me" — auto-login from cloud

@@ -535,12 +535,19 @@ body {
 .fab:hover { transform: scale(1.1); border-color: var(--primary); color: var(--primary); }
 
 /* ============ TOAST ============ */
-.toast { position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px); background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 12px 28px; font-size: 14px; font-weight: 700; z-index: 1000; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; box-shadow: var(--shadow); }
-.toast.show { transform: translateX(-50%) translateY(0); }
-.toast.success { border-color: var(--success); color: var(--success); background: linear-gradient(135deg, rgba(0,184,148,0.15), var(--bg-card)); }
-.toast.error { border-color: var(--danger); color: var(--danger); background: linear-gradient(135deg, rgba(225,112,85,0.15), var(--bg-card)); }
+.toast { position: fixed; top: 0; left: 0; right: 0; transform: translateY(-100%); background: var(--bg-card); border-bottom: 2px solid var(--border); border-radius: 0; padding: 16px 20px; font-size: 15px; font-weight: 700; z-index: 100000; transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); pointer-events: none; box-shadow: 0 4px 20px rgba(0,0,0,0.3); text-align: center; }
+.toast.show { transform: translateY(0); }
+.toast.success { border-color: var(--success); color: var(--success); background: linear-gradient(135deg, rgba(0,184,148,0.2), var(--bg-card)); }
+.toast.error { border-color: var(--danger); color: #fff; background: linear-gradient(135deg, #E17055, #d63031); font-size: 16px; padding: 20px; animation: errorPulse 0.5s ease; }
+.toast.warning { border-color: var(--warning); color: var(--warning); background: linear-gradient(135deg, rgba(253,203,110,0.2), var(--bg-card)); }
 .toast.info { border-color: var(--primary); color: var(--primary); }
 .toast.reward { border-color: var(--gold); color: var(--gold); }
+@keyframes errorPulse {
+    0%, 100% { transform: translateY(0); }
+    25% { transform: translateY(4px); }
+    50% { transform: translateY(0); }
+    75% { transform: translateY(2px); }
+}
 
 /* ============ RESPONSIVE ============ */
 @media (max-width: 600px) {
@@ -1734,7 +1741,7 @@ body {
 /* Level 2 card background */
 .hub-card-level2 {
     background: linear-gradient(135deg, #2c1810 0%, #4a2520 50%, #1a3a4a 100%);
-    background-image: url('images/level2-bg.jpg');
+    background-image: url('images/level2-bg-opt.jpg');
     background-size: cover;
     background-position: center;
 }
@@ -1997,6 +2004,40 @@ body {
 .l2-imgmap-container {
     position: relative;
     width: 100%;
+}
+.l2-imgmap-loading {
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.l2-imgmap-loading::after {
+    content: 'جاري تحميل الخريطة...';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: var(--text-secondary);
+    font-size: 16px;
+    font-weight: 700;
+    z-index: 5;
+    animation: loadingPulse 1.5s ease-in-out infinite;
+}
+@keyframes loadingPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
+.l2-imgmap-loading .l2-imgmap-bg {
+    opacity: 0;
+}
+.l2-imgmap-container:not(.l2-imgmap-loading) .l2-imgmap-bg {
+    animation: imgFadeIn 0.5s ease;
+}
+@keyframes imgFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+/* End of image map loading styles */
     overflow: hidden;
 }
 .l2-imgmap-bg {
@@ -2426,10 +2467,22 @@ body {
     cursor: pointer;
     transition: all 0.3s;
     text-align: right;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
-.l2-quiz-option:hover {
+/* Only apply hover on devices that support it (not touch) */
+@media (hover: hover) {
+    .l2-quiz-option:hover {
+        border-color: var(--primary);
+        background: rgba(108, 92, 231, 0.1);
+    }
+}
+/* Active state for touch feedback - only while pressing */
+.l2-quiz-option:active:not(.disabled):not(.correct):not(.wrong) {
     border-color: var(--primary);
     background: rgba(108, 92, 231, 0.1);
+    transform: scale(0.98);
 }
 .l2-quiz-option.correct {
     border-color: var(--success);
@@ -2566,30 +2619,66 @@ body {
     position: fixed;
     inset: 0;
     z-index: 9999;
+    background: var(--bg-dark);
 }
 .landscape-map-mode #level2-map-screen .l2-map-inner-full {
     height: 100vh;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
 }
-@media (orientation: portrait) {
-    .landscape-map-mode #level2-map-screen::before {
-        content: '📱 قلب الموبايل بالعرض عشان تشوف الخريطة كاملة';
+
+/* MOBILE: Force landscape by CSS-rotating the screen 90deg when portrait */
+@media (orientation: portrait) and (max-width: 900px) {
+    .landscape-map-mode #level2-map-screen {
+        transform: rotate(90deg);
+        transform-origin: top left;
+        width: 100vh;
+        height: 100vw;
         position: fixed;
-        bottom: 16px;
+        top: 0;
+        left: 100vw;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+    .landscape-map-mode #level2-map-screen .l2-map-inner-full {
+        height: 100vw;
+        width: 100vh;
+    }
+    /* Swap touch direction for scrolling */
+    .landscape-map-mode #level2-map-screen .l2-imgmap-container {
+        width: 100%;
+    }
+}
+
+/* Landscape hint toast */
+.landscape-map-mode::after {
+    content: '';
+    display: none;
+}
+@media (orientation: portrait) and (max-width: 900px) {
+    .landscape-map-mode::after {
+        content: '📱 الخريطة اتقلبت بالعرض تلقائياً';
+        position: fixed;
+        top: 50%;
         left: 50%;
-        transform: translateX(-50%);
+        transform: translate(-50%, -50%) rotate(90deg);
         background: var(--primary);
         color: #fff;
-        padding: 10px 20px;
+        padding: 12px 28px;
         border-radius: 30px;
-        font-size: 12px;
+        font-size: 14px;
         font-weight: 700;
-        z-index: 100;
+        z-index: 100000;
         white-space: nowrap;
-        animation: floatUpDown 2s ease-in-out infinite;
+        animation: hintFadeOut 3s ease-in-out forwards;
         box-shadow: 0 4px 20px var(--glow-primary);
+        pointer-events: none;
     }
+}
+@keyframes hintFadeOut {
+    0%, 50% { opacity: 1; }
+    100% { opacity: 0; pointer-events: none; }
 }
 @keyframes floatUpDown {
     0%, 100% { transform: translateX(-50%) translateY(0); }
@@ -2780,43 +2869,90 @@ body {
 }
 .confetti-piece {
     position: absolute;
-    top: 40%;
     width: 10px;
     height: 10px;
     border-radius: 2px;
     animation: confettiBurst 1s ease-out forwards;
 }
+.confetti-piece:nth-child(odd) { border-radius: 50%; width: 8px; height: 8px; }
+.confetti-piece:nth-child(3n) { width: 6px; height: 14px; border-radius: 1px; }
+.confetti-piece:nth-child(5n) { width: 12px; height: 5px; }
 @keyframes confettiBurst {
     0% {
         transform: translate(0, 0) rotate(0deg) scale(0);
         opacity: 1;
     }
-    20% {
-        transform: translate(var(--tx, 0), var(--ty, -80px)) rotate(180deg) scale(1);
+    30% {
+        transform: translate(var(--tx, 50px), var(--ty, -100px)) rotate(180deg) scale(1.2);
         opacity: 1;
     }
     100% {
-        transform: translate(var(--tx2, 0), 200px) rotate(720deg) scale(0.3);
+        transform: translate(var(--tx, 50px), calc(var(--ty, -100px) + 300px)) rotate(var(--rot, 720deg)) scale(0.2);
         opacity: 0;
     }
 }
-.confetti-piece:nth-child(odd) {
-    --tx: -60px; --ty: -120px; --tx2: -40px;
+
+/* Flying emojis */
+.flying-emoji {
+    position: absolute;
+    bottom: 30%;
+    font-size: 36px;
+    animation: emojiFloat 1.5s ease-out forwards;
+    pointer-events: none;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+}
+@keyframes emojiFloat {
+    0% { transform: translateY(0) scale(0) rotate(0deg); opacity: 0; }
+    20% { transform: translateY(-40px) scale(1.3) rotate(-10deg); opacity: 1; }
+    60% { transform: translateY(-150px) translateX(var(--drift, 20px)) scale(1) rotate(15deg); opacity: 1; }
+    100% { transform: translateY(-250px) translateX(var(--drift, 20px)) scale(0.5) rotate(30deg); opacity: 0; }
+}
+
+/* Sparkle ring burst */
+.sparkle-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
+    border: 3px solid #FFD700;
+    transform: translate(-50%, -50%) scale(0);
+    animation: sparkleRingExpand 0.8s ease-out forwards;
+    box-shadow: 0 0 20px #FFD700, inset 0 0 20px rgba(255,215,0,0.3);
 }
-.confetti-piece:nth-child(even) {
-    --tx: 60px; --ty: -100px; --tx2: 80px;
+@keyframes sparkleRingExpand {
+    0% { transform: translate(-50%, -50%) scale(0); opacity: 1; border-width: 4px; }
+    70% { transform: translate(-50%, -50%) scale(8); opacity: 0.6; border-width: 2px; }
+    100% { transform: translate(-50%, -50%) scale(12); opacity: 0; border-width: 0px; }
 }
-.confetti-piece:nth-child(3n) {
-    --tx: -30px; --ty: -150px; --tx2: -100px;
-    width: 8px; height: 14px;
+
+/* Wrong answer red flash */
+.wrong-flash-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(225, 112, 85, 0.15);
+    z-index: 9999;
+    pointer-events: none;
+    animation: wrongFlash 0.6s ease-out forwards;
 }
-.confetti-piece:nth-child(4n) {
-    --tx: 90px; --ty: -80px; --tx2: 50px;
+@keyframes wrongFlash {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    100% { opacity: 0; }
 }
-.confetti-piece:nth-child(5n) {
-    --tx: -100px; --ty: -60px; --tx2: -80px;
-    width: 6px; height: 6px; border-radius: 50%;
+
+/* Falling sad emojis */
+.falling-sad-emoji {
+    position: absolute;
+    top: 20%;
+    font-size: 30px;
+    animation: sadEmojiFall 1.2s ease-in forwards;
+    pointer-events: none;
+}
+@keyframes sadEmojiFall {
+    0% { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+    100% { transform: translateY(60vh) rotate(180deg) scale(0.3); opacity: 0; }
 }
 
 /* Answer feedback overlay */

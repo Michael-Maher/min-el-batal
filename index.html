@@ -257,8 +257,8 @@
 
     <!-- ============ LEVEL 2 - SUBJECT MAP (6 Lessons) ============ -->
     <div id="level2-map-screen" class="screen">
-        <div class="screen-inner l2-map-inner">
-            <div class="l2-map-top-bar">
+        <div class="l2-map-inner-full">
+            <div class="l2-map-top-bar l2-map-top-floating">
                 <button class="btn btn-secondary btn-sm" onclick="showScreen('level2-subjects-screen')">
                     <span><i class="fas fa-arrow-right"></i> رجوع</span>
                 </button>
@@ -271,10 +271,19 @@
                 </div>
             </div>
 
-            <div class="l2-map-container" id="l2-map-container">
-                <div class="l2-map-path" id="l2-map-path">
-                    <!-- 6 lesson nodes rendered by JS -->
+            <div class="l2-imgmap-container" id="l2-imgmap-container">
+                <img src="" class="l2-imgmap-bg" id="l2-imgmap-bg" alt="خريطة المادة">
+                <!-- Character avatar on map -->
+                <div class="l2-imgmap-avatar" id="l2-imgmap-avatar">
+                    <img id="l2-imgmap-avatar-img" src="" alt="avatar">
                 </div>
+                <!-- Lesson nodes positioned on map (rendered by JS) -->
+                <div id="l2-imgmap-nodes"></div>
+            </div>
+
+            <!-- Fallback: list-based map for subjects without image -->
+            <div class="l2-map-container" id="l2-map-container" style="display:none;">
+                <div class="l2-map-path" id="l2-map-path"></div>
             </div>
         </div>
     </div>

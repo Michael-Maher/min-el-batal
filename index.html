@@ -259,15 +259,20 @@
     <div id="level2-map-screen" class="screen">
         <div class="l2-map-inner-full">
             <div class="l2-map-top-bar l2-map-top-floating">
-                <button class="btn btn-secondary btn-sm" onclick="showScreen('level2-subjects-screen')">
+                <button class="btn btn-secondary btn-sm" onclick="exitMapLandscape(); showScreen('level2-subjects-screen')">
                     <span><i class="fas fa-arrow-right"></i> رجوع</span>
                 </button>
                 <div class="l2-map-title-area">
                     <span class="l2-map-icon" id="l2-map-subject-icon"></span>
                     <h2 id="l2-map-subject-name"></h2>
                 </div>
-                <div class="l2-map-stars-count">
-                    <span id="l2-map-stars-earned">0</span>/<span id="l2-map-stars-total">18</span> ⭐
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <div class="l2-map-stars-count">
+                        <span id="l2-map-stars-earned">0</span>/<span id="l2-map-stars-total">18</span> ⭐
+                    </div>
+                    <button class="btn-fullscreen-toggle" onclick="toggleMapFullscreen()" title="ملء الشاشة">
+                        <i class="fas fa-expand"></i>
+                    </button>
                 </div>
             </div>
 

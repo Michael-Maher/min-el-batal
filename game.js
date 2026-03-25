@@ -4442,7 +4442,17 @@ var level2State = {
     quizScore: 0,
     quizAnswers: [],
     timerInterval: null,
-    timeLeft: 0
+    timeLeft: 0,
+    answered: false, // prevent double-tap
+    isFullscreen: false,
+    powerUps: { fiftyFifty: 0, extraTime: 0, skipQ: 0 }
+};
+
+// Power-ups system
+var POWER_UPS = {
+    fiftyFifty: { name: 'حذف إجابتين ❌❌', icon: 'fa-scissors', cost: 5, desc: 'احذف إجابتين غلط' },
+    extraTime:  { name: 'وقت إضافي ⏰', icon: 'fa-hourglass-half', cost: 3, desc: '+15 ثانية وقت إضافي' },
+    skipQ:      { name: 'تخطي سؤال ⏭️', icon: 'fa-forward', cost: 8, desc: 'تخطي السؤال وخد الإجابة الصح' }
 };
 
 // Add level2 data to GameState
@@ -4492,6 +4502,172 @@ function renderLevel2Subjects() {
 function openLevel2Subject(subjectKey) {
     level2State.currentSubject = subjectKey;
     showScreen('level2-map-screen');
+    // Force landscape hint
+    enterMapLandscape();
+}
+
+// --- Landscape & Fullscreen for Map ---
+function enterMapLandscape() {
+    document.body.classList.add('landscape-map-mode');
+    // Try to lock orientation to landscape
+    try {
+        if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(function(){});
+        }
+    } catch(e) {}
+    // Auto-enter fullscreen
+    try {
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen().catch(function(){});
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        level2State.isFullscreen = true;
+    } catch(e) {}
+}
+
+function exitMapLandscape() {
+    document.body.classList.remove('landscape-map-mode');
+    try {
+        if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    } catch(e) {}
+    try {
+        if (document.exitFullscreen && document.fullscreenElement) document.exitFullscreen().catch(function(){});
+        else if (document.webkitExitFullscreen && document.webkitFullscreenElement) document.webkitExitFullscreen();
+        level2State.isFullscreen = false;
+    } catch(e) {}
+}
+
+function toggleMapFullscreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+        else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+        level2State.isFullscreen = false;
+    } else {
+        var el = document.documentElement;
+        if (el.requestFullscreen) el.requestFullscreen();
+        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        level2State.isFullscreen = true;
+    }
+}
+
+// --- Confetti / Celebration Effects ---
+function showCorrectCelebration() {
+    // Create confetti burst
+    var container = document.createElement('div');
+    container.className = 'celebration-container';
+    document.body.appendChild(container);
+
+    var colors = ['#FFD700', '#00B894', '#6C5CE7', '#FD79A8', '#00CEC9', '#FFEAA7'];
+    for (var i = 0; i < 30; i++) {
+        var confetti = document.createElement('div');
+        confetti.className = 'confetti-piece';
+        confetti.style.left = (40 + Math.random() * 20) + '%';
+        confetti.style.background = colors[Math.floor(Math.random() * colors.length)];
+        confetti.style.animationDelay = (Math.random() * 0.3) + 's';
+        confetti.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+        container.appendChild(confetti);
+    }
+
+    // Show big checkmark
+    var check = document.createElement('div');
+    check.className = 'answer-feedback correct-feedback';
+    check.innerHTML = '<i class="fas fa-check-circle"></i><span>صح! 🎉</span>';
+    document.body.appendChild(check);
+
+    setTimeout(function() {
+        container.remove();
+        check.remove();
+    }, 1500);
+}
+
+function showWrongFeedback() {
+    // Shake the quiz container
+    var qContainer = document.querySelector('.l2-quiz-container');
+    if (qContainer) {
+        qContainer.classList.add('shake-animation');
+        setTimeout(function() { qContainer.classList.remove('shake-animation'); }, 600);
+    }
+
+    // Show X feedback
+    var x = document.createElement('div');
+    x.className = 'answer-feedback wrong-feedback';
+    x.innerHTML = '<i class="fas fa-times-circle"></i><span>غلط 😔</span>';
+    document.body.appendChild(x);
+
+    setTimeout(function() { x.remove(); }, 1500);
+}
+
+// --- Power-Up Functions ---
+function usePowerUp(type) {
+    if (level2State.answered) return;
+
+    if (type === 'fiftyFifty') {
+        if (GameState.stars < POWER_UPS.fiftyFifty.cost) {
+            showToast('محتاج ' + POWER_UPS.fiftyFifty.cost + ' نجوم! ⭐', 'warning');
+            return;
+        }
+        var q = LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson].questions[level2State.quizIndex];
+        var wrongOptions = [];
+        for (var i = 0; i < q.options.length; i++) {
+            if (i !== q.correct) wrongOptions.push(i);
+        }
+        // Shuffle and pick 2 to hide
+        wrongOptions.sort(function() { return Math.random() - 0.5; });
+        var toHide = wrongOptions.slice(0, 2);
+        var btns = document.querySelectorAll('.l2-quiz-option');
+        toHide.forEach(function(idx) {
+            if (btns[idx]) {
+                btns[idx].style.opacity = '0.2';
+                btns[idx].style.pointerEvents = 'none';
+                btns[idx].style.textDecoration = 'line-through';
+            }
+        });
+        GameState.stars -= POWER_UPS.fiftyFifty.cost;
+        saveToCloud();
+        showToast('تم حذف إجابتين! ✂️', 'success');
+        // Disable the button
+        var btn = document.querySelector('.powerup-btn[data-type="fiftyFifty"]');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.3'; }
+    }
+
+    if (type === 'extraTime') {
+        if (GameState.stars < POWER_UPS.extraTime.cost) {
+            showToast('محتاج ' + POWER_UPS.extraTime.cost + ' نجوم! ⭐', 'warning');
+            return;
+        }
+        level2State.timeLeft += 15;
+        GameState.stars -= POWER_UPS.extraTime.cost;
+        saveToCloud();
+        showToast('+15 ثانية! ⏰', 'success');
+        var btn = document.querySelector('.powerup-btn[data-type="extraTime"]');
+        if (btn) { btn.disabled = true; btn.style.opacity = '0.3'; }
+    }
+
+    if (type === 'skipQ') {
+        if (GameState.stars < POWER_UPS.skipQ.cost) {
+            showToast('محتاج ' + POWER_UPS.skipQ.cost + ' نجوم! ⭐', 'warning');
+            return;
+        }
+        GameState.stars -= POWER_UPS.skipQ.cost;
+        level2State.quizScore++;
+        level2State.quizAnswers.push(true);
+        level2State.answered = true;
+        if (level2State.timerInterval) clearInterval(level2State.timerInterval);
+        saveToCloud();
+        showCorrectCelebration();
+        // Highlight correct answer
+        var q = LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson].questions[level2State.quizIndex];
+        var btns = document.querySelectorAll('.l2-quiz-option');
+        btns.forEach(function(opt, idx) {
+            opt.classList.add('disabled');
+            if (idx === q.correct) opt.classList.add('correct');
+        });
+        showToast('تم تخطي السؤال! ⏭️', 'success');
+        setTimeout(function() {
+            level2State.quizIndex++;
+            level2State.answered = false;
+            renderLevel2Lesson();
+        }, 1200);
+    }
 }
 
 // --- Level 2 Map Render ---
@@ -4603,13 +4779,9 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         if (isAvailable || isCompleted) {
             (function(idx) {
                 node.onclick = function() {
-                    // Animate character to this node
-                    var av = document.getElementById('l2-imgmap-avatar');
-                    if (av && positions[idx]) {
-                        av.style.left = (positions[idx].left - 3) + '%';
-                        av.style.top = (positions[idx].top - 6) + '%';
-                    }
-                    setTimeout(function() { startLevel2Lesson(idx); }, 600);
+                    animateCharacterToNode(idx, positions, function() {
+                        startLevel2Lesson(idx);
+                    });
                 };
             })(i);
         } else {
@@ -4618,6 +4790,65 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
 
         nodesContainer.appendChild(node);
     }
+}
+
+// --- Animate character walking node-by-node ---
+function animateCharacterToNode(targetIdx, positions, callback) {
+    var av = document.getElementById('l2-imgmap-avatar');
+    if (!av || !positions[targetIdx]) { callback(); return; }
+
+    // Find current position of avatar
+    var currentLeft = parseFloat(av.style.left) || 0;
+    var currentTop = parseFloat(av.style.top) || 0;
+
+    // Find which node we're closest to
+    var startIdx = 0;
+    var minDist = Infinity;
+    for (var i = 0; i < positions.length; i++) {
+        var dl = (positions[i].left - 3) - currentLeft;
+        var dt = (positions[i].top - 6) - currentTop;
+        var dist = Math.sqrt(dl * dl + dt * dt);
+        if (dist < minDist) { minDist = dist; startIdx = i; }
+    }
+
+    if (startIdx === targetIdx) {
+        // Already there, just bounce and go
+        av.classList.add('avatar-arrive');
+        setTimeout(function() { av.classList.remove('avatar-arrive'); callback(); }, 500);
+        return;
+    }
+
+    // Build path of nodes to walk through
+    var path = [];
+    var step = startIdx < targetIdx ? 1 : -1;
+    for (var n = startIdx + step; step > 0 ? n <= targetIdx : n >= targetIdx; n += step) {
+        path.push(n);
+    }
+
+    // Walk each step with animation
+    var stepTime = 600; // ms per step
+    av.classList.add('avatar-walking');
+    av.style.transition = 'left ' + (stepTime / 1000) + 's ease-in-out, top ' + (stepTime / 1000) + 's ease-in-out';
+
+    function walkStep(stepIdx) {
+        if (stepIdx >= path.length) {
+            av.classList.remove('avatar-walking');
+            av.classList.add('avatar-arrive');
+            av.style.transition = 'left 1s ease-in-out, top 1s ease-in-out';
+            setTimeout(function() { av.classList.remove('avatar-arrive'); callback(); }, 400);
+            return;
+        }
+        var nodeIdx = path[stepIdx];
+        av.style.left = (positions[nodeIdx].left - 3) + '%';
+        av.style.top = (positions[nodeIdx].top - 6) + '%';
+
+        // Highlight passed node
+        var nodeEl = document.querySelectorAll('.l2-imgmap-node')[nodeIdx];
+        if (nodeEl) nodeEl.classList.add('node-passed');
+
+        setTimeout(function() { walkStep(stepIdx + 1); }, stepTime);
+    }
+    walkStep(0);
 }
 
 function renderLevel2ListMap(subject, subjectData) {
@@ -4771,6 +5002,8 @@ function renderLevel2Quiz(container, lesson, subject) {
         return;
     }
 
+    level2State.answered = false; // Reset answered flag for new question
+
     var q = questions[qIdx];
     var total = questions.length;
 
@@ -4791,16 +5024,29 @@ function renderLevel2Quiz(container, lesson, subject) {
     }
     html += '</div>';
 
-    // Timer bar
+    // Timer bar + countdown number
+    html += '<div class="l2-timer-row">';
+    html += '<div class="l2-timer-number" id="l2-timer-number">20</div>';
     html += '<div class="l2-timer-bar"><div class="l2-timer-fill" id="l2-timer-fill" style="width:100%"></div></div>';
+    html += '</div>';
 
-    // Question
-    html += '<div class="l2-quiz-container">';
+    // Power-ups bar
+    html += '<div class="l2-powerups-bar">';
+    html += '<button class="powerup-btn" data-type="fiftyFifty" onclick="usePowerUp(\'fiftyFifty\')" title="' + POWER_UPS.fiftyFifty.desc + '">' +
+        '<i class="fas ' + POWER_UPS.fiftyFifty.icon + '"></i><span class="powerup-cost">' + POWER_UPS.fiftyFifty.cost + '⭐</span></button>';
+    html += '<button class="powerup-btn" data-type="extraTime" onclick="usePowerUp(\'extraTime\')" title="' + POWER_UPS.extraTime.desc + '">' +
+        '<i class="fas ' + POWER_UPS.extraTime.icon + '"></i><span class="powerup-cost">' + POWER_UPS.extraTime.cost + '⭐</span></button>';
+    html += '<button class="powerup-btn" data-type="skipQ" onclick="usePowerUp(\'skipQ\')" title="' + POWER_UPS.skipQ.desc + '">' +
+        '<i class="fas ' + POWER_UPS.skipQ.icon + '"></i><span class="powerup-cost">' + POWER_UPS.skipQ.cost + '⭐</span></button>';
+    html += '</div>';
+
+    // Question with entrance animation
+    html += '<div class="l2-quiz-container quiz-entrance-anim">';
     html += '<p style="text-align:center;color:var(--text-muted);font-size:12px;margin:0 0 8px;">سؤال ' + (qIdx + 1) + ' من ' + total + '</p>';
     html += '<p class="l2-quiz-question">' + q.q + '</p>';
     html += '<div class="l2-quiz-options">';
     for (var o = 0; o < q.options.length; o++) {
-        html += '<button class="l2-quiz-option" data-idx="' + o + '" onclick="answerLevel2Quiz(' + o + ')">' + q.options[o] + '</button>';
+        html += '<button class="l2-quiz-option option-entrance" style="animation-delay:' + (o * 0.1) + 's" data-idx="' + o + '" onclick="answerLevel2Quiz(' + o + ')">' + q.options[o] + '</button>';
     }
     html += '</div></div>';
 
@@ -4810,12 +5056,24 @@ function renderLevel2Quiz(container, lesson, subject) {
     level2State.timeLeft = 20;
     if (level2State.timerInterval) clearInterval(level2State.timerInterval);
     var timerFill = document.getElementById('l2-timer-fill');
+    var timerNum = document.getElementById('l2-timer-number');
     level2State.timerInterval = setInterval(function() {
         level2State.timeLeft--;
-        if (timerFill) timerFill.style.width = (level2State.timeLeft / 20 * 100) + '%';
+        var pct = Math.max(0, level2State.timeLeft / 20 * 100);
+        if (timerFill) timerFill.style.width = pct + '%';
+        if (timerNum) {
+            timerNum.textContent = Math.max(0, level2State.timeLeft);
+            // Color change when time is low
+            if (level2State.timeLeft <= 5) {
+                timerNum.classList.add('timer-danger');
+                timerNum.classList.add('timer-pulse');
+            } else if (level2State.timeLeft <= 10) {
+                timerNum.classList.add('timer-warning');
+            }
+        }
         if (level2State.timeLeft <= 0) {
             clearInterval(level2State.timerInterval);
-            // Time's up - wrong answer
+            showWrongFeedback();
             answerLevel2Quiz(-1);
         }
     }, 1000);
@@ -4823,6 +5081,10 @@ function renderLevel2Quiz(container, lesson, subject) {
 
 // --- Answer Quiz ---
 function answerLevel2Quiz(selectedIdx) {
+    // Prevent double-tap
+    if (level2State.answered) return;
+    level2State.answered = true;
+
     if (level2State.timerInterval) clearInterval(level2State.timerInterval);
 
     var subKey = level2State.currentSubject;
@@ -4833,20 +5095,34 @@ function answerLevel2Quiz(selectedIdx) {
     if (isCorrect) level2State.quizScore++;
     level2State.quizAnswers.push(isCorrect);
 
-    // Highlight correct/wrong
+    // Highlight correct/wrong with animations
     var options = document.querySelectorAll('.l2-quiz-option');
     options.forEach(function(opt) {
         opt.classList.add('disabled');
         var idx = parseInt(opt.getAttribute('data-idx'));
-        if (idx === q.correct) opt.classList.add('correct');
-        else if (idx === selectedIdx && !isCorrect) opt.classList.add('wrong');
+        if (idx === q.correct) {
+            opt.classList.add('correct');
+            opt.classList.add('correct-pop');
+        }
+        else if (idx === selectedIdx && !isCorrect) {
+            opt.classList.add('wrong');
+            opt.classList.add('wrong-shake');
+        }
     });
+
+    // Show celebration or wrong feedback
+    if (isCorrect) {
+        showCorrectCelebration();
+    } else {
+        showWrongFeedback();
+    }
 
     // Next question after delay
     setTimeout(function() {
         level2State.quizIndex++;
+        level2State.answered = false;
         renderLevel2Lesson();
-    }, 1200);
+    }, 1500);
 }
 
 // --- Result Stage ---
@@ -4906,10 +5182,38 @@ function renderLevel2Result(container, lesson, subject) {
     // Buttons
     html += '<div class="l2-result-buttons">';
     html += '<button class="btn btn-secondary" onclick="startLevel2Lesson(' + level2State.currentLesson + ')"><span><i class="fas fa-redo"></i> حاول تاني</span></button>';
-    html += '<button class="btn btn-primary" onclick="showScreen(\'level2-map-screen\')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>';
+    html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-map-screen\')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>';
     html += '</div></div>';
 
     container.innerHTML = html;
+
+    // Big celebration if good score
+    if (stars >= 2) {
+        showResultCelebration(stars);
+    }
+}
+
+// --- Result Celebration (big confetti for good scores) ---
+function showResultCelebration(stars) {
+    var container = document.createElement('div');
+    container.className = 'result-celebration-overlay';
+    document.body.appendChild(container);
+
+    var colors = ['#FFD700', '#00B894', '#6C5CE7', '#FD79A8', '#00CEC9', '#FFEAA7', '#E17055', '#A29BFE'];
+    var count = stars >= 3 ? 60 : 30;
+    for (var i = 0; i < count; i++) {
+        var c = document.createElement('div');
+        c.className = 'result-confetti';
+        c.style.left = (Math.random() * 100) + '%';
+        c.style.background = colors[Math.floor(Math.random() * colors.length)];
+        c.style.animationDelay = (Math.random() * 1) + 's';
+        c.style.animationDuration = (1.5 + Math.random() * 1.5) + 's';
+        var size = Math.random() > 0.5 ? 'big' : 'small';
+        c.classList.add('confetti-' + size);
+        container.appendChild(c);
+    }
+
+    setTimeout(function() { container.remove(); }, 3500);
 }
 
 document.addEventListener('DOMContentLoaded', function() {

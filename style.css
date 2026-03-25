@@ -3072,3 +3072,197 @@ body {
     .powerup-btn { padding: 6px 10px; font-size: 11px; }
     .l2-timer-number { font-size: 18px; }
 }
+
+/* ============================================================
+   COMBO SYSTEM
+   ============================================================ */
+.l2-combo-indicator {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    animation: comboEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.combo-fire-icon {
+    font-size: 20px;
+    animation: comboFlame 0.4s ease-in-out infinite alternate;
+}
+@keyframes comboFlame {
+    from { transform: scale(1) rotate(-5deg); }
+    to { transform: scale(1.2) rotate(5deg); }
+}
+.combo-x {
+    font-size: 24px;
+    font-weight: 900;
+    color: #E17055;
+    text-shadow: 0 0 20px rgba(225,112,85,0.5);
+    animation: comboPulse 0.6s ease-in-out infinite;
+}
+@keyframes comboPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.15); }
+}
+@keyframes comboEntrance {
+    from { transform: scale(0) rotate(-20deg); opacity: 0; }
+    to { transform: scale(1) rotate(0); opacity: 1; }
+}
+
+/* Combo display overlay */
+.combo-display {
+    position: fixed;
+    top: 15%;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10002;
+    text-align: center;
+    pointer-events: none;
+    animation: comboDisplayAnim 2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.combo-count {
+    font-size: 56px;
+    font-weight: 900;
+    color: #E17055;
+    text-shadow: 0 0 30px rgba(225,112,85,0.6), 0 4px 20px rgba(0,0,0,0.3);
+    font-family: 'Cairo', sans-serif;
+}
+.combo-hot .combo-count { color: #FDCB6E; text-shadow: 0 0 40px rgba(253,203,110,0.8); }
+.combo-fire .combo-count { color: #FF6B6B; text-shadow: 0 0 50px rgba(255,107,107,0.9), 0 0 80px rgba(255,0,0,0.3); font-size: 64px; }
+.combo-label {
+    font-size: 18px;
+    font-weight: 900;
+    color: rgba(255,255,255,0.9);
+    text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+    letter-spacing: 4px;
+    font-family: 'Cairo', sans-serif;
+}
+.combo-msg {
+    font-size: 16px;
+    font-weight: 700;
+    color: #FFEAA7;
+    margin-top: 4px;
+    font-family: 'Cairo', sans-serif;
+}
+@keyframes comboDisplayAnim {
+    0% { transform: translateX(-50%) scale(0); opacity: 0; }
+    20% { transform: translateX(-50%) scale(1.3); opacity: 1; }
+    40% { transform: translateX(-50%) scale(1); opacity: 1; }
+    80% { transform: translateX(-50%) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) scale(0.5) translateY(-40px); opacity: 0; }
+}
+
+/* ============================================================
+   SCORE POPUP
+   ============================================================ */
+.score-popup {
+    position: fixed;
+    top: 40%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 32px;
+    font-weight: 900;
+    color: #00B894;
+    z-index: 10003;
+    pointer-events: none;
+    text-shadow: 0 2px 10px rgba(0,184,148,0.5);
+    font-family: 'Cairo', sans-serif;
+    animation: scoreFloat 1.2s ease-out forwards;
+}
+.score-popup-combo {
+    color: #FDCB6E;
+    font-size: 38px;
+    text-shadow: 0 2px 15px rgba(253,203,110,0.7);
+}
+.score-popup-fire {
+    color: #FF6B6B;
+    font-size: 44px;
+    text-shadow: 0 0 30px rgba(255,107,107,0.8), 0 2px 20px rgba(0,0,0,0.3);
+}
+@keyframes scoreFloat {
+    0% { transform: translateX(-50%) translateY(0) scale(0.5); opacity: 0; }
+    20% { transform: translateX(-50%) translateY(-20px) scale(1.2); opacity: 1; }
+    50% { transform: translateX(-50%) translateY(-50px) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-120px) scale(0.8); opacity: 0; }
+}
+
+/* Speed bonus popup */
+.speed-bonus-popup {
+    position: fixed;
+    top: 55%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    font-weight: 800;
+    color: #00CEC9;
+    z-index: 10003;
+    pointer-events: none;
+    font-family: 'Cairo', sans-serif;
+    text-shadow: 0 0 15px rgba(0,206,201,0.6);
+    animation: speedBonusAnim 1.2s ease-out forwards;
+}
+@keyframes speedBonusAnim {
+    0% { transform: translateX(-50%) scale(0); opacity: 0; }
+    30% { transform: translateX(-50%) scale(1.2); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-60px) scale(0.7); opacity: 0; }
+}
+
+/* ============================================================
+   ENCOURAGING MESSAGES
+   ============================================================ */
+.encourage-msg {
+    position: fixed;
+    bottom: 20%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 18px;
+    font-weight: 800;
+    padding: 8px 24px;
+    border-radius: 30px;
+    z-index: 10002;
+    pointer-events: none;
+    font-family: 'Cairo', sans-serif;
+    white-space: nowrap;
+    animation: encourageAnim 1.8s ease-out forwards;
+}
+.encourage-correct {
+    color: #00B894;
+    background: rgba(0, 184, 148, 0.15);
+    border: 1px solid rgba(0, 184, 148, 0.3);
+    text-shadow: 0 0 10px rgba(0,184,148,0.3);
+}
+.encourage-wrong {
+    color: #FFEAA7;
+    background: rgba(253, 203, 110, 0.1);
+    border: 1px solid rgba(253, 203, 110, 0.2);
+}
+@keyframes encourageAnim {
+    0% { transform: translateX(-50%) translateY(20px) scale(0.8); opacity: 0; }
+    15% { transform: translateX(-50%) translateY(0) scale(1.05); opacity: 1; }
+    70% { transform: translateX(-50%) translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateX(-50%) translateY(-30px) scale(0.9); opacity: 0; }
+}
+
+/* ============================================================
+   RESULT BONUS ROW
+   ============================================================ */
+.l2-result-bonus-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+}
+.bonus-badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    color: var(--primary);
+    animation: badgePop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes badgePop {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}

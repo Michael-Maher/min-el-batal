@@ -4537,8 +4537,131 @@ var level2State = {
     timeLeft: 0,
     answered: false, // prevent double-tap
     isFullscreen: false,
-    powerUps: { fiftyFifty: 0, extraTime: 0, skipQ: 0 }
+    powerUps: { fiftyFifty: 0, extraTime: 0, skipQ: 0 },
+    // Combo & engagement
+    combo: 0,
+    maxCombo: 0,
+    totalPoints: 0,
+    speedBonuses: 0
 };
+
+// --- SOUND EFFECTS (Web Audio) ---
+var audioCtx = null;
+function initAudio() {
+    if (!audioCtx) {
+        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+    }
+}
+function playTone(freq, duration, type) {
+    initAudio();
+    if (!audioCtx) return;
+    try {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    } catch(e) {}
+}
+function playCorrectSound() {
+    playTone(523, 0.1, 'sine'); // C5
+    setTimeout(function() { playTone(659, 0.1, 'sine'); }, 80); // E5
+    setTimeout(function() { playTone(784, 0.15, 'sine'); }, 160); // G5
+}
+function playWrongSound() {
+    playTone(200, 0.15, 'square');
+    setTimeout(function() { playTone(150, 0.2, 'square'); }, 100);
+}
+function playComboSound(combo) {
+    var baseFreq = 600 + (combo * 50);
+    playTone(baseFreq, 0.08, 'sine');
+    setTimeout(function() { playTone(baseFreq + 100, 0.08, 'sine'); }, 60);
+    setTimeout(function() { playTone(baseFreq + 200, 0.12, 'sine'); }, 120);
+    setTimeout(function() { playTone(baseFreq + 300, 0.15, 'sine'); }, 180);
+}
+function playTickSound() {
+    playTone(800, 0.03, 'sine');
+}
+
+// --- HAPTIC FEEDBACK ---
+function vibrate(pattern) {
+    try {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+    } catch(e) {}
+}
+
+// --- ENCOURAGING MESSAGES ---
+var ENCOURAGE_CORRECT = [
+    'يا بطل! 🔥', 'ماشاء الله عليك! 💪', 'برافو! 🎯', 'صح كده! ✨',
+    'أنت جامد! 🌟', 'كمّل يا نجم! ⭐', 'عظمة! 🏆', 'يا معلم! 👑',
+    'أسد! 🦁', 'رهيب! 💫', 'خطير! 🔥🔥', 'فين ده من زمان! 💥',
+    'مكنش حد يقدر! 🎉', 'كويس أوي! 👏', 'أنت أبطال! ⚡'
+];
+var ENCOURAGE_WRONG = [
+    'المرة الجاية إن شاء الله 💪', 'متقلقش، كمّل! 🌱', 'ركّز يا بطل! 🧠',
+    'حاول تاني! 💫', 'قرب تجيبها! 🎯', 'الصح جاي! ✨'
+];
+var COMBO_MESSAGES = [
+    '', '', // 0, 1
+    'كومبو! 🔥🔥', // 2
+    'رائع! هات كمان! 🔥🔥🔥', // 3
+    'FIRE! لا يوقفك حد! 🔥🔥🔥🔥', // 4
+    'UNSTOPPABLE! ⚡⚡⚡', // 5+
+];
+
+// --- SCORE POPUP ---
+function showScorePopup(points, isCombo, comboCount) {
+    var popup = document.createElement('div');
+    popup.className = 'score-popup';
+    if (isCombo && comboCount >= 3) popup.classList.add('score-popup-combo');
+    if (comboCount >= 5) popup.classList.add('score-popup-fire');
+
+    var text = '+' + points;
+    if (isCombo && comboCount >= 2) {
+        text += ' x' + Math.min(comboCount, 5);
+    }
+    popup.textContent = text;
+    document.body.appendChild(popup);
+    setTimeout(function() { popup.remove(); }, 1200);
+}
+
+// --- COMBO DISPLAY ---
+function updateComboDisplay(combo) {
+    // Remove existing combo display
+    var existing = document.querySelector('.combo-display');
+    if (existing) existing.remove();
+
+    if (combo < 2) return;
+
+    var display = document.createElement('div');
+    display.className = 'combo-display';
+    if (combo >= 5) display.classList.add('combo-fire');
+    else if (combo >= 3) display.classList.add('combo-hot');
+
+    var msg = combo >= 5 ? COMBO_MESSAGES[5] : (COMBO_MESSAGES[combo] || '');
+    display.innerHTML = '<div class="combo-count">' + combo + 'x</div>' +
+        '<div class="combo-label">COMBO</div>' +
+        (msg ? '<div class="combo-msg">' + msg + '</div>' : '');
+
+    document.body.appendChild(display);
+    setTimeout(function() { display.remove(); }, 2000);
+}
+
+// --- ENCOURAGING MESSAGE POPUP ---
+function showEncourageMsg(isCorrect) {
+    var msgs = isCorrect ? ENCOURAGE_CORRECT : ENCOURAGE_WRONG;
+    var msg = msgs[Math.floor(Math.random() * msgs.length)];
+    var el = document.createElement('div');
+    el.className = 'encourage-msg ' + (isCorrect ? 'encourage-correct' : 'encourage-wrong');
+    el.textContent = msg;
+    document.body.appendChild(el);
+    setTimeout(function() { el.remove(); }, 1800);
+}
 
 // Power-ups system
 var POWER_UPS = {
@@ -5141,6 +5264,12 @@ function startLevel2Quiz() {
     level2State.quizIndex = 0;
     level2State.quizScore = 0;
     level2State.quizAnswers = [];
+    level2State.combo = 0;
+    level2State.maxCombo = 0;
+    level2State.totalPoints = 0;
+    level2State.speedBonuses = 0;
+    // Initialize audio on first user interaction
+    initAudio();
 
     // Shuffle and pick 20 questions from the bank
     var subKey = level2State.currentSubject;
@@ -5216,7 +5345,18 @@ function renderLevel2Quiz(container, lesson, subject) {
     }
     html += '</div></div>';
 
+    // Combo indicator (if active)
+    if (level2State.combo >= 2) {
+        html += '<div class="l2-combo-indicator">' +
+            '<span class="combo-fire-icon">' + (level2State.combo >= 5 ? '🔥🔥🔥' : (level2State.combo >= 3 ? '🔥🔥' : '🔥')) + '</span>' +
+            '<span class="combo-x">' + level2State.combo + 'x</span>' +
+            '</div>';
+    }
+
     container.innerHTML = html;
+
+    // Record question start time for speed bonus
+    level2State.questionStartTime = Date.now();
 
     // Start timer (20 seconds per question)
     level2State.timeLeft = 20;
@@ -5233,6 +5373,8 @@ function renderLevel2Quiz(container, lesson, subject) {
             if (level2State.timeLeft <= 5) {
                 timerNum.classList.add('timer-danger');
                 timerNum.classList.add('timer-pulse');
+                playTickSound(); // Tick sound in last 5 seconds
+                vibrate(30); // Short vibrate
             } else if (level2State.timeLeft <= 10) {
                 timerNum.classList.add('timer-warning');
             }
@@ -5258,7 +5400,55 @@ function answerLevel2Quiz(selectedIdx) {
     var q = (level2State.activeQuestions || lesson.questions)[level2State.quizIndex];
     var isCorrect = selectedIdx === q.correct;
 
-    if (isCorrect) level2State.quizScore++;
+    // Calculate speed bonus
+    var answerTime = level2State.questionStartTime ? (Date.now() - level2State.questionStartTime) / 1000 : 20;
+    var speedBonus = 0;
+    if (isCorrect && answerTime < 3) { speedBonus = 5; }
+    else if (isCorrect && answerTime < 5) { speedBonus = 3; }
+    else if (isCorrect && answerTime < 8) { speedBonus = 1; }
+
+    // Combo system
+    if (isCorrect) {
+        level2State.combo++;
+        if (level2State.combo > level2State.maxCombo) level2State.maxCombo = level2State.combo;
+        level2State.quizScore++;
+
+        // Calculate points with combo multiplier
+        var basePoints = 10;
+        var comboMultiplier = Math.min(level2State.combo, 5);
+        var totalPts = basePoints + (speedBonus * 2) + (comboMultiplier > 1 ? comboMultiplier * 2 : 0);
+        level2State.totalPoints += totalPts;
+        if (speedBonus > 0) level2State.speedBonuses++;
+
+        // Show score popup
+        showScorePopup(totalPts, level2State.combo >= 2, level2State.combo);
+
+        // Show combo display if streak
+        if (level2State.combo >= 2) {
+            updateComboDisplay(level2State.combo);
+            if (level2State.combo >= 3) playComboSound(level2State.combo);
+            else playCorrectSound();
+        } else {
+            playCorrectSound();
+        }
+
+        // Haptic - short buzz
+        vibrate(50);
+
+        // Speed bonus indicator
+        if (speedBonus > 0) {
+            var speedEl = document.createElement('div');
+            speedEl.className = 'speed-bonus-popup';
+            speedEl.textContent = '⚡ سريع! +' + (speedBonus * 2);
+            document.body.appendChild(speedEl);
+            setTimeout(function() { speedEl.remove(); }, 1200);
+        }
+    } else {
+        level2State.combo = 0; // Reset combo
+        playWrongSound();
+        vibrate([50, 30, 50]); // Double vibrate for wrong
+    }
+
     level2State.quizAnswers.push(isCorrect);
 
     // Highlight correct/wrong with animations
@@ -5276,11 +5466,13 @@ function answerLevel2Quiz(selectedIdx) {
         }
     });
 
-    // Show celebration or wrong feedback
+    // Show celebration or wrong feedback + encouraging message
     if (isCorrect) {
         showCorrectCelebration();
+        showEncourageMsg(true);
     } else {
         showWrongFeedback();
+        showEncourageMsg(false);
     }
 
     // Next question after delay
@@ -5293,7 +5485,7 @@ function answerLevel2Quiz(selectedIdx) {
 
 // --- Result Stage ---
 function renderLevel2Result(container, lesson, subject) {
-    var total = lesson.questions.length;
+    var total = (level2State.activeQuestions || lesson.questions).length;
     var score = level2State.quizScore;
     var percentage = Math.round(score / total * 100);
 
@@ -5340,8 +5532,22 @@ function renderLevel2Result(container, lesson, subject) {
     html += '<div class="l2-result-stats">';
     html += '<div class="l2-result-stat"><div class="l2-result-stat-value">' + score + '/' + total + '</div><div class="l2-result-stat-label">إجابات صحيحة</div></div>';
     html += '<div class="l2-result-stat"><div class="l2-result-stat-value">' + percentage + '%</div><div class="l2-result-stat-label">النسبة</div></div>';
+    if (level2State.maxCombo >= 2) {
+        html += '<div class="l2-result-stat"><div class="l2-result-stat-value" style="color:#E17055">🔥 ' + level2State.maxCombo + 'x</div><div class="l2-result-stat-label">أعلى كومبو</div></div>';
+    }
     if (stars > existingStars) {
         html += '<div class="l2-result-stat"><div class="l2-result-stat-value" style="color:var(--gold)">+' + (stars - existingStars) + '</div><div class="l2-result-stat-label">نجوم جديدة</div></div>';
+    }
+    html += '</div>';
+
+    // Bonus stats row
+    html += '<div class="l2-result-bonus-row">';
+    html += '<div class="bonus-badge">🏆 ' + level2State.totalPoints + ' نقطة</div>';
+    if (level2State.speedBonuses > 0) {
+        html += '<div class="bonus-badge">⚡ ' + level2State.speedBonuses + ' بونص سرعة</div>';
+    }
+    if (level2State.maxCombo >= 3) {
+        html += '<div class="bonus-badge">🔥 كومبو نار!</div>';
     }
     html += '</div>';
 

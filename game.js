@@ -4547,45 +4547,73 @@ var level2State = {
 
 // --- SOUND EFFECTS (Web Audio) ---
 var audioCtx = null;
+var audioUnlocked = false;
+
 function initAudio() {
     if (!audioCtx) {
-        try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
+        try {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) {
+            console.log('Web Audio not supported');
+            return;
+        }
+    }
+    // Resume suspended context (required by mobile browsers after user gesture)
+    if (audioCtx && audioCtx.state === 'suspended') {
+        audioCtx.resume().then(function() {
+            audioUnlocked = true;
+        }).catch(function() {});
+    } else if (audioCtx) {
+        audioUnlocked = true;
     }
 }
+
+// Unlock audio on first touch/click anywhere on page
+document.addEventListener('touchstart', function() { initAudio(); }, { once: true });
+document.addEventListener('click', function() { initAudio(); }, { once: true });
+
 function playTone(freq, duration, type) {
-    initAudio();
-    if (!audioCtx) return;
+    if (!audioCtx || audioCtx.state === 'suspended') {
+        initAudio();
+        return; // Skip this sound, next one will work
+    }
     try {
         var osc = audioCtx.createOscillator();
         var gain = audioCtx.createGain();
         osc.type = type || 'sine';
         osc.frequency.value = freq;
-        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
         osc.connect(gain);
         gain.connect(audioCtx.destination);
         osc.start();
         osc.stop(audioCtx.currentTime + duration);
-    } catch(e) {}
+    } catch(e) {
+        console.log('Audio error:', e);
+    }
 }
+
 function playCorrectSound() {
-    playTone(523, 0.1, 'sine'); // C5
-    setTimeout(function() { playTone(659, 0.1, 'sine'); }, 80); // E5
-    setTimeout(function() { playTone(784, 0.15, 'sine'); }, 160); // G5
+    playTone(523, 0.12, 'sine'); // C5
+    setTimeout(function() { playTone(659, 0.12, 'sine'); }, 100); // E5
+    setTimeout(function() { playTone(784, 0.2, 'sine'); }, 200); // G5
 }
+
 function playWrongSound() {
-    playTone(200, 0.15, 'square');
-    setTimeout(function() { playTone(150, 0.2, 'square'); }, 100);
+    playTone(250, 0.2, 'sawtooth');
+    setTimeout(function() { playTone(180, 0.3, 'sawtooth'); }, 120);
 }
+
 function playComboSound(combo) {
-    var baseFreq = 600 + (combo * 50);
-    playTone(baseFreq, 0.08, 'sine');
-    setTimeout(function() { playTone(baseFreq + 100, 0.08, 'sine'); }, 60);
-    setTimeout(function() { playTone(baseFreq + 200, 0.12, 'sine'); }, 120);
-    setTimeout(function() { playTone(baseFreq + 300, 0.15, 'sine'); }, 180);
+    var baseFreq = 500 + (combo * 80);
+    playTone(baseFreq, 0.1, 'sine');
+    setTimeout(function() { playTone(baseFreq + 150, 0.1, 'sine'); }, 80);
+    setTimeout(function() { playTone(baseFreq + 300, 0.15, 'triangle'); }, 160);
+    setTimeout(function() { playTone(baseFreq + 450, 0.2, 'sine'); }, 240);
 }
+
 function playTickSound() {
-    playTone(800, 0.03, 'sine');
+    playTone(900, 0.05, 'sine');
 }
 
 // --- HAPTIC FEEDBACK ---

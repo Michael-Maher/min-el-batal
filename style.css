@@ -1989,8 +1989,8 @@ body {
     position: relative;
     width: 100%;
     height: 100%;
-    overflow-y: auto;
-    overflow-x: hidden;
+    display: flex;
+    flex-direction: column;
 }
 .l2-map-top-floating {
     position: sticky;
@@ -2000,10 +2000,18 @@ body {
     backdrop-filter: blur(10px);
     padding: 12px 16px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
 }
 .l2-imgmap-container {
     position: relative;
-    width: 100%;
+    flex: 1;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.l2-imgmap-inner {
+    position: relative;
+    display: inline-block;
+    min-width: 100%;
 }
 .l2-imgmap-loading {
     min-height: 300px;
@@ -2037,12 +2045,12 @@ body {
     from { opacity: 0; }
     to { opacity: 1; }
 }
-/* End of image map loading styles */
-    overflow: hidden;
-}
 .l2-imgmap-bg {
-    width: 100%;
+    /* Map fits to the available height, allowing horizontal scroll */
+    height: calc(100vh - 60px);
+    width: auto;
     display: block;
+    max-width: none;
 }
 /* Character avatar on image map */
 .l2-imgmap-avatar {
@@ -2615,6 +2623,7 @@ body {
 /* ============================================================
    LANDSCAPE MAP MODE
    ============================================================ */
+/* Map screen goes fullscreen */
 .landscape-map-mode #level2-map-screen {
     position: fixed;
     inset: 0;
@@ -2623,62 +2632,51 @@ body {
 }
 .landscape-map-mode #level2-map-screen .l2-map-inner-full {
     height: 100vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
+    height: 100dvh; /* dynamic viewport height for mobile */
 }
 
-/* MOBILE: Force landscape by CSS-rotating the screen 90deg when portrait */
+/* Portrait mobile hint */
 @media (orientation: portrait) and (max-width: 900px) {
-    .landscape-map-mode #level2-map-screen {
-        transform: rotate(90deg);
-        transform-origin: top left;
-        width: 100vh;
-        height: 100vw;
-        position: fixed;
-        top: 0;
-        left: 100vw;
-        overflow-y: auto;
-        overflow-x: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-    .landscape-map-mode #level2-map-screen .l2-map-inner-full {
-        height: 100vw;
-        width: 100vh;
-    }
-    /* Swap touch direction for scrolling */
-    .landscape-map-mode #level2-map-screen .l2-imgmap-container {
-        width: 100%;
+    .landscape-map-mode .l2-imgmap-bg {
+        /* On portrait mobile, fit height to viewport and allow horizontal scroll */
+        height: calc(100vh - 60px);
+        height: calc(100dvh - 60px);
+        width: auto;
     }
 }
 
-/* Landscape hint toast */
-.landscape-map-mode::after {
-    content: '';
-    display: none;
+/* Landscape - image fits nicely */
+@media (orientation: landscape) {
+    .landscape-map-mode .l2-imgmap-bg {
+        height: calc(100vh - 60px);
+        height: calc(100dvh - 60px);
+        width: auto;
+    }
 }
+
+/* Scroll hint for mobile portrait */
 @media (orientation: portrait) and (max-width: 900px) {
-    .landscape-map-mode::after {
-        content: '📱 الخريطة اتقلبت بالعرض تلقائياً';
-        position: fixed;
-        top: 50%;
+    .landscape-map-mode .l2-imgmap-container::after {
+        content: '👆 اسحب يمين وشمال لاستكشاف الخريطة';
+        position: absolute;
+        bottom: 12px;
         left: 50%;
-        transform: translate(-50%, -50%) rotate(90deg);
-        background: var(--primary);
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.7);
         color: #fff;
-        padding: 12px 28px;
-        border-radius: 30px;
-        font-size: 14px;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 12px;
         font-weight: 700;
-        z-index: 100000;
+        z-index: 8;
         white-space: nowrap;
-        animation: hintFadeOut 3s ease-in-out forwards;
-        box-shadow: 0 4px 20px var(--glow-primary);
+        animation: hintFadeOut 4s ease-in-out forwards;
         pointer-events: none;
     }
 }
 @keyframes hintFadeOut {
-    0%, 50% { opacity: 1; }
-    100% { opacity: 0; pointer-events: none; }
+    0%, 60% { opacity: 1; }
+    100% { opacity: 0; }
 }
 @keyframes floatUpDown {
     0%, 100% { transform: translateX(-50%) translateY(0); }

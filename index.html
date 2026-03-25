@@ -277,13 +277,15 @@
             </div>
 
             <div class="l2-imgmap-container" id="l2-imgmap-container">
-                <img src="" class="l2-imgmap-bg" id="l2-imgmap-bg" alt="خريطة المادة">
-                <!-- Character avatar on map -->
-                <div class="l2-imgmap-avatar" id="l2-imgmap-avatar">
-                    <img id="l2-imgmap-avatar-img" src="" alt="avatar">
+                <div class="l2-imgmap-inner">
+                    <img src="" class="l2-imgmap-bg" id="l2-imgmap-bg" alt="خريطة المادة">
+                    <!-- Character avatar on map -->
+                    <div class="l2-imgmap-avatar" id="l2-imgmap-avatar">
+                        <img id="l2-imgmap-avatar-img" src="" alt="avatar">
+                    </div>
+                    <!-- Lesson nodes positioned on map (rendered by JS) -->
+                    <div id="l2-imgmap-nodes"></div>
                 </div>
-                <!-- Lesson nodes positioned on map (rendered by JS) -->
-                <div id="l2-imgmap-nodes"></div>
             </div>
 
             <!-- Fallback: list-based map for subjects without image -->

@@ -9,5 +9,13 @@ service cloud.firestore {
     match /leaderboard/{playerId} {
       allow read, write: if true;
     }
+    // Competition rooms - allow read/write for multiplayer
+    match /compete_rooms/{roomId} {
+      allow read, write: if true;
+    }
+    // Weekly competition rankings
+    match /compete_rankings/{rankId} {
+      allow read, write: if true;
+    }
   }
 }

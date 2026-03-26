@@ -6316,28 +6316,32 @@ function renderCompeteHub() {
     html += '<h4 class="compete-section-title"><i class="fas fa-gamepad"></i> أنواع المسابقات</h4>';
     html += '<div class="compete-modes-grid">';
 
-    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'sparkle\')">';
-    html += '<div class="compete-mode-icon">✨</div>';
+    html += '<div class="compete-mode-card compete-mode-sparkle" onclick="selectCompeteMode(\'sparkle\')">';
+    html += '<div class="compete-mode-icon"><i class="fas fa-star-of-life"></i></div>';
     html += '<h5>سباركل Sparkle</h5>';
     html += '<p>سؤال وجواب سريع - اللي يغلط يطلع!</p>';
+    html += '<div class="compete-mode-badge">20 سؤال · 10 ثواني</div>';
     html += '</div>';
 
-    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'speed\')">';
-    html += '<div class="compete-mode-icon">⚡</div>';
+    html += '<div class="compete-mode-card compete-mode-speed" onclick="selectCompeteMode(\'speed\')">';
+    html += '<div class="compete-mode-icon"><i class="fas fa-bolt"></i></div>';
     html += '<h5>سباق السرعة</h5>';
     html += '<p>أسرع واحد يجاوب صح ياخد أكتر نقط</p>';
+    html += '<div class="compete-mode-badge">15 سؤال · 8 ثواني</div>';
     html += '</div>';
 
-    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'classic\')">';
-    html += '<div class="compete-mode-icon">🏆</div>';
+    html += '<div class="compete-mode-card compete-mode-classic" onclick="selectCompeteMode(\'classic\')">';
+    html += '<div class="compete-mode-icon"><i class="fas fa-trophy"></i></div>';
     html += '<h5>كلاسيك</h5>';
     html += '<p>10 أسئلة - أكتر واحد يجاوب صح يكسب</p>';
+    html += '<div class="compete-mode-badge">10 أسئلة · 15 ثانية</div>';
     html += '</div>';
 
-    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'team\')">';
-    html += '<div class="compete-mode-icon">👥</div>';
+    html += '<div class="compete-mode-card compete-mode-team" onclick="selectCompeteMode(\'team\')">';
+    html += '<div class="compete-mode-icon"><i class="fas fa-users"></i></div>';
     html += '<h5>فريق ضد فريق</h5>';
     html += '<p>اتقسموا فرق وتنافسوا!</p>';
+    html += '<div class="compete-mode-badge">10 أسئلة · فريقين</div>';
     html += '</div>';
 
     html += '</div>';
@@ -6372,10 +6376,50 @@ function generateRoomCode() {
     return String(Math.floor(100000 + Math.random() * 900000));
 }
 
+// --- Select mode & confirm ---
+function selectCompeteMode(mode) {
+    var modeNames = {
+        sparkle: 'سباركل Sparkle ✨',
+        speed: 'سباق السرعة ⚡',
+        classic: 'كلاسيك 🏆',
+        team: 'فريق ضد فريق 👥'
+    };
+    var modeDescs = {
+        sparkle: 'اللي يغلط يطلع! 20 سؤال، 10 ثواني لكل سؤال',
+        speed: 'أسرع واحد ياخد أكتر نقط! 15 سؤال، 8 ثواني بس',
+        classic: '10 أسئلة، 15 ثانية لكل سؤال. أكتر واحد صح يكسب',
+        team: 'اتقسموا فريقين وتنافسوا! 10 أسئلة'
+    };
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal-card compete-mode-confirm">' +
+        '<div class="compete-confirm-icon"><i class="fas fa-gamepad"></i></div>' +
+        '<h3>' + (modeNames[mode] || mode) + '</h3>' +
+        '<p class="compete-confirm-desc">' + (modeDescs[mode] || '') + '</p>' +
+        '<div class="compete-confirm-actions">' +
+        '<button class="btn btn-primary" id="confirm-create-room"><span><i class="fas fa-plus-circle"></i> إنشاء غرفة</span></button>' +
+        '<button class="btn btn-secondary" id="cancel-mode-select"><span>رجوع</span></button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
+
+    document.getElementById('confirm-create-room').onclick = function() {
+        overlay.classList.remove('active');
+        setTimeout(function() { overlay.remove(); }, 300);
+        createCompeteRoom(mode);
+    };
+    document.getElementById('cancel-mode-select').onclick = function() {
+        overlay.classList.remove('active');
+        setTimeout(function() { overlay.remove(); }, 300);
+    };
+}
+
 // --- Create Room ---
 function createCompeteRoom(mode) {
     if (!firebaseDb) {
-        showToast('مفيش اتصال بالإنترنت', 'error');
+        showToast('مفيش اتصال بالسيرفر - تأكد إن الإنترنت شغال وجرب تاني', 'error');
         return;
     }
 
@@ -6441,7 +6485,13 @@ function createCompeteRoom(mode) {
             showToast('تم إنشاء الغرفة! كود: ' + roomCode, 'success');
         })
         .catch(function(err) {
-            showToast('خطأ في إنشاء الغرفة: ' + err.message, 'error');
+            var msg = 'خطأ في إنشاء الغرفة';
+            if (err.message && err.message.indexOf('permission') !== -1) {
+                msg = 'مفيش صلاحيات - محتاج تحدث Firebase Rules. أضف compete_rooms للقواعد';
+            } else if (err.message) {
+                msg += ': ' + err.message;
+            }
+            showToast(msg, 'error');
         });
 }
 
@@ -7103,6 +7153,23 @@ function renderBibleReading() {
         chapter.text = MARK_FULL_TEXT[currentCh];
     }
 
+    // Auto-fetch from API if no text loaded yet
+    if (!chapter.text || chapter.text.length === 0) {
+        if (!chapter._fetching) {
+            chapter._fetching = true;
+            fetch('https://bolls.life/get-chapter/SVD/41/' + currentCh + '/')
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    if (data && Array.isArray(data) && data.length > 0) {
+                        chapter.text = data.map(function(v) { return v.text.replace(/<[^>]*>/g, '').trim(); });
+                        chapter._fetching = false;
+                        renderBibleReading();
+                    }
+                })
+                .catch(function() { chapter._fetching = false; });
+        }
+    }
+
     // Get highlighted verses for this chapter
     if (!GameState.highlightedVerses) GameState.highlightedVerses = {};
     var chHighlights = GameState.highlightedVerses['mark_' + currentCh] || [];
@@ -7262,7 +7329,7 @@ function handleBibleImage(event) {
 }
 
 function fetchMarkChapter(ch) {
-    // Load from embedded MARK_FULL_TEXT (no API needed)
+    // Load from embedded MARK_FULL_TEXT if available
     if (typeof MARK_FULL_TEXT !== 'undefined' && MARK_FULL_TEXT[ch]) {
         var chapter = MARK_CHAPTERS[ch - 1];
         chapter.text = MARK_FULL_TEXT[ch];
@@ -7270,7 +7337,37 @@ function fetchMarkChapter(ch) {
         showToast('تم تحميل الأصحاح! 📖', 'success');
         return;
     }
-    showToast('النص غير متاح حالياً', 'warning');
+
+    // Fallback: fetch from bolls.life free API (no CORS issues)
+    showToast('جاري تحميل الأصحاح...', 'info');
+    fetch('https://bolls.life/get-chapter/SVD/41/' + ch + '/')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data && Array.isArray(data) && data.length > 0) {
+                var chapter = MARK_CHAPTERS[ch - 1];
+                chapter.text = data.map(function(v) { return v.text.replace(/<[^>]*>/g, '').trim(); });
+                renderBibleReading();
+                showToast('تم تحميل الأصحاح! 📖', 'success');
+            } else {
+                showToast('لم يتم العثور على النص', 'warning');
+            }
+        })
+        .catch(function(err) {
+            // Try alternative API
+            fetch('https://bible-api.com/mark+' + ch + '?translation=svd')
+                .then(function(res) { return res.json(); })
+                .then(function(data2) {
+                    if (data2 && data2.verses) {
+                        var chapter = MARK_CHAPTERS[ch - 1];
+                        chapter.text = data2.verses.map(function(v) { return v.text.trim(); });
+                        renderBibleReading();
+                        showToast('تم تحميل الأصحاح! 📖', 'success');
+                    }
+                })
+                .catch(function() {
+                    showToast('خطأ في التحميل - تأكد من الاتصال بالإنترنت', 'error');
+                });
+        });
 }
 
 function completeBibleReading() {

@@ -22,6 +22,8 @@ let firebaseDb = null;
 const GameState = {
     playerName: '',
     playerPhone: '',
+    username: '',
+    email: '',
     academicYear: '',
     character: 'david',
     currentLevel: 1,
@@ -82,21 +84,144 @@ function initFirebase() {
     }
 }
 
-// --- Registration & Login ---
-function submitRegister() {
-    var name = document.getElementById('player-name').value.trim();
-    var year = document.getElementById('player-year').value;
-    var phone = document.getElementById('player-phone').value.trim();
+// --- Auth UI Switching ---
+function showLoginView() {
+    document.getElementById('login-view').style.display = '';
+    document.getElementById('register-view').style.display = 'none';
+}
+function showRegisterView() {
+    document.getElementById('login-view').style.display = 'none';
+    document.getElementById('register-view').style.display = '';
+}
+function togglePasswordVisibility(fieldId, btn) {
+    var field = document.getElementById(fieldId);
+    if (!field) return;
+    if (field.type === 'password') {
+        field.type = 'text';
+        btn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+    } else {
+        field.type = 'password';
+        btn.innerHTML = '<i class="fas fa-eye"></i>';
+    }
+}
+
+// --- Password Hashing (SHA-256) ---
+function hashPassword(password) {
+    // Simple hash for non-critical auth (church education game)
+    var hash = 0;
+    for (var i = 0; i < password.length; i++) {
+        var c = password.charCodeAt(i);
+        hash = ((hash << 5) - hash) + c;
+        hash |= 0; // Convert to 32bit integer
+    }
+    // Double-hash with salt for basic security
+    var salted = 'minElBatal_' + password + '_' + hash;
+    var hash2 = 0;
+    for (var j = 0; j < salted.length; j++) {
+        var c2 = salted.charCodeAt(j);
+        hash2 = ((hash2 << 5) - hash2) + c2;
+        hash2 |= 0;
+    }
+    return 'h_' + Math.abs(hash).toString(36) + '_' + Math.abs(hash2).toString(36);
+}
+
+// --- Login ---
+function submitLogin() {
+    var usernameOrEmail = document.getElementById('login-username').value.trim().toLowerCase();
+    var password = document.getElementById('login-password').value;
     var rememberMe = document.getElementById('remember-me').checked;
 
+    if (!usernameOrEmail) { showToast('اكتب اسم المستخدم أو الإيميل', 'error'); return; }
+    if (!password) { showToast('اكتب كلمة السر', 'error'); return; }
+
+    var btn = document.getElementById('btn-login');
+    btn.disabled = true;
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري الدخول...</span>';
+
+    if (!firebaseDb) {
+        showToast('مفيش اتصال بالسيرفر، حاول تاني', 'error');
+        resetLoginBtn(btn);
+        return;
+    }
+
+    var hashedPw = hashPassword(password);
+
+    // Determine if input is email or username
+    var fieldName = usernameOrEmail.indexOf('@') >= 0 ? 'email' : 'username';
+
+    firebaseDb.collection('players').where(fieldName, '==', usernameOrEmail).get()
+        .then(function(snapshot) {
+            if (snapshot.empty) {
+                showToast(fieldName === 'email' ? 'الإيميل ده مش مسجل' : 'اسم المستخدم ده مش مسجل', 'error');
+                resetLoginBtn(btn);
+                return;
+            }
+            var doc = snapshot.docs[0];
+            var existingData = doc.data();
+
+            // Check password
+            if (existingData.passwordHash !== hashedPw) {
+                showToast('كلمة السر غلط', 'error');
+                resetLoginBtn(btn);
+                return;
+            }
+
+            // Login success — load all data
+            Object.keys(existingData).forEach(function(key) {
+                if (key in GameState && key !== 'lastUpdated') {
+                    GameState[key] = existingData[key];
+                }
+            });
+            // Also restore fields not in GameState template
+            GameState.username = existingData.username || '';
+            GameState.email = existingData.email || '';
+
+            handleRememberMe(rememberMe, GameState.playerPhone);
+            showToast('أهلاً بيك يا ' + GameState.playerName.split(' ')[0] + '!', 'success');
+            showScreen('home-hub-screen');
+            syncLeaderboard();
+            requestNotificationsAfterLogin();
+            checkPendingRoomJoin();
+        })
+        .catch(function(err) {
+            console.error('Login error:', err);
+            showToast('حصل مشكلة، حاول تاني', 'error');
+            resetLoginBtn(btn);
+        });
+}
+
+function resetLoginBtn(btn) {
+    if (!btn) btn = document.getElementById('btn-login');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>دخول <i class="fas fa-arrow-left"></i></span>';
+    }
+}
+
+// --- Registration ---
+function submitRegister() {
+    var name = document.getElementById('player-name').value.trim();
+    var username = document.getElementById('player-username').value.trim().toLowerCase();
+    var email = document.getElementById('player-email').value.trim().toLowerCase();
+    var phone = document.getElementById('player-phone').value.trim();
+    var year = document.getElementById('player-year').value;
+    var password = document.getElementById('player-password').value;
+    var passwordConfirm = document.getElementById('player-password-confirm').value;
+
     // Validate inputs
-    if (!name || name.length < 2) { showToast('اكتب اسمك يا بطل (حرفين على الأقل)', 'error'); return; }
-    if (!year) { showToast('اختار السنة الدراسية', 'error'); return; }
+    var nameParts = name.split(/\s+/).filter(function(p) { return p.length > 0; });
+    if (nameParts.length < 3) { showToast('اكتب الاسم الثلاثي (٣ كلمات)', 'error'); return; }
+    if (!username || username.length < 3) { showToast('اسم المستخدم لازم ٣ حروف على الأقل', 'error'); return; }
+    if (!/^[a-z0-9_.-]+$/.test(username)) { showToast('اسم المستخدم بالإنجليزي بس (حروف، أرقام، _ أو .)', 'error'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('اكتب إيميل صحيح', 'error'); return; }
     if (!phone || !/^01\d{9}$/.test(phone)) { showToast('اكتب رقم تليفون صحيح (01xxxxxxxxx)', 'error'); return; }
+    if (!year) { showToast('اختار السنة الدراسية', 'error'); return; }
+    if (!password || password.length < 6) { showToast('كلمة السر لازم ٦ حروف على الأقل', 'error'); return; }
+    if (password !== passwordConfirm) { showToast('كلمة السر مش متطابقة', 'error'); return; }
 
     var btn = document.getElementById('btn-register');
     btn.disabled = true;
-    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري التحقق...</span>';
+    btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري التسجيل...</span>';
 
     if (!firebaseDb) {
         showToast('مفيش اتصال بالسيرفر، حاول تاني', 'error');
@@ -104,71 +229,73 @@ function submitRegister() {
         return;
     }
 
-    // Step 1: Check if phone already exists
-    firebaseDb.collection('players').where('playerPhone', '==', phone).get()
-        .then(function(phoneSnapshot) {
-            if (!phoneSnapshot.empty) {
-                // Phone exists — this is a login attempt
-                var existingData = phoneSnapshot.docs[0].data();
-                if (existingData.playerName !== name) {
-                    showToast('الرقم ده مسجل باسم تاني', 'error');
-                    resetRegisterBtn(btn);
-                    return;
-                }
-                // Name matches — login successfully
-                Object.keys(existingData).forEach(function(key) {
-                    if (key in GameState && key !== 'lastUpdated') {
-                        GameState[key] = existingData[key];
-                    }
-                });
-                GameState.playerName = name;
-                GameState.playerPhone = phone;
-                GameState.academicYear = existingData.academicYear || year;
-                handleRememberMe(rememberMe, phone);
-                showToast('أهلاً بيك تاني يا بطل!', 'success');
-                showScreen('home-hub-screen');
-                syncLeaderboard();
-                requestNotificationsAfterLogin();
-                checkPendingRoomJoin();
-                return;
-            }
+    var hashedPw = hashPassword(password);
 
-            // Step 2: Phone doesn't exist — check if name is unique
-            firebaseDb.collection('players').where('playerName', '==', name).get()
-                .then(function(nameSnapshot) {
-                    if (!nameSnapshot.empty) {
-                        showToast('الاسم ده مستخدم قبل كده، اختار اسم تاني', 'error');
-                        resetRegisterBtn(btn);
-                        return;
-                    }
-
-                    // Step 3: Both unique — new registration
-                    GameState.playerName = name;
-                    GameState.playerPhone = phone;
-                    GameState.academicYear = year;
-                    handleRememberMe(rememberMe, phone);
-                    saveToCloud();
-                    showToast('تم التسجيل بنجاح!', 'success');
-                    showScreen('character-screen');
-                    requestNotificationsAfterLogin();
-                })
-                .catch(function(err) {
-                    console.error('Name check error:', err);
-                    showToast('حصل مشكلة، حاول تاني', 'error');
-                    resetRegisterBtn(btn);
-                });
-        })
-        .catch(function(err) {
-            console.error('Phone check error:', err);
-            showToast('حصل مشكلة، حاول تاني', 'error');
+    // Check uniqueness: username, email, phone
+    Promise.all([
+        firebaseDb.collection('players').where('username', '==', username).get(),
+        firebaseDb.collection('players').where('email', '==', email).get(),
+        firebaseDb.collection('players').where('playerPhone', '==', phone).get()
+    ]).then(function(results) {
+        if (!results[0].empty) {
+            showToast('اسم المستخدم ده مستخدم قبل كده', 'error');
             resetRegisterBtn(btn);
+            return;
+        }
+        if (!results[1].empty) {
+            showToast('الإيميل ده مسجل قبل كده', 'error');
+            resetRegisterBtn(btn);
+            return;
+        }
+        if (!results[2].empty) {
+            showToast('رقم التليفون ده مسجل قبل كده', 'error');
+            resetRegisterBtn(btn);
+            return;
+        }
+
+        // All unique — create new account
+        GameState.playerName = name;
+        GameState.playerPhone = phone;
+        GameState.academicYear = year;
+        GameState.username = username;
+        GameState.email = email;
+
+        // Save with password hash
+        var saveData = {};
+        Object.keys(GameState).forEach(function(key) {
+            saveData[key] = GameState[key];
         });
+        saveData.passwordHash = hashedPw;
+        saveData.username = username;
+        saveData.email = email;
+        saveData.createdAt = new Date().toISOString();
+        saveData.lastUpdated = new Date().toISOString();
+
+        firebaseDb.collection('players').doc(phone).set(saveData)
+            .then(function() {
+                handleRememberMe(true, phone);
+                showToast('تم التسجيل بنجاح! 🎉', 'success');
+                showScreen('character-screen');
+                requestNotificationsAfterLogin();
+            })
+            .catch(function(err) {
+                console.error('Registration save error:', err);
+                showToast('حصل مشكلة، حاول تاني', 'error');
+                resetRegisterBtn(btn);
+            });
+    }).catch(function(err) {
+        console.error('Registration check error:', err);
+        showToast('حصل مشكلة، حاول تاني', 'error');
+        resetRegisterBtn(btn);
+    });
 }
 
 function resetRegisterBtn(btn) {
     if (!btn) btn = document.getElementById('btn-register');
-    btn.disabled = false;
-    btn.innerHTML = '<span>يلا نبدأ <i class="fas fa-arrow-left"></i></span>';
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>سجّل حساب جديد <i class="fas fa-user-plus"></i></span>';
+    }
 }
 
 function handleRememberMe(rememberMe, phone) {
@@ -185,6 +312,8 @@ function saveToCloud() {
     const data = {
         playerName: GameState.playerName,
         playerPhone: GameState.playerPhone,
+        username: GameState.username || '',
+        email: GameState.email || '',
         academicYear: GameState.academicYear,
         character: GameState.character,
         currentLevel: GameState.currentLevel,
@@ -3694,6 +3823,8 @@ function confetti() {
 function logout() {
     GameState.playerName = '';
     GameState.playerPhone = '';
+    GameState.username = '';
+    GameState.email = '';
     GameState.academicYear = '';
     GameState.character = 'david';
     GameState.currentLevel = 1;
@@ -3717,14 +3848,13 @@ function logout() {
     GameState.lampData = { points: 0, streakDays: 0, lastActiveDate: '', dailyLog: {} };
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
-    // Reset login form
-    var nameInput = document.getElementById('player-name');
-    var phoneInput = document.getElementById('player-phone');
+    // Reset login form fields
+    var fields = ['login-username', 'login-password', 'player-name', 'player-username', 'player-email', 'player-phone', 'player-password', 'player-password-confirm'];
+    fields.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
     var yearSelect = document.getElementById('player-year');
-    if (nameInput) nameInput.value = '';
-    if (phoneInput) phoneInput.value = '';
     if (yearSelect) yearSelect.selectedIndex = 0;
-    resetRegisterBtn();
+    // Show login view (not register)
+    showLoginView();
     showScreen('splash-screen');
     showToast('تم تسجيل الخروج');
 }
@@ -5668,9 +5798,15 @@ function renderLevel2Lesson() {
         if (level2State.timerInterval) clearInterval(level2State.timerInterval);
         // Stop any mini-game timer
         if (miniGameState.timer) { clearInterval(miniGameState.timer); miniGameState.timer = null; }
-        // If in a mini-game, go back to learn tab
+        // If in a mini-game, go back to games tab
         if (miniGameState.type) {
             miniGameState.type = null;
+            level2State.currentStage = 'games';
+            renderLevel2Lesson();
+            return;
+        }
+        // If on games tab, go back to learn
+        if (level2State.currentStage === 'games') {
             level2State.currentStage = 'learn';
             renderLevel2Lesson();
             return;
@@ -5694,6 +5830,8 @@ function renderLevel2Lesson() {
 
     if (level2State.currentStage === 'learn') {
         renderLevel2Learn(body, lesson, subject);
+    } else if (level2State.currentStage === 'games') {
+        renderLevel2Games(body, lesson, subject);
     } else if (level2State.currentStage === 'quiz') {
         renderLevel2Quiz(body, lesson, subject);
     } else if (level2State.currentStage === 'result') {
@@ -5703,6 +5841,7 @@ function renderLevel2Lesson() {
     // Stage label
     var stageLabel = document.getElementById('l2-lesson-stage-label');
     if (level2State.currentStage === 'learn') stageLabel.textContent = '📚 تعلّم';
+    else if (level2State.currentStage === 'games') stageLabel.textContent = '🎮 ألعاب';
     else if (level2State.currentStage === 'quiz') stageLabel.textContent = '❓ اختبار';
     else stageLabel.textContent = '🏆 النتيجة';
 }
@@ -5714,11 +5853,10 @@ function renderLevel2Learn(container, lesson, subject) {
     var summaryKey = subKey + '_' + lessonIdx;
     var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
 
-    // Tabs: تعلّم + تلخيص + اختبار + نتيجة
+    // Tabs: تعلّم + ألعاب + النتيجة
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab active"><i class="fas fa-book-open"></i> تعلّم</button>' +
-        '<button class="l2-stage-tab ' + (hasSummary ? 'completed' : '') + '" onclick="' + (hasSummary ? '' : 'showLessonSummaryTab()') + '"><i class="fas ' + (hasSummary ? 'fa-check' : 'fa-pen') + '"></i> تلخيص</button>' +
-        '<button class="l2-stage-tab"><i class="fas fa-question-circle"></i> اختبار</button>' +
+        '<button class="l2-stage-tab' + (hasSummary ? '' : ' locked') + '" onclick="' + (hasSummary ? 'goToGamesTab()' : '') + '"><i class="fas fa-gamepad"></i> ألعاب</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
@@ -5800,23 +5938,50 @@ function renderLevel2Learn(container, lesson, subject) {
         if (savedSummary.image) html += '<img src="' + savedSummary.image + '" class="l2-summary-saved-img">';
         html += '</div>';
 
-        // Mini-games + challenge section (replaces old quiz button)
-        html += renderMiniGamesSection();
+        // Button to go to games/quiz tab
+        html += '<button class="btn btn-primary" onclick="goToGamesTab()" style="width:100%;margin-top:16px;">' +
+            '<span><i class="fas fa-gamepad"></i> يلا نلعب ونتحدى! 🎮</span></button>';
+    }
 
-        // Show weekly exam button if practiced
-        var lessonPracticed = GameState.level2Data && GameState.level2Data[subKey] &&
-            GameState.level2Data[subKey]['lesson_' + lessonIdx] &&
-            GameState.level2Data[subKey]['lesson_' + lessonIdx].stars > 0;
-        var examTaken = GameState.level2Data && GameState.level2Data[subKey] &&
-            GameState.level2Data[subKey]['exam_' + lessonIdx];
+    container.innerHTML = html;
+}
 
-        if (lessonPracticed && !examTaken) {
-            html += '<button class="btn btn-exam" onclick="startLevel2Exam(' + lessonIdx + ')" style="width:100%;margin-top:10px;">' +
-                '<span><i class="fas fa-scroll"></i> المسابقة الأسبوعية (مرة واحدة)</span></button>';
-        } else if (examTaken) {
-            var examData = GameState.level2Data[subKey]['exam_' + lessonIdx];
-            html += '<div class="exam-taken-badge"><i class="fas fa-check-circle"></i> المسابقة الأسبوعية: ' + examData.stars + '/30 ⭐</div>';
-        }
+// Switch to the games tab
+function goToGamesTab() {
+    level2State.currentStage = 'games';
+    renderLevel2Lesson();
+}
+
+// --- Games Stage (replaces quiz as the main play tab) ---
+function renderLevel2Games(container, lesson, subject) {
+    var subKey = level2State.currentSubject;
+    var lessonIdx = level2State.currentLesson;
+    var summaryKey = subKey + '_' + lessonIdx;
+    var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
+
+    // Tabs
+    var html = '<div class="l2-stage-tabs">' +
+        '<button class="l2-stage-tab completed" onclick="level2State.currentStage=\'learn\';renderLevel2Lesson()"><i class="fas fa-check"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab active"><i class="fas fa-gamepad"></i> ألعاب</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
+        '</div>';
+
+    // Mini-games section
+    html += renderMiniGamesSection();
+
+    // Weekly exam button
+    var lessonPracticed = GameState.level2Data && GameState.level2Data[subKey] &&
+        GameState.level2Data[subKey]['lesson_' + lessonIdx] &&
+        GameState.level2Data[subKey]['lesson_' + lessonIdx].stars > 0;
+    var examTaken = GameState.level2Data && GameState.level2Data[subKey] &&
+        GameState.level2Data[subKey]['exam_' + lessonIdx];
+
+    if (lessonPracticed && !examTaken) {
+        html += '<button class="btn btn-exam" onclick="startLevel2Exam(' + lessonIdx + ')" style="width:100%;margin-top:10px;">' +
+            '<span><i class="fas fa-scroll"></i> المسابقة الأسبوعية (مرة واحدة)</span></button>';
+    } else if (examTaken) {
+        var examData = GameState.level2Data[subKey]['exam_' + lessonIdx];
+        html += '<div class="exam-taken-badge"><i class="fas fa-check-circle"></i> المسابقة الأسبوعية: ' + examData.stars + '/30 ⭐</div>';
     }
 
     container.innerHTML = html;
@@ -6307,6 +6472,7 @@ function saveMiniGameScore(type, score) {
 
 // ========== START MINI GAME ==========
 function startMiniGame(type) {
+    if (type === 'mixedChallenge') { startMixedChallenge(); return; }
     var games = getMiniGamesForLesson();
     if (!games || !games[type]) return;
 
@@ -6362,8 +6528,9 @@ function showMiniGameResult(title) {
     html += '<div class="mg-result-score">' + miniGameState.score + ' / ' + miniGameState.total + '</div>';
     html += '<div class="mg-result-stars">حصلت على ' + stars + ' ⭐</div>';
     html += '<div class="mg-result-btns">';
-    html += '<button class="btn btn-primary" onclick="startMiniGame(\'' + miniGameState.type + '\')"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
-    html += '<button class="btn btn-secondary" onclick="renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i></span></button>';
+    var replayType = miniGameState.type;
+    html += '<button class="btn btn-primary" onclick="startMiniGame(\'' + replayType + '\')"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
+    html += '<button class="btn btn-secondary" onclick="miniGameState.type=null;level2State.currentStage=\'games\';renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i></span></button>';
     html += '</div></div>';
 
     var body = document.getElementById('mg-body');
@@ -6880,7 +7047,7 @@ function showLessonSummaryTab() {
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab completed" onclick="level2State.currentStage=\'learn\'; renderLevel2Lesson()"><i class="fas fa-check"></i> تعلّم</button>' +
         '<button class="l2-stage-tab active"><i class="fas fa-pen"></i> تلخيص</button>' +
-        '<button class="l2-stage-tab"><i class="fas fa-question-circle"></i> اختبار</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-gamepad"></i> ألعاب</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
@@ -7114,6 +7281,7 @@ function renderLevel2Quiz(container, lesson, subject) {
     // Progress tabs
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> ألعاب</button>' +
         '<button class="l2-stage-tab active"><i class="fas fa-question-circle"></i> اختبار</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
@@ -7405,7 +7573,7 @@ function renderLevel2Result(container, lesson, subject) {
 
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> تعلّم</button>' +
-        '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> اختبار</button>' +
+        '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> ألعاب</button>' +
         '<button class="l2-stage-tab active"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
@@ -8992,7 +9160,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rememberedPhone && firebaseDb) {
         // Show loading state
         showScreen('login-screen');
-        var btn = document.getElementById('btn-register');
+        var btn = document.getElementById('btn-login');
         if (btn) {
             btn.disabled = true;
             btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> جاري تسجيل الدخول...</span>';
@@ -9000,17 +9168,20 @@ document.addEventListener('DOMContentLoaded', function() {
 
         loadFromCloud(rememberedPhone).then(function(data) {
             if (data && data.playerName) {
-                showToast('أهلاً بيك يا ' + GameState.playerName + '!', 'success');
+                // Restore username/email from cloud
+                GameState.username = data.username || '';
+                GameState.email = data.email || '';
+                showToast('أهلاً بيك يا ' + GameState.playerName.split(' ')[0] + '!', 'success');
                 showScreen('home-hub-screen');
                 syncLeaderboard();
             } else {
                 // No cloud data found for this phone, clear remember
                 localStorage.removeItem('minElBatal_remember');
-                resetRegisterBtn(btn);
+                resetLoginBtn(btn);
                 showScreen('splash-screen');
             }
         }).catch(function() {
-            resetRegisterBtn(btn);
+            resetLoginBtn(btn);
             showScreen('splash-screen');
         });
     } else {

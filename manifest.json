@@ -2,9 +2,13 @@
   "name": "مين البطل - اتبعني",
   "short_name": "مين البطل",
   "description": "لعبة تعليم مسيحي لخدمة إعدادي أولاد - كنيسة الشهيدة رفقة بالعمرانية",
-  "start_url": "/index.html",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "dir": "rtl",
   "lang": "ar",
   "theme_color": "#041C32",

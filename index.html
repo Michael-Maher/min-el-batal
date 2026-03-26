@@ -64,36 +64,78 @@
             <div class="login-icon">
                 <img src="images/Logo-opt.png" alt="شعار مدرسة اتبعني" class="church-logo login-logo">
             </div>
-            <h2>تسجيل الدخول</h2>
-            <p class="card-subtitle">سجّل عشان نحفظ تقدمك يا بطل</p>
 
-            <input type="text" id="player-name" class="input-field" placeholder="اسمك إيه؟ (لازم يكون مميز)" maxlength="20" autocomplete="off">
+            <!-- LOGIN VIEW (default) -->
+            <div id="login-view">
+                <h2>تسجيل الدخول</h2>
+                <p class="card-subtitle">سجّل دخولك عشان تكمّل رحلتك يا بطل</p>
 
-            <select id="player-year" class="input-field select-field">
-                <option value="" disabled selected>اختار السنة الدراسية</option>
-                <option value="prep1">أولى إعدادي</option>
-                <option value="prep2">تانية إعدادي</option>
-                <option value="prep3">تالتة إعدادي</option>
-            </select>
+                <input type="text" id="login-username" class="input-field" placeholder="اسم المستخدم أو الإيميل" autocomplete="username" dir="ltr">
 
-            <input type="tel" id="player-phone" class="input-field" placeholder="رقم التليفون (01xxxxxxxxx)" maxlength="11" autocomplete="off" dir="ltr">
+                <div class="password-field-wrap">
+                    <input type="password" id="login-password" class="input-field" placeholder="كلمة السر" autocomplete="current-password" dir="ltr">
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password', this)"><i class="fas fa-eye"></i></button>
+                </div>
 
-            <label class="remember-me-label">
-                <input type="checkbox" id="remember-me" checked>
-                <span class="remember-me-check"><i class="fas fa-check"></i></span>
-                <span>فكّرني (تسجيل دخول تلقائي)</span>
-            </label>
+                <label class="remember-me-label">
+                    <input type="checkbox" id="remember-me" checked>
+                    <span class="remember-me-check"><i class="fas fa-check"></i></span>
+                    <span>فكّرني (تسجيل دخول تلقائي)</span>
+                </label>
 
-            <div class="login-church-note">
-                <span>⛪</span>
-                <span>كنيسة الشهيدة رفقة - إعدادي أولاد</span>
+                <button class="btn btn-primary" id="btn-login" onclick="submitLogin()">
+                    <span>دخول <i class="fas fa-arrow-left"></i></span>
+                </button>
+
+                <div class="login-church-note">
+                    <span>⛪</span>
+                    <span>كنيسة الشهيدة رفقة - إعدادي أولاد</span>
+                </div>
+
+                <p class="login-switch-text">مش مسجّل قبل كده؟ <a href="#" onclick="showRegisterView(); return false;" class="login-switch-link">سجّل حساب جديد</a></p>
             </div>
 
-            <button class="btn btn-primary" id="btn-register" onclick="submitRegister()">
-                <span>يلا نبدأ <i class="fas fa-arrow-left"></i></span>
-            </button>
+            <!-- REGISTER VIEW -->
+            <div id="register-view" style="display:none;">
+                <h2>حساب جديد</h2>
+                <p class="card-subtitle">سجّل عشان نحفظ تقدمك يا بطل</p>
 
-            <p class="login-hint"><i class="fas fa-cloud"></i> تقدمك محفوظ على السحابة - لو سجّلت قبل كده هنحمّل تقدمك تلقائي</p>
+                <input type="text" id="player-name" class="input-field" placeholder="الاسم الثلاثي" maxlength="50" autocomplete="name">
+
+                <input type="text" id="player-username" class="input-field" placeholder="اسم المستخدم (بالإنجليزي)" maxlength="20" autocomplete="username" dir="ltr">
+
+                <input type="email" id="player-email" class="input-field" placeholder="الإيميل" autocomplete="email" dir="ltr">
+
+                <input type="tel" id="player-phone" class="input-field" placeholder="رقم التليفون (01xxxxxxxxx)" maxlength="11" autocomplete="tel" dir="ltr">
+
+                <select id="player-year" class="input-field select-field">
+                    <option value="" disabled selected>اختار السنة الدراسية</option>
+                    <option value="prep1">أولى إعدادي</option>
+                    <option value="prep2">تانية إعدادي</option>
+                    <option value="prep3">تالتة إعدادي</option>
+                </select>
+
+                <div class="password-field-wrap">
+                    <input type="password" id="player-password" class="input-field" placeholder="كلمة السر (٦ حروف على الأقل)" autocomplete="new-password" dir="ltr">
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('player-password', this)"><i class="fas fa-eye"></i></button>
+                </div>
+
+                <div class="password-field-wrap">
+                    <input type="password" id="player-password-confirm" class="input-field" placeholder="تأكيد كلمة السر" autocomplete="new-password" dir="ltr">
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('player-password-confirm', this)"><i class="fas fa-eye"></i></button>
+                </div>
+
+                <div class="login-church-note">
+                    <span>⛪</span>
+                    <span>كنيسة الشهيدة رفقة - إعدادي أولاد</span>
+                </div>
+
+                <button class="btn btn-primary" id="btn-register" onclick="submitRegister()">
+                    <span>سجّل حساب جديد <i class="fas fa-user-plus"></i></span>
+                </button>
+
+                <p class="login-switch-text">عندك حساب؟ <a href="#" onclick="showLoginView(); return false;" class="login-switch-link">سجّل دخول</a></p>
+            </div>
         </div>
     </div>
 

@@ -189,6 +189,15 @@ body {
 .remember-me-label input[type="checkbox"]:checked + .remember-me-check { background: var(--primary); border-color: var(--primary); color: white; }
 .remember-me-label:hover .remember-me-check { border-color: var(--primary); }
 
+/* Password field & auth toggle */
+.password-field-wrap { position: relative; width: 100%; }
+.password-field-wrap .input-field { padding-left: 44px; }
+.password-toggle { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--text-muted); font-size: 16px; cursor: pointer; padding: 6px; z-index: 2; }
+.password-toggle:hover { color: var(--primary); }
+.login-switch-text { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 12px; }
+.login-switch-link { color: var(--primary); text-decoration: none; font-weight: 700; }
+.login-switch-link:hover { text-decoration: underline; }
+
 /* ============ BUTTONS ============ */
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 36px; border: none; border-radius: var(--radius-full); font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 700; cursor: pointer; transition: var(--transition); position: relative; overflow: hidden; }
 .btn-primary { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; box-shadow: 0 4px 20px var(--glow-primary); }
@@ -2432,6 +2441,11 @@ body {
 }
 .l2-stage-tab.completed {
     color: var(--success);
+}
+.l2-stage-tab.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
 }
 .l2-stage-tab i {
     font-size: 16px;

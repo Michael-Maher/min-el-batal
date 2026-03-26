@@ -5164,7 +5164,7 @@ body {
     gap: 6px;
     min-width: 44px;
     height: 44px;
-    padding: 0 14px;
+    padding: 0 12px;
     border-radius: 22px;
     border: 1.5px solid rgba(255,255,255,0.2);
     background: rgba(255,255,255,0.12);
@@ -5180,9 +5180,7 @@ body {
     white-space: nowrap;
 }
 .back-btn::before {
-    content: 'رجوع';
-    font-size: 13px;
-    font-weight: 700;
+    content: '';
 }
 .back-btn:hover {
     background: rgba(108, 92, 231, 0.4);

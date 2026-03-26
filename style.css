@@ -2352,6 +2352,7 @@ body {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 16px;
+    padding: 10px 0;
     gap: 8px;
 }
 .l2-lesson-top-bar h2 {
@@ -5160,26 +5161,50 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 44px;
+    gap: 6px;
+    min-width: 44px;
     height: 44px;
-    border-radius: 14px;
-    border: none;
-    background: rgba(255,255,255,0.1);
+    padding: 0 14px;
+    border-radius: 22px;
+    border: 1.5px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.12);
     color: #fff;
-    font-size: 18px;
+    font-size: 15px;
+    font-weight: 700;
+    font-family: 'Cairo', sans-serif;
     cursor: pointer;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    transition: all 0.25s ease;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     flex-shrink: 0;
+    white-space: nowrap;
+}
+.back-btn::before {
+    content: 'رجوع';
+    font-size: 13px;
+    font-weight: 700;
 }
 .back-btn:hover {
-    background: rgba(108, 92, 231, 0.3);
-    transform: scale(1.05);
+    background: rgba(108, 92, 231, 0.4);
+    border-color: rgba(108, 92, 231, 0.6);
+    transform: translateX(3px);
 }
 .back-btn:active {
     transform: scale(0.95);
-    background: rgba(108, 92, 231, 0.5);
+    background: rgba(108, 92, 231, 0.6);
+}
+
+/* Sticky top bar for Bible reading and lesson screens */
+.top-bar-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--bg-dark);
+    padding-bottom: 8px;
+    margin-bottom: 0;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
 }
 
 /* ==================== */
@@ -6609,3 +6634,87 @@ body {
 .notif-toggle input:checked + .notif-toggle-slider::before {
     transform: translateX(22px);
 }
+
+/* ============================================
+   Locked Subject Cards
+   ============================================ */
+.l2-subject-locked {
+    opacity: 0.55;
+    cursor: not-allowed;
+    position: relative;
+}
+.l2-subject-locked::after {
+    content: 'قريباً';
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--gold);
+    color: #000;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-family: 'Cairo', sans-serif;
+}
+.l2-subject-locked:hover {
+    transform: none !important;
+    box-shadow: none !important;
+}
+.l2-subject-locked .l2-subject-arrow {
+    color: var(--text-muted);
+}
+
+/* ============================================
+   YouTube Video Section in Lessons
+   ============================================ */
+.l2-video-section {
+    margin: 16px 0;
+    background: rgba(0,0,0,0.2);
+    border-radius: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+}
+.l2-video-label {
+    color: var(--text-primary);
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.l2-video-label i { color: #FF0000; font-size: 16px; }
+.l2-video-wrap { border-radius: 12px; overflow: hidden; }
+.l2-video-done-btn {
+    background: linear-gradient(135deg, #00B894, #00CEC9) !important;
+}
+.l2-video-watched-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    background: rgba(0,184,148,0.15);
+    border: 1px solid rgba(0,184,148,0.4);
+    border-radius: 12px;
+    color: #00B894;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+/* ============================================
+   Light Theme — ensure text clarity
+   ============================================ */
+[data-theme="light"] .l2-video-section { background: rgba(0,0,0,0.05); }
+[data-theme="light"] .l2-learn-points li { color: var(--text-primary); }
+[data-theme="light"] .compete-mode-card { background: rgba(0,0,0,0.04); }
+[data-theme="light"] .compete-option { color: #fff; }
+[data-theme="light"] .hub-section-title { color: var(--text-primary); }
+[data-theme="light"] .hub-card { background: var(--bg-card); }
+[data-theme="light"] .l2-subject-card { background: var(--bg-card); }
+[data-theme="light"] .modal-card { background: var(--bg-card); }
+[data-theme="light"] .l2-learn-verse { background: rgba(108,92,231,0.08); color: var(--text-primary); }
+
+/* Orthodox theme — ensure text clarity */
+[data-theme="orthodox"] .compete-option { color: #fff; }
+[data-theme="orthodox"] .l2-learn-verse { color: var(--text-primary); }

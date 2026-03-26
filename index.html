@@ -250,7 +250,7 @@
     <!-- ============ BIBLE READING SCREEN (Mark's Gospel) ============ -->
     <div id="bible-reading-screen" class="screen">
         <div class="screen-inner">
-            <div class="top-bar">
+            <div class="top-bar top-bar-sticky">
                 <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
                 <h2><i class="fas fa-book-bible"></i> إنجيل مار مرقس</h2>
             </div>
@@ -294,7 +294,7 @@
             </div>
 
             <div class="l2-hero-banner">
-                <img src="images/level2-bg.png" alt="مدرسة أتبعني للتلمذة" class="l2-hero-img">
+                <img src="images/level2-bg-opt.jpg" alt="مدرسة أتبعني للتلمذة" class="l2-hero-img">
                 <div class="l2-hero-overlay">
                     <h3>مدرسة أتبعني للتلمذة</h3>
                     <p>4 مواد × 6 دروس = رحلة تلمذة كاملة</p>
@@ -316,8 +316,8 @@
                     <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
                 </div>
 
-                <!-- Subject 2: Spirit & Life -->
-                <div class="l2-subject-card l2-subject-bible" onclick="openLevel2Subject('bible')">
+                <!-- Subject 2: Spirit & Life (LOCKED) -->
+                <div class="l2-subject-card l2-subject-bible l2-subject-locked" onclick="showToast('قريباً يتفتح هذا القسم! 🔒', 'info')">
                     <div class="l2-subject-icon">📖</div>
                     <div class="l2-subject-info">
                         <h4>روح وحياة</h4>
@@ -327,11 +327,11 @@
                             <span class="l2-progress-text" id="l2-progress-bible-text">0/6</span>
                         </div>
                     </div>
-                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                    <div class="l2-subject-arrow"><i class="fas fa-lock"></i></div>
                 </div>
 
-                <!-- Subject 3: Generation of Change -->
-                <div class="l2-subject-card l2-subject-life" onclick="openLevel2Subject('life')">
+                <!-- Subject 3: Generation of Change (LOCKED) -->
+                <div class="l2-subject-card l2-subject-life l2-subject-locked" onclick="showToast('قريباً يتفتح هذا القسم! 🔒', 'info')">
                     <div class="l2-subject-icon">🌟</div>
                     <div class="l2-subject-info">
                         <h4>جيل يصنع التغيير</h4>
@@ -341,11 +341,11 @@
                             <span class="l2-progress-text" id="l2-progress-life-text">0/6</span>
                         </div>
                     </div>
-                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                    <div class="l2-subject-arrow"><i class="fas fa-lock"></i></div>
                 </div>
 
-                <!-- Subject 4: Movement & Meaning -->
-                <div class="l2-subject-card l2-subject-ritual" onclick="openLevel2Subject('ritual')">
+                <!-- Subject 4: Movement & Meaning (LOCKED) -->
+                <div class="l2-subject-card l2-subject-ritual l2-subject-locked" onclick="showToast('قريباً يتفتح هذا القسم! 🔒', 'info')">
                     <div class="l2-subject-icon">⛪</div>
                     <div class="l2-subject-info">
                         <h4>حركة ومعنى</h4>
@@ -355,7 +355,7 @@
                             <span class="l2-progress-text" id="l2-progress-ritual-text">0/6</span>
                         </div>
                     </div>
-                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
+                    <div class="l2-subject-arrow"><i class="fas fa-lock"></i></div>
                 </div>
                 <!-- Exam Mode Toggle -->
                 <div class="l2-exam-toggle-section" id="l2-exam-toggle-section">
@@ -430,9 +430,9 @@
     <!-- ============ LEVEL 2 - LESSON SCREEN ============ -->
     <div id="level2-lesson-screen" class="screen">
         <div class="screen-inner l2-lesson-inner">
-            <div class="l2-lesson-top-bar">
-                <button class="btn btn-secondary btn-sm" id="l2-lesson-back-btn">
-                    <span><i class="fas fa-arrow-right"></i> رجوع</span>
+            <div class="l2-lesson-top-bar top-bar-sticky">
+                <button class="back-btn" id="l2-lesson-back-btn">
+                    <i class="fas fa-arrow-right"></i>
                 </button>
                 <h2 id="l2-lesson-title"></h2>
                 <div class="l2-lesson-progress-mini">

@@ -63,7 +63,8 @@ const GameState = {
     exerciseLog: {},       // { '2026-03-26': { daily: [...], weekly: '...' } }
     bibleChapter: 1,        // Current chapter in Mark (1-16)
     highlightedVerses: {},   // { 'mark_1': [0, 5, 12], ... }
-    lessonSummaries: {}      // { 'faith_0': { text: '...', image: '...', date: '...' } }
+    lessonSummaries: {},      // { 'faith_0': { text: '...', image: '...', date: '...' } }
+    watchedVideos: {}         // { 'faith_lesson_0_video': true, ... }
 };
 
 // --- Firebase Initialization ---
@@ -213,6 +214,7 @@ function saveToCloud() {
         bibleChapter: GameState.bibleChapter || 1,
         highlightedVerses: GameState.highlightedVerses || {},
         lessonSummaries: GameState.lessonSummaries || {},
+        watchedVideos: GameState.watchedVideos || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -1287,7 +1289,14 @@ function showToast(msg, durOrType, type) {
 function showScreen(id) {
     document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
     var el = document.getElementById(id);
-    if (el) el.classList.add('active');
+    if (el) {
+        el.classList.add('active');
+        // Scroll to top on every screen change
+        el.scrollTop = 0;
+        var inner = el.querySelector('.screen-inner');
+        if (inner) inner.scrollTop = 0;
+    }
+    window.scrollTo(0, 0);
     var fabScreens = ['map-screen','category-screen','shop-screen','leaderboard-screen','settings-screen','lamp-screen'];
     var fab = document.getElementById('fab-container');
     if (fab) fab.style.display = fabScreens.indexOf(id) >= 0 ? 'flex' : 'none';
@@ -4129,6 +4138,8 @@ var LEVEL2_SUBJECTS = {
                 name: 'التثليث والتوحيد',
                 desc: 'عقيدة الإله الواحد المثلث الأقانيم',
                 verse: '"فاذهبوا وتلمذوا جميع الأمم وعمدوهم باسم الآب والابن والروح القدس" (مت ٢٨: ١٩)',
+                videoId: 'V8MqXGOyJqE',
+                videoTitle: 'عقيدة الثالوث - أبونا داود لمعي',
                 content: 'نؤمن بإله واحد في ثلاثة أقانيم: الآب والابن والروح القدس. الأقنوم كلمة سريانية معناها صفة أو خاصية يقوم عليها الكيان الإلهي. الآب هو وجود الله، والابن هو عقل ونطق الله (اللوجوس)، والروح القدس هو خاصية الحياة. الجوهر الإلهي واحد لكن الخواص ثلاثة. مش بنقول 1+1+1 لكن 1×1×1 والنتيجة واحد صحيح.',
                 questions: [
                     { q: 'كم عدد أقانيم الثالوث القدوس؟', options: ['٢', '٣', '٤', '١'], correct: 1 },
@@ -4172,6 +4183,8 @@ var LEVEL2_SUBJECTS = {
                 name: 'التجسد الإلهي',
                 desc: 'لماذا تجسد الله وصار إنساناً؟',
                 verse: '"والكلمة صار جسداً وحل بيننا" (يو ١: ١٤)',
+                videoId: 'Hju9WzYwkc0',
+                videoTitle: 'لماذا التجسد - أبونا لوقا ماهر',
                 content: 'بسبب سقوط آدم دخل الموت للعالم (موت أدبي وجسدي وروحي وأبدي). الله اختار أن يفدي الإنسان فتجسد أقنوم الابن من العذراء مريم بحلول الروح القدس. التجسد هو أن الله أخذ جسداً، والتأنس هو أن الجسد كان إنساناً كاملاً. المسيح طبيعة واحدة من طبيعتين (لاهوت كامل وناسوت كامل) بغير اختلاط ولا امتزاج ولا تغيير.',
                 questions: [
                     { q: 'سقوط آدم سبب أنواع من الموت، منها كل الآتي ما عدا...', options: ['موت أدبي', 'موت جسدي', 'موت مالي', 'موت روحي'], correct: 2 },
@@ -4215,6 +4228,8 @@ var LEVEL2_SUBJECTS = {
                 name: 'الفداء والصليب',
                 desc: 'معنى الفداء وأهمية الصليب في خلاصنا',
                 verse: '"بدون سفك دم لا تحصل مغفرة" (عب ٩: ٢٢)',
+                videoId: 'vxFyrnZyWRI',
+                videoTitle: 'التجسد والفداء - نيافة الأنبا رافائيل',
                 content: 'الفداء يعني أن حد يخلص حد تاني من الموت ويدفع التمن بدله. المسيح فدانا بدمه الطاهر مش بفضة أو ذهب. شروط الفادي: يكون إنساناً (لأن اللي أخطأ إنسان)، غير محدود، قابلاً للموت، أقوى من الموت، بلا خطية، ويقدم نفسه بإرادته. الشروط دي مش موجودة في أي ذبيحة حيوانية ولا نبي ولا ملاك، لكن اكتملت في المسيح.',
                 questions: [
                     { q: 'الفداء يعني أن شخص يموت بدل...', options: ['نفسه', 'المفدي', 'الملائكة', 'لا أحد'], correct: 1 },
@@ -4258,6 +4273,8 @@ var LEVEL2_SUBJECTS = {
                 name: 'القيامة والمجيء الثاني',
                 desc: 'قيامة المسيح وجسد القيامة والحياة الأبدية',
                 verse: '"إن لم تكن قيامة أموات فلا يكون المسيح قد قام وباطلة كرازتنا" (١كو ١٥: ١٣-١٤)',
+                videoId: 'k_cs1_aqGgI',
+                videoTitle: 'المجيء الثاني - أبونا لوقا ماهر',
                 content: 'اللاهوت لم يمت على الصليب بل الناسوت المتحد باللاهوت. في القيامة رجعت الروح الإنسانية للجسد وهما متحدين باللاهوت. جسد القيامة هو جسد روحاني ممجد. القوة التي تعمل التغيير موجودة في التناول من جسد الرب ودمه. المسيح سيأتي ثانياً ليدين الأحياء والأموات.',
                 questions: [
                     { q: 'اللي مات على الصليب هو...', options: ['اللاهوت', 'الناسوت المتحد باللاهوت', 'الروح فقط', 'لم يمت أحد'], correct: 1 },
@@ -4301,6 +4318,8 @@ var LEVEL2_SUBJECTS = {
                 name: 'المعمودية والميرون',
                 desc: 'سر الولادة الجديدة والختم الملوكي',
                 verse: '"إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله" (يو ٣: ٥)',
+                videoId: 'sENBfzteQa8',
+                videoTitle: 'المعمودية والميرون - أبونا لوقا ماهر',
                 content: 'المعمودية هي باب الأسرار السبعة والولادة الجديدة. يُغطس المعمَّد ٣ مرات باسم الثالوث. المعمودية موت مع المسيح وقيامة معه. الميرون هو سر حلول الروح القدس بـ٣٦ رشمة تقدس كل حواس وكيان الإنسان. المعمودية لا تُعاد لأنها ولادة والإنسان يُولد مرة واحدة.',
                 questions: [
                     { q: 'المعمودية هي... الأسرار السبعة', options: ['نهاية', 'باب', 'وسط', 'جزء من'], correct: 1 },
@@ -4344,6 +4363,8 @@ var LEVEL2_SUBJECTS = {
                 name: 'التوبة والاعتراف',
                 desc: 'سر التوبة والرجوع إلى الله',
                 verse: '"إن اعترفنا بخطايانا فهو أمين وعادل حتى يغفر لنا خطايانا" (١يو ١: ٩)',
+                videoId: 'sENBfzteQa8',
+                videoTitle: 'سر التوبة والاعتراف - أبونا موسى نصري',
                 content: 'الاعتراف هو الإقرار بالخطية أمام الكاهن الذي أعطاه المسيح سلطان الحل والربط. السر ده موجود من العهد القديم (آدم وقايين وذبائح الخطية) ومر بيوحنا المعمدان وعصر الرسل. الكاهن وكيل على أسرار الله. التوبة الحقيقية تحتاج: صدق، محاسبة نفس، عدم تبرير، وتنفيذ كلام أب الاعتراف.',
                 questions: [
                     { q: 'الاعتراف هو... بالخطية', options: ['إنكار', 'إقرار وتصريح', 'نسيان', 'إخفاء'], correct: 1 },
@@ -5681,6 +5702,26 @@ function renderLevel2Learn(container, lesson, subject) {
     html += '<p class="l2-learn-desc">' + lesson.desc + '</p>';
     html += '</div>';
 
+    // YouTube Video Embed
+    if (lesson.videoId) {
+        var videoKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson + '_video';
+        var videoWatched = GameState.watchedVideos && GameState.watchedVideos[videoKey];
+        html += '<div class="l2-video-section">';
+        html += '<div class="l2-video-label"><i class="fas fa-play-circle"></i> ' + (lesson.videoTitle || 'وعظة الدرس') + '</div>';
+        html += '<div class="l2-video-wrap">';
+        html += '<iframe src="https://www.youtube.com/embed/' + lesson.videoId + '?rel=0&modestbranding=1" ';
+        html += 'frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ';
+        html += 'style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>';
+        html += '</div>';
+        if (!videoWatched) {
+            html += '<button class="btn btn-primary l2-video-done-btn" onclick="markVideoWatched(\'' + videoKey + '\')" style="width:100%;margin-top:10px">';
+            html += '<span><i class="fas fa-check-circle"></i> شاهدت الوعظة ✅ (+10 نجوم)</span></button>';
+        } else {
+            html += '<div class="l2-video-watched-badge"><i class="fas fa-check-circle"></i> شاهدت الوعظة وأخدت 10 نجوم ⭐</div>';
+        }
+        html += '</div>';
+    }
+
     // Lesson summary image if available
     if (lesson.summaryImage) {
         html += '<div class="l2-learn-img-wrap"><img src="' + lesson.summaryImage + '" alt="ملخص الدرس" class="l2-learn-img"></div>';
@@ -5900,6 +5941,18 @@ function submitLessonSummary() {
     // Re-render learn stage
     level2State.currentStage = 'learn';
     renderLevel2Lesson();
+}
+
+// --- Mark Video as Watched & Award Stars ---
+function markVideoWatched(videoKey) {
+    if (GameState.watchedVideos && GameState.watchedVideos[videoKey]) return; // already rewarded
+    if (!GameState.watchedVideos) GameState.watchedVideos = {};
+    GameState.watchedVideos[videoKey] = true;
+    GameState.stars += 10;
+    saveToCloud();
+    showAchievement('🎬', 'شاهدت الوعظة!', 'كسبت 10 نجوم إضافية ⭐');
+    // Re-render to show watched badge
+    setTimeout(function() { renderLevel2Lesson(); }, 2000);
 }
 
 // --- Start Quiz ---

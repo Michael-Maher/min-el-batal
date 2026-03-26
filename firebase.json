@@ -11,7 +11,19 @@
       "**/node_modules/**",
       ".git/**",
       ".claude/**",
-      "**.md"
+      ".firebase/**",
+      "**.md",
+      "images/Logo.png",
+      "images/david.png",
+      "images/george.png",
+      "images/paul.png",
+      "images/philomena.png",
+      "images/competitions-bg.png",
+      "images/level2-bg.png",
+      "images/level2-full-bg.png",
+      "images/on_lamp.png",
+      "images/off_lamp.png",
+      "images/map2.png"
     ],
     "headers": [
       {

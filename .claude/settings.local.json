@@ -9,7 +9,27 @@
       "Bash(sips -s format jpeg -s formatOptions 75 -Z 2000 level2-bg.png --out level2-bg-opt.jpg)",
       "Bash(sips -s format jpeg -s formatOptions 75 -Z 2000 level2-full-bg.png --out level2-full-bg-opt.jpg)",
       "Bash(npx firebase:*)",
-      "Bash(firebase deploy:*)"
+      "Bash(firebase deploy:*)",
+      "Bash(sips -s format jpeg -s formatOptions 75 competitions-bg.png --out competitions-bg-opt.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 60 Logo.png --out Logo-192.jpg --resampleWidth 192)",
+      "Bash(sips -s format jpeg -s formatOptions 60 Logo.png --out Logo-512.jpg --resampleWidth 512)",
+      "Bash(sips -s format png Logo.png --out Logo-192.png --resampleWidth 192)",
+      "Bash(sips -s format png Logo.png --out Logo-512.png --resampleWidth 512)",
+      "Bash(ls -lh Logo-*.png Logo-*.jpg)",
+      "Bash(for f:*)",
+      "Bash(do sips:*)",
+      "Bash(done)",
+      "Bash(ls -lh *-opt.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 65 competitions-bg.png --out competitions-bg-opt.jpg --resampleWidth 1200)",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)",
+      "Bash(git add:*)",
+      "Bash(ls -la /Users/mmichaelmaher/Documents/min-el-batal/images/Logo*)",
+      "Bash(sips -Z 500 Logo.png --out Logo-opt.png)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)",
+      "Bash(npm install:*)"
     ]
   }
 }

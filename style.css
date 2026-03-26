@@ -5649,7 +5649,7 @@ body {
 .spiritual-section-bg {
     position: absolute;
     inset: 0;
-    background-image: url('images/holy-part-bg.png');
+    background-image: url('images/holy-part-bg-opt.jpg');
     background-size: cover;
     background-position: center top;
     border-radius: 24px;

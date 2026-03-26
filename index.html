@@ -1171,6 +1171,16 @@
                     <span><i class="fas fa-sliders"></i> إعدادات الإشعارات</span>
                 </button>
             </div>
+            <div class="settings-section" id="settings-install-section">
+                <h3><i class="fas fa-mobile-screen-button"></i> تحميل التطبيق</h3>
+                <p style="color:var(--text-secondary);font-size:13px;margin:0 0 12px">حمّل اللعبة كتطبيق على موبايلك</p>
+                <button class="btn btn-primary" onclick="showInstallModal()" id="settings-install-btn" style="width:100%;margin-bottom:8px">
+                    <span><i class="fas fa-download"></i> حمّل التطبيق</span>
+                </button>
+                <button class="btn btn-secondary" onclick="resetInstallPrompt()" id="settings-reset-install" style="width:100%;display:none">
+                    <span><i class="fas fa-redo"></i> اظهر زرار التحميل تاني</span>
+                </button>
+            </div>
             <div class="settings-section">
                 <h3><i class="fas fa-info-circle"></i> عن اللعبة</h3>
                 <div class="about-info">

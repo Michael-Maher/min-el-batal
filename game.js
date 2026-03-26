@@ -129,6 +129,7 @@ function submitRegister() {
                 showScreen('home-hub-screen');
                 syncLeaderboard();
                 requestNotificationsAfterLogin();
+                checkPendingRoomJoin();
                 return;
             }
 
@@ -1408,6 +1409,7 @@ function confirmCharacter() {
         GameState.character = selectedCharKey;
         saveGame();
         showScreen('home-hub-screen');
+        checkPendingRoomJoin();
     }
 }
 
@@ -3641,6 +3643,22 @@ function renderSettings() {
         card.classList.remove('active');
         if (card.getAttribute('data-theme') === GameState.theme) card.classList.add('active');
     });
+
+    // Install section
+    var isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+    var installSection = document.getElementById('settings-install-section');
+    var installBtn = document.getElementById('settings-install-btn');
+    var resetBtn = document.getElementById('settings-reset-install');
+    if (installSection) {
+        if (isInstalled) {
+            installSection.style.display = 'none';
+        } else {
+            installSection.style.display = '';
+            var isHidden = localStorage.getItem('minElBatal_installHidden') === 'true';
+            if (installBtn) installBtn.style.display = isHidden ? 'none' : '';
+            if (resetBtn) resetBtn.style.display = isHidden ? '' : 'none';
+        }
+    }
 }
 
 // --- Achievements ---
@@ -6786,6 +6804,10 @@ function renderCompeteLobby(room) {
     html += '<p class="lobby-code-label">كود الغرفة</p>';
     html += '<div class="lobby-code-number" onclick="copyRoomCode(\'' + room.code + '\')">' + room.code + ' <i class="fas fa-copy"></i></div>';
     html += '<p class="lobby-code-hint">شارك الكود ده مع أصحابك عشان يدخلوا</p>';
+    html += '<div class="lobby-share-btns">';
+    html += '<button class="btn btn-primary lobby-share-btn" onclick="shareRoomLink(\'' + room.code + '\')"><span><i class="fas fa-share-nodes"></i> شارك اللينك</span></button>';
+    html += '<button class="btn btn-secondary lobby-copy-btn" onclick="copyRoomCode(\'' + room.code + '\')"><span><i class="fas fa-copy"></i> انسخ الكود</span></button>';
+    html += '</div>';
     html += '</div>';
     html += '<div class="lobby-mode-badge">' + (modeNames[room.mode] || room.mode) + '</div>';
     html += '</div>';
@@ -6825,6 +6847,59 @@ function copyRoomCode(code) {
     navigator.clipboard.writeText(code).then(function() {
         showToast('تم نسخ الكود: ' + code + ' 📋', 'success');
     }).catch(function() {});
+}
+
+function shareRoomLink(code) {
+    var url = window.location.origin + '?room=' + code;
+    var shareData = {
+        title: 'مين البطل؟ - مسابقة جماعية',
+        text: 'تعالى العب معايا في مسابقة مين البطل! 🏆\nكود الغرفة: ' + code,
+        url: url
+    };
+    if (navigator.share) {
+        navigator.share(shareData).catch(function() {});
+    } else {
+        // Fallback: copy full link
+        navigator.clipboard.writeText(shareData.text + '\n' + url).then(function() {
+            showToast('تم نسخ اللينك! شاركه مع أصحابك 📋', 'success');
+        }).catch(function() {
+            // Double fallback: prompt
+            prompt('انسخ اللينك ده وابعته لأصحابك:', url);
+        });
+    }
+}
+
+// --- Auto-join from shared link ---
+function checkPendingRoomJoin() {
+    var pendingRoom = sessionStorage.getItem('minElBatal_pendingRoom');
+    if (!pendingRoom) return;
+    sessionStorage.removeItem('minElBatal_pendingRoom');
+    // Small delay to let UI settle
+    setTimeout(function() { autoJoinRoom(pendingRoom); }, 1500);
+}
+
+function autoJoinRoom(code) {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    firebaseDb.collection('compete_rooms').doc(code).get().then(function(doc) {
+        if (!doc.exists) { showToast('الغرفة مش موجودة أو اتقفلت', 'error'); return; }
+        var room = doc.data();
+        if (room.status !== 'lobby') { showToast('المسابقة بدأت بالفعل!', 'error'); return; }
+        // Add player
+        var update = {};
+        update['players.' + GameState.playerPhone] = {
+            name: GameState.playerName,
+            character: GameState.character,
+            score: 0, answers: [], streak: 0, alive: true, joinedAt: Date.now()
+        };
+        return firebaseDb.collection('compete_rooms').doc(code).update(update).then(function() {
+            competeState.roomId = code;
+            competeState.isHost = false;
+            competeState.status = 'lobby';
+            showScreen('compete-lobby-screen');
+            listenToRoom(code);
+            showToast('انضممت للغرفة! 🎉', 'success');
+        });
+    }).catch(function(err) { showToast('خطأ: ' + err.message, 'error'); });
 }
 
 // --- Start Game (host only) ---
@@ -8113,47 +8188,94 @@ window.addEventListener('beforeinstallprompt', function(e) {
     e.preventDefault();
     deferredInstallPrompt = e;
     console.log('[PWA] Install prompt captured');
-    // Show install banner after a delay
-    setTimeout(showInstallBanner, 10000); // Show after 10 seconds
+    // Show floating install button immediately (if not permanently hidden)
+    showInstallFAB();
 });
 
-function showInstallBanner() {
+// Floating install button - always visible until installed/hidden
+function showInstallFAB() {
     if (!deferredInstallPrompt) return;
-    // Don't show if already installed or dismissed recently
     if (window.matchMedia('(display-mode: standalone)').matches) return;
-    if (localStorage.getItem('minElBatal_installDismissed')) {
-        var dismissed = parseInt(localStorage.getItem('minElBatal_installDismissed'));
-        if (Date.now() - dismissed < 3 * 24 * 60 * 60 * 1000) return; // 3 days
-    }
+    // If user chose "never show again"
+    if (localStorage.getItem('minElBatal_installHidden') === 'true') return;
+    // If already showing
+    if (document.getElementById('install-fab')) return;
 
-    var banner = document.createElement('div');
-    banner.id = 'install-banner';
-    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:16px 20px;z-index:9999;display:flex;align-items:center;gap:12px;font-family:Cairo,sans-serif;box-shadow:0 -4px 20px rgba(0,0,0,0.3);animation:slideUp 0.4s ease;direction:rtl';
-    banner.innerHTML = '<img src="images/Logo-192.png" style="width:40px;height:40px;border-radius:10px">' +
-        '<div style="flex:1"><strong style="font-size:14px">حمّل مين البطل؟</strong>' +
-        '<p style="font-size:11px;opacity:0.85;margin:2px 0 0">أضفها على موبايلك وشغّلها زي الأبلكيشن</p></div>' +
-        '<button onclick="installApp()" style="background:#fff;color:var(--primary);border:none;border-radius:20px;padding:8px 16px;font-family:Cairo;font-weight:700;font-size:13px;cursor:pointer">حمّل</button>' +
-        '<button onclick="dismissInstallBanner()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:18px;cursor:pointer;padding:4px">&times;</button>';
-    document.body.appendChild(banner);
+    var fab = document.createElement('div');
+    fab.id = 'install-fab';
+    fab.style.cssText = 'position:fixed;bottom:80px;left:16px;z-index:9998;direction:rtl;font-family:Cairo,sans-serif;animation:slideUp 0.4s ease';
+
+    fab.innerHTML = '<button id="install-fab-btn" onclick="showInstallModal()" style="' +
+        'display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,var(--primary),#a29bfe);' +
+        'color:#fff;border:none;border-radius:50px;padding:10px 18px;font-family:Cairo;font-weight:700;' +
+        'font-size:13px;cursor:pointer;box-shadow:0 4px 20px rgba(108,92,231,0.4);' +
+        'animation:installPulse 3s ease-in-out infinite">' +
+        '<i class="fas fa-download" style="font-size:16px"></i> حمّل التطبيق' +
+        '</button>';
+    document.body.appendChild(fab);
+}
+
+function showInstallModal() {
+    var overlay = document.createElement('div');
+    overlay.id = 'install-modal-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Cairo,sans-serif;direction:rtl;animation:fadeIn 0.2s ease';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+
+    overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
+        '<img src="images/Logo-192.png" style="width:64px;height:64px;border-radius:16px;margin-bottom:12px">' +
+        '<h3 style="color:var(--text-primary);margin:0 0 6px;font-size:18px">حمّل مين البطل؟</h3>' +
+        '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 20px;line-height:1.6">حمّل التطبيق على موبايلك وشغّله زي الأبلكيشن بدون ما تحتاج متجر!</p>' +
+        '<button onclick="installApp()" style="width:100%;background:linear-gradient(135deg,var(--primary),#a29bfe);color:#fff;border:none;border-radius:14px;padding:14px;font-family:Cairo;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:10px">' +
+        '<i class="fas fa-download"></i> حمّل دلوقتي</button>' +
+        '<button onclick="dismissInstallTemp()" style="width:100%;background:rgba(255,255,255,0.08);color:var(--text-secondary);border:1px solid var(--border);border-radius:14px;padding:12px;font-family:Cairo;font-weight:600;font-size:13px;cursor:pointer;margin-bottom:8px">' +
+        'مش دلوقتي</button>' +
+        '<button onclick="dismissInstallForever()" style="background:none;border:none;color:var(--text-muted);font-family:Cairo;font-size:11px;cursor:pointer;padding:4px">' +
+        'متوريهاليش تاني</button>' +
+        '</div>';
+    document.body.appendChild(overlay);
 }
 
 function installApp() {
     if (!deferredInstallPrompt) return;
+    removeInstallModal();
     deferredInstallPrompt.prompt();
     deferredInstallPrompt.userChoice.then(function(result) {
         if (result.outcome === 'accepted') {
             showToast('تم تثبيت التطبيق! 🎉', 'success');
             showAchievement('📱', 'تم التحميل!', 'حمّلت مين البطل على موبايلك');
+            removeInstallFAB();
         }
         deferredInstallPrompt = null;
-        dismissInstallBanner();
     });
 }
 
-function dismissInstallBanner() {
-    var banner = document.getElementById('install-banner');
-    if (banner) banner.remove();
-    localStorage.setItem('minElBatal_installDismissed', Date.now().toString());
+function dismissInstallTemp() {
+    removeInstallModal();
+    // FAB stays visible - user can tap it anytime
+}
+
+function dismissInstallForever() {
+    removeInstallModal();
+    removeInstallFAB();
+    localStorage.setItem('minElBatal_installHidden', 'true');
+    showToast('تقدر تحملها من الإعدادات في أي وقت', 'info');
+}
+
+function removeInstallModal() {
+    var modal = document.getElementById('install-modal-overlay');
+    if (modal) modal.remove();
+}
+
+function removeInstallFAB() {
+    var fab = document.getElementById('install-fab');
+    if (fab) fab.remove();
+}
+
+// Settings: re-enable install button
+function resetInstallPrompt() {
+    localStorage.removeItem('minElBatal_installHidden');
+    showToast('هيظهر زرار التحميل تاني', 'success');
+    showInstallFAB();
 }
 
 // iOS Install Detection
@@ -8177,16 +8299,27 @@ function showIOSInstallHint() {
     }
 }
 
-// Slideup animation for banners
+// Animations for install UI
 var styleEl = document.createElement('style');
-styleEl.textContent = '@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }';
+styleEl.textContent = '@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }' +
+    '@keyframes installPulse { 0%,100% { transform: scale(1); box-shadow: 0 4px 20px rgba(108,92,231,0.4); } 50% { transform: scale(1.05); box-shadow: 0 6px 28px rgba(108,92,231,0.6); } }' +
+    '@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }';
 document.head.appendChild(styleEl);
 
-// Initialize iOS hint on load + track activity
+// Initialize iOS hint on load + track activity + auto-join room from URL
 window.addEventListener('load', function() {
     showIOSInstallHint();
-    // Track last active date for notification system
     trackLastActiveDate();
+
+    // Auto-join room from shared link (?room=CODE)
+    var urlParams = new URLSearchParams(window.location.search);
+    var roomCode = urlParams.get('room');
+    if (roomCode && roomCode.length === 6) {
+        // Store room code, will attempt join after login
+        sessionStorage.setItem('minElBatal_pendingRoom', roomCode);
+        // Clean URL
+        window.history.replaceState({}, '', window.location.pathname);
+    }
 });
 
 // ============================================================

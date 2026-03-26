@@ -4636,6 +4636,19 @@ body {
     color: var(--text-secondary, #aaa);
     margin: 8px 0 0;
 }
+.lobby-share-btns {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    justify-content: center;
+}
+.lobby-share-btn, .lobby-copy-btn {
+    flex: 1;
+    max-width: 160px;
+}
+.lobby-share-btn span, .lobby-copy-btn span {
+    font-size: 13px;
+}
 .lobby-section-title {
     font-size: 15px;
     color: var(--text-primary, #fff);

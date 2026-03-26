@@ -2,6 +2,11 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs18",
+    "region": "europe-west1"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
@@ -12,6 +17,7 @@
       ".git/**",
       ".claude/**",
       ".firebase/**",
+      "functions/**",
       "**.md",
       "images/Logo.png",
       "images/david.png",

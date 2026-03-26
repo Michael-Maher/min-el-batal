@@ -7927,31 +7927,65 @@ function initPushNotifications() {
         if (token) {
             fcmToken = token;
             console.log('[FCM] Token:', token.substring(0, 20) + '...');
-            // Save token to Firestore for the user
+            // Save token + lastActiveDate to Firestore
             if (firebaseDb && GameState.playerPhone) {
+                var todayStr = new Date().toISOString().split('T')[0];
                 firebaseDb.collection('players').doc(GameState.playerPhone).update({
                     fcmToken: token,
-                    lastTokenUpdate: new Date().toISOString()
+                    lastTokenUpdate: new Date().toISOString(),
+                    lastActiveDate: todayStr,
+                    // Default notification preferences (all on)
+                    notifPrefs: {
+                        competitions: true,
+                        lessons: true,
+                        reminders: true,
+                        streakReminder: true
+                    }
                 }).catch(function(err) {
                     console.warn('[FCM] Failed to save token:', err);
                 });
             }
+
+            // Subscribe to FCM topics
+            console.log('[FCM] Subscribing to topics...');
+            // Note: Topic subscription is managed server-side via Cloud Functions
+            // The token saved to Firestore is used by Cloud Functions to send targeted notifications
         }
     }).catch(function(err) {
         console.warn('[FCM] Token error:', err);
     });
 
-    // Handle foreground messages
+    // Handle foreground messages with smart display
     messaging.onMessage(function(payload) {
         console.log('[FCM] Foreground message:', payload);
         var title = payload.notification ? payload.notification.title : 'مين البطل؟';
         var body = payload.notification ? payload.notification.body : '';
-        showToast(title + (body ? ': ' + body : ''), 'info');
+        var dataType = (payload.data && payload.data.type) ? payload.data.type : '';
 
-        // If it's a competition invite, show a special prompt
-        if (payload.data && payload.data.type === 'compete_invite') {
+        // Competition invite → show special modal
+        if (dataType === 'compete_invite') {
             showCompeteInvite(payload.data);
+            return;
         }
+
+        // Exercise/streak reminder → show achievement-style popup
+        if (dataType === 'exercise_reminder' || dataType === 'streak_recovery' || dataType === 'weekly_reminder') {
+            showAchievement(
+                dataType === 'streak_recovery' ? '🔥' : dataType === 'weekly_reminder' ? '⛪' : '📖',
+                title,
+                body
+            );
+            return;
+        }
+
+        // New lesson → show with action
+        if (dataType === 'new_lesson') {
+            showAchievement('📚', title, body);
+            return;
+        }
+
+        // Default → toast
+        showToast(title + (body ? ': ' + body : ''), 'info');
     });
 }
 
@@ -8095,7 +8129,117 @@ var styleEl = document.createElement('style');
 styleEl.textContent = '@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }';
 document.head.appendChild(styleEl);
 
-// Initialize iOS hint on load
+// Initialize iOS hint on load + track activity
 window.addEventListener('load', function() {
     showIOSInstallHint();
+    // Track last active date for notification system
+    trackLastActiveDate();
 });
+
+// ============================================================
+// Activity Tracking (for smart notifications)
+// ============================================================
+function trackLastActiveDate() {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    var todayStr = new Date().toISOString().split('T')[0];
+    firebaseDb.collection('players').doc(GameState.playerPhone).update({
+        lastActiveDate: todayStr
+    }).catch(function() {});
+}
+
+// Call trackLastActiveDate also when returning from background
+document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+        trackLastActiveDate();
+    }
+});
+
+// ============================================================
+// Notification Preferences UI
+// ============================================================
+function showNotificationSettings() {
+    // Load current prefs from Firestore
+    var prefs = { competitions: true, lessons: true, reminders: true, streakReminder: true };
+
+    if (firebaseDb && GameState.playerPhone) {
+        firebaseDb.collection('players').doc(GameState.playerPhone).get()
+            .then(function(doc) {
+                if (doc.exists && doc.data().notifPrefs) {
+                    prefs = doc.data().notifPrefs;
+                }
+                renderNotifSettings(prefs);
+            })
+            .catch(function() {
+                renderNotifSettings(prefs);
+            });
+    } else {
+        renderNotifSettings(prefs);
+    }
+}
+
+function renderNotifSettings(prefs) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'notif-settings-overlay';
+
+    var html = '<div class="modal-card" style="max-width:380px;direction:rtl">';
+    html += '<h3 style="color:var(--text-primary);text-align:center;margin:0 0 16px"><i class="fas fa-bell" style="color:var(--gold);margin-left:8px"></i>إعدادات الإشعارات</h3>';
+
+    var items = [
+        { key: 'competitions', icon: '⚡', label: 'مسابقات جديدة', desc: 'لما حد يعمل مسابقة' },
+        { key: 'lessons', icon: '📚', label: 'دروس جديدة', desc: 'لما ينزل محتوى جديد' },
+        { key: 'reminders', icon: '📖', label: 'تذكير التداريب', desc: 'لو معملتش تداريبك اليومية أو الأسبوعية' },
+        { key: 'streakReminder', icon: '🔥', label: 'حماية السلسلة', desc: 'لو سلسلتك المتتابعة هتتقطع' },
+    ];
+
+    items.forEach(function(item) {
+        var checked = prefs[item.key] !== false;
+        html += '<div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(255,255,255,0.05);border-radius:12px;margin-bottom:8px">';
+        html += '<span style="font-size:24px">' + item.icon + '</span>';
+        html += '<div style="flex:1"><p style="color:var(--text-primary);font-size:14px;font-weight:700;margin:0">' + item.label + '</p>';
+        html += '<p style="color:var(--text-secondary);font-size:11px;margin:2px 0 0">' + item.desc + '</p></div>';
+        html += '<label class="notif-toggle">';
+        html += '<input type="checkbox" data-pref="' + item.key + '" ' + (checked ? 'checked' : '') + '>';
+        html += '<span class="notif-toggle-slider"></span>';
+        html += '</label></div>';
+    });
+
+    html += '<div style="display:flex;gap:10px;margin-top:16px">';
+    html += '<button class="btn btn-primary" style="flex:1" onclick="saveNotifSettings()"><span><i class="fas fa-check"></i> حفظ</span></button>';
+    html += '<button class="btn btn-secondary" style="flex:1" onclick="closeNotifSettings()"><span>إلغاء</span></button>';
+    html += '</div></div>';
+
+    overlay.innerHTML = html;
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
+}
+
+function saveNotifSettings() {
+    var overlay = document.getElementById('notif-settings-overlay');
+    if (!overlay) return;
+
+    var prefs = {};
+    overlay.querySelectorAll('input[data-pref]').forEach(function(input) {
+        prefs[input.getAttribute('data-pref')] = input.checked;
+    });
+
+    if (firebaseDb && GameState.playerPhone) {
+        firebaseDb.collection('players').doc(GameState.playerPhone).update({
+            notifPrefs: prefs
+        }).then(function() {
+            showToast('تم حفظ إعدادات الإشعارات ✅', 'success');
+        }).catch(function() {
+            showToast('حصل مشكلة، حاول تاني', 'error');
+        });
+    }
+
+    closeNotifSettings();
+}
+
+function closeNotifSettings() {
+    var overlay = document.getElementById('notif-settings-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(function() { overlay.remove(); }, 300);
+    }
+}

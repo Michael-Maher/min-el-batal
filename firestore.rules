@@ -17,5 +17,9 @@ service cloud.firestore {
     match /compete_rankings/{rankId} {
       allow read, write: if true;
     }
+    // Lessons collection - for new lesson notifications
+    match /lessons/{lessonId} {
+      allow read, write: if true;
+    }
   }
 }

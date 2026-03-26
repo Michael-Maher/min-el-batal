@@ -5666,6 +5666,15 @@ function renderLevel2Lesson() {
     var backBtn = document.getElementById('l2-lesson-back-btn');
     backBtn.onclick = function() {
         if (level2State.timerInterval) clearInterval(level2State.timerInterval);
+        // Stop any mini-game timer
+        if (miniGameState.timer) { clearInterval(miniGameState.timer); miniGameState.timer = null; }
+        // If in a mini-game, go back to learn tab
+        if (miniGameState.type) {
+            miniGameState.type = null;
+            level2State.currentStage = 'learn';
+            renderLevel2Lesson();
+            return;
+        }
         if (level2State.examMode && level2State.currentStage === 'quiz') {
             // Exam in progress - warn and cancel
             if (confirm('لو خرجت الامتحان هيتلغي! متأكد؟')) {
@@ -5775,20 +5784,24 @@ function renderLevel2Learn(container, lesson, subject) {
 
     html += '</div>';
 
-    // Mini-games entertainment section
-    html += renderMiniGamesSection();
-
     // If summary not submitted yet, show summary section
     if (!hasSummary) {
         html += '<div class="l2-summary-required">';
-        html += '<h4><i class="fas fa-pen"></i> لازم تعمل تلخيص الأول قبل ما تبدأ الاختبار</h4>';
+        html += '<h4><i class="fas fa-pen"></i> لازم تعمل تلخيص الأول قبل ما تبدأ المسابقات</h4>';
         html += '<button class="btn btn-primary" onclick="showLessonSummaryTab()" style="width:100%;margin-top:8px;">' +
             '<span><i class="fas fa-pen"></i> اكتب تلخيص الدرس</span></button>';
         html += '</div>';
     } else {
-        // Summary done - show quiz button
-        html += '<button class="btn btn-primary" onclick="startLevel2Quiz()" style="width:100%;margin-top:16px;">' +
-            '<span><i class="fas fa-play"></i> جمّع واكسب ⭐</span></button>';
+        // Show saved summary
+        var savedSummary = GameState.lessonSummaries[summaryKey];
+        html += '<div class="l2-saved-summary">';
+        html += '<h4><i class="fas fa-check-circle"></i> تلخيصك المحفوظ</h4>';
+        if (savedSummary.text) html += '<p>' + savedSummary.text + '</p>';
+        if (savedSummary.image) html += '<img src="' + savedSummary.image + '" class="l2-summary-saved-img">';
+        html += '</div>';
+
+        // Mini-games + challenge section (replaces old quiz button)
+        html += renderMiniGamesSection();
 
         // Show weekly exam button if practiced
         var lessonPracticed = GameState.level2Data && GameState.level2Data[subKey] &&
@@ -5804,14 +5817,6 @@ function renderLevel2Learn(container, lesson, subject) {
             var examData = GameState.level2Data[subKey]['exam_' + lessonIdx];
             html += '<div class="exam-taken-badge"><i class="fas fa-check-circle"></i> المسابقة الأسبوعية: ' + examData.stars + '/30 ⭐</div>';
         }
-
-        // Show saved summary
-        var savedSummary = GameState.lessonSummaries[summaryKey];
-        html += '<div class="l2-saved-summary">';
-        html += '<h4><i class="fas fa-check-circle"></i> تلخيصك المحفوظ</h4>';
-        if (savedSummary.text) html += '<p>' + savedSummary.text + '</p>';
-        if (savedSummary.image) html += '<img src="' + savedSummary.image + '" class="l2-summary-saved-img">';
-        html += '</div>';
     }
 
     container.innerHTML = html;
@@ -5929,13 +5934,34 @@ function getMiniGamesForLesson() {
 // Render mini-games hub inside learn tab
 function renderMiniGamesSection() {
     var games = getMiniGamesForLesson();
-    if (!games) return '';
+    if (!games) {
+        // No mini-games data — fallback to old quiz button
+        return '<button class="btn btn-primary" onclick="startLevel2Quiz()" style="width:100%;margin-top:16px;">' +
+            '<span><i class="fas fa-play"></i> جمّع واكسب ⭐</span></button>';
+    }
 
     var html = '<div class="mini-games-section">';
-    html += '<div class="mini-games-header">';
-    html += '<h3><i class="fas fa-gamepad"></i> الركن الترفيهي</h3>';
-    html += '<p>العب واكسب نجوم إضافية! كل لعبة ليها مكافأة</p>';
+
+    // BIG Challenge card — mixed questions from all types
+    html += '<div class="mg-challenge-card" onclick="startMixedChallenge()">';
+    html += '<div class="mg-challenge-bg"></div>';
+    html += '<div class="mg-challenge-content">';
+    html += '<div class="mg-challenge-icon"><i class="fas fa-fire"></i></div>';
+    html += '<h3>يلا نبتدي! 🏆</h3>';
+    html += '<p>أسئلة متنوعة ومتغيرة كل مرة — لو شاطر هتجاوب!</p>';
+    html += '<div class="mg-challenge-stats">';
+    html += '<span><i class="fas fa-shuffle"></i> أنواع مختلفة</span>';
+    html += '<span><i class="fas fa-star"></i> حتى 30 نجمة</span>';
     html += '</div>';
+    html += getMiniGameBadge('mixedChallenge');
+    html += '</div></div>';
+
+    // Section title
+    html += '<div class="mini-games-header">';
+    html += '<h3><i class="fas fa-gamepad"></i> أنواع المسابقات</h3>';
+    html += '<p>اختار نوع واحد وتحدّى نفسك!</p>';
+    html += '</div>';
+
     html += '<div class="mini-games-grid">';
 
     if (games.trueFalse) {
@@ -5986,6 +6012,271 @@ function renderMiniGamesSection() {
 
     html += '</div></div>';
     return html;
+}
+
+// ========== MIXED CHALLENGE ==========
+function startMixedChallenge() {
+    var games = getMiniGamesForLesson();
+    if (!games) return;
+
+    miniGameState = {
+        type: 'mixedChallenge',
+        index: 0,
+        score: 0,
+        total: 0,
+        answers: [],
+        timer: null,
+        timeLeft: 0,
+        data: null,
+        clueIndex: 0,
+        maxPoints: 0,
+        selectedWords: [],
+        selectedLeft: null,
+        matched: []
+    };
+
+    initAudio();
+
+    // Build mixed round: pick random questions from all types
+    var rounds = [];
+
+    // Add 5 true/false questions
+    if (games.trueFalse) {
+        var tf = games.trueFalse.slice();
+        shuffleArray(tf);
+        tf.slice(0, 5).forEach(function(q) {
+            rounds.push({ type: 'trueFalse', data: q });
+        });
+    }
+    // Add 3 fill-blank
+    if (games.fillBlank) {
+        var fb = games.fillBlank.slice();
+        shuffleArray(fb);
+        fb.slice(0, 3).forEach(function(q) {
+            rounds.push({ type: 'fillBlank', data: q });
+        });
+    }
+    // Add 2 who-am-i
+    if (games.whoAmI) {
+        var wai = games.whoAmI.slice();
+        shuffleArray(wai);
+        wai.slice(0, 2).forEach(function(q) {
+            rounds.push({ type: 'whoAmI', data: q });
+        });
+    }
+    // Add 2 MCQ from lesson questions
+    var subKey = level2State.currentSubject;
+    var lesson = LEVEL2_SUBJECTS[subKey].lessons[level2State.currentLesson];
+    if (lesson && lesson.questions) {
+        var mcqs = lesson.questions.slice();
+        shuffleArray(mcqs);
+        mcqs.slice(0, 3).forEach(function(q) {
+            rounds.push({ type: 'mcq', data: q });
+        });
+    }
+
+    // Shuffle all rounds
+    shuffleArray(rounds);
+
+    miniGameState.data = rounds;
+    miniGameState.total = rounds.length * 2; // ~2 points each
+    miniGameState.index = 0;
+    miniGameState.score = 0;
+
+    renderMixedRound();
+}
+
+function shuffleArray(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+}
+
+function renderMixedRound() {
+    if (miniGameState.index >= miniGameState.data.length) {
+        showMiniGameResult('التحدي المتنوع');
+        return;
+    }
+
+    var round = miniGameState.data[miniGameState.index];
+    var progress = (miniGameState.index + 1) + '/' + miniGameState.data.length;
+    var typeLabel = { trueFalse: '⚡ صح ولا غلط', fillBlank: '✏️ الكلمة الناقصة', whoAmI: '🎭 من أنا؟', mcq: '❓ اختر الإجابة' };
+
+    var html = '<div class="mg-progress">' + progress + '</div>';
+    html += '<div class="mg-round-type">' + (typeLabel[round.type] || '') + '</div>';
+
+    if (round.type === 'trueFalse') {
+        html += '<div class="mg-timer-bar"><div class="mg-timer-fill" id="mg-timer-fill" style="width:100%"></div></div>';
+        html += '<div class="mg-tf-statement" id="mg-tf-statement">' + round.data.statement + '</div>';
+        html += '<div class="mg-tf-buttons">';
+        html += '<button class="mg-tf-btn mg-tf-true" onclick="answerMixedTF(true)"><i class="fas fa-check"></i> صح</button>';
+        html += '<button class="mg-tf-btn mg-tf-false" onclick="answerMixedTF(false)"><i class="fas fa-times"></i> غلط</button>';
+        html += '</div>';
+        renderMiniGameUI('التحدي المتنوع 🔥', 'fire', html);
+        // Timer
+        miniGameState.timeLeft = 7;
+        if (miniGameState.timer) clearInterval(miniGameState.timer);
+        miniGameState.timer = setInterval(function() {
+            miniGameState.timeLeft -= 0.1;
+            var fill = document.getElementById('mg-timer-fill');
+            if (fill) fill.style.width = Math.max(0, (miniGameState.timeLeft / 7) * 100) + '%';
+            if (miniGameState.timeLeft <= 0) {
+                clearInterval(miniGameState.timer);
+                answerMixedTF(null);
+            }
+        }, 100);
+
+    } else if (round.type === 'fillBlank') {
+        var displayText = round.data.text.replace('___', '<span class="mg-fb-blank">؟</span>');
+        var opts = round.data.options.slice();
+        shuffleArray(opts);
+        html += '<div class="mg-fb-text">' + displayText + '</div>';
+        html += '<div class="mg-fb-options">';
+        opts.forEach(function(opt) {
+            html += '<button class="mg-fb-option" onclick="answerMixedFB(\'' + opt.replace(/'/g, "\\'") + '\')">' + opt + '</button>';
+        });
+        html += '</div>';
+        renderMiniGameUI('التحدي المتنوع 🔥', 'fire', html);
+
+    } else if (round.type === 'whoAmI') {
+        miniGameState.clueIndex = 0;
+        miniGameState.maxPoints = 4;
+        var item = round.data;
+        html += '<div class="mg-wai-card">';
+        html += '<div class="mg-wai-icon"><i class="fas fa-user-secret"></i></div>';
+        html += '<h4>من أنا؟</h4>';
+        html += '<div class="mg-wai-clues" id="mg-wai-clues">';
+        html += '<div class="mg-wai-clue visible">💡 ' + item.clues[0] + '</div>';
+        for (var i = 1; i < item.clues.length; i++) {
+            html += '<div class="mg-wai-clue hidden" id="mg-clue-' + i + '">💡 ' + item.clues[i] + '</div>';
+        }
+        html += '</div>';
+        html += '<div class="mg-wai-points" id="mg-wai-points">🏆 ' + miniGameState.maxPoints + ' نقاط</div>';
+        html += '<div class="mg-wai-actions">';
+        html += '<button class="btn btn-secondary mg-wai-hint-btn" id="mg-hint-btn" onclick="mixedWhoAmIHint()"><span><i class="fas fa-eye"></i> تلميح (-1)</span></button>';
+        html += '<button class="btn btn-primary mg-wai-answer-btn" onclick="mixedWhoAmIGuess()"><span><i class="fas fa-lightbulb"></i> أعرفه!</span></button>';
+        html += '</div></div>';
+        renderMiniGameUI('التحدي المتنوع 🔥', 'fire', html);
+
+    } else if (round.type === 'mcq') {
+        var q = round.data;
+        html += '<div class="mg-tf-statement">' + q.q + '</div>';
+        html += '<div class="mg-mcq-options">';
+        q.options.forEach(function(opt, idx) {
+            html += '<button class="mg-fb-option" onclick="answerMixedMCQ(' + idx + ')">' + opt + '</button>';
+        });
+        html += '</div>';
+        renderMiniGameUI('التحدي المتنوع 🔥', 'fire', html);
+    }
+}
+
+function answerMixedTF(answer) {
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
+    var round = miniGameState.data[miniGameState.index];
+    var correct = answer === round.data.answer;
+    if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
+    else { playWrongSound(); vibrate([50, 30, 50]); }
+    var stmt = document.getElementById('mg-tf-statement');
+    if (stmt) {
+        stmt.style.background = correct ? 'rgba(0,184,148,0.2)' : 'rgba(255,107,107,0.2)';
+        stmt.style.borderColor = correct ? '#00B894' : '#FF6B6B';
+    }
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+    miniGameState.index++;
+    setTimeout(renderMixedRound, 600);
+}
+
+function answerMixedFB(answer) {
+    var round = miniGameState.data[miniGameState.index];
+    var correct = answer === round.data.blank;
+    if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
+    else { playWrongSound(); vibrate([50, 30, 50]); showToast('الكلمة الصح: ' + round.data.blank, 'error'); }
+    var blank = document.querySelector('.mg-fb-blank');
+    if (blank) {
+        blank.textContent = round.data.blank;
+        blank.style.background = correct ? 'rgba(0,184,148,0.3)' : 'rgba(255,107,107,0.3)';
+        blank.style.color = correct ? '#00B894' : '#FF6B6B';
+    }
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+    miniGameState.index++;
+    setTimeout(renderMixedRound, 800);
+}
+
+function answerMixedMCQ(idx) {
+    var round = miniGameState.data[miniGameState.index];
+    var correct = idx === round.data.correct;
+    if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
+    else { playWrongSound(); vibrate([50, 30, 50]); showToast('الإجابة: ' + round.data.options[round.data.correct], 'error'); }
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+    miniGameState.index++;
+    setTimeout(renderMixedRound, 800);
+}
+
+function mixedWhoAmIHint() {
+    var round = miniGameState.data[miniGameState.index];
+    var item = round.data;
+    miniGameState.clueIndex++;
+    miniGameState.maxPoints = Math.max(1, 4 - miniGameState.clueIndex);
+    if (miniGameState.clueIndex < item.clues.length) {
+        var el = document.getElementById('mg-clue-' + miniGameState.clueIndex);
+        if (el) { el.classList.remove('hidden'); el.classList.add('visible'); }
+    }
+    var pts = document.getElementById('mg-wai-points');
+    if (pts) pts.innerHTML = '🏆 ' + miniGameState.maxPoints + ' نقاط';
+    if (miniGameState.clueIndex >= item.clues.length - 1) {
+        var btn = document.getElementById('mg-hint-btn');
+        if (btn) btn.style.display = 'none';
+    }
+}
+
+function mixedWhoAmIGuess() {
+    var round = miniGameState.data[miniGameState.index];
+    var item = round.data;
+    // Build options
+    var allGames = getMiniGamesForLesson();
+    var allAnswers = allGames.whoAmI.map(function(d) { return d.answer; });
+    var wrong = allAnswers.filter(function(a) { return a !== item.answer; });
+    shuffleArray(wrong);
+    var options = [item.answer, wrong[0] || 'إجابة خاطئة', wrong[1] || 'إجابة خاطئة 2'];
+    shuffleArray(options);
+
+    var overlay = document.createElement('div');
+    overlay.id = 'mg-guess-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Cairo,sans-serif;direction:rtl';
+
+    var btnsHtml = '';
+    options.forEach(function(opt) {
+        btnsHtml += '<button onclick="checkMixedWhoAmI(\'' + opt.replace(/'/g, "\\'") + '\')" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text-primary);border-radius:12px;padding:14px;font-family:Cairo;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px">' + opt + '</button>';
+    });
+
+    overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:20px;padding:24px;max-width:340px;width:100%;text-align:center">' +
+        '<h3 style="color:var(--text-primary);margin:0 0 16px">من هو؟</h3>' + btnsHtml +
+        '<button onclick="document.getElementById(\'mg-guess-overlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-family:Cairo;font-size:13px;cursor:pointer;margin-top:4px">إلغاء</button></div>';
+    document.body.appendChild(overlay);
+}
+
+function checkMixedWhoAmI(guess) {
+    var overlay = document.getElementById('mg-guess-overlay');
+    if (overlay) overlay.remove();
+    var round = miniGameState.data[miniGameState.index];
+    var correct = guess === round.data.answer;
+    if (correct) {
+        miniGameState.score += miniGameState.maxPoints;
+        playCorrectSound();
+        showToast('✅ صح! ' + round.data.answer + ' (+' + miniGameState.maxPoints + ')', 'success');
+    } else {
+        playWrongSound();
+        showToast('❌ الإجابة: ' + round.data.answer, 'error');
+    }
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+    miniGameState.index++;
+    setTimeout(renderMixedRound, 1000);
 }
 
 function getMiniGameBadge(type) {

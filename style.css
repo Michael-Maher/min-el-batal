@@ -6858,6 +6858,100 @@ body {
     font-weight: 700;
 }
 
+/* Challenge Card — Big CTA */
+.mg-challenge-card {
+    position: relative;
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+    border-radius: 20px;
+    padding: 0;
+    margin-bottom: 20px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    min-height: 140px;
+}
+.mg-challenge-card:active { transform: scale(0.98); }
+.mg-challenge-bg {
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.06'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E") repeat;
+    opacity: 0.5;
+}
+.mg-challenge-content {
+    position: relative;
+    z-index: 1;
+    padding: 24px 20px;
+    text-align: center;
+}
+.mg-challenge-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 26px;
+    color: #fff;
+    animation: installPulse 2s ease-in-out infinite;
+}
+.mg-challenge-content h3 {
+    color: #fff;
+    font-size: 20px;
+    margin: 0 0 4px;
+}
+.mg-challenge-content p {
+    color: rgba(255,255,255,0.8);
+    font-size: 13px;
+    margin: 0 0 12px;
+}
+.mg-challenge-stats {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+}
+.mg-challenge-stats span {
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+}
+.mg-challenge-stats span i { margin-left: 4px; }
+.mg-challenge-card .mg-card-best,
+.mg-challenge-card .mg-card-new {
+    top: 12px;
+    left: 12px;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+}
+
+/* Round type label */
+.mg-round-type {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    background: rgba(108, 92, 231, 0.08);
+    padding: 4px 14px;
+    border-radius: 20px;
+    display: inline-block;
+    margin: 0 auto 14px;
+    width: fit-content;
+}
+.mg-body { display: flex; flex-direction: column; align-items: stretch; }
+.mg-body .mg-round-type { align-self: center; }
+
+/* MCQ options in mixed challenge */
+.mg-mcq-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 16px;
+}
+
 /* Mini-game screen */
 .mini-game-screen { padding: 0; }
 .mg-header {

@@ -6401,9 +6401,9 @@ function renderLevel2Result(container, lesson, subject) {
         html += '<button class="btn btn-secondary" onclick="startLevel2Lesson(' + level2State.currentLesson + ')"><span><i class="fas fa-redo"></i> حاول تاني</span></button>';
     }
     if (level2State.subjectExamKey || level2State.currentLesson < 0) {
-        html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-subjects-screen\')"><span><i class="fas fa-graduation-cap"></i> رجوع للمواد</span></button>';
+        html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-subjects-screen\')"><span><i class="fas fa-arrow-right"></i></span></button>';
     } else {
-        html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-map-screen\')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>';
+        html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-map-screen\')"><span><i class="fas fa-arrow-right"></i></span></button>';
     }
     html += '</div></div>';
 
@@ -6586,7 +6586,7 @@ function selectCompeteMode(mode) {
         '<p class="compete-confirm-desc">' + (modeDescs[mode] || '') + '</p>' +
         '<div class="compete-confirm-actions">' +
         '<button class="btn btn-primary" id="confirm-create-room"><span><i class="fas fa-plus-circle"></i> إنشاء غرفة</span></button>' +
-        '<button class="btn btn-secondary" id="cancel-mode-select"><span>رجوع</span></button>' +
+        '<button class="btn btn-secondary" id="cancel-mode-select"><span><i class="fas fa-arrow-right"></i></span></button>' +
         '</div></div>';
     document.body.appendChild(overlay);
 
@@ -7157,7 +7157,7 @@ function renderCompeteResults(room) {
     if (competeState.isHost) {
         html += '<button class="btn btn-primary" onclick="rematchCompete()"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
     }
-    html += '<button class="btn btn-secondary" onclick="leaveCompeteRoom(); showScreen(\'compete-screen\')"><span><i class="fas fa-home"></i> رجوع</span></button>';
+    html += '<button class="btn btn-secondary" onclick="leaveCompeteRoom(); showScreen(\'compete-screen\')"><span><i class="fas fa-arrow-right"></i></span></button>';
     html += '</div>';
 
     body.innerHTML = html;

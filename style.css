@@ -4257,3 +4257,739 @@ body {
     border-radius: 8px;
     margin: 8px 0 12px;
 }
+
+/* ==================== */
+/* COMPETITIONS SYSTEM   */
+/* ==================== */
+
+/* Competition Hub */
+.compete-hero {
+    text-align: center;
+    padding: 30px 20px 20px;
+    background: linear-gradient(135deg, #6C5CE7 0%, #a29bfe 50%, #6C5CE7 100%);
+    border-radius: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.compete-hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+    animation: competePulse 3s ease-in-out infinite;
+}
+@keyframes competePulse {
+    0%, 100% { transform: scale(1); opacity: 0.5; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+.compete-hero-icon {
+    font-size: 48px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+    animation: competeBounce 2s ease-in-out infinite;
+}
+@keyframes competeBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+}
+.compete-hero h2 {
+    color: #fff;
+    font-size: 22px;
+    margin: 0 0 6px;
+    position: relative;
+    z-index: 1;
+}
+.compete-hero p {
+    color: rgba(255,255,255,0.85);
+    font-size: 14px;
+    margin: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Competition Actions */
+.compete-actions {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.compete-action-btn {
+    flex: 1;
+    padding: 16px 12px;
+    border-radius: 16px;
+    border: none;
+    cursor: pointer;
+    text-align: center;
+    font-family: 'Cairo', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+.compete-action-btn:active {
+    transform: scale(0.96);
+}
+.compete-create {
+    background: linear-gradient(135deg, #00B894, #00cec9);
+    color: #fff;
+}
+.compete-create:hover {
+    box-shadow: 0 4px 15px rgba(0, 184, 148, 0.4);
+}
+.compete-join {
+    background: linear-gradient(135deg, #0984e3, #74b9ff);
+    color: #fff;
+}
+.compete-join:hover {
+    box-shadow: 0 4px 15px rgba(9, 132, 227, 0.4);
+}
+.compete-action-btn i {
+    display: block;
+    font-size: 24px;
+    margin-bottom: 6px;
+}
+.compete-action-btn span {
+    display: block;
+    font-size: 12px;
+    opacity: 0.9;
+    font-weight: 400;
+    margin-top: 2px;
+}
+
+/* Join Section */
+.compete-join-section {
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+    border: 1px solid rgba(255,255,255,0.08);
+}
+.compete-join-input-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.compete-join-input-row .input-field {
+    flex: 1;
+    text-align: center;
+    font-size: 20px;
+    letter-spacing: 8px;
+    font-weight: 700;
+}
+
+/* Game Modes Grid */
+.compete-section-title {
+    font-size: 16px;
+    color: var(--text-primary, #fff);
+    margin: 20px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.compete-section-title i {
+    color: #6C5CE7;
+}
+.compete-modes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 24px;
+}
+.compete-mode-card {
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 16px;
+    padding: 18px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+.compete-mode-card:hover {
+    border-color: #6C5CE7;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(108, 92, 231, 0.2);
+}
+.compete-mode-card:active {
+    transform: scale(0.97);
+}
+.compete-mode-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+.compete-mode-card h4 {
+    color: var(--text-primary, #fff);
+    font-size: 14px;
+    margin: 0 0 4px;
+}
+.compete-mode-card p {
+    color: var(--text-secondary, #aaa);
+    font-size: 11px;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Weekly Ranking */
+.compete-rank-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 12px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+}
+.compete-rank-item.me {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.1));
+    border: 1px solid rgba(108, 92, 231, 0.3);
+}
+.compete-rank-pos {
+    font-size: 20px;
+    min-width: 30px;
+    text-align: center;
+}
+.compete-rank-name {
+    flex: 1;
+    color: var(--text-primary, #fff);
+    font-weight: 600;
+    font-size: 14px;
+}
+.compete-rank-stars {
+    color: #fdcb6e;
+    font-weight: 700;
+    font-size: 14px;
+}
+.compete-empty {
+    text-align: center;
+    color: var(--text-secondary, #aaa);
+    font-size: 13px;
+    padding: 20px;
+    opacity: 0.7;
+}
+
+/* ==================== */
+/* COMPETITION LOBBY     */
+/* ==================== */
+.lobby-header {
+    text-align: center;
+    padding: 20px;
+}
+.lobby-room-code {
+    display: inline-block;
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+    color: #fff;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 10px;
+    padding: 12px 28px;
+    border-radius: 16px;
+    margin: 10px 0;
+    font-family: monospace;
+}
+.lobby-share-hint {
+    font-size: 13px;
+    color: var(--text-secondary, #aaa);
+    margin: 4px 0 0;
+}
+.lobby-mode-badge {
+    display: inline-block;
+    background: rgba(108, 92, 231, 0.2);
+    color: #a29bfe;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+.lobby-players-list {
+    margin: 16px 0;
+}
+.lobby-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 14px;
+    margin-bottom: 8px;
+    animation: lobbyPlayerIn 0.3s ease;
+}
+@keyframes lobbyPlayerIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.lobby-player-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #6C5CE7;
+}
+.lobby-player-name {
+    flex: 1;
+    color: var(--text-primary, #fff);
+    font-weight: 600;
+    font-size: 15px;
+}
+.lobby-player-badge {
+    font-size: 11px;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-weight: 600;
+}
+.lobby-badge-host {
+    background: rgba(253, 203, 110, 0.2);
+    color: #fdcb6e;
+}
+.lobby-badge-ready {
+    background: rgba(0, 184, 148, 0.2);
+    color: #00B894;
+}
+.lobby-waiting-section {
+    text-align: center;
+    padding: 20px;
+}
+.lobby-waiting-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid rgba(108, 92, 231, 0.2);
+    border-top-color: #6C5CE7;
+    border-radius: 50%;
+    margin: 0 auto 12px;
+    animation: lobbySpin 1s linear infinite;
+}
+@keyframes lobbySpin {
+    to { transform: rotate(360deg); }
+}
+.compete-start-btn {
+    width: 100%;
+    margin-top: 16px;
+    font-size: 16px !important;
+    padding: 14px !important;
+    animation: startPulse 2s ease-in-out infinite;
+}
+@keyframes startPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(0, 184, 148, 0.4); }
+    50% { box-shadow: 0 0 0 12px rgba(0, 184, 148, 0); }
+}
+
+/* ==================== */
+/* COMPETITION GAME      */
+/* ==================== */
+.compete-game-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    margin-bottom: 8px;
+}
+.compete-game-progress {
+    background: rgba(108, 92, 231, 0.2);
+    color: #a29bfe;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 700;
+}
+.compete-game-score {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fdcb6e;
+}
+.compete-game-streak {
+    background: linear-gradient(135deg, #e74c3c, #fd79a8);
+    color: #fff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    animation: streakPulse 0.5s ease;
+}
+@keyframes streakPulse {
+    0% { transform: scale(0.5); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Timer Bar */
+.compete-timer-bar {
+    height: 6px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 3px;
+    margin-bottom: 14px;
+    overflow: hidden;
+}
+.compete-timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #00B894, #00cec9);
+    border-radius: 3px;
+    transition: width 1s linear, background 0.3s;
+    width: 100%;
+}
+
+/* Live Scores Strip */
+.compete-live-scores {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 8px 0 12px;
+    margin-bottom: 12px;
+    -webkit-overflow-scrolling: touch;
+}
+.compete-live-scores::-webkit-scrollbar {
+    display: none;
+}
+.compete-live-player {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    min-width: 56px;
+    padding: 6px 4px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.04);
+    transition: all 0.3s;
+}
+.compete-live-player.me {
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+}
+.compete-live-player.eliminated {
+    opacity: 0.35;
+    filter: grayscale(1);
+}
+.compete-live-rank {
+    font-size: 10px;
+    color: #fdcb6e;
+    font-weight: 700;
+}
+.compete-live-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.15);
+}
+.compete-live-name {
+    font-size: 10px;
+    color: var(--text-secondary, #aaa);
+    max-width: 56px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+}
+.compete-live-pts {
+    font-size: 11px;
+    font-weight: 700;
+    color: #fdcb6e;
+}
+
+/* Question Card */
+.compete-question-card {
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 20px;
+    padding: 24px 20px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.compete-q-text {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary, #fff);
+    text-align: center;
+    line-height: 1.7;
+    margin: 0;
+}
+.compete-q-category {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary, #aaa);
+    margin-top: 8px;
+}
+
+/* Options */
+.compete-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.compete-option {
+    padding: 16px 12px;
+    border-radius: 14px;
+    border: none;
+    cursor: pointer;
+    font-family: 'Cairo', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    text-align: center;
+    transition: all 0.2s ease;
+    line-height: 1.5;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.compete-option:active {
+    transform: scale(0.95);
+}
+.compete-opt-red {
+    background: linear-gradient(135deg, #e74c3c, #ff6b6b);
+}
+.compete-opt-blue {
+    background: linear-gradient(135deg, #0984e3, #74b9ff);
+}
+.compete-opt-green {
+    background: linear-gradient(135deg, #00B894, #55efc4);
+}
+.compete-opt-yellow {
+    background: linear-gradient(135deg, #e17055, #fdcb6e);
+}
+.compete-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+}
+
+/* Eliminated / Waiting overlays */
+.compete-eliminated {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary, #aaa);
+}
+.compete-eliminated i {
+    font-size: 48px;
+    margin-bottom: 12px;
+    color: #e74c3c;
+}
+.compete-eliminated h3 {
+    color: #e74c3c;
+    margin: 0 0 8px;
+}
+.compete-eliminated p {
+    margin: 0;
+    font-size: 13px;
+}
+.compete-waiting-others {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary, #aaa);
+}
+.compete-waiting-others p {
+    margin: 8px 0 0;
+    font-size: 14px;
+}
+
+/* Answer Feedback Overlay */
+.compete-feedback-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    pointer-events: none;
+    animation: feedbackFadeIn 0.2s ease;
+}
+@keyframes feedbackFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+.compete-answer-feedback {
+    padding: 24px 40px;
+    border-radius: 20px;
+    text-align: center;
+    font-size: 18px;
+    font-weight: 700;
+    animation: feedbackPop 0.3s ease;
+}
+@keyframes feedbackPop {
+    0% { transform: scale(0.3); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.compete-answer-feedback.correct {
+    background: rgba(0, 184, 148, 0.95);
+    color: #fff;
+    box-shadow: 0 8px 30px rgba(0, 184, 148, 0.5);
+}
+.compete-answer-feedback.wrong {
+    background: rgba(231, 76, 60, 0.95);
+    color: #fff;
+    box-shadow: 0 8px 30px rgba(231, 76, 60, 0.5);
+}
+.compete-answer-feedback .feedback-icon {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 6px;
+}
+.compete-answer-feedback .feedback-points {
+    font-size: 14px;
+    opacity: 0.9;
+    margin-top: 4px;
+}
+
+/* ==================== */
+/* COMPETITION RESULTS   */
+/* ==================== */
+.compete-winner-section {
+    text-align: center;
+    padding: 30px 20px;
+    background: linear-gradient(135deg, rgba(253, 203, 110, 0.15), rgba(108, 92, 231, 0.1));
+    border-radius: 20px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+}
+.compete-winner-section::before {
+    content: '🎊';
+    position: absolute;
+    top: 10px;
+    left: 20px;
+    font-size: 24px;
+    animation: confettiFloat 2s ease-in-out infinite;
+}
+.compete-winner-section::after {
+    content: '🎊';
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 24px;
+    animation: confettiFloat 2s ease-in-out infinite 0.5s;
+}
+@keyframes confettiFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    50% { transform: translateY(-10px) rotate(15deg); }
+}
+.compete-winner-crown {
+    font-size: 48px;
+    margin-bottom: 8px;
+    animation: crownBounce 1.5s ease-in-out infinite;
+}
+@keyframes crownBounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+.compete-winner-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid #fdcb6e;
+    box-shadow: 0 0 20px rgba(253, 203, 110, 0.4);
+    margin-bottom: 10px;
+}
+.compete-winner-name {
+    color: var(--text-primary, #fff);
+    font-size: 20px;
+    margin: 0 0 4px;
+}
+.compete-winner-score {
+    color: #fdcb6e;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 0 0 6px;
+}
+.compete-winner-me {
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+    color: #fff;
+    display: inline-block;
+    padding: 4px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: 700;
+    margin-top: 4px;
+}
+
+/* Results Ranking */
+.compete-results-ranking {
+    margin-bottom: 20px;
+}
+.compete-result-player {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--card-bg, #1e1e2e);
+    border-radius: 14px;
+    margin-bottom: 8px;
+    transition: all 0.3s ease;
+}
+.compete-result-player.me {
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.15), rgba(162, 155, 254, 0.08));
+    border: 1px solid rgba(108, 92, 231, 0.3);
+}
+.compete-result-player.eliminated {
+    opacity: 0.5;
+}
+.compete-result-rank {
+    font-size: 22px;
+    min-width: 32px;
+    text-align: center;
+}
+.compete-result-avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.1);
+}
+.compete-result-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.compete-result-name {
+    color: var(--text-primary, #fff);
+    font-weight: 600;
+    font-size: 14px;
+}
+.compete-result-detail {
+    color: var(--text-secondary, #aaa);
+    font-size: 11px;
+}
+.compete-result-score {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fdcb6e;
+}
+
+/* Reward Card */
+.compete-reward-card {
+    background: linear-gradient(135deg, rgba(0, 184, 148, 0.12), rgba(0, 206, 201, 0.08));
+    border: 1px solid rgba(0, 184, 148, 0.2);
+    border-radius: 16px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+.compete-reward-card h4 {
+    color: #00B894;
+    margin: 0 0 4px;
+    font-size: 15px;
+}
+.compete-reward-card p {
+    color: var(--text-secondary, #aaa);
+    font-size: 13px;
+    margin: 0;
+}
+
+/* Result Actions */
+.compete-result-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+.compete-result-actions .btn {
+    flex: 1;
+}

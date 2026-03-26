@@ -1305,6 +1305,7 @@ function showScreen(id) {
     if (id === 'bible-reading-screen') renderBibleReading();
     if (id === 'devotion-screen') renderDevotion();
     if (id === 'exercises-screen') renderExercises();
+    if (id === 'compete-screen') renderCompeteHub();
 }
 
 function createParticles() {
@@ -6255,6 +6256,785 @@ function showResultCelebration(stars) {
 }
 
 // ============================================================
+// COMPETITIONS / MULTIPLAYER SYSTEM
+// ============================================================
+
+var competeState = {
+    roomId: null,
+    isHost: false,
+    players: [],
+    questions: [],
+    currentQ: 0,
+    myScore: 0,
+    myAnswers: [],
+    status: 'idle', // idle, lobby, playing, results
+    listener: null,
+    timerInterval: null,
+    timeLeft: 0,
+    streak: 0
+};
+
+// --- Competition Hub ---
+function renderCompeteHub() {
+    var body = document.getElementById('compete-body');
+    if (!body) return;
+
+    var html = '';
+
+    // Hero section
+    html += '<div class="compete-hero">';
+    html += '<div class="compete-hero-icon">⚡</div>';
+    html += '<h3>تحدّي أصحابك!</h3>';
+    html += '<p>العب مع أصحابك في مسابقات حيّة وشوف مين البطل الحقيقي</p>';
+    html += '</div>';
+
+    // Quick actions
+    html += '<div class="compete-actions">';
+    html += '<button class="compete-action-btn compete-create" onclick="createCompeteRoom()">';
+    html += '<i class="fas fa-plus-circle"></i>';
+    html += '<span>إنشاء غرفة</span>';
+    html += '<small>ابدأ مسابقة جديدة</small>';
+    html += '</button>';
+
+    html += '<button class="compete-action-btn compete-join" onclick="showJoinRoom()">';
+    html += '<i class="fas fa-sign-in-alt"></i>';
+    html += '<span>دخول غرفة</span>';
+    html += '<small>ادخل بكود الغرفة</small>';
+    html += '</button>';
+    html += '</div>';
+
+    // Join room input (hidden initially)
+    html += '<div class="compete-join-section" id="compete-join-section" style="display:none">';
+    html += '<h4><i class="fas fa-key"></i> ادخل كود الغرفة</h4>';
+    html += '<div class="compete-join-input-row">';
+    html += '<input type="text" id="compete-join-code" class="input-field" placeholder="كود الغرفة (6 أرقام)" maxlength="6" inputmode="numeric" pattern="[0-9]*">';
+    html += '<button class="btn btn-primary" onclick="joinCompeteRoom()"><span><i class="fas fa-arrow-left"></i> دخول</span></button>';
+    html += '</div>';
+    html += '</div>';
+
+    // Game modes
+    html += '<h4 class="compete-section-title"><i class="fas fa-gamepad"></i> أنواع المسابقات</h4>';
+    html += '<div class="compete-modes-grid">';
+
+    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'sparkle\')">';
+    html += '<div class="compete-mode-icon">✨</div>';
+    html += '<h5>سباركل Sparkle</h5>';
+    html += '<p>سؤال وجواب سريع - اللي يغلط يطلع!</p>';
+    html += '</div>';
+
+    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'speed\')">';
+    html += '<div class="compete-mode-icon">⚡</div>';
+    html += '<h5>سباق السرعة</h5>';
+    html += '<p>أسرع واحد يجاوب صح ياخد أكتر نقط</p>';
+    html += '</div>';
+
+    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'classic\')">';
+    html += '<div class="compete-mode-icon">🏆</div>';
+    html += '<h5>كلاسيك</h5>';
+    html += '<p>10 أسئلة - أكتر واحد يجاوب صح يكسب</p>';
+    html += '</div>';
+
+    html += '<div class="compete-mode-card" onclick="createCompeteRoom(\'team\')">';
+    html += '<div class="compete-mode-icon">👥</div>';
+    html += '<h5>فريق ضد فريق</h5>';
+    html += '<p>اتقسموا فرق وتنافسوا!</p>';
+    html += '</div>';
+
+    html += '</div>';
+
+    // Weekly ranking
+    html += '<h4 class="compete-section-title"><i class="fas fa-crown"></i> ترتيب الأسبوع</h4>';
+    html += '<div id="compete-weekly-ranking"></div>';
+
+    // Recent games
+    html += '<h4 class="compete-section-title"><i class="fas fa-history"></i> آخر المسابقات</h4>';
+    html += '<div id="compete-recent-games"></div>';
+
+    body.innerHTML = html;
+
+    // Load rankings
+    loadCompeteRankings();
+    loadRecentGames();
+}
+
+function showJoinRoom() {
+    var section = document.getElementById('compete-join-section');
+    if (section) {
+        section.style.display = section.style.display === 'none' ? 'block' : 'none';
+        if (section.style.display === 'block') {
+            document.getElementById('compete-join-code').focus();
+        }
+    }
+}
+
+// --- Generate room code ---
+function generateRoomCode() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+// --- Create Room ---
+function createCompeteRoom(mode) {
+    if (!firebaseDb) {
+        showToast('مفيش اتصال بالإنترنت', 'error');
+        return;
+    }
+
+    mode = mode || 'classic';
+    var roomCode = generateRoomCode();
+
+    // Collect questions from all Level 2 subjects
+    var allQs = [];
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var subject = LEVEL2_SUBJECTS[subKey];
+        if (subject && subject.lessons) {
+            subject.lessons.forEach(function(lesson) {
+                if (lesson.questions) {
+                    lesson.questions.forEach(function(q) {
+                        allQs.push({ q: q.q, options: q.options, correct: q.correct, subject: subKey });
+                    });
+                }
+            });
+        }
+    });
+
+    // Shuffle and pick questions based on mode
+    for (var i = allQs.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = allQs[i]; allQs[i] = allQs[j]; allQs[j] = temp;
+    }
+
+    var numQs = mode === 'sparkle' ? 20 : (mode === 'speed' ? 15 : 10);
+    var selectedQs = allQs.slice(0, numQs);
+    var timePerQ = mode === 'speed' ? 8 : (mode === 'sparkle' ? 10 : 15);
+
+    var roomData = {
+        code: roomCode,
+        mode: mode,
+        host: GameState.playerPhone,
+        hostName: GameState.playerName,
+        status: 'lobby', // lobby, playing, finished
+        players: {},
+        questions: selectedQs,
+        currentQuestion: -1,
+        timePerQuestion: timePerQ,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Add host as player
+    roomData.players[GameState.playerPhone] = {
+        name: GameState.playerName,
+        character: GameState.character,
+        score: 0,
+        answers: [],
+        streak: 0,
+        alive: true, // for sparkle mode
+        joinedAt: Date.now()
+    };
+
+    firebaseDb.collection('compete_rooms').doc(roomCode).set(roomData)
+        .then(function() {
+            competeState.roomId = roomCode;
+            competeState.isHost = true;
+            competeState.status = 'lobby';
+            showScreen('compete-lobby-screen');
+            listenToRoom(roomCode);
+            showToast('تم إنشاء الغرفة! كود: ' + roomCode, 'success');
+        })
+        .catch(function(err) {
+            showToast('خطأ في إنشاء الغرفة: ' + err.message, 'error');
+        });
+}
+
+// --- Join Room ---
+function joinCompeteRoom() {
+    if (!firebaseDb) {
+        showToast('مفيش اتصال بالإنترنت', 'error');
+        return;
+    }
+
+    var codeInput = document.getElementById('compete-join-code');
+    var code = codeInput ? codeInput.value.trim() : '';
+    if (!code || code.length !== 6) {
+        showToast('ادخل كود الغرفة (6 أرقام)', 'error');
+        return;
+    }
+
+    firebaseDb.collection('compete_rooms').doc(code).get()
+        .then(function(doc) {
+            if (!doc.exists) {
+                showToast('مفيش غرفة بالكود ده!', 'error');
+                return;
+            }
+            var room = doc.data();
+            if (room.status !== 'lobby') {
+                showToast('المسابقة بدأت بالفعل!', 'error');
+                return;
+            }
+
+            // Add player
+            var update = {};
+            update['players.' + GameState.playerPhone] = {
+                name: GameState.playerName,
+                character: GameState.character,
+                score: 0,
+                answers: [],
+                streak: 0,
+                alive: true,
+                joinedAt: Date.now()
+            };
+
+            return firebaseDb.collection('compete_rooms').doc(code).update(update)
+                .then(function() {
+                    competeState.roomId = code;
+                    competeState.isHost = false;
+                    competeState.status = 'lobby';
+                    showScreen('compete-lobby-screen');
+                    listenToRoom(code);
+                    showToast('انضممت للغرفة!', 'success');
+                });
+        })
+        .catch(function(err) {
+            showToast('خطأ: ' + err.message, 'error');
+        });
+}
+
+// --- Listen to Room (real-time) ---
+function listenToRoom(roomCode) {
+    if (competeState.listener) competeState.listener(); // unsubscribe old
+
+    competeState.listener = firebaseDb.collection('compete_rooms').doc(roomCode)
+        .onSnapshot(function(doc) {
+            if (!doc.exists) {
+                showToast('الغرفة اتحذفت!', 'error');
+                showScreen('compete-screen');
+                return;
+            }
+            var room = doc.data();
+            competeState.players = room.players || {};
+            competeState.questions = room.questions || [];
+
+            if (room.status === 'lobby') {
+                renderCompeteLobby(room);
+            } else if (room.status === 'playing') {
+                if (competeState.status !== 'playing' || room.currentQuestion !== competeState.currentQ) {
+                    competeState.status = 'playing';
+                    competeState.currentQ = room.currentQuestion;
+                    if (document.getElementById('compete-game-screen') && !document.getElementById('compete-game-screen').classList.contains('active')) {
+                        showScreen('compete-game-screen');
+                    }
+                    renderCompeteQuestion(room);
+                }
+            } else if (room.status === 'finished') {
+                competeState.status = 'results';
+                showScreen('compete-results-screen');
+                renderCompeteResults(room);
+            }
+        });
+}
+
+// --- Lobby ---
+function renderCompeteLobby(room) {
+    var body = document.getElementById('compete-lobby-body');
+    if (!body) return;
+
+    var players = room.players || {};
+    var playerList = Object.keys(players);
+    var modeNames = { classic: '🏆 كلاسيك', sparkle: '✨ سباركل', speed: '⚡ سباق السرعة', team: '👥 فريق ضد فريق' };
+
+    var html = '';
+
+    // Room info
+    html += '<div class="lobby-room-info">';
+    html += '<div class="lobby-code-display">';
+    html += '<p class="lobby-code-label">كود الغرفة</p>';
+    html += '<div class="lobby-code-number" onclick="copyRoomCode(\'' + room.code + '\')">' + room.code + ' <i class="fas fa-copy"></i></div>';
+    html += '<p class="lobby-code-hint">شارك الكود ده مع أصحابك عشان يدخلوا</p>';
+    html += '</div>';
+    html += '<div class="lobby-mode-badge">' + (modeNames[room.mode] || room.mode) + '</div>';
+    html += '</div>';
+
+    // Players list
+    html += '<h4 class="lobby-section-title"><i class="fas fa-users"></i> اللاعبين (' + playerList.length + ')</h4>';
+    html += '<div class="lobby-players-grid">';
+    playerList.forEach(function(phone) {
+        var p = players[phone];
+        var ch = CHARACTERS[p.character] || CHARACTERS.david;
+        var isHostPlayer = (phone === room.host);
+        html += '<div class="lobby-player-card">';
+        html += '<img src="' + ch.image + '" class="lobby-player-avatar">';
+        html += '<span class="lobby-player-name">' + (p.name || 'لاعب') + '</span>';
+        if (isHostPlayer) html += '<span class="lobby-host-badge"><i class="fas fa-crown"></i></span>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    // Waiting message
+    if (playerList.length < 2) {
+        html += '<div class="lobby-waiting"><div class="lobby-waiting-spinner"></div><p>مستنين لاعبين تانيين...</p></div>';
+    }
+
+    // Start button (host only)
+    if (competeState.isHost && playerList.length >= 2) {
+        html += '<button class="btn btn-primary compete-start-btn" onclick="startCompeteGame()">';
+        html += '<span><i class="fas fa-play"></i> ابدأ المسابقة! (' + playerList.length + ' لاعبين)</span></button>';
+    } else if (!competeState.isHost) {
+        html += '<div class="lobby-waiting-host"><i class="fas fa-hourglass-half"></i> مستنين المضيف يبدأ المسابقة...</div>';
+    }
+
+    body.innerHTML = html;
+}
+
+function copyRoomCode(code) {
+    navigator.clipboard.writeText(code).then(function() {
+        showToast('تم نسخ الكود: ' + code + ' 📋', 'success');
+    }).catch(function() {});
+}
+
+// --- Start Game (host only) ---
+function startCompeteGame() {
+    if (!competeState.isHost || !competeState.roomId) return;
+
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+        status: 'playing',
+        currentQuestion: 0,
+        questionStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).then(function() {
+        competeState.myScore = 0;
+        competeState.myAnswers = [];
+        competeState.streak = 0;
+    });
+}
+
+// --- Render Question ---
+function renderCompeteQuestion(room) {
+    var body = document.getElementById('compete-game-body');
+    if (!body) return;
+
+    var qIdx = room.currentQuestion;
+    if (qIdx < 0 || qIdx >= room.questions.length) return;
+
+    var q = room.questions[qIdx];
+    var totalQs = room.questions.length;
+    var timePerQ = room.timePerQuestion || 15;
+
+    // Check if already answered this question
+    var myData = room.players[GameState.playerPhone];
+    var alreadyAnswered = myData && myData.answers && myData.answers.length > qIdx;
+
+    // Check if eliminated in sparkle mode
+    var isEliminated = room.mode === 'sparkle' && myData && !myData.alive;
+
+    var html = '';
+
+    // Top bar with scores
+    html += '<div class="compete-game-top">';
+    html += '<div class="compete-game-progress">' + (qIdx + 1) + '/' + totalQs + '</div>';
+    html += '<div class="compete-game-score">⭐ ' + competeState.myScore + '</div>';
+    if (competeState.streak >= 2) {
+        html += '<div class="compete-game-streak">🔥 ' + competeState.streak + 'x</div>';
+    }
+    html += '</div>';
+
+    // Timer
+    html += '<div class="compete-timer-bar"><div class="compete-timer-fill" id="compete-timer-fill"></div></div>';
+
+    // Live player scores (mini)
+    var playerKeys = Object.keys(room.players);
+    html += '<div class="compete-live-scores">';
+    playerKeys.sort(function(a, b) { return (room.players[b].score || 0) - (room.players[a].score || 0); });
+    playerKeys.forEach(function(phone, idx) {
+        var p = room.players[phone];
+        var isMe = phone === GameState.playerPhone;
+        var ch = CHARACTERS[p.character] || CHARACTERS.david;
+        var eliminated = room.mode === 'sparkle' && !p.alive;
+        html += '<div class="compete-live-player ' + (isMe ? 'me' : '') + (eliminated ? ' eliminated' : '') + '">';
+        html += '<span class="compete-live-rank">' + (idx + 1) + '</span>';
+        html += '<img src="' + ch.image + '" class="compete-live-avatar">';
+        html += '<span class="compete-live-name">' + (p.name || '').substring(0, 6) + '</span>';
+        html += '<span class="compete-live-pts">' + (p.score || 0) + '</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    if (isEliminated) {
+        html += '<div class="compete-eliminated"><i class="fas fa-skull"></i><h3>تم إقصاءك!</h3><p>تابع المسابقة كمشاهد</p></div>';
+    } else if (alreadyAnswered) {
+        html += '<div class="compete-waiting-others"><div class="lobby-waiting-spinner"></div><p>مستنين باقي اللاعبين...</p></div>';
+    } else {
+        // Question
+        html += '<div class="compete-question-card">';
+        html += '<p class="compete-q-text">' + q.q + '</p>';
+        html += '</div>';
+
+        // Options
+        html += '<div class="compete-options">';
+        var optColors = ['compete-opt-red', 'compete-opt-blue', 'compete-opt-green', 'compete-opt-yellow'];
+        var optIcons = ['fa-diamond', 'fa-circle', 'fa-square', 'fa-star'];
+        q.options.forEach(function(opt, idx) {
+            html += '<button class="compete-option ' + optColors[idx] + '" onclick="answerCompete(' + idx + ')">';
+            html += '<i class="fas ' + optIcons[idx] + '"></i> ' + opt;
+            html += '</button>';
+        });
+        html += '</div>';
+    }
+
+    body.innerHTML = html;
+
+    // Start timer
+    startCompeteTimer(timePerQ, qIdx);
+}
+
+function startCompeteTimer(seconds, qIdx) {
+    if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+    competeState.timeLeft = seconds;
+
+    var fill = document.getElementById('compete-timer-fill');
+    if (fill) fill.style.width = '100%';
+
+    competeState.timerInterval = setInterval(function() {
+        competeState.timeLeft--;
+        if (fill) {
+            fill.style.width = (competeState.timeLeft / seconds * 100) + '%';
+            if (competeState.timeLeft <= 3) fill.style.background = '#e74c3c';
+            else if (competeState.timeLeft <= 5) fill.style.background = '#f39c12';
+        }
+        if (competeState.timeLeft <= 0) {
+            clearInterval(competeState.timerInterval);
+            // Time's up - auto submit no answer
+            var myData = competeState.players[GameState.playerPhone];
+            if (myData && (!myData.answers || myData.answers.length <= qIdx)) {
+                answerCompete(-1); // no answer
+            }
+        }
+    }, 1000);
+}
+
+// --- Answer Question ---
+function answerCompete(selectedIdx) {
+    if (!competeState.roomId) return;
+
+    var room = competeState;
+    var qIdx = room.currentQ;
+    var q = room.questions[qIdx];
+    if (!q) return;
+
+    var isCorrect = selectedIdx === q.correct;
+    var timeBonus = Math.max(0, competeState.timeLeft) * 2;
+    var points = 0;
+
+    if (isCorrect) {
+        competeState.streak++;
+        points = 100 + timeBonus + (competeState.streak > 1 ? competeState.streak * 20 : 0);
+        playCorrectSound();
+        vibrate(50);
+    } else {
+        competeState.streak = 0;
+        if (room.questions && room.questions[0] && competeState.players) {
+            // Sparkle mode: mark as eliminated
+        }
+        playWrongSound();
+        vibrate([50, 30, 50]);
+    }
+
+    competeState.myScore += points;
+    competeState.myAnswers.push({ selected: selectedIdx, correct: isCorrect, points: points });
+
+    // Update Firebase
+    var update = {};
+    update['players.' + GameState.playerPhone + '.score'] = competeState.myScore;
+    update['players.' + GameState.playerPhone + '.answers'] = competeState.myAnswers;
+    update['players.' + GameState.playerPhone + '.streak'] = competeState.streak;
+
+    // Sparkle mode: eliminate on wrong answer
+    if (competeState.questions[0] && !isCorrect) {
+        // Check mode from room data
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).get().then(function(doc) {
+            if (doc.exists && doc.data().mode === 'sparkle') {
+                var elimUpdate = {};
+                elimUpdate['players.' + GameState.playerPhone + '.alive'] = false;
+                firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(elimUpdate);
+            }
+        });
+    }
+
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(update)
+        .then(function() {
+            // Check if all players answered - if host, advance
+            checkAllAnswered();
+        });
+
+    // Show feedback briefly
+    var body = document.getElementById('compete-game-body');
+    if (body) {
+        var feedbackHtml = '<div class="compete-answer-feedback ' + (isCorrect ? 'correct' : 'wrong') + '">';
+        feedbackHtml += isCorrect ?
+            '<i class="fas fa-check-circle"></i><span>صح! +' + points + '</span>' :
+            '<i class="fas fa-times-circle"></i><span>غلط!</span>';
+        feedbackHtml += '</div>';
+        var feedbackEl = document.createElement('div');
+        feedbackEl.innerHTML = feedbackHtml;
+        feedbackEl.className = 'compete-feedback-overlay';
+        body.appendChild(feedbackEl);
+        setTimeout(function() { feedbackEl.remove(); }, 1200);
+    }
+}
+
+function checkAllAnswered() {
+    if (!competeState.isHost || !competeState.roomId) return;
+
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).get()
+        .then(function(doc) {
+            if (!doc.exists) return;
+            var room = doc.data();
+            var players = room.players || {};
+            var allAnswered = true;
+            var qIdx = room.currentQuestion;
+
+            Object.keys(players).forEach(function(phone) {
+                var p = players[phone];
+                // Skip eliminated players in sparkle mode
+                if (room.mode === 'sparkle' && !p.alive) return;
+                if (!p.answers || p.answers.length <= qIdx) {
+                    allAnswered = false;
+                }
+            });
+
+            if (allAnswered) {
+                // Advance to next question or finish
+                if (qIdx + 1 >= room.questions.length) {
+                    // Game over
+                    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+                        status: 'finished',
+                        finishedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    // Award stars to players
+                    awardCompeteStars(room);
+                } else {
+                    // Next question after brief delay
+                    setTimeout(function() {
+                        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+                            currentQuestion: qIdx + 1,
+                            questionStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }, 2000);
+                }
+
+                // Check sparkle mode - if only 1 alive, end game
+                if (room.mode === 'sparkle') {
+                    var aliveCount = 0;
+                    Object.keys(players).forEach(function(phone) {
+                        if (players[phone].alive) aliveCount++;
+                    });
+                    if (aliveCount <= 1) {
+                        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+                            status: 'finished',
+                            finishedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                        awardCompeteStars(room);
+                    }
+                }
+            }
+        });
+}
+
+function awardCompeteStars(room) {
+    // Award stars based on ranking
+    var players = room.players || {};
+    var sorted = Object.keys(players).sort(function(a, b) {
+        return (players[b].score || 0) - (players[a].score || 0);
+    });
+
+    var myRank = sorted.indexOf(GameState.playerPhone);
+    var starRewards = [20, 12, 8, 5, 3]; // 1st to 5th place
+    var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2;
+
+    GameState.stars += reward;
+    saveToCloud();
+    saveToLocalStorage();
+}
+
+// --- Results ---
+function renderCompeteResults(room) {
+    var body = document.getElementById('compete-results-body');
+    if (!body) return;
+
+    var players = room.players || {};
+    var sorted = Object.keys(players).sort(function(a, b) {
+        return (players[b].score || 0) - (players[a].score || 0);
+    });
+    var modeNames = { classic: '🏆 كلاسيك', sparkle: '✨ سباركل', speed: '⚡ سباق السرعة', team: '👥 فريق ضد فريق' };
+
+    var html = '';
+
+    // Winner celebration
+    if (sorted.length > 0) {
+        var winner = players[sorted[0]];
+        var winnerCh = CHARACTERS[winner.character] || CHARACTERS.david;
+        var isMe = sorted[0] === GameState.playerPhone;
+
+        html += '<div class="compete-winner-section">';
+        html += '<div class="compete-winner-crown">👑</div>';
+        html += '<img src="' + winnerCh.image + '" class="compete-winner-avatar">';
+        html += '<h3 class="compete-winner-name">' + (winner.name || 'البطل') + '</h3>';
+        html += '<p class="compete-winner-score">⭐ ' + (winner.score || 0) + ' نقطة</p>';
+        if (isMe) html += '<div class="compete-winner-me">🎉 أنت الفائز!</div>';
+        html += '</div>';
+    }
+
+    // Full ranking
+    html += '<div class="compete-results-ranking">';
+    html += '<h4><i class="fas fa-list-ol"></i> الترتيب النهائي</h4>';
+    sorted.forEach(function(phone, idx) {
+        var p = players[phone];
+        var ch = CHARACTERS[p.character] || CHARACTERS.david;
+        var isMe = phone === GameState.playerPhone;
+        var rankEmoji = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : (idx + 1)));
+        var eliminated = room.mode === 'sparkle' && !p.alive;
+
+        html += '<div class="compete-result-player ' + (isMe ? 'me' : '') + (eliminated ? ' eliminated' : '') + '">';
+        html += '<span class="compete-result-rank">' + rankEmoji + '</span>';
+        html += '<img src="' + ch.image + '" class="compete-result-avatar">';
+        html += '<div class="compete-result-info">';
+        html += '<span class="compete-result-name">' + (p.name || 'لاعب') + '</span>';
+        var correctCount = (p.answers || []).filter(function(a) { return a.correct; }).length;
+        html += '<span class="compete-result-detail">' + correctCount + '/' + room.questions.length + ' صح</span>';
+        html += '</div>';
+        html += '<span class="compete-result-score">⭐ ' + (p.score || 0) + '</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    // Stars earned
+    var myRank = sorted.indexOf(GameState.playerPhone);
+    var starRewards = [20, 12, 8, 5, 3];
+    var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2;
+    html += '<div class="compete-reward-card">';
+    html += '<p>🎁 حصلت على <strong>' + reward + ' ⭐</strong> نجوم!</p>';
+    html += '</div>';
+
+    // Actions
+    html += '<div class="compete-result-actions">';
+    if (competeState.isHost) {
+        html += '<button class="btn btn-primary" onclick="rematchCompete()"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
+    }
+    html += '<button class="btn btn-secondary" onclick="leaveCompeteRoom(); showScreen(\'compete-screen\')"><span><i class="fas fa-home"></i> رجوع</span></button>';
+    html += '</div>';
+
+    body.innerHTML = html;
+
+    // Cleanup
+    if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+}
+
+function rematchCompete() {
+    if (!competeState.isHost || !competeState.roomId) return;
+
+    // Collect new questions
+    var allQs = [];
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var subject = LEVEL2_SUBJECTS[subKey];
+        if (subject && subject.lessons) {
+            subject.lessons.forEach(function(lesson) {
+                if (lesson.questions) {
+                    lesson.questions.forEach(function(q) {
+                        allQs.push({ q: q.q, options: q.options, correct: q.correct });
+                    });
+                }
+            });
+        }
+    });
+    for (var i = allQs.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = allQs[i]; allQs[i] = allQs[j]; allQs[j] = temp;
+    }
+
+    // Reset players
+    var players = competeState.players;
+    var resetPlayers = {};
+    Object.keys(players).forEach(function(phone) {
+        resetPlayers[phone] = {
+            name: players[phone].name,
+            character: players[phone].character,
+            score: 0,
+            answers: [],
+            streak: 0,
+            alive: true,
+            joinedAt: Date.now()
+        };
+    });
+
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+        status: 'lobby',
+        players: resetPlayers,
+        questions: allQs.slice(0, 10),
+        currentQuestion: -1
+    }).then(function() {
+        competeState.myScore = 0;
+        competeState.myAnswers = [];
+        competeState.streak = 0;
+        showScreen('compete-lobby-screen');
+    });
+}
+
+function leaveCompeteRoom() {
+    if (competeState.listener) {
+        competeState.listener();
+        competeState.listener = null;
+    }
+    if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+
+    // Remove player from room
+    if (competeState.roomId && firebaseDb) {
+        var update = {};
+        update['players.' + GameState.playerPhone] = firebase.firestore.FieldValue.delete();
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(update).catch(function() {});
+    }
+
+    competeState.roomId = null;
+    competeState.isHost = false;
+    competeState.status = 'idle';
+    competeState.players = [];
+    showScreen('compete-screen');
+}
+
+// --- Weekly Rankings ---
+function loadCompeteRankings() {
+    var container = document.getElementById('compete-weekly-ranking');
+    if (!container || !firebaseDb) {
+        if (container) container.innerHTML = '<p class="compete-empty">مفيش ترتيب لسه - ابدأ العب!</p>';
+        return;
+    }
+
+    firebaseDb.collection('leaderboard').orderBy('stars', 'desc').limit(10).get()
+        .then(function(snapshot) {
+            var html = '';
+            var rank = 0;
+            snapshot.forEach(function(doc) {
+                rank++;
+                var d = doc.data();
+                var rankEmoji = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank));
+                var isMe = doc.id === GameState.playerPhone;
+                html += '<div class="compete-rank-item ' + (isMe ? 'me' : '') + '">';
+                html += '<span class="compete-rank-pos">' + rankEmoji + '</span>';
+                html += '<span class="compete-rank-name">' + (d.name || 'لاعب') + '</span>';
+                html += '<span class="compete-rank-stars">⭐ ' + (d.stars || 0) + '</span>';
+                html += '</div>';
+            });
+            if (!html) html = '<p class="compete-empty">مفيش ترتيب لسه</p>';
+            container.innerHTML = html;
+        })
+        .catch(function() {
+            container.innerHTML = '<p class="compete-empty">خطأ في تحميل الترتيب</p>';
+        });
+}
+
+function loadRecentGames() {
+    var container = document.getElementById('compete-recent-games');
+    if (!container) return;
+    container.innerHTML = '<p class="compete-empty">مفيش مسابقات سابقة - ابدأ أول مسابقة!</p>';
+}
+
+// ============================================================
 // SPIRITUAL LIFE FEATURES
 // ============================================================
 
@@ -6317,6 +7097,11 @@ function renderBibleReading() {
     var todayLog = (GameState.bibleReadingLog || {})[todayKey] || {};
     var currentCh = GameState.bibleChapter || 1;
     var chapter = MARK_CHAPTERS[currentCh - 1];
+
+    // Auto-load text from embedded MARK_FULL_TEXT if available
+    if (typeof MARK_FULL_TEXT !== 'undefined' && MARK_FULL_TEXT[currentCh] && (!chapter.text || chapter.text.length === 0)) {
+        chapter.text = MARK_FULL_TEXT[currentCh];
+    }
 
     // Get highlighted verses for this chapter
     if (!GameState.highlightedVerses) GameState.highlightedVerses = {};
@@ -6436,6 +7221,10 @@ function toggleVerseHighlight(ch, vIdx) {
 
 function shareBibleVerse(ch, vIdx) {
     var chapter = MARK_CHAPTERS[ch - 1];
+    // Try loading from embedded text if not already loaded
+    if (chapter && (!chapter.text || !chapter.text[vIdx]) && typeof MARK_FULL_TEXT !== 'undefined' && MARK_FULL_TEXT[ch]) {
+        chapter.text = MARK_FULL_TEXT[ch];
+    }
     if (!chapter || !chapter.text || !chapter.text[vIdx]) {
         showToast('مفيش نص للآية دي', 'warning');
         return;
@@ -6473,21 +7262,15 @@ function handleBibleImage(event) {
 }
 
 function fetchMarkChapter(ch) {
-    // Fetch from bible-api (SVD Arabic Bible)
-    showToast('جاري تحميل الأصحاح...', 'info');
-    fetch('https://bible-api.com/mark+' + ch + '?translation=svd')
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
-            if (data && data.verses) {
-                var chapter = MARK_CHAPTERS[ch - 1];
-                chapter.text = data.verses.map(function(v) { return v.text.trim(); });
-                renderBibleReading();
-                showToast('تم تحميل الأصحاح! 📖', 'success');
-            }
-        })
-        .catch(function() {
-            showToast('خطأ في التحميل - تأكد من الاتصال بالإنترنت', 'error');
-        });
+    // Load from embedded MARK_FULL_TEXT (no API needed)
+    if (typeof MARK_FULL_TEXT !== 'undefined' && MARK_FULL_TEXT[ch]) {
+        var chapter = MARK_CHAPTERS[ch - 1];
+        chapter.text = MARK_FULL_TEXT[ch];
+        renderBibleReading();
+        showToast('تم تحميل الأصحاح! 📖', 'success');
+        return;
+    }
+    showToast('النص غير متاح حالياً', 'warning');
 }
 
 function completeBibleReading() {

@@ -1312,15 +1312,29 @@ function createParticles() {
     var c = document.getElementById('particles');
     if (!c) return;
     c.innerHTML = '';
-    for (var i = 0; i < 30; i++) {
+
+    // Regular circle particles
+    for (var i = 0; i < 20; i++) {
         var p = document.createElement('div');
         p.className = 'particle';
         p.style.left = Math.random()*100 + '%';
         p.style.animationDelay = Math.random()*15 + 's';
         p.style.animationDuration = (15+Math.random()*10) + 's';
-        p.style.opacity = Math.random()*0.5+0.1;
+        p.style.opacity = Math.random()*0.3+0.05;
         p.style.width = p.style.height = (3+Math.random()*6)+'px';
         c.appendChild(p);
+    }
+
+    // Themed shape particles (crosses, stars, books)
+    var shapeClasses = ['particle-cross', 'particle-star', 'particle-book'];
+    for (var s = 0; s < 8; s++) {
+        var sp = document.createElement('div');
+        sp.className = shapeClasses[s % shapeClasses.length];
+        sp.style.left = Math.random() * 100 + '%';
+        sp.style.animationDelay = Math.random() * 20 + 's';
+        sp.style.animationDuration = (20 + Math.random() * 15) + 's';
+        sp.style.fontSize = (14 + Math.random() * 12) + 'px';
+        c.appendChild(sp);
     }
 }
 
@@ -4817,11 +4831,125 @@ function renderHomeHub() {
     var nameEl = document.getElementById('hub-player-name');
     if (nameEl) nameEl.textContent = GameState.playerName;
     var rankEl = document.getElementById('hub-rank');
-    if (rankEl) { var rank = getRank(); rankEl.textContent = rank.emoji + ' ' + rank.title; }
+    var rank = getRank();
+    if (rankEl) { rankEl.textContent = rank.emoji + ' ' + rank.title; }
     var starsEl = document.getElementById('hub-stars');
     if (starsEl) starsEl.textContent = GameState.stars;
     var gemsEl = document.getElementById('hub-gems');
     if (gemsEl) gemsEl.textContent = GameState.gems;
+
+    // XP bar
+    var xpWrap = document.getElementById('hub-xp-bar-wrap');
+    if (!xpWrap) {
+        xpWrap = document.createElement('div');
+        xpWrap.id = 'hub-xp-bar-wrap';
+        xpWrap.className = 'hub-xp-bar-wrap';
+        var playerRow = document.querySelector('.hub-player-row');
+        if (playerRow && playerRow.parentNode) {
+            playerRow.parentNode.insertBefore(xpWrap, playerRow.nextSibling);
+        }
+    }
+    if (xpWrap) {
+        var currentRankIdx = 0;
+        for (var ri = 0; ri < RANKS.length; ri++) {
+            if (GameState.stars >= RANKS[ri].min) currentRankIdx = ri;
+        }
+        var nextRank = RANKS[Math.min(currentRankIdx + 1, RANKS.length - 1)];
+        var currentMin = RANKS[currentRankIdx].min;
+        var nextMin = nextRank.min;
+        var xpPct = nextMin > currentMin ? Math.min(((GameState.stars - currentMin) / (nextMin - currentMin)) * 100, 100) : 100;
+        xpWrap.innerHTML = '<div class="hub-xp-bar"><div class="hub-xp-fill" style="width:' + xpPct + '%"></div></div>' +
+            '<div class="hub-xp-info"><span class="hub-xp-text">' + GameState.stars + ' / ' + nextMin + ' نجمة</span>' +
+            '<span class="hub-xp-level"><i class="fas fa-arrow-up"></i> ' + nextRank.title + '</span></div>';
+    }
+
+    // Daily streak
+    var streakWrap = document.getElementById('hub-streak-section');
+    if (!streakWrap) {
+        streakWrap = document.createElement('div');
+        streakWrap.id = 'hub-streak-section';
+        streakWrap.className = 'hub-streak-section';
+        var xpBar = document.getElementById('hub-xp-bar-wrap');
+        if (xpBar && xpBar.parentNode) {
+            xpBar.parentNode.insertBefore(streakWrap, xpBar.nextSibling);
+        }
+    }
+    if (streakWrap) {
+        var streak = calculateLoginStreak();
+        streakWrap.innerHTML = '<div class="streak-flame">' + (streak > 0 ? '🔥' : '❄️') + '</div>' +
+            '<div class="streak-info"><div class="streak-count">' + streak + '</div><div class="streak-label">يوم متواصل</div></div>' +
+            '<div style="flex:1"></div>' +
+            '<div style="text-align:center"><div style="font-size:20px">' + rank.emoji + '</div><div class="streak-label">' + rank.title + '</div></div>';
+    }
+}
+
+function calculateLoginStreak() {
+    var streak = 0;
+    var today = new Date();
+    for (var d = 0; d < 365; d++) {
+        var checkDate = new Date(today);
+        checkDate.setDate(checkDate.getDate() - d);
+        var dateStr = checkDate.toISOString().split('T')[0];
+        var hasActivity = (GameState.bibleReadingLog && GameState.bibleReadingLog[dateStr]) ||
+                         (GameState.devotionLog && GameState.devotionLog[dateStr]) ||
+                         (GameState.exerciseLog && GameState.exerciseLog[dateStr]);
+        if (hasActivity || d === 0) {
+            streak++;
+        } else {
+            break;
+        }
+    }
+    return Math.max(streak - 1, 0); // Don't count today unless they did something
+}
+
+// --- Achievement Popup System ---
+function showAchievement(icon, title, desc) {
+    var existing = document.querySelector('.achievement-popup');
+    if (existing) existing.remove();
+
+    var popup = document.createElement('div');
+    popup.className = 'achievement-popup';
+    popup.innerHTML = '<div class="achievement-popup-icon">' + icon + '</div>' +
+        '<div class="achievement-popup-text"><h4>إنجاز جديد!</h4><p>' + title + '</p><small>' + (desc || '') + '</small></div>';
+    document.body.appendChild(popup);
+
+    setTimeout(function() { popup.classList.add('show'); }, 50);
+    setTimeout(function() {
+        popup.classList.remove('show');
+        setTimeout(function() { popup.remove(); }, 600);
+    }, 3500);
+
+    // Play achievement sound
+    try { playSound('correct'); } catch(e) {}
+}
+
+// --- Confetti System ---
+function launchConfetti(duration) {
+    var container = document.createElement('div');
+    container.className = 'confetti-container';
+    document.body.appendChild(container);
+
+    var colors = ['#6C5CE7', '#00CEC9', '#FDCB6E', '#FD79A8', '#00B894', '#FF6B6B', '#a29bfe', '#74b9ff'];
+    var shapes = ['■', '●', '▲', '★', '♦', '✝'];
+    var count = 60;
+
+    for (var i = 0; i < count; i++) {
+        (function(idx) {
+            setTimeout(function() {
+                var piece = document.createElement('div');
+                piece.className = 'confetti-piece';
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+                piece.style.animationDelay = (Math.random() * 0.5) + 's';
+                piece.style.fontSize = (10 + Math.random() * 14) + 'px';
+                piece.style.color = colors[Math.floor(Math.random() * colors.length)];
+                piece.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+                container.appendChild(piece);
+            }, idx * 30);
+        })(i);
+    }
+
+    setTimeout(function() { container.remove(); }, (duration || 3000) + 1000);
 }
 
 // --- Level 2 Subjects Render ---
@@ -6281,9 +6409,13 @@ function renderCompeteHub() {
 
     var html = '';
 
-    // Hero section
+    // Hero section with vector decorations
     html += '<div class="compete-hero">';
-    html += '<div class="compete-hero-icon">⚡</div>';
+    html += '<div class="vector-decor vector-circle-1"></div>';
+    html += '<div class="vector-decor vector-circle-2"></div>';
+    html += '<div class="vector-decor vector-diamond"></div>';
+    html += '<div class="vector-decor vector-triangle"></div>';
+    html += '<div class="compete-hero-icon"><i class="fas fa-bolt"></i></div>';
     html += '<h3>تحدّي أصحابك!</h3>';
     html += '<p>العب مع أصحابك في مسابقات حيّة وشوف مين البطل الحقيقي</p>';
     html += '</div>';
@@ -6676,19 +6808,15 @@ function renderCompeteQuestion(room) {
 
     var html = '';
 
-    // Top bar with scores
-    html += '<div class="compete-game-top">';
-    html += '<div class="compete-game-progress">' + (qIdx + 1) + '/' + totalQs + '</div>';
-    html += '<div class="compete-game-score">⭐ ' + competeState.myScore + '</div>';
+    // Streak indicator
     if (competeState.streak >= 2) {
-        html += '<div class="compete-game-streak">🔥 ' + competeState.streak + 'x</div>';
+        html += '<div class="compete-streak"><span class="streak-fire">🔥</span> ' + competeState.streak + ' إجابات متتالية!</div>';
     }
-    html += '</div>';
 
-    // Timer
-    html += '<div class="compete-timer-bar"><div class="compete-timer-fill" id="compete-timer-fill"></div></div>';
+    // Timer bar
+    html += '<div class="compete-timer-bar"><div class="compete-timer-fill" id="compete-timer-fill" style="width:100%;background:linear-gradient(90deg,var(--primary),var(--secondary))"></div></div>';
 
-    // Live player scores (mini)
+    // Live player scores strip
     var playerKeys = Object.keys(room.players);
     html += '<div class="compete-live-scores">';
     playerKeys.sort(function(a, b) { return (room.players[b].score || 0) - (room.players[a].score || 0); });
@@ -6697,32 +6825,36 @@ function renderCompeteQuestion(room) {
         var isMe = phone === GameState.playerPhone;
         var ch = CHARACTERS[p.character] || CHARACTERS.david;
         var eliminated = room.mode === 'sparkle' && !p.alive;
-        html += '<div class="compete-live-player ' + (isMe ? 'me' : '') + (eliminated ? ' eliminated' : '') + '">';
-        html += '<span class="compete-live-rank">' + (idx + 1) + '</span>';
-        html += '<img src="' + ch.image + '" class="compete-live-avatar">';
-        html += '<span class="compete-live-name">' + (p.name || '').substring(0, 6) + '</span>';
-        html += '<span class="compete-live-pts">' + (p.score || 0) + '</span>';
+        html += '<div class="compete-live-score-item ' + (isMe ? 'me' : '') + (eliminated ? ' eliminated' : '') + '">';
+        html += '<img src="' + ch.image + '">';
+        html += '<span>' + (p.name || '').substring(0, 6) + '</span>';
+        html += '<span class="compete-game-score">' + (p.score || 0) + '</span>';
         html += '</div>';
     });
     html += '</div>';
 
     if (isEliminated) {
-        html += '<div class="compete-eliminated"><i class="fas fa-skull"></i><h3>تم إقصاءك!</h3><p>تابع المسابقة كمشاهد</p></div>';
+        html += '<div class="compete-eliminated" style="text-align:center;padding:40px 20px;">';
+        html += '<div style="font-size:60px;margin-bottom:12px;animation:flameDance 0.5s ease-in-out infinite alternate">💀</div>';
+        html += '<h3 style="color:var(--text-primary);font-size:20px;margin:0 0 6px">تم إقصاءك!</h3>';
+        html += '<p style="color:var(--text-secondary);font-size:14px">تابع المسابقة كمشاهد</p></div>';
     } else if (alreadyAnswered) {
-        html += '<div class="compete-waiting-others"><div class="lobby-waiting-spinner"></div><p>مستنين باقي اللاعبين...</p></div>';
+        html += '<div style="text-align:center;padding:40px 20px;">';
+        html += '<div class="lobby-waiting-spinner" style="margin-bottom:16px"></div>';
+        html += '<p style="color:var(--text-secondary);font-size:14px">مستنين باقي اللاعبين...</p></div>';
     } else {
-        // Question
+        // Question card with number
         html += '<div class="compete-question-card">';
-        html += '<p class="compete-q-text">' + q.q + '</p>';
+        html += '<p class="compete-question-num">سؤال ' + (qIdx + 1) + ' من ' + totalQs + '</p>';
+        html += '<p class="compete-question-text">' + q.q + '</p>';
         html += '</div>';
 
-        // Options
-        html += '<div class="compete-options">';
-        var optColors = ['compete-opt-red', 'compete-opt-blue', 'compete-opt-green', 'compete-opt-yellow'];
-        var optIcons = ['fa-diamond', 'fa-circle', 'fa-square', 'fa-star'];
+        // Kahoot-style colored options
+        html += '<div class="compete-options-grid">';
+        var optShapes = ['▲', '◆', '●', '★'];
         q.options.forEach(function(opt, idx) {
-            html += '<button class="compete-option ' + optColors[idx] + '" onclick="answerCompete(' + idx + ')">';
-            html += '<i class="fas ' + optIcons[idx] + '"></i> ' + opt;
+            html += '<button class="compete-option" onclick="answerCompete(' + idx + ')">';
+            html += '<span class="option-shape">' + optShapes[idx] + '</span> ' + opt;
             html += '</button>';
         });
         html += '</div>';
@@ -6745,8 +6877,11 @@ function startCompeteTimer(seconds, qIdx) {
         competeState.timeLeft--;
         if (fill) {
             fill.style.width = (competeState.timeLeft / seconds * 100) + '%';
-            if (competeState.timeLeft <= 3) fill.style.background = '#e74c3c';
-            else if (competeState.timeLeft <= 5) fill.style.background = '#f39c12';
+            if (competeState.timeLeft <= 3) {
+                fill.className = 'compete-timer-fill warning';
+            } else if (competeState.timeLeft <= 5) {
+                fill.style.background = 'linear-gradient(90deg, #f39c12, #e17055)';
+            }
         }
         if (competeState.timeLeft <= 0) {
             clearInterval(competeState.timerInterval);
@@ -6813,20 +6948,20 @@ function answerCompete(selectedIdx) {
             checkAllAnswered();
         });
 
-    // Show feedback briefly
-    var body = document.getElementById('compete-game-body');
-    if (body) {
-        var feedbackHtml = '<div class="compete-answer-feedback ' + (isCorrect ? 'correct' : 'wrong') + '">';
-        feedbackHtml += isCorrect ?
-            '<i class="fas fa-check-circle"></i><span>صح! +' + points + '</span>' :
-            '<i class="fas fa-times-circle"></i><span>غلط!</span>';
-        feedbackHtml += '</div>';
-        var feedbackEl = document.createElement('div');
-        feedbackEl.innerHTML = feedbackHtml;
-        feedbackEl.className = 'compete-feedback-overlay';
-        body.appendChild(feedbackEl);
-        setTimeout(function() { feedbackEl.remove(); }, 1200);
-    }
+    // Show dramatic feedback overlay
+    var feedbackEl = document.createElement('div');
+    feedbackEl.className = 'compete-feedback-overlay ' + (isCorrect ? 'compete-feedback-correct' : 'compete-feedback-wrong');
+    feedbackEl.innerHTML = '<div class="compete-feedback-icon">' +
+        (isCorrect ? '✅' : '❌') + '</div>' +
+        '<div style="position:absolute;bottom:30%;text-align:center;width:100%">' +
+        '<p style="font-size:24px;font-weight:900;color:#fff;text-shadow:0 4px 12px rgba(0,0,0,0.5)">' +
+        (isCorrect ? 'صح! +' + points : 'غلط!') + '</p></div>';
+    document.body.appendChild(feedbackEl);
+    setTimeout(function() { feedbackEl.remove(); }, 1000);
+
+    // Disable options after answering
+    var optBtns = document.querySelectorAll('.compete-option');
+    optBtns.forEach(function(btn) { btn.classList.add('disabled'); });
 }
 
 function checkAllAnswered() {
@@ -6974,6 +7109,22 @@ function renderCompeteResults(room) {
 
     // Cleanup
     if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+
+    // Launch confetti if player won or placed top 3
+    if (myRank >= 0 && myRank < 3) {
+        launchConfetti(4000);
+        if (myRank === 0) {
+            showAchievement('🏆', 'فزت بالمسابقة!', 'أنت البطل الحقيقي 🎉');
+        }
+    }
+
+    // Award stars
+    if (myRank >= 0) {
+        GameState.stars = (GameState.stars || 0) + reward;
+        GameState.gems = (GameState.gems || 0) + Math.floor(reward / 4);
+        saveToLocalStorage();
+        if (typeof saveToCloud === 'function') saveToCloud();
+    }
 }
 
 function rematchCompete() {

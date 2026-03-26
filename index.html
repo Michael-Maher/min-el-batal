@@ -109,14 +109,38 @@
                     <div class="hub-avatar-wrap" onclick="showScreen('character-screen')">
                         <img id="hub-avatar-img" class="avatar-img" src="" alt="avatar">
                     </div>
-                    <div class="hub-player-info">
+                    <div class="hub-player-info" onclick="showProfileEdit()">
                         <h3 id="hub-player-name"></h3>
                         <p class="hub-rank" id="hub-rank"></p>
+                        <span class="edit-name-hint"><i class="fas fa-pen"></i></span>
                     </div>
                     <div class="hub-stats">
                         <div class="stat"><span class="stat-icon">⭐</span><span id="hub-stars">0</span></div>
                         <div class="stat"><span class="stat-icon">💎</span><span id="hub-gems">0</span></div>
                     </div>
+                </div>
+            </div>
+
+            <!-- Spiritual Life Section (TOP) -->
+            <h2 class="hub-title hub-title-spiritual"><i class="fas fa-cross"></i> حياتي الروحية</h2>
+            <div class="spiritual-cards-grid">
+                <div class="spiritual-card" onclick="showScreen('bible-reading-screen')">
+                    <div class="spiritual-card-icon">📖</div>
+                    <h4>إنجيل مار مرقس</h4>
+                    <p>أصحاح يومي + تلخيص</p>
+                    <div class="spiritual-card-streak" id="bible-streak-badge-top"></div>
+                </div>
+                <div class="spiritual-card" onclick="showScreen('devotion-screen')">
+                    <div class="spiritual-card-icon">🕯️</div>
+                    <h4>خلوتي الشخصية</h4>
+                    <p>صلاة الصبح وبليل</p>
+                    <div class="spiritual-card-streak" id="devotion-streak-badge-top"></div>
+                </div>
+                <div class="spiritual-card" onclick="showScreen('exercises-screen')">
+                    <div class="spiritual-card-icon">💪</div>
+                    <h4>التداريب اليومية</h4>
+                    <p>تداريب روحية يومية وأسبوعية</p>
+                    <div class="spiritual-card-streak" id="exercise-streak-badge-top"></div>
                 </div>
             </div>
 
@@ -171,6 +195,39 @@
                 <button class="fab" onclick="showScreen('shop-screen')" title="متجر السلاح"><i class="fas fa-shield-halved"></i></button>
                 <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
             </div>
+        </div>
+    </div>
+
+    <!-- ============ BIBLE READING SCREEN (Mark's Gospel) ============ -->
+    <div id="bible-reading-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-book-bible"></i> إنجيل مار مرقس</h2>
+            </div>
+            <div id="bible-reading-body"></div>
+        </div>
+    </div>
+
+    <!-- ============ DEVOTION SCREEN ============ -->
+    <div id="devotion-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-praying-hands"></i> خلوتي الشخصية</h2>
+            </div>
+            <div id="devotion-body"></div>
+        </div>
+    </div>
+
+    <!-- ============ EXERCISES SCREEN ============ -->
+    <div id="exercises-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-dumbbell"></i> التداريب الروحية</h2>
+            </div>
+            <div id="exercises-body"></div>
         </div>
     </div>
 
@@ -251,6 +308,32 @@
                     </div>
                     <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
                 </div>
+                <!-- Exam Mode Toggle -->
+                <div class="l2-exam-toggle-section" id="l2-exam-toggle-section">
+                    <h4><i class="fas fa-scroll"></i> وضع الامتحانات</h4>
+                    <p>اختار مادة وامتحنها - مرة واحدة في الأسبوع</p>
+                    <div class="l2-exam-subjects-grid" id="l2-exam-subjects-grid"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ EXAM RULES MODAL ============ -->
+    <div id="exam-rules-modal" class="modal-overlay" style="display:none;">
+        <div class="modal-card exam-rules-card">
+            <div class="exam-rules-icon">📜</div>
+            <h3>قواعد الامتحان</h3>
+            <div class="exam-rules-list">
+                <div class="exam-rule"><i class="fas fa-clock"></i> <span>الامتحان مرة واحدة في الأسبوع لكل مادة</span></div>
+                <div class="exam-rule"><i class="fas fa-ban"></i> <span>مفيش وسائل مساعدة (حذف إجابتين / وقت إضافي / تخطي)</span></div>
+                <div class="exam-rule"><i class="fas fa-eye-slash"></i> <span>مش هيظهرلك صح أو غلط أثناء الامتحان</span></div>
+                <div class="exam-rule"><i class="fas fa-list-check"></i> <span>النتيجة والملخص الكامل في الآخر</span></div>
+                <div class="exam-rule exam-rule-warning"><i class="fas fa-exclamation-triangle"></i> <span>لو قفلت الامتحان قبل ما تخلصه هيتلغي ومش هتقدر تعيده!</span></div>
+            </div>
+            <div class="exam-rules-subject" id="exam-rules-subject-name"></div>
+            <div class="exam-rules-btns">
+                <button class="btn btn-secondary" onclick="closeExamRules()"><span>رجوع</span></button>
+                <button class="btn btn-exam" onclick="confirmStartSubjectExam()"><span><i class="fas fa-play"></i> ابدأ الامتحان</span></button>
             </div>
         </div>
     </div>
@@ -1066,6 +1149,21 @@
     <div class="toast" id="toast"></div>
 
     <!-- Firebase SDK -->
+    <!-- Profile Edit Modal -->
+    <div id="profile-edit-modal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeProfileEdit()">
+        <div class="modal-card profile-edit-card">
+            <h3><i class="fas fa-user-edit"></i> تعديل البروفايل</h3>
+            <label class="profile-edit-label">الاسم</label>
+            <input type="text" id="profile-edit-name" class="input-field" placeholder="اسمك" maxlength="20">
+            <label class="profile-edit-label">صورة البروفايل</label>
+            <div class="profile-avatars-grid" id="profile-avatars-grid"></div>
+            <div class="profile-edit-btns">
+                <button class="btn btn-secondary" onclick="closeProfileEdit()"><span>إلغاء</span></button>
+                <button class="btn btn-primary" onclick="saveProfileEdit()"><span><i class="fas fa-save"></i> حفظ</span></button>
+            </div>
+        </div>
+    </div>
+
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 

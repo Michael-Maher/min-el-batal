@@ -55,7 +55,15 @@ const GameState = {
         lastActiveDate: '',
         dailyLog: {}
     },
-    level2Data: {}
+    level2Data: {},
+    profileAvatar: null,
+    // Spiritual life
+    bibleReadingLog: {},   // { '2026-03-26': { chapter: 3, summary: '...', done: true } }
+    devotionLog: {},       // { '2026-03-26': { morning: true, night: true } }
+    exerciseLog: {},       // { '2026-03-26': { daily: [...], weekly: '...' } }
+    bibleChapter: 1,        // Current chapter in Mark (1-16)
+    highlightedVerses: {},   // { 'mark_1': [0, 5, 12], ... }
+    lessonSummaries: {}      // { 'faith_0': { text: '...', image: '...', date: '...' } }
 };
 
 // --- Firebase Initialization ---
@@ -196,6 +204,13 @@ function saveToCloud() {
         paulJourneyData: GameState.paulJourneyData,
         lampData: GameState.lampData,
         level2Data: GameState.level2Data || {},
+        profileAvatar: GameState.profileAvatar || null,
+        bibleReadingLog: GameState.bibleReadingLog || {},
+        devotionLog: GameState.devotionLog || {},
+        exerciseLog: GameState.exerciseLog || {},
+        bibleChapter: GameState.bibleChapter || 1,
+        highlightedVerses: GameState.highlightedVerses || {},
+        lessonSummaries: GameState.lessonSummaries || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -1277,7 +1292,7 @@ function showScreen(id) {
     // Hide lamp fixed element when leaving lamp screen
     var lampBottom = document.getElementById('lamp-fixed-bottom');
     if (lampBottom) lampBottom.style.display = (id === 'lamp-screen') ? 'block' : 'none';
-    if (id === 'home-hub-screen') renderHomeHub();
+    if (id === 'home-hub-screen') { renderHomeHub(); updateSpiritualBadges(); }
     if (id === 'map-screen') renderMap();
     if (id === 'paul-journey-screen') renderPaulMap();
     if (id === 'lamp-screen') renderLampScreen();
@@ -1287,6 +1302,9 @@ function showScreen(id) {
     if (id === 'settings-screen') renderSettings();
     if (id === 'level2-subjects-screen') renderLevel2Subjects();
     if (id === 'level2-map-screen') renderLevel2Map();
+    if (id === 'bible-reading-screen') renderBibleReading();
+    if (id === 'devotion-screen') renderDevotion();
+    if (id === 'exercises-screen') renderExercises();
 }
 
 function createParticles() {
@@ -3442,8 +3460,18 @@ function renderLeaderboardList() {
     list.innerHTML = '';
     podium.innerHTML = '';
 
-    // Combine all players
-    var allPlayers = leaderboardData.slice();
+    // Combine all players - normalize field names (Firebase uses playerName/playerPhone)
+    var allPlayers = leaderboardData.map(function(p) {
+        return {
+            name: p.playerName || p.name || 'بطل',
+            phone: p.playerPhone || p.phone || '',
+            stars: p.stars || 0,
+            streak: p.bestStreak || p.streak || 0,
+            gems: p.gems || 0,
+            level: p.currentLevel || p.level || 1,
+            character: p.character || 'david'
+        };
+    });
     var meExists = allPlayers.find(function(p) { return p.phone === GameState.playerPhone; });
     if (!meExists && GameState.playerName) {
         allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel, character: GameState.character });
@@ -3451,6 +3479,7 @@ function renderLeaderboardList() {
     // Update current player data in list
     allPlayers.forEach(function(p) {
         if (p.phone === GameState.playerPhone) {
+            p.name = GameState.playerName;
             p.stars = GameState.stars;
             p.streak = GameState.bestStreak;
             p.gems = GameState.gems;
@@ -3503,6 +3532,80 @@ function switchLBTab(tab) {
     currentLBTab = tab;
     updateLBTabIndicator();
     renderLeaderboardList();
+}
+
+// --- Profile Edit ---
+var PROFILE_AVATARS = [
+    { id: 'avatar_cross', icon: '✝️', label: 'صليب' },
+    { id: 'avatar_bible', icon: '📖', label: 'كتاب مقدس' },
+    { id: 'avatar_church', icon: '⛪', label: 'كنيسة' },
+    { id: 'avatar_star', icon: '⭐', label: 'نجمة' },
+    { id: 'avatar_crown', icon: '👑', label: 'تاج' },
+    { id: 'avatar_fire', icon: '🔥', label: 'نار' },
+    { id: 'avatar_shield', icon: '🛡️', label: 'درع' },
+    { id: 'avatar_dove', icon: '🕊️', label: 'حمامة' }
+];
+
+var selectedProfileAvatar = null;
+
+function showProfileEdit() {
+    var modal = document.getElementById('profile-edit-modal');
+    modal.style.display = 'flex';
+    document.getElementById('profile-edit-name').value = GameState.playerName;
+
+    selectedProfileAvatar = GameState.profileAvatar || null;
+
+    // Render avatar grid: character images + emoji avatars
+    var grid = document.getElementById('profile-avatars-grid');
+    grid.innerHTML = '';
+
+    // Character images
+    Object.keys(CHARACTERS).forEach(function(key) {
+        var ch = CHARACTERS[key];
+        var el = document.createElement('div');
+        el.className = 'profile-avatar-option' + (selectedProfileAvatar === 'char_' + key ? ' selected' : '');
+        el.innerHTML = '<img src="' + ch.image + '" alt="' + ch.name + '"><span>' + ch.name + '</span>';
+        el.onclick = function() {
+            selectedProfileAvatar = 'char_' + key;
+            grid.querySelectorAll('.profile-avatar-option').forEach(function(o) { o.classList.remove('selected'); });
+            el.classList.add('selected');
+        };
+        grid.appendChild(el);
+    });
+
+    // Emoji avatars
+    PROFILE_AVATARS.forEach(function(av) {
+        var el = document.createElement('div');
+        el.className = 'profile-avatar-option' + (selectedProfileAvatar === av.id ? ' selected' : '');
+        el.innerHTML = '<span class="profile-emoji-avatar">' + av.icon + '</span><span>' + av.label + '</span>';
+        el.onclick = function() {
+            selectedProfileAvatar = av.id;
+            grid.querySelectorAll('.profile-avatar-option').forEach(function(o) { o.classList.remove('selected'); });
+            el.classList.add('selected');
+        };
+        grid.appendChild(el);
+    });
+}
+
+function closeProfileEdit() {
+    document.getElementById('profile-edit-modal').style.display = 'none';
+}
+
+function saveProfileEdit() {
+    var newName = document.getElementById('profile-edit-name').value.trim();
+    if (!newName || newName.length < 2) {
+        showToast('الاسم لازم يكون حرفين على الأقل', 'error');
+        return;
+    }
+    GameState.playerName = newName;
+    if (selectedProfileAvatar) {
+        GameState.profileAvatar = selectedProfileAvatar;
+    }
+    saveToCloud();
+    syncLeaderboard();
+    renderHomeHub();
+    closeProfileEdit();
+    showToast('تم حفظ البروفايل! ✅', 'success');
 }
 
 // --- Settings ---
@@ -4542,7 +4645,9 @@ var level2State = {
     combo: 0,
     maxCombo: 0,
     totalPoints: 0,
-    speedBonuses: 0
+    speedBonuses: 0,
+    // Exam mode (weekly competition)
+    examMode: false
 };
 
 // --- SOUND EFFECTS (Web Audio) ---
@@ -4739,7 +4844,141 @@ function renderLevel2Subjects() {
     });
     var totalStarsEl = document.getElementById('l2-total-stars');
     if (totalStarsEl) totalStarsEl.textContent = totalStars;
+
+    // Render exam subjects grid
+    renderExamSubjectsGrid();
 }
+
+var pendingExamSubject = null;
+
+function renderExamSubjectsGrid() {
+    var grid = document.getElementById('l2-exam-subjects-grid');
+    if (!grid) return;
+
+    var weekKey = getWeekKey();
+    var subjectNames = {
+        faith: { name: 'إيماننا الأرثوذوكسي', icon: '✝️' },
+        bible: { name: 'روح وحياة', icon: '📖' },
+        life: { name: 'جيل يصنع التغيير', icon: '🌟' },
+        ritual: { name: 'حركة ومعنى', icon: '⛪' }
+    };
+
+    var html = '';
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var sub = subjectNames[subKey];
+        // Check if exam taken this week
+        var examKey = 'subjectExam_' + subKey + '_' + weekKey;
+        var examTaken = GameState.level2Data && GameState.level2Data[examKey];
+
+        // Check if has any completed lessons
+        var hasLessons = false;
+        var subjectData = (GameState.level2Data && GameState.level2Data[subKey]) || {};
+        for (var i = 0; i < 6; i++) {
+            if (subjectData['lesson_' + i] && subjectData['lesson_' + i].stars > 0) {
+                hasLessons = true;
+                break;
+            }
+        }
+
+        if (examTaken) {
+            html += '<div class="l2-exam-subject-item done">';
+            html += '<span>' + sub.icon + ' ' + sub.name + '</span>';
+            html += '<span class="l2-exam-subject-badge done"><i class="fas fa-check-circle"></i> ' + examTaken.stars + '/30</span>';
+            html += '</div>';
+        } else if (hasLessons) {
+            html += '<div class="l2-exam-subject-item available" onclick="showExamRules(\'' + subKey + '\')">';
+            html += '<span>' + sub.icon + ' ' + sub.name + '</span>';
+            html += '<span class="l2-exam-subject-badge available"><i class="fas fa-scroll"></i> امتحن</span>';
+            html += '</div>';
+        } else {
+            html += '<div class="l2-exam-subject-item locked">';
+            html += '<span>' + sub.icon + ' ' + sub.name + '</span>';
+            html += '<span class="l2-exam-subject-badge locked"><i class="fas fa-lock"></i></span>';
+            html += '</div>';
+        }
+    });
+    grid.innerHTML = html;
+}
+
+function showExamRules(subKey) {
+    pendingExamSubject = subKey;
+    var subjectNames = {
+        faith: 'إيماننا الأرثوذوكسي ✝️',
+        bible: 'روح وحياة 📖',
+        life: 'جيل يصنع التغيير 🌟',
+        ritual: 'حركة ومعنى ⛪'
+    };
+    var nameEl = document.getElementById('exam-rules-subject-name');
+    if (nameEl) nameEl.textContent = 'مادة: ' + (subjectNames[subKey] || subKey);
+    document.getElementById('exam-rules-modal').style.display = 'flex';
+}
+
+function closeExamRules() {
+    document.getElementById('exam-rules-modal').style.display = 'none';
+    pendingExamSubject = null;
+}
+
+function confirmStartSubjectExam() {
+    if (!pendingExamSubject) return;
+    closeExamRules();
+
+    var subKey = pendingExamSubject;
+    var subject = LEVEL2_SUBJECTS[subKey];
+    if (!subject) return;
+
+    var weekKey = getWeekKey();
+    var examKey = 'subjectExam_' + subKey + '_' + weekKey;
+
+    // Check already taken
+    if (GameState.level2Data && GameState.level2Data[examKey]) {
+        showToast('الامتحان ده اتعمل الأسبوع ده!', 'error');
+        return;
+    }
+
+    // Collect all questions from all lessons in this subject
+    var allQs = [];
+    subject.lessons.forEach(function(lesson, lIdx) {
+        lesson.questions.forEach(function(q) {
+            allQs.push({ q: q.q, options: q.options, correct: q.correct, explanation: q.explanation, lessonName: lesson.name });
+        });
+    });
+
+    // Shuffle and pick 20
+    for (var i = allQs.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = allQs[i];
+        allQs[i] = allQs[j];
+        allQs[j] = temp;
+    }
+
+    level2State.currentSubject = subKey;
+    level2State.currentLesson = -1; // subject-level exam
+    level2State.currentStage = 'quiz';
+    level2State.quizIndex = 0;
+    level2State.quizScore = 0;
+    level2State.quizAnswers = [];
+    level2State.combo = 0;
+    level2State.maxCombo = 0;
+    level2State.totalPoints = 0;
+    level2State.speedBonuses = 0;
+    level2State.examMode = true;
+    level2State.subjectExamKey = examKey;
+    level2State.activeQuestions = allQs.slice(0, 20);
+    level2State.answered = false;
+
+    initAudio();
+    showScreen('level2-lesson-screen');
+    renderLevel2Lesson();
+}
+
+// Override exam beforeunload warning
+window.addEventListener('beforeunload', function(e) {
+    if (level2State.examMode && level2State.currentStage === 'quiz') {
+        e.preventDefault();
+        e.returnValue = 'الامتحان شغال - لو قفلت هيتلغي!';
+        return e.returnValue;
+    }
+});
 
 // --- Open Subject Map ---
 function openLevel2Subject(subjectKey) {
@@ -5063,6 +5302,8 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         }
 
         var stateClass = isCompleted ? 'l2-imgmap-node-completed' : (isAvailable ? 'l2-imgmap-node-available' : 'l2-imgmap-node-locked');
+        var hasExam = GameState.level2Data && GameState.level2Data[level2State.currentSubject] &&
+            GameState.level2Data[level2State.currentSubject]['exam_' + i];
 
         var node = document.createElement('div');
         node.className = 'l2-imgmap-node ' + stateClass;
@@ -5070,13 +5311,19 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         node.style.top = positions[i].top + '%';
 
         var circleContent = isCompleted ? '<i class="fas fa-check"></i>' : (i + 1);
+        // Show stars out of 30
         var starsHTML = '<div class="l2-imgmap-node-stars">';
-        for (var st = 0; st < 3; st++) {
-            starsHTML += '<i class="fas fa-star ' + (st < stars ? 'earned' : '') + '"></i>';
+        if (stars > 0) {
+            starsHTML += '<span class="node-star-count">⭐' + stars + '</span>';
+        } else {
+            starsHTML += '<span class="node-star-count dim">⭐0</span>';
         }
         starsHTML += '</div>';
 
         var tooltipHTML = '<div class="l2-imgmap-tooltip">' + lesson.name + '</div>';
+        if (hasExam) {
+            tooltipHTML += '<div class="l2-imgmap-exam-badge"><i class="fas fa-scroll"></i></div>';
+        }
 
         node.innerHTML = circleContent + starsHTML + tooltipHTML;
 
@@ -5236,13 +5483,28 @@ function startLevel2Lesson(lessonIdx) {
 function renderLevel2Lesson() {
     var subKey = level2State.currentSubject;
     var subject = LEVEL2_SUBJECTS[subKey];
-    var lesson = subject.lessons[level2State.currentLesson];
+    // Handle subject-level exam (currentLesson = -1)
+    var lesson;
+    if (level2State.currentLesson >= 0) {
+        lesson = subject.lessons[level2State.currentLesson];
+    } else {
+        // Subject-level exam - create virtual lesson
+        lesson = { name: 'امتحان ' + subject.name, desc: '', content: '', verse: '', questions: [] };
+    }
 
     // Back button
     var backBtn = document.getElementById('l2-lesson-back-btn');
     backBtn.onclick = function() {
         if (level2State.timerInterval) clearInterval(level2State.timerInterval);
-        showScreen('level2-map-screen');
+        if (level2State.examMode && level2State.currentStage === 'quiz') {
+            // Exam in progress - warn and cancel
+            if (confirm('لو خرجت الامتحان هيتلغي! متأكد؟')) {
+                level2State.examMode = false;
+                showScreen(level2State.currentLesson < 0 ? 'level2-subjects-screen' : 'level2-map-screen');
+            }
+            return;
+        }
+        showScreen(level2State.currentLesson < 0 ? 'level2-subjects-screen' : 'level2-map-screen');
     };
 
     // Title
@@ -5268,22 +5530,245 @@ function renderLevel2Lesson() {
 
 // --- Learn Stage ---
 function renderLevel2Learn(container, lesson, subject) {
+    var subKey = level2State.currentSubject;
+    var lessonIdx = level2State.currentLesson;
+    var summaryKey = subKey + '_' + lessonIdx;
+    var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
+
+    // Tabs: تعلّم + تلخيص + اختبار + نتيجة
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab active"><i class="fas fa-book-open"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab ' + (hasSummary ? 'completed' : '') + '" onclick="' + (hasSummary ? '' : 'showLessonSummaryTab()') + '"><i class="fas ' + (hasSummary ? 'fa-check' : 'fa-pen') + '"></i> تلخيص</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-question-circle"></i> اختبار</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
     html += '<div class="l2-learn-content">';
-    html += '<h3>' + subject.icon + ' ' + lesson.name + '</h3>';
-    html += '<p>' + lesson.content + '</p>';
-    html += '<div class="l2-learn-verse"><i class="fas fa-book-bible"></i> ' + lesson.verse + '</div>';
+    html += '<div class="l2-learn-header">';
+    html += '<div class="l2-learn-icon">' + subject.icon + '</div>';
+    html += '<h3>' + lesson.name + '</h3>';
+    html += '<p class="l2-learn-desc">' + lesson.desc + '</p>';
     html += '</div>';
 
-    html += '<button class="btn btn-primary" onclick="startLevel2Quiz()" style="width:100%;margin-top:16px;">' +
-        '<span><i class="fas fa-play"></i> يلا نبدأ الاختبار!</span></button>';
+    // Lesson summary image if available
+    if (lesson.summaryImage) {
+        html += '<div class="l2-learn-img-wrap"><img src="' + lesson.summaryImage + '" alt="ملخص الدرس" class="l2-learn-img"></div>';
+    }
+
+    // Break content into key points for better readability
+    var contentText = lesson.content;
+    var sentences = contentText.split(/[.،]/);
+    if (sentences.length > 3) {
+        html += '<div class="l2-learn-points">';
+        html += '<h4><i class="fas fa-lightbulb"></i> النقاط الرئيسية</h4>';
+        html += '<ul>';
+        sentences.forEach(function(s) {
+            s = s.trim();
+            if (s.length > 5) {
+                html += '<li>' + s + '</li>';
+            }
+        });
+        html += '</ul>';
+        html += '</div>';
+    } else {
+        html += '<div class="l2-learn-text">' + contentText + '</div>';
+    }
+
+    html += '<div class="l2-learn-verse"><i class="fas fa-book-bible"></i> ' + lesson.verse + '</div>';
+
+    // Show previous best score if exists
+    var prevData = GameState.level2Data && GameState.level2Data[subKey] &&
+        GameState.level2Data[subKey]['lesson_' + lessonIdx];
+    if (prevData && prevData.stars > 0) {
+        html += '<div class="l2-learn-prev-score">أعلى نتيجة سابقة: ⭐ ' + prevData.stars + '/30 (' + prevData.score + '/' + prevData.total + ' إجابة صح)</div>';
+    }
+
+    html += '</div>';
+
+    // If summary not submitted yet, show summary section
+    if (!hasSummary) {
+        html += '<div class="l2-summary-required">';
+        html += '<h4><i class="fas fa-pen"></i> لازم تعمل تلخيص الأول قبل ما تبدأ الاختبار</h4>';
+        html += '<button class="btn btn-primary" onclick="showLessonSummaryTab()" style="width:100%;margin-top:8px;">' +
+            '<span><i class="fas fa-pen"></i> اكتب تلخيص الدرس</span></button>';
+        html += '</div>';
+    } else {
+        // Summary done - show quiz button
+        html += '<button class="btn btn-primary" onclick="startLevel2Quiz()" style="width:100%;margin-top:16px;">' +
+            '<span><i class="fas fa-play"></i> جمّع واكسب ⭐</span></button>';
+
+        // Show weekly exam button if practiced
+        var lessonPracticed = GameState.level2Data && GameState.level2Data[subKey] &&
+            GameState.level2Data[subKey]['lesson_' + lessonIdx] &&
+            GameState.level2Data[subKey]['lesson_' + lessonIdx].stars > 0;
+        var examTaken = GameState.level2Data && GameState.level2Data[subKey] &&
+            GameState.level2Data[subKey]['exam_' + lessonIdx];
+
+        if (lessonPracticed && !examTaken) {
+            html += '<button class="btn btn-exam" onclick="startLevel2Exam(' + lessonIdx + ')" style="width:100%;margin-top:10px;">' +
+                '<span><i class="fas fa-scroll"></i> المسابقة الأسبوعية (مرة واحدة)</span></button>';
+        } else if (examTaken) {
+            var examData = GameState.level2Data[subKey]['exam_' + lessonIdx];
+            html += '<div class="exam-taken-badge"><i class="fas fa-check-circle"></i> المسابقة الأسبوعية: ' + examData.stars + '/30 ⭐</div>';
+        }
+
+        // Show saved summary
+        var savedSummary = GameState.lessonSummaries[summaryKey];
+        html += '<div class="l2-saved-summary">';
+        html += '<h4><i class="fas fa-check-circle"></i> تلخيصك المحفوظ</h4>';
+        if (savedSummary.text) html += '<p>' + savedSummary.text + '</p>';
+        if (savedSummary.image) html += '<img src="' + savedSummary.image + '" class="l2-summary-saved-img">';
+        html += '</div>';
+    }
 
     container.innerHTML = html;
+}
+
+// --- Lesson Summary Tab ---
+function showLessonSummaryTab() {
+    var container = document.getElementById('l2-lesson-body');
+    if (!container) return;
+
+    var subKey = level2State.currentSubject;
+    var lessonIdx = level2State.currentLesson;
+    var subject = LEVEL2_SUBJECTS[subKey];
+    var lesson = subject.lessons[lessonIdx];
+
+    var html = '<div class="l2-stage-tabs">' +
+        '<button class="l2-stage-tab completed" onclick="level2State.currentStage=\'learn\'; renderLevel2Lesson()"><i class="fas fa-check"></i> تعلّم</button>' +
+        '<button class="l2-stage-tab active"><i class="fas fa-pen"></i> تلخيص</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-question-circle"></i> اختبار</button>' +
+        '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
+        '</div>';
+
+    html += '<div class="l2-summary-section">';
+    html += '<h3><i class="fas fa-pen-fancy"></i> تلخيص درس: ' + lesson.name + '</h3>';
+    html += '<p class="l2-summary-hint">لخّص الدرس بكلامك أو حط صورة أو سجّل صوتك</p>';
+
+    // Text input
+    html += '<label class="l2-summary-label"><i class="fas fa-keyboard"></i> اكتب تلخيص</label>';
+    html += '<textarea id="lesson-summary-text" class="input-field" placeholder="اكتب تلخيص بسيط للدرس..." rows="4"></textarea>';
+
+    // Image upload
+    html += '<label class="l2-summary-label"><i class="fas fa-camera"></i> أضف صورة</label>';
+    html += '<label class="l2-summary-upload-btn">';
+    html += '<input type="file" accept="image/*" onchange="handleLessonSummaryImage(event)" style="display:none">';
+    html += '<span class="btn btn-secondary" style="width:100%"><span><i class="fas fa-image"></i> اختار صورة من الجاليري أو التقط صورة</span></span>';
+    html += '</label>';
+    html += '<div id="lesson-summary-img-preview"></div>';
+
+    // Audio record
+    html += '<label class="l2-summary-label"><i class="fas fa-microphone"></i> سجّل صوتك</label>';
+    html += '<div class="l2-summary-audio-section">';
+    html += '<button class="btn btn-secondary" id="lesson-record-btn" onclick="toggleLessonRecording()" style="width:100%">';
+    html += '<span><i class="fas fa-microphone"></i> ابدأ التسجيل</span></button>';
+    html += '<div id="lesson-recording-status"></div>';
+    html += '<div id="lesson-audio-preview"></div>';
+    html += '</div>';
+
+    // Submit button
+    html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
+        '<span><i class="fas fa-paper-plane"></i> سلّم التلخيص (+5 ⭐)</span></button>';
+
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+var lessonRecorder = null;
+var lessonAudioChunks = [];
+var lessonRecordingActive = false;
+
+function handleLessonSummaryImage(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var preview = document.getElementById('lesson-summary-img-preview');
+        if (preview) {
+            preview.innerHTML = '<img src="' + e.target.result + '" class="l2-summary-preview-img"><button class="l2-summary-remove-img" onclick="this.parentElement.innerHTML=\'\'; window._lessonSummaryImage=null;">✕</button>';
+            window._lessonSummaryImage = e.target.result;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function toggleLessonRecording() {
+    if (lessonRecordingActive) {
+        // Stop recording
+        if (lessonRecorder && lessonRecorder.state === 'recording') {
+            lessonRecorder.stop();
+        }
+        lessonRecordingActive = false;
+        var btn = document.getElementById('lesson-record-btn');
+        if (btn) btn.innerHTML = '<span><i class="fas fa-microphone"></i> ابدأ التسجيل</span>';
+        var status = document.getElementById('lesson-recording-status');
+        if (status) status.innerHTML = '';
+    } else {
+        // Start recording
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+            lessonRecorder = new MediaRecorder(stream);
+            lessonAudioChunks = [];
+            lessonRecorder.ondataavailable = function(e) { lessonAudioChunks.push(e.data); };
+            lessonRecorder.onstop = function() {
+                var blob = new Blob(lessonAudioChunks, { type: 'audio/webm' });
+                var url = URL.createObjectURL(blob);
+                var preview = document.getElementById('lesson-audio-preview');
+                if (preview) {
+                    preview.innerHTML = '<audio controls src="' + url + '"></audio>';
+                }
+                // Convert to base64 for storage
+                var reader = new FileReader();
+                reader.onload = function() { window._lessonSummaryAudio = reader.result; };
+                reader.readAsDataURL(blob);
+                stream.getTracks().forEach(function(t) { t.stop(); });
+            };
+            lessonRecorder.start();
+            lessonRecordingActive = true;
+            var btn = document.getElementById('lesson-record-btn');
+            if (btn) btn.innerHTML = '<span><i class="fas fa-stop" style="color:#e74c3c"></i> وقّف التسجيل</span>';
+            var status = document.getElementById('lesson-recording-status');
+            if (status) status.innerHTML = '<span class="recording-indicator"><i class="fas fa-circle" style="color:red;animation:blink 1s infinite"></i> جاري التسجيل...</span>';
+        }).catch(function(err) {
+            showToast('مش قادر أفتح الميكروفون - اسمح بالأذن', 'error');
+        });
+    }
+}
+
+function submitLessonSummary() {
+    var subKey = level2State.currentSubject;
+    var lessonIdx = level2State.currentLesson;
+    var summaryKey = subKey + '_' + lessonIdx;
+
+    var textEl = document.getElementById('lesson-summary-text');
+    var text = textEl ? textEl.value.trim() : '';
+    var image = window._lessonSummaryImage || null;
+    var audio = window._lessonSummaryAudio || null;
+
+    if (!text && !image && !audio) {
+        showToast('لازم تكتب حاجة أو تحط صورة أو تسجل صوت!', 'error');
+        return;
+    }
+
+    if (!GameState.lessonSummaries) GameState.lessonSummaries = {};
+    GameState.lessonSummaries[summaryKey] = {
+        text: text,
+        image: image,
+        audio: audio,
+        date: getTodayKey()
+    };
+
+    GameState.stars += 5;
+    window._lessonSummaryImage = null;
+    window._lessonSummaryAudio = null;
+
+    saveToCloud();
+    saveToLocalStorage();
+    showToast('تم حفظ التلخيص! ⭐ +5 نجوم', 'success');
+
+    // Re-render learn stage
+    level2State.currentStage = 'learn';
+    renderLevel2Lesson();
 }
 
 // --- Start Quiz ---
@@ -5311,6 +5796,47 @@ function startLevel2Quiz() {
         allQs[j] = temp;
     }
     level2State.activeQuestions = allQs.slice(0, 20);
+    level2State.examMode = false;
+    renderLevel2Lesson();
+}
+
+// --- Start Weekly Exam (no powerups, no feedback, one-time) ---
+function startLevel2Exam(lessonIdx) {
+    var subKey = level2State.currentSubject;
+    var subject = LEVEL2_SUBJECTS[subKey];
+    if (!subject || !subject.lessons[lessonIdx]) return;
+
+    // Check if already taken
+    if (GameState.level2Data && GameState.level2Data[subKey] &&
+        GameState.level2Data[subKey]['exam_' + lessonIdx]) {
+        showToast('الامتحان ده اتعمل قبل كده - مره واحده بس!', 'error');
+        return;
+    }
+
+    level2State.currentLesson = lessonIdx;
+    level2State.currentStage = 'quiz';
+    level2State.quizIndex = 0;
+    level2State.quizScore = 0;
+    level2State.quizAnswers = [];
+    level2State.combo = 0;
+    level2State.maxCombo = 0;
+    level2State.totalPoints = 0;
+    level2State.speedBonuses = 0;
+    level2State.examMode = true;
+    initAudio();
+
+    // Shuffle and pick 20 questions
+    var lesson = subject.lessons[lessonIdx];
+    var allQs = lesson.questions.slice();
+    for (var i = allQs.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var temp = allQs[i];
+        allQs[i] = allQs[j];
+        allQs[j] = temp;
+    }
+    level2State.activeQuestions = allQs.slice(0, 20);
+
+    showScreen('level2-lesson-screen');
     renderLevel2Lesson();
 }
 
@@ -5353,15 +5879,19 @@ function renderLevel2Quiz(container, lesson, subject) {
     html += '<div class="l2-timer-bar"><div class="l2-timer-fill" id="l2-timer-fill" style="width:100%"></div></div>';
     html += '</div>';
 
-    // Power-ups bar
-    html += '<div class="l2-powerups-bar">';
-    html += '<button class="powerup-btn" data-type="fiftyFifty" onclick="usePowerUp(\'fiftyFifty\')" title="' + POWER_UPS.fiftyFifty.desc + '">' +
-        '<i class="fas ' + POWER_UPS.fiftyFifty.icon + '"></i><span class="powerup-cost">' + POWER_UPS.fiftyFifty.cost + '⭐</span></button>';
-    html += '<button class="powerup-btn" data-type="extraTime" onclick="usePowerUp(\'extraTime\')" title="' + POWER_UPS.extraTime.desc + '">' +
-        '<i class="fas ' + POWER_UPS.extraTime.icon + '"></i><span class="powerup-cost">' + POWER_UPS.extraTime.cost + '⭐</span></button>';
-    html += '<button class="powerup-btn" data-type="skipQ" onclick="usePowerUp(\'skipQ\')" title="' + POWER_UPS.skipQ.desc + '">' +
-        '<i class="fas ' + POWER_UPS.skipQ.icon + '"></i><span class="powerup-cost">' + POWER_UPS.skipQ.cost + '⭐</span></button>';
-    html += '</div>';
+    // Power-ups bar (hidden in exam mode)
+    if (!level2State.examMode) {
+        html += '<div class="l2-powerups-bar">';
+        html += '<button class="powerup-btn" data-type="fiftyFifty" onclick="usePowerUp(\'fiftyFifty\')" title="' + POWER_UPS.fiftyFifty.desc + '">' +
+            '<i class="fas ' + POWER_UPS.fiftyFifty.icon + '"></i><span class="powerup-cost">' + POWER_UPS.fiftyFifty.cost + '⭐</span></button>';
+        html += '<button class="powerup-btn" data-type="extraTime" onclick="usePowerUp(\'extraTime\')" title="' + POWER_UPS.extraTime.desc + '">' +
+            '<i class="fas ' + POWER_UPS.extraTime.icon + '"></i><span class="powerup-cost">' + POWER_UPS.extraTime.cost + '⭐</span></button>';
+        html += '<button class="powerup-btn" data-type="skipQ" onclick="usePowerUp(\'skipQ\')" title="' + POWER_UPS.skipQ.desc + '">' +
+            '<i class="fas ' + POWER_UPS.skipQ.icon + '"></i><span class="powerup-cost">' + POWER_UPS.skipQ.cost + '⭐</span></button>';
+        html += '</div>';
+    } else {
+        html += '<div class="exam-mode-badge"><i class="fas fa-scroll"></i> وضع الامتحان - مفيش وسائل مساعدة</div>';
+    }
 
     // Question with entrance animation
     html += '<div class="l2-quiz-container quiz-entrance-anim">';
@@ -5409,7 +5939,6 @@ function renderLevel2Quiz(container, lesson, subject) {
         }
         if (level2State.timeLeft <= 0) {
             clearInterval(level2State.timerInterval);
-            showWrongFeedback();
             answerLevel2Quiz(-1);
         }
     }, 1000);
@@ -5435,11 +5964,35 @@ function answerLevel2Quiz(selectedIdx) {
     else if (isCorrect && answerTime < 5) { speedBonus = 3; }
     else if (isCorrect && answerTime < 8) { speedBonus = 1; }
 
+    // Score tracking
+    if (isCorrect) {
+        level2State.quizScore++;
+    }
+
+    level2State.quizAnswers.push(isCorrect);
+
+    // EXAM MODE: no feedback, no celebrations, just record and advance
+    if (level2State.examMode) {
+        // Just highlight selected option briefly
+        var options = document.querySelectorAll('.l2-quiz-option');
+        options.forEach(function(opt) {
+            opt.classList.add('disabled');
+            var idx = parseInt(opt.getAttribute('data-idx'));
+            if (idx === selectedIdx) opt.classList.add('selected-exam');
+        });
+        setTimeout(function() {
+            level2State.quizIndex++;
+            level2State.answered = false;
+            renderLevel2Lesson();
+        }, 500);
+        return;
+    }
+
+    // PRACTICE MODE: full feedback
     // Combo system
     if (isCorrect) {
         level2State.combo++;
         if (level2State.combo > level2State.maxCombo) level2State.maxCombo = level2State.combo;
-        level2State.quizScore++;
 
         // Calculate points with combo multiplier
         var basePoints = 10;
@@ -5477,8 +6030,6 @@ function answerLevel2Quiz(selectedIdx) {
         vibrate([50, 30, 50]); // Double vibrate for wrong
     }
 
-    level2State.quizAnswers.push(isCorrect);
-
     // Highlight correct/wrong with animations
     var options = document.querySelectorAll('.l2-quiz-option');
     options.forEach(function(opt) {
@@ -5498,17 +6049,47 @@ function answerLevel2Quiz(selectedIdx) {
     if (isCorrect) {
         showCorrectCelebration();
         showEncourageMsg(true);
+        // Auto-advance after delay for correct answers
+        setTimeout(function() {
+            level2State.quizIndex++;
+            level2State.answered = false;
+            renderLevel2Lesson();
+        }, 1500);
     } else {
         showWrongFeedback();
         showEncourageMsg(false);
+        // Show correct answer explanation + continue button for wrong answers
+        var quizContainer = document.querySelector('.l2-quiz-container');
+        if (quizContainer) {
+            var correctText = q.options[q.correct];
+            var explanationEl = document.createElement('div');
+            explanationEl.className = 'l2-wrong-explanation';
+            // Build explanation: use question-specific if available, otherwise generate from context
+            var explainText = '';
+            if (q.explanation) {
+                explainText = q.explanation;
+            } else {
+                // Auto-generate explanation from question + correct answer
+                explainText = 'السؤال كان: "' + q.q + '" والإجابة الصحيحة هي "' + correctText + '"';
+                if (q.options[selectedIdx]) {
+                    explainText += '، وليس "' + q.options[selectedIdx] + '"';
+                }
+                explainText += '. حاول تتذكر المعلومة دي كويس!';
+            }
+            explanationEl.innerHTML = '<div class="wrong-explain-icon">📖</div>' +
+                '<p class="wrong-explain-text">الإجابة الصحيحة هي:</p>' +
+                '<p class="wrong-explain-answer">' + correctText + '</p>' +
+                '<div class="wrong-explain-detail"><i class="fas fa-info-circle"></i> ' + explainText + '</div>' +
+                '<button class="btn btn-primary wrong-continue-btn" onclick="continueAfterWrong()"><span>تمام فهمت، كمّل <i class="fas fa-arrow-left"></i></span></button>';
+            quizContainer.appendChild(explanationEl);
+        }
     }
+}
 
-    // Next question after delay
-    setTimeout(function() {
-        level2State.quizIndex++;
-        level2State.answered = false;
-        renderLevel2Lesson();
-    }, 1500);
+function continueAfterWrong() {
+    level2State.quizIndex++;
+    level2State.answered = false;
+    renderLevel2Lesson();
 }
 
 // --- Result Stage ---
@@ -5517,26 +6098,55 @@ function renderLevel2Result(container, lesson, subject) {
     var score = level2State.quizScore;
     var percentage = Math.round(score / total * 100);
 
-    // Calculate stars
-    var stars = 0;
-    if (percentage >= 40) stars = 1;
-    if (percentage >= 70) stars = 2;
-    if (percentage >= 90) stars = 3;
+    // Calculate stars out of 30 (station max = 30 stars)
+    var MAX_STATION_STARS = 30;
+    var stars = Math.round(percentage / 100 * MAX_STATION_STARS);
 
-    // Save progress
+    // Save progress (keep best score)
     if (!GameState.level2Data) GameState.level2Data = {};
     if (!GameState.level2Data[level2State.currentSubject]) GameState.level2Data[level2State.currentSubject] = {};
-    var existingStars = (GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] || {}).stars || 0;
-    if (stars > existingStars) {
-        GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] = { stars: stars, score: score, total: total };
-        var newStars = stars - existingStars;
-        GameState.stars += newStars;
-        GameState.gems += stars;
-        saveToCloud();
+    var existingData = GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] || {};
+    var existingStars = existingData.stars || 0;
+
+    if (level2State.examMode) {
+        // Subject-level exam
+        if (level2State.subjectExamKey) {
+            if (!GameState.level2Data[level2State.subjectExamKey]) {
+                GameState.level2Data[level2State.subjectExamKey] = {
+                    stars: stars, score: score, total: total, date: new Date().toISOString()
+                };
+                GameState.stars += stars;
+                saveToCloud();
+                syncLeaderboard();
+            }
+        } else if (level2State.currentLesson >= 0) {
+            // Lesson-level exam
+            if (!GameState.level2Data[level2State.currentSubject]['exam_' + level2State.currentLesson]) {
+                GameState.level2Data[level2State.currentSubject]['exam_' + level2State.currentLesson] = {
+                    stars: stars, score: score, total: total, date: new Date().toISOString()
+                };
+                GameState.stars += stars;
+                saveToCloud();
+                syncLeaderboard();
+            }
+        }
+    } else {
+        // Practice mode: keep best score, cap at 30
+        if (stars > existingStars) {
+            GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] = {
+                stars: stars, score: score, total: total
+            };
+            var newStars = stars - existingStars;
+            GameState.stars += newStars;
+            GameState.gems += Math.ceil(stars / 10);
+            saveToCloud();
+            syncLeaderboard();
+        }
     }
 
-    var icon = stars >= 3 ? '🏆' : (stars >= 2 ? '⭐' : (stars >= 1 ? '👍' : '😔'));
-    var title = stars >= 3 ? 'ممتاز! أداء رائع!' : (stars >= 2 ? 'أحسنت! كويس جداً' : (stars >= 1 ? 'محتاج تذاكر أكتر' : 'حاول تاني يا بطل!'));
+    var starRatio = stars / MAX_STATION_STARS;
+    var icon = starRatio >= 0.9 ? '🏆' : (starRatio >= 0.7 ? '⭐' : (starRatio >= 0.4 ? '👍' : '😔'));
+    var title = starRatio >= 0.9 ? 'ممتاز! أداء رائع!' : (starRatio >= 0.7 ? 'أحسنت! كويس جداً' : (starRatio >= 0.4 ? 'محتاج تذاكر أكتر' : 'حاول تاني يا بطل!'));
 
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> تعلّم</button>' +
@@ -5545,44 +6155,72 @@ function renderLevel2Result(container, lesson, subject) {
         '</div>';
 
     html += '<div class="l2-result-card">';
+    if (level2State.examMode) {
+        html += '<div class="exam-result-badge"><i class="fas fa-scroll"></i> نتيجة الامتحان الأسبوعي</div>';
+    }
     html += '<div class="l2-result-icon">' + icon + '</div>';
     html += '<h2 class="l2-result-title">' + title + '</h2>';
-    html += '<p class="l2-result-subtitle">درس: ' + lesson.name + '</p>';
+    html += '<p class="l2-result-subtitle">' + (level2State.examMode ? 'امتحان: ' : 'درس: ') + lesson.name + '</p>';
 
-    // Stars
-    html += '<div class="l2-result-stars">';
-    for (var s = 0; s < 3; s++) {
-        html += '<i class="fas fa-star ' + (s < stars ? 'earned' : '') + '" style="animation-delay:' + (s * 0.3) + 's"></i>';
-    }
+    // Stars display - show earned out of 30
+    html += '<div class="l2-result-stars-30">';
+    html += '<div class="stars-30-fill" style="width:' + (stars / MAX_STATION_STARS * 100) + '%"></div>';
+    html += '<span class="stars-30-text">⭐ ' + stars + ' / ' + MAX_STATION_STARS + '</span>';
     html += '</div>';
 
     // Stats
     html += '<div class="l2-result-stats">';
     html += '<div class="l2-result-stat"><div class="l2-result-stat-value">' + score + '/' + total + '</div><div class="l2-result-stat-label">إجابات صحيحة</div></div>';
     html += '<div class="l2-result-stat"><div class="l2-result-stat-value">' + percentage + '%</div><div class="l2-result-stat-label">النسبة</div></div>';
-    if (level2State.maxCombo >= 2) {
+    if (!level2State.examMode && level2State.maxCombo >= 2) {
         html += '<div class="l2-result-stat"><div class="l2-result-stat-value" style="color:#E17055">🔥 ' + level2State.maxCombo + 'x</div><div class="l2-result-stat-label">أعلى كومبو</div></div>';
     }
-    if (stars > existingStars) {
+    if (stars > existingStars && !level2State.examMode) {
         html += '<div class="l2-result-stat"><div class="l2-result-stat-value" style="color:var(--gold)">+' + (stars - existingStars) + '</div><div class="l2-result-stat-label">نجوم جديدة</div></div>';
     }
     html += '</div>';
 
-    // Bonus stats row
-    html += '<div class="l2-result-bonus-row">';
-    html += '<div class="bonus-badge">🏆 ' + level2State.totalPoints + ' نقطة</div>';
-    if (level2State.speedBonuses > 0) {
-        html += '<div class="bonus-badge">⚡ ' + level2State.speedBonuses + ' بونص سرعة</div>';
+    // Bonus stats row (not in exam mode)
+    if (!level2State.examMode) {
+        html += '<div class="l2-result-bonus-row">';
+        html += '<div class="bonus-badge">🏆 ' + level2State.totalPoints + ' نقطة</div>';
+        if (level2State.speedBonuses > 0) {
+            html += '<div class="bonus-badge">⚡ ' + level2State.speedBonuses + ' بونص سرعة</div>';
+        }
+        if (level2State.maxCombo >= 3) {
+            html += '<div class="bonus-badge">🔥 كومبو نار!</div>';
+        }
+        html += '</div>';
     }
-    if (level2State.maxCombo >= 3) {
-        html += '<div class="bonus-badge">🔥 كومبو نار!</div>';
+
+    // Exam mode: show full question-by-question review
+    if (level2State.examMode && level2State.activeQuestions) {
+        html += '<div class="exam-review-section">';
+        html += '<h4 class="exam-review-title"><i class="fas fa-clipboard-list"></i> ملخص الأسئلة</h4>';
+        level2State.activeQuestions.forEach(function(q, idx) {
+            var wasCorrect = level2State.quizAnswers[idx];
+            html += '<div class="exam-review-item ' + (wasCorrect ? 'correct' : 'wrong') + '">';
+            html += '<div class="exam-review-header">';
+            html += '<span class="exam-review-num">' + (idx + 1) + '</span>';
+            html += '<span class="exam-review-status">' + (wasCorrect ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-times-circle"></i>') + '</span>';
+            html += '</div>';
+            html += '<p class="exam-review-q">' + q.q + '</p>';
+            html += '<p class="exam-review-a"><i class="fas fa-check"></i> ' + q.options[q.correct] + '</p>';
+            html += '</div>';
+        });
+        html += '</div>';
     }
-    html += '</div>';
 
     // Buttons
     html += '<div class="l2-result-buttons">';
-    html += '<button class="btn btn-secondary" onclick="startLevel2Lesson(' + level2State.currentLesson + ')"><span><i class="fas fa-redo"></i> حاول تاني</span></button>';
-    html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-map-screen\')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>';
+    if (!level2State.examMode) {
+        html += '<button class="btn btn-secondary" onclick="startLevel2Lesson(' + level2State.currentLesson + ')"><span><i class="fas fa-redo"></i> حاول تاني</span></button>';
+    }
+    if (level2State.subjectExamKey || level2State.currentLesson < 0) {
+        html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-subjects-screen\')"><span><i class="fas fa-graduation-cap"></i> رجوع للمواد</span></button>';
+    } else {
+        html += '<button class="btn btn-primary" onclick="exitMapLandscape(); showScreen(\'level2-map-screen\')"><span><i class="fas fa-map"></i> رجوع للخريطة</span></button>';
+    }
     html += '</div></div>';
 
     container.innerHTML = html;
@@ -5615,6 +6253,504 @@ function showResultCelebration(stars) {
 
     setTimeout(function() { container.remove(); }, 3500);
 }
+
+// ============================================================
+// SPIRITUAL LIFE FEATURES
+// ============================================================
+
+// --- Mark's Gospel Data (16 chapters) ---
+var MARK_CHAPTERS = [
+    { ch: 1, title: 'بداية بشارة يسوع المسيح', verses: '45 آية', summary: 'معمودية يسوع، دعوة التلاميذ الأوائل، شفاء كثيرين' },
+    { ch: 2, title: 'شفاء المفلوج ودعوة لاوي', verses: '28 آية', summary: 'شفاء المفلوج، دعوة لاوي، الصوم والسبت' },
+    { ch: 3, title: 'اختيار الاثني عشر', verses: '35 آية', summary: 'شفاء يوم السبت، اختيار الرسل، التجديف على الروح القدس' },
+    { ch: 4, title: 'أمثال الملكوت', verses: '41 آية', summary: 'مثل الزارع، السراج، حبة الخردل، تهدئة العاصفة' },
+    { ch: 5, title: 'معجزات القوة', verses: '43 آية', summary: 'مجنون كورة الجدريين، نازفة الدم، إقامة ابنة يايرس' },
+    { ch: 6, title: 'إرسال التلاميذ', verses: '56 آية', summary: 'رفض الناصرة، إرسالية الاثني عشر، إشباع الخمسة آلاف، المشي على الماء' },
+    { ch: 7, title: 'ما يُنجّس الإنسان', verses: '37 آية', summary: 'تقليد الشيوخ، شفاء ابنة المرأة الفينيقية، شفاء الأصم' },
+    { ch: 8, title: 'اعتراف بطرس', verses: '38 آية', summary: 'إشباع الأربعة آلاف، شفاء أعمى بيت صيدا، اعتراف بطرس بالمسيح' },
+    { ch: 9, title: 'التجلي', verses: '50 آية', summary: 'التجلي على الجبل، شفاء الصبي المصروع، من هو الأعظم' },
+    { ch: 10, title: 'الطريق إلى أورشليم', verses: '52 آية', summary: 'الطلاق، مباركة الأطفال، الشاب الغني، شفاء بارتيماوس' },
+    { ch: 11, title: 'دخول أورشليم', verses: '33 آية', summary: 'الدخول المظفر، لعن التينة، تطهير الهيكل' },
+    { ch: 12, title: 'أمثال وتعاليم', verses: '44 آية', summary: 'مثل الكرامين، الجزية لقيصر، القيامة، أعظم وصية، فلسا الأرملة' },
+    { ch: 13, title: 'علامات النهاية', verses: '37 آية', summary: 'خراب الهيكل، علامات الأزمنة الأخيرة، مجيء ابن الإنسان، السهر' },
+    { ch: 14, title: 'الآلام', verses: '72 آية', summary: 'سكب الطيب، العشاء الأخير، جثسيماني، القبض على يسوع، إنكار بطرس' },
+    { ch: 15, title: 'الصليب', verses: '47 آية', summary: 'المحاكمة أمام بيلاطس، الصلب، موت يسوع، الدفن' },
+    { ch: 16, title: 'القيامة', verses: '20 آية', summary: 'القيامة، ظهورات المسيح، الإرسالية العظمى، الصعود' }
+];
+
+// --- Daily Exercises ---
+var DAILY_EXERCISES = [
+    { id: 'pray_morning', text: 'صليت صلاة باكر', icon: '🌅', points: 5 },
+    { id: 'read_bible', text: 'قرأت أصحاح من الكتاب المقدس', icon: '📖', points: 5 },
+    { id: 'memorize_verse', text: 'حفظت آية جديدة', icon: '💡', points: 3 },
+    { id: 'help_someone', text: 'ساعدت حد النهاردة', icon: '🤝', points: 3 },
+    { id: 'no_bad_words', text: 'ما قلتش كلام وحش النهاردة', icon: '🤐', points: 2 },
+    { id: 'pray_night', text: 'صليت صلاة النوم', icon: '🌙', points: 5 }
+];
+
+var WEEKLY_EXERCISES = [
+    { id: 'attend_church', text: 'حضرت القداس', icon: '⛪', points: 10 },
+    { id: 'confession', text: 'اعترفت', icon: '🙏', points: 10 },
+    { id: 'communion', text: 'تناولت', icon: '🍷', points: 10 },
+    { id: 'attend_meeting', text: 'حضرت الاجتماع', icon: '👥', points: 5 },
+    { id: 'serve', text: 'خدمت في الكنيسة', icon: '💪', points: 5 }
+];
+
+function getTodayKey() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function getWeekKey() {
+    var d = new Date();
+    var jan1 = new Date(d.getFullYear(), 0, 1);
+    var weekNum = Math.ceil(((d - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+    return d.getFullYear() + '-W' + weekNum;
+}
+
+// --- Bible Reading Screen ---
+function renderBibleReading() {
+    var body = document.getElementById('bible-reading-body');
+    if (!body) return;
+
+    var todayKey = getTodayKey();
+    var todayLog = (GameState.bibleReadingLog || {})[todayKey] || {};
+    var currentCh = GameState.bibleChapter || 1;
+    var chapter = MARK_CHAPTERS[currentCh - 1];
+
+    // Get highlighted verses for this chapter
+    if (!GameState.highlightedVerses) GameState.highlightedVerses = {};
+    var chHighlights = GameState.highlightedVerses['mark_' + currentCh] || [];
+
+    var html = '';
+
+    // Progress bar
+    html += '<div class="bible-progress-section">';
+    html += '<div class="bible-progress-bar"><div class="bible-progress-fill" style="width:' + (currentCh / 16 * 100) + '%"></div></div>';
+    html += '<p class="bible-progress-text">الأصحاح ' + currentCh + ' من 16</p>';
+    html += '</div>';
+
+    // Today's chapter card
+    html += '<div class="bible-chapter-card">';
+    html += '<div class="bible-chapter-number">الأصحاح ' + chapter.ch + '</div>';
+    html += '<h3>' + chapter.title + '</h3>';
+    html += '<p class="bible-chapter-verses">' + chapter.verses + '</p>';
+    html += '<div class="bible-chapter-summary">';
+    html += '<h4><i class="fas fa-lightbulb"></i> ملخص الأصحاح</h4>';
+    html += '<p>' + chapter.summary + '</p>';
+    html += '</div>';
+
+    // Full chapter text
+    if (chapter.text && chapter.text.length > 0) {
+        html += '<div class="bible-full-text">';
+        html += '<h4 class="bible-full-text-title"><i class="fas fa-book-open"></i> نص الأصحاح</h4>';
+        html += '<p class="bible-tap-hint"><i class="fas fa-highlighter"></i> اضغط على الآية لتلوينها</p>';
+        chapter.text.forEach(function(verse, vIdx) {
+            var isHighlighted = chHighlights.indexOf(vIdx) !== -1;
+            html += '<p class="bible-verse-line ' + (isHighlighted ? 'highlighted' : '') + '" data-vidx="' + vIdx + '" onclick="toggleVerseHighlight(' + currentCh + ',' + vIdx + ')">';
+            html += '<span class="bible-verse-num">' + (vIdx + 1) + '</span> ';
+            html += verse;
+            html += '<button class="bible-share-btn" onclick="event.stopPropagation(); shareBibleVerse(' + currentCh + ',' + vIdx + ')" title="مشاركة"><i class="fas fa-share-alt"></i></button>';
+            html += '</p>';
+        });
+        html += '</div>';
+    } else {
+        // Fallback: fetch from API or show placeholder
+        html += '<div class="bible-full-text">';
+        html += '<div class="bible-fetch-section">';
+        html += '<button class="btn btn-secondary" onclick="fetchMarkChapter(' + currentCh + ')" style="width:100%">';
+        html += '<span><i class="fas fa-download"></i> تحميل نص الأصحاح</span></button>';
+        html += '</div>';
+        html += '</div>';
+    }
+
+    if (todayLog.done) {
+        html += '<div class="bible-done-badge"><i class="fas fa-check-circle"></i> تم قراءة أصحاح النهاردة! ⭐ +10</div>';
+        if (todayLog.summary) {
+            html += '<div class="bible-user-summary"><strong>تلخيصك:</strong> ' + todayLog.summary + '</div>';
+        }
+    } else {
+        html += '<div class="bible-action-section">';
+        html += '<p class="bible-action-hint">اقرأ الأصحاح واكتب تلخيص بسيط</p>';
+        html += '<textarea id="bible-summary-input" class="input-field" placeholder="اكتب تلخيص بسيط للأصحاح..." rows="3"></textarea>';
+        html += '<label class="bible-upload-label">';
+        html += '<input type="file" accept="image/*" onchange="handleBibleImage(event)" style="display:none">';
+        html += '<span class="btn btn-secondary" style="width:100%"><span><i class="fas fa-camera"></i> أضف صورة من الكتاب</span></span>';
+        html += '</label>';
+        html += '<div id="bible-image-preview"></div>';
+        html += '<button class="btn btn-primary" onclick="completeBibleReading()" style="width:100%;margin-top:10px;">';
+        html += '<span><i class="fas fa-check"></i> خلصت القراءة! (+10 ⭐)</span></button>';
+        html += '</div>';
+    }
+    html += '</div>';
+
+    // Chapter list
+    html += '<h4 class="bible-chapters-title"><i class="fas fa-list"></i> كل الأصحاحات</h4>';
+    html += '<div class="bible-chapters-grid">';
+    for (var i = 0; i < MARK_CHAPTERS.length; i++) {
+        var mc = MARK_CHAPTERS[i];
+        var isDone = false;
+        Object.keys(GameState.bibleReadingLog || {}).forEach(function(key) {
+            if (GameState.bibleReadingLog[key].chapter === mc.ch && GameState.bibleReadingLog[key].done) {
+                isDone = true;
+            }
+        });
+        var isCurrent = (mc.ch === currentCh);
+        html += '<div class="bible-ch-item ' + (isDone ? 'done' : '') + (isCurrent ? ' current' : '') + '" onclick="navigateBibleChapter(' + mc.ch + ')">';
+        html += '<span class="bible-ch-num">' + mc.ch + '</span>';
+        html += '<span class="bible-ch-title">' + mc.title + '</span>';
+        if (isDone) html += '<i class="fas fa-check-circle bible-ch-check"></i>';
+        html += '</div>';
+    }
+    html += '</div>';
+
+    body.innerHTML = html;
+}
+
+function navigateBibleChapter(ch) {
+    GameState.bibleChapter = ch;
+    renderBibleReading();
+    // Scroll to top
+    var body = document.getElementById('bible-reading-body');
+    if (body) body.scrollTop = 0;
+}
+
+function toggleVerseHighlight(ch, vIdx) {
+    if (!GameState.highlightedVerses) GameState.highlightedVerses = {};
+    var key = 'mark_' + ch;
+    if (!GameState.highlightedVerses[key]) GameState.highlightedVerses[key] = [];
+
+    var arr = GameState.highlightedVerses[key];
+    var pos = arr.indexOf(vIdx);
+    if (pos !== -1) {
+        arr.splice(pos, 1); // Remove highlight
+    } else {
+        arr.push(vIdx); // Add highlight
+    }
+    saveToLocalStorage();
+
+    // Update just the verse element
+    var el = document.querySelector('.bible-verse-line[data-vidx="' + vIdx + '"]');
+    if (el) el.classList.toggle('highlighted');
+}
+
+function shareBibleVerse(ch, vIdx) {
+    var chapter = MARK_CHAPTERS[ch - 1];
+    if (!chapter || !chapter.text || !chapter.text[vIdx]) {
+        showToast('مفيش نص للآية دي', 'warning');
+        return;
+    }
+    var verseText = '"' + chapter.text[vIdx] + '" (مرقس ' + ch + ':' + (vIdx + 1) + ')';
+
+    if (navigator.share) {
+        navigator.share({
+            title: 'آية من إنجيل مار مرقس',
+            text: verseText
+        }).catch(function() {});
+    } else {
+        // Fallback: copy to clipboard
+        navigator.clipboard.writeText(verseText).then(function() {
+            showToast('تم نسخ الآية! 📋', 'success');
+        }).catch(function() {
+            showToast(verseText, 'info');
+        });
+    }
+}
+
+function handleBibleImage(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        var preview = document.getElementById('bible-image-preview');
+        if (preview) {
+            preview.innerHTML = '<img src="' + e.target.result + '" class="bible-preview-img">';
+            // Store temporarily
+            window._bibleImageData = e.target.result;
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+function fetchMarkChapter(ch) {
+    // Fetch from bible-api (SVD Arabic Bible)
+    showToast('جاري تحميل الأصحاح...', 'info');
+    fetch('https://bible-api.com/mark+' + ch + '?translation=svd')
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+            if (data && data.verses) {
+                var chapter = MARK_CHAPTERS[ch - 1];
+                chapter.text = data.verses.map(function(v) { return v.text.trim(); });
+                renderBibleReading();
+                showToast('تم تحميل الأصحاح! 📖', 'success');
+            }
+        })
+        .catch(function() {
+            showToast('خطأ في التحميل - تأكد من الاتصال بالإنترنت', 'error');
+        });
+}
+
+function completeBibleReading() {
+    var todayKey = getTodayKey();
+    var summaryInput = document.getElementById('bible-summary-input');
+    var summary = summaryInput ? summaryInput.value.trim() : '';
+
+    if (!GameState.bibleReadingLog) GameState.bibleReadingLog = {};
+    GameState.bibleReadingLog[todayKey] = {
+        chapter: GameState.bibleChapter,
+        summary: summary,
+        image: window._bibleImageData || null,
+        done: true,
+        date: todayKey
+    };
+    window._bibleImageData = null;
+
+    // Award points
+    GameState.stars += 10;
+
+    // Advance to next chapter
+    if (GameState.bibleChapter < 16) {
+        GameState.bibleChapter++;
+    }
+
+    saveToCloud();
+    saveToLocalStorage();
+    renderBibleReading();
+    showToast('أحسنت! ⭐ +10 نجوم', 'success');
+}
+
+// --- Devotion Screen ---
+function renderDevotion() {
+    var body = document.getElementById('devotion-body');
+    if (!body) return;
+
+    var todayKey = getTodayKey();
+    var todayLog = (GameState.devotionLog || {})[todayKey] || {};
+
+    var html = '';
+
+    // Streak counter
+    var streak = calculateDevotionStreak();
+    html += '<div class="devotion-streak-card">';
+    html += '<div class="devotion-streak-number">' + streak + '</div>';
+    html += '<p>يوم متواصل في الصلاة 🔥</p>';
+    html += '</div>';
+
+    // Morning prayer
+    html += '<div class="devotion-card ' + (todayLog.morning ? 'done' : '') + '">';
+    html += '<div class="devotion-card-header">';
+    html += '<span class="devotion-icon">🌅</span>';
+    html += '<div><h4>صلاة باكر</h4><p>ابدأ يومك بالصلاة</p></div>';
+    html += '</div>';
+    if (todayLog.morning) {
+        html += '<div class="devotion-done-badge"><i class="fas fa-check-circle"></i> تمت ⭐ +5</div>';
+    } else {
+        html += '<button class="btn btn-primary devotion-btn" onclick="completeDevotionTask(\'morning\')">';
+        html += '<span><i class="fas fa-check"></i> صليت صلاة باكر (+5 ⭐)</span></button>';
+    }
+    html += '</div>';
+
+    // Night prayer
+    html += '<div class="devotion-card ' + (todayLog.night ? 'done' : '') + '">';
+    html += '<div class="devotion-card-header">';
+    html += '<span class="devotion-icon">🌙</span>';
+    html += '<div><h4>صلاة النوم</h4><p>اختم يومك بالصلاة</p></div>';
+    html += '</div>';
+    if (todayLog.night) {
+        html += '<div class="devotion-done-badge"><i class="fas fa-check-circle"></i> تمت ⭐ +5</div>';
+    } else {
+        html += '<button class="btn btn-primary devotion-btn" onclick="completeDevotionTask(\'night\')">';
+        html += '<span><i class="fas fa-check"></i> صليت صلاة النوم (+5 ⭐)</span></button>';
+    }
+    html += '</div>';
+
+    // Tips
+    html += '<div class="devotion-tip-card">';
+    html += '<h4><i class="fas fa-lightbulb"></i> نصيحة اليوم</h4>';
+    var tips = [
+        'صلي بتركيز وهدوء، وابعد عن الموبايل وقت الصلاة',
+        'خصص مكان هادي للصلاة كل يوم',
+        'ابدأ صلاتك بشكر ربنا على نعمه',
+        'صلي من أجل أصحابك وأهلك',
+        'اقرأ مزمور قبل ما تبدأ صلاتك',
+        'خلي الصلاة عادة يومية مش مجرد واجب',
+        'كلم ربنا زي ما بتكلم صاحبك المقرب'
+    ];
+    var tipIdx = new Date().getDate() % tips.length;
+    html += '<p>' + tips[tipIdx] + '</p>';
+    html += '</div>';
+
+    body.innerHTML = html;
+}
+
+function completeDevotionTask(type) {
+    var todayKey = getTodayKey();
+    if (!GameState.devotionLog) GameState.devotionLog = {};
+    if (!GameState.devotionLog[todayKey]) GameState.devotionLog[todayKey] = {};
+
+    GameState.devotionLog[todayKey][type] = true;
+    GameState.stars += 5;
+
+    saveToCloud();
+    saveToLocalStorage();
+    renderDevotion();
+    showToast('أحسنت! ⭐ +5 نجوم', 'success');
+}
+
+function calculateDevotionStreak() {
+    var streak = 0;
+    var d = new Date();
+    for (var i = 0; i < 365; i++) {
+        var key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        var dayLog = (GameState.devotionLog || {})[key];
+        if (dayLog && (dayLog.morning || dayLog.night)) {
+            streak++;
+        } else if (i > 0) {
+            break; // streak broken
+        }
+        d.setDate(d.getDate() - 1);
+    }
+    return streak;
+}
+
+// --- Exercises Screen ---
+function renderExercises() {
+    var body = document.getElementById('exercises-body');
+    if (!body) return;
+
+    var todayKey = getTodayKey();
+    var weekKey = getWeekKey();
+    if (!GameState.exerciseLog) GameState.exerciseLog = {};
+    var todayLog = GameState.exerciseLog[todayKey] || { daily: [] };
+    var weekLog = GameState.exerciseLog[weekKey] || { weekly: [] };
+
+    var html = '';
+
+    // Daily exercises
+    html += '<h3 class="exercise-section-title"><i class="fas fa-sun"></i> تداريب يومية</h3>';
+    html += '<div class="exercise-list">';
+    DAILY_EXERCISES.forEach(function(ex) {
+        var isDone = (todayLog.daily || []).indexOf(ex.id) !== -1;
+        html += '<div class="exercise-item ' + (isDone ? 'done' : '') + '" onclick="' + (isDone ? '' : 'toggleDailyExercise(\'' + ex.id + '\')') + '">';
+        html += '<span class="exercise-icon">' + ex.icon + '</span>';
+        html += '<span class="exercise-text">' + ex.text + '</span>';
+        html += '<span class="exercise-points">' + (isDone ? '<i class="fas fa-check-circle"></i>' : '+' + ex.points + ' ⭐') + '</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    // Weekly exercises
+    html += '<h3 class="exercise-section-title"><i class="fas fa-calendar-week"></i> تداريب أسبوعية</h3>';
+    html += '<div class="exercise-list">';
+    WEEKLY_EXERCISES.forEach(function(ex) {
+        var isDone = (weekLog.weekly || []).indexOf(ex.id) !== -1;
+        html += '<div class="exercise-item ' + (isDone ? 'done' : '') + '" onclick="' + (isDone ? '' : 'toggleWeeklyExercise(\'' + ex.id + '\')') + '">';
+        html += '<span class="exercise-icon">' + ex.icon + '</span>';
+        html += '<span class="exercise-text">' + ex.text + '</span>';
+        html += '<span class="exercise-points">' + (isDone ? '<i class="fas fa-check-circle"></i>' : '+' + ex.points + ' ⭐') + '</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    // Today's total
+    var dailyPts = 0;
+    (todayLog.daily || []).forEach(function(id) {
+        var ex = DAILY_EXERCISES.find(function(e) { return e.id === id; });
+        if (ex) dailyPts += ex.points;
+    });
+    var weeklyPts = 0;
+    (weekLog.weekly || []).forEach(function(id) {
+        var ex = WEEKLY_EXERCISES.find(function(e) { return e.id === id; });
+        if (ex) weeklyPts += ex.points;
+    });
+
+    html += '<div class="exercise-total-card">';
+    html += '<div class="exercise-total-stat"><span>⭐ ' + dailyPts + '</span><small>نجوم النهاردة</small></div>';
+    html += '<div class="exercise-total-stat"><span>⭐ ' + weeklyPts + '</span><small>نجوم الأسبوع</small></div>';
+    html += '</div>';
+
+    body.innerHTML = html;
+}
+
+function toggleDailyExercise(id) {
+    var todayKey = getTodayKey();
+    if (!GameState.exerciseLog) GameState.exerciseLog = {};
+    if (!GameState.exerciseLog[todayKey]) GameState.exerciseLog[todayKey] = { daily: [] };
+    if (!GameState.exerciseLog[todayKey].daily) GameState.exerciseLog[todayKey].daily = [];
+
+    if (GameState.exerciseLog[todayKey].daily.indexOf(id) === -1) {
+        GameState.exerciseLog[todayKey].daily.push(id);
+        var ex = DAILY_EXERCISES.find(function(e) { return e.id === id; });
+        if (ex) {
+            GameState.stars += ex.points;
+            showToast(ex.icon + ' أحسنت! +' + ex.points + ' ⭐', 'success');
+        }
+        saveToCloud();
+        saveToLocalStorage();
+    }
+    renderExercises();
+}
+
+function toggleWeeklyExercise(id) {
+    var weekKey = getWeekKey();
+    if (!GameState.exerciseLog) GameState.exerciseLog = {};
+    if (!GameState.exerciseLog[weekKey]) GameState.exerciseLog[weekKey] = { weekly: [] };
+    if (!GameState.exerciseLog[weekKey].weekly) GameState.exerciseLog[weekKey].weekly = [];
+
+    if (GameState.exerciseLog[weekKey].weekly.indexOf(id) === -1) {
+        GameState.exerciseLog[weekKey].weekly.push(id);
+        var ex = WEEKLY_EXERCISES.find(function(e) { return e.id === id; });
+        if (ex) {
+            GameState.stars += ex.points;
+            showToast(ex.icon + ' أحسنت! +' + ex.points + ' ⭐', 'success');
+        }
+        saveToCloud();
+        saveToLocalStorage();
+    }
+    renderExercises();
+}
+
+// --- Update spiritual badges on home hub ---
+function updateSpiritualBadges() {
+    var todayKey = getTodayKey();
+
+    // Bible reading
+    ['bible-streak-badge', 'bible-streak-badge-top'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            var bibleToday = (GameState.bibleReadingLog || {})[todayKey];
+            el.innerHTML = bibleToday && bibleToday.done ?
+                '<i class="fas fa-check-circle"></i> تم' :
+                'الأصحاح ' + (GameState.bibleChapter || 1);
+            el.className = 'spiritual-card-streak' + (bibleToday && bibleToday.done ? ' done' : '');
+        }
+    });
+
+    // Devotion
+    ['devotion-streak-badge', 'devotion-streak-badge-top'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            var devLog = (GameState.devotionLog || {})[todayKey] || {};
+            var devCount = (devLog.morning ? 1 : 0) + (devLog.night ? 1 : 0);
+            el.innerHTML = devCount + '/2 صلوات';
+            el.className = 'spiritual-card-streak' + (devCount === 2 ? ' done' : '');
+        }
+    });
+
+    // Exercises
+    ['exercise-streak-badge', 'exercise-streak-badge-top'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) {
+            var exLog = (GameState.exerciseLog || {})[todayKey] || {};
+            var exCount = (exLog.daily || []).length;
+            el.innerHTML = exCount + '/' + DAILY_EXERCISES.length + ' تداريب';
+            el.className = 'spiritual-card-streak' + (exCount === DAILY_EXERCISES.length ? ' done' : '');
+        }
+    });
+}
+
+// --- Hook screen rendering ---
+var _origShowScreen = typeof showScreen === 'function' ? showScreen : null;
 
 document.addEventListener('DOMContentLoaded', function() {
     // Apply saved theme immediately (both html and body for consistency)
@@ -5667,4 +6803,49 @@ document.addEventListener('DOMContentLoaded', function() {
         // Sync leaderboard if we have data
         syncLeaderboard();
     }
+
+    // Auto-save to localStorage as backup every 30 seconds
+    setInterval(function() {
+        saveToLocalStorage();
+    }, 30000);
+
+    // Save on page unload
+    window.addEventListener('beforeunload', function() {
+        saveToLocalStorage();
+    });
+
+    // Save on visibility change (app going to background on mobile)
+    document.addEventListener('visibilitychange', function() {
+        if (document.visibilityState === 'hidden') {
+            saveToLocalStorage();
+            if (GameState.playerPhone) saveToCloud();
+        }
+    });
 });
+
+// --- Local Storage Backup ---
+function saveToLocalStorage() {
+    try {
+        localStorage.setItem('minElBatal_gameState', JSON.stringify(GameState));
+    } catch(e) {
+        console.warn('localStorage save failed:', e);
+    }
+}
+
+function loadFromLocalStorage() {
+    try {
+        var saved = localStorage.getItem('minElBatal_gameState');
+        if (saved) {
+            var data = JSON.parse(saved);
+            Object.keys(data).forEach(function(key) {
+                if (key in GameState) {
+                    GameState[key] = data[key];
+                }
+            });
+            return true;
+        }
+    } catch(e) {
+        console.warn('localStorage load failed:', e);
+    }
+    return false;
+}

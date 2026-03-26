@@ -2431,6 +2431,75 @@ body {
     color: var(--text-secondary);
     margin: 0 0 12px;
 }
+.l2-learn-header {
+    text-align: center;
+    margin-bottom: 12px;
+}
+.l2-learn-icon {
+    font-size: 36px;
+    margin-bottom: 4px;
+}
+.l2-learn-desc {
+    font-size: 13px !important;
+    color: var(--text-muted) !important;
+    margin: 0 !important;
+}
+.l2-learn-img-wrap {
+    margin: 12px 0;
+    border-radius: 12px;
+    overflow: hidden;
+}
+.l2-learn-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 12px;
+}
+.l2-learn-points {
+    margin: 12px 0;
+}
+.l2-learn-points h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0 0 8px;
+}
+.l2-learn-points ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+.l2-learn-points li {
+    position: relative;
+    padding: 6px 20px 6px 0;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.l2-learn-points li::before {
+    content: '•';
+    position: absolute;
+    right: 4px;
+    color: var(--primary);
+    font-weight: 700;
+}
+.l2-learn-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-secondary);
+    margin: 12px 0;
+}
+.l2-learn-prev-score {
+    text-align: center;
+    padding: 8px 12px;
+    background: rgba(255,215,0,0.08);
+    border: 1px solid rgba(255,215,0,0.2);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--gold);
+    margin-top: 12px;
+}
 .l2-learn-verse {
     background: linear-gradient(135deg, var(--bg-card-hover), var(--bg-card));
     border: 1px solid var(--border);
@@ -2855,6 +2924,147 @@ body {
     90% { transform: translateX(-4px); }
 }
 
+/* Stars 30-point bar */
+.l2-result-stars-30 {
+    position: relative;
+    width: 100%;
+    height: 36px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 18px;
+    margin: 16px 0;
+    overflow: hidden;
+}
+.stars-30-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #FFD700, #FFA502);
+    border-radius: 18px;
+    transition: width 1.5s ease;
+}
+.stars-30-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 15px;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.4);
+}
+
+/* Node star count */
+.node-star-count {
+    font-size: 10px;
+    font-weight: 700;
+    color: #FFD700;
+    white-space: nowrap;
+}
+.node-star-count.dim { color: rgba(255,255,255,0.3); }
+
+/* Exam mode badges */
+.exam-mode-badge {
+    text-align: center;
+    padding: 8px 16px;
+    background: rgba(108, 92, 231, 0.15);
+    border: 1px solid rgba(108, 92, 231, 0.3);
+    border-radius: 10px;
+    color: #A29BFE;
+    font-size: 13px;
+    font-weight: 600;
+}
+.exam-result-badge {
+    text-align: center;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.2), rgba(162,155,254,0.2));
+    border-radius: 12px;
+    color: #A29BFE;
+    font-size: 14px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+.btn-exam {
+    background: linear-gradient(135deg, #6C5CE7, #A29BFE) !important;
+    color: #fff !important;
+    border: none;
+    border-radius: 14px;
+    padding: 12px 20px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.btn-exam:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(108,92,231,0.4); }
+.exam-taken-badge {
+    text-align: center;
+    padding: 10px 16px;
+    background: rgba(0, 184, 148, 0.1);
+    border: 1px solid rgba(0, 184, 148, 0.3);
+    border-radius: 12px;
+    color: var(--success, #00B894);
+    font-size: 14px;
+    font-weight: 600;
+    margin-top: 10px;
+}
+.l2-imgmap-exam-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: #6C5CE7;
+    color: #fff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+}
+.l2-quiz-option.selected-exam {
+    border-color: #A29BFE !important;
+    background: rgba(108,92,231,0.15) !important;
+}
+
+/* Wrong Answer Explanation Panel */
+.l2-wrong-explanation {
+    margin-top: 16px;
+    padding: 16px 20px;
+    background: rgba(0, 184, 148, 0.12);
+    border: 2px solid var(--success, #00B894);
+    border-radius: 16px;
+    text-align: center;
+    animation: slideUpFade 0.4s ease;
+}
+.wrong-explain-icon {
+    font-size: 28px;
+    margin-bottom: 6px;
+}
+.wrong-explain-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 4px;
+}
+.wrong-explain-answer {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--success, #00B894);
+    margin: 0 0 8px;
+}
+.wrong-explain-detail {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+    line-height: 1.5;
+}
+.wrong-continue-btn {
+    margin-top: 8px;
+    width: 100%;
+    font-size: 15px !important;
+}
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
 /* ============================================================
    CELEBRATION / CONFETTI EFFECTS
    ============================================================ */
@@ -3263,4 +3473,787 @@ body {
 @keyframes badgePop {
     from { transform: scale(0); }
     to { transform: scale(1); }
+}
+
+/* ============================================================
+   MODAL OVERLAY
+   ============================================================ */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(6px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.modal-card {
+    background: var(--bg-card);
+    border-radius: 20px;
+    padding: 24px;
+    max-width: 420px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.modal-card h3 {
+    text-align: center;
+    margin: 0 0 16px;
+    font-size: 18px;
+    color: var(--text-primary);
+}
+
+/* Profile Edit */
+.edit-name-hint {
+    font-size: 11px;
+    color: var(--primary);
+    margin-right: 6px;
+    opacity: 0.6;
+}
+.hub-player-info { cursor: pointer; }
+.hub-player-info:active .edit-name-hint { opacity: 1; }
+
+.profile-edit-label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin: 12px 0 6px;
+    font-weight: 600;
+}
+.profile-avatars-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 8px 0 16px;
+}
+.profile-avatar-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 10px 6px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.profile-avatar-option img {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.profile-avatar-option span {
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+}
+.profile-emoji-avatar {
+    font-size: 28px !important;
+    color: inherit !important;
+}
+.profile-avatar-option.selected {
+    border-color: var(--primary);
+    background: rgba(108,92,231,0.15);
+}
+.profile-avatar-option:active { transform: scale(0.95); }
+.profile-edit-btns {
+    display: flex;
+    gap: 10px;
+}
+.profile-edit-btns .btn { flex: 1; }
+
+/* ============================================================
+   SPIRITUAL LIFE SECTION
+   ============================================================ */
+.hub-title-spiritual {
+    margin-top: 28px;
+}
+.spiritual-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+}
+.spiritual-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 16px 10px;
+    text-align: center;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.spiritual-card:active { transform: scale(0.96); }
+.spiritual-card:hover { box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+.spiritual-card-icon { font-size: 32px; margin-bottom: 6px; }
+.spiritual-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 4px;
+}
+.spiritual-card p {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0;
+}
+.spiritual-card-streak {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 8px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    display: inline-block;
+}
+.spiritual-card-streak.done {
+    background: rgba(0,184,148,0.15);
+    color: var(--success, #00B894);
+}
+
+/* Bible Reading */
+.bible-progress-section {
+    margin-bottom: 16px;
+}
+.bible-progress-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 4px;
+    overflow: hidden;
+}
+.bible-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--gold));
+    border-radius: 4px;
+    transition: width 0.5s;
+}
+.bible-progress-text {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 6px 0 0;
+}
+.bible-chapter-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+.bible-chapter-number {
+    text-align: center;
+    font-size: 13px;
+    color: var(--primary);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+.bible-chapter-card h3 {
+    text-align: center;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+}
+.bible-chapter-verses {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+}
+.bible-chapter-summary {
+    background: rgba(255,215,0,0.06);
+    border: 1px solid rgba(255,215,0,0.15);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 12px;
+}
+.bible-chapter-summary h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    margin: 0 0 6px;
+}
+.bible-chapter-summary p {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin: 0;
+}
+.bible-done-badge {
+    text-align: center;
+    padding: 10px;
+    background: rgba(0,184,148,0.12);
+    border-radius: 10px;
+    color: var(--success, #00B894);
+    font-weight: 600;
+    font-size: 14px;
+}
+.bible-user-summary {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+.bible-action-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 0 0 10px;
+}
+.bible-chapters-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+}
+.bible-chapters-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 20px;
+}
+.bible-ch-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+}
+.bible-ch-item.done { border-color: rgba(0,184,148,0.3); }
+.bible-ch-item.current { border-color: var(--primary); background: rgba(108,92,231,0.08); }
+.bible-ch-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+.bible-ch-item.done .bible-ch-num {
+    background: rgba(0,184,148,0.2);
+    color: var(--success, #00B894);
+}
+.bible-ch-title { flex: 1; color: var(--text-secondary); }
+.bible-ch-check { color: var(--success, #00B894); }
+
+/* Devotion */
+.devotion-streak-card {
+    text-align: center;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(255,107,53,0.15), rgba(255,215,0,0.1));
+    border: 1px solid rgba(255,107,53,0.2);
+    border-radius: 16px;
+    margin-bottom: 16px;
+}
+.devotion-streak-number {
+    font-size: 48px;
+    font-weight: 900;
+    color: var(--gold);
+    line-height: 1;
+}
+.devotion-streak-card p {
+    font-size: 14px;
+    color: var(--text-muted);
+    margin: 6px 0 0;
+}
+.devotion-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 12px;
+}
+.devotion-card.done {
+    border-color: rgba(0,184,148,0.3);
+}
+.devotion-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.devotion-icon { font-size: 28px; }
+.devotion-card-header h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+.devotion-card-header p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 2px 0 0;
+}
+.devotion-done-badge {
+    text-align: center;
+    padding: 8px;
+    color: var(--success, #00B894);
+    font-weight: 600;
+    font-size: 13px;
+}
+.devotion-btn { width: 100%; }
+.devotion-tip-card {
+    background: rgba(108,92,231,0.08);
+    border: 1px solid rgba(108,92,231,0.2);
+    border-radius: 14px;
+    padding: 14px;
+    margin-top: 4px;
+}
+.devotion-tip-card h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0 0 6px;
+}
+.devotion-tip-card p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Exercises */
+.exercise-section-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 16px 0 10px;
+}
+.exercise-section-title:first-child { margin-top: 0; }
+.exercise-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.exercise-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.exercise-item:active:not(.done) { transform: scale(0.98); }
+.exercise-item.done {
+    border-color: rgba(0,184,148,0.3);
+    opacity: 0.7;
+    cursor: default;
+}
+.exercise-icon { font-size: 20px; flex-shrink: 0; }
+.exercise-text {
+    flex: 1;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+.exercise-item.done .exercise-text {
+    text-decoration: line-through;
+    color: var(--text-muted);
+}
+.exercise-points {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--gold);
+    white-space: nowrap;
+}
+.exercise-item.done .exercise-points {
+    color: var(--success, #00B894);
+}
+.exercise-total-card {
+    display: flex;
+    gap: 12px;
+    margin-top: 16px;
+}
+.exercise-total-stat {
+    flex: 1;
+    text-align: center;
+    padding: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+}
+.exercise-total-stat span {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--gold);
+}
+.exercise-total-stat small {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+/* Responsive spiritual cards */
+@media (max-width: 400px) {
+    .spiritual-cards-grid {
+        grid-template-columns: 1fr;
+    }
+    .spiritual-card {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-align: right;
+        padding: 12px 14px;
+    }
+    .spiritual-card-icon { font-size: 28px; margin: 0; }
+}
+
+/* ============================================================
+   BIBLE VERSE HIGHLIGHTING & FULL TEXT
+   ============================================================ */
+.bible-full-text {
+    margin: 16px 0;
+    padding: 16px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 14px;
+}
+.bible-full-text-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0 0 6px;
+}
+.bible-tap-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+}
+.bible-verse-line {
+    position: relative;
+    font-size: 14px;
+    line-height: 2;
+    color: var(--text-secondary);
+    padding: 6px 28px 6px 36px;
+    margin: 2px 0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.bible-verse-line:active { opacity: 0.8; }
+.bible-verse-line.highlighted {
+    background: rgba(255, 215, 0, 0.12);
+    border-right: 3px solid var(--gold);
+    color: var(--gold);
+}
+.bible-verse-num {
+    font-weight: 800;
+    color: var(--primary);
+    font-size: 11px;
+    margin-left: 4px;
+}
+.bible-share-btn {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 12px;
+    cursor: pointer;
+    opacity: 0.4;
+    transition: opacity 0.2s;
+    padding: 4px;
+}
+.bible-share-btn:hover { opacity: 1; color: var(--primary); }
+.bible-preview-img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-top: 8px;
+}
+.bible-fetch-section {
+    padding: 20px 0;
+    text-align: center;
+}
+
+/* ============================================================
+   LESSON SUMMARY TAB
+   ============================================================ */
+.l2-summary-required {
+    background: rgba(255, 107, 53, 0.08);
+    border: 1px solid rgba(255, 107, 53, 0.2);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 16px;
+    text-align: center;
+}
+.l2-summary-required h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #FF6B35;
+    margin: 0 0 8px;
+}
+.l2-summary-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+}
+.l2-summary-section h3 {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0 0 6px;
+    text-align: center;
+}
+.l2-summary-hint {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+    margin: 0 0 16px;
+}
+.l2-summary-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 14px 0 6px;
+}
+.l2-summary-upload-btn { display: block; cursor: pointer; }
+.l2-summary-preview-img {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border-radius: 10px;
+    margin-top: 8px;
+}
+.l2-summary-remove-img {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    background: rgba(0,0,0,0.6);
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    font-size: 12px;
+}
+#lesson-summary-img-preview { position: relative; }
+.l2-summary-audio-section { margin-bottom: 8px; }
+.recording-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: #e74c3c;
+    margin-top: 8px;
+}
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+.l2-saved-summary {
+    margin-top: 16px;
+    padding: 14px;
+    background: rgba(0,184,148,0.06);
+    border: 1px solid rgba(0,184,148,0.2);
+    border-radius: 12px;
+}
+.l2-saved-summary h4 {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--success, #00B894);
+    margin: 0 0 6px;
+}
+.l2-saved-summary p {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0 0 8px;
+}
+.l2-summary-saved-img {
+    width: 100%;
+    max-height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+/* ============================================================
+   EXAM SUBJECTS GRID & RULES MODAL
+   ============================================================ */
+.l2-exam-toggle-section {
+    margin-top: 20px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.08), rgba(162,155,254,0.05));
+    border: 1px solid rgba(108,92,231,0.2);
+    border-radius: 16px;
+}
+.l2-exam-toggle-section h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 0 0 4px;
+}
+.l2-exam-toggle-section > p {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+}
+.l2-exam-subjects-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.l2-exam-subject-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    font-size: 14px;
+    color: var(--text-secondary);
+    transition: all 0.2s;
+}
+.l2-exam-subject-item.available { cursor: pointer; }
+.l2-exam-subject-item.available:active { transform: scale(0.98); }
+.l2-exam-subject-item.locked { opacity: 0.4; }
+.l2-exam-subject-item.done { border-color: rgba(0,184,148,0.3); }
+.l2-exam-subject-badge {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+.l2-exam-subject-badge.available {
+    background: rgba(108,92,231,0.15);
+    color: var(--primary);
+}
+.l2-exam-subject-badge.done {
+    background: rgba(0,184,148,0.15);
+    color: var(--success, #00B894);
+}
+.l2-exam-subject-badge.locked { color: var(--text-muted); }
+
+/* Exam Rules Modal */
+.exam-rules-card {
+    max-width: 400px;
+    text-align: center;
+}
+.exam-rules-icon { font-size: 48px; margin-bottom: 8px; }
+.exam-rules-card h3 {
+    font-size: 20px;
+    font-weight: 800;
+    margin: 0 0 16px;
+}
+.exam-rules-list {
+    text-align: right;
+    margin-bottom: 16px;
+}
+.exam-rule {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 13px;
+    color: var(--text-secondary);
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.exam-rule i {
+    color: var(--primary);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+.exam-rule.exam-rule-warning {
+    color: #FF6B35;
+    font-weight: 600;
+}
+.exam-rule.exam-rule-warning i { color: #FF6B35; }
+.exam-rules-subject {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--primary);
+    margin: 12px 0;
+}
+.exam-rules-btns {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+}
+.exam-rules-btns .btn { flex: 1; }
+
+/* Exam review in results */
+.exam-review-section {
+    margin-top: 20px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+.exam-review-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0 0 10px;
+    text-align: center;
+}
+.exam-review-item {
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+}
+.exam-review-item.correct { border-color: rgba(0,184,148,0.3); }
+.exam-review-item.wrong { border-color: rgba(231,76,60,0.3); background: rgba(231,76,60,0.04); }
+.exam-review-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+}
+.exam-review-num {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    background: rgba(255,255,255,0.06);
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.exam-review-status { font-size: 16px; }
+.exam-review-item.correct .exam-review-status { color: var(--success, #00B894); }
+.exam-review-item.wrong .exam-review-status { color: #e74c3c; }
+.exam-review-q {
+    font-size: 13px;
+    color: var(--text-secondary);
+    margin: 0 0 4px;
+    line-height: 1.5;
+}
+.exam-review-a {
+    font-size: 12px;
+    color: var(--success, #00B894);
+    margin: 0;
+    font-weight: 600;
+}
+
+/* Wrong answer explanation detail */
+.wrong-explain-detail {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    padding: 10px 12px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+    margin: 8px 0 12px;
 }

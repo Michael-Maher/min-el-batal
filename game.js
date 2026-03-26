@@ -5775,6 +5775,9 @@ function renderLevel2Learn(container, lesson, subject) {
 
     html += '</div>';
 
+    // Mini-games entertainment section
+    html += renderMiniGamesSection();
+
     // If summary not submitted yet, show summary section
     if (!hasSummary) {
         html += '<div class="l2-summary-required">';
@@ -5812,6 +5815,765 @@ function renderLevel2Learn(container, lesson, subject) {
     }
 
     container.innerHTML = html;
+}
+
+// ============================================================
+// MINI-GAMES ENTERTAINMENT ZONE
+// ============================================================
+var LESSON_MINI_GAMES = {
+    'faith_0': {
+        trueFalse: [
+            { statement: 'الله واحد في ثلاثة أقانيم', answer: true },
+            { statement: 'الأقانيم ثلاثة آلهة مختلفين', answer: false },
+            { statement: 'كلمة أقنوم سريانية', answer: true },
+            { statement: 'الابن مخلوق وليس مولود', answer: false },
+            { statement: 'الروح القدس منبثق من الآب', answer: true },
+            { statement: 'في البسملة نقول "بأسماء" الآب والابن', answer: false },
+            { statement: 'اللوجوس معناها الكلمة', answer: true },
+            { statement: 'الآب هو خاصية الوجود', answer: true },
+            { statement: 'الشمس مثال لتوضيح الثالوث', answer: true },
+            { statement: 'الكاثوليك يؤمنون أن الروح منبثق من الآب فقط', answer: false },
+            { statement: 'بنقول 1×1×1 = 1 لتوضيح الثالوث', answer: true },
+            { statement: 'ظهر الثالوث في عماد المسيح', answer: true },
+            { statement: 'الروح القدس ظهر في هيئة نار في عماد المسيح', answer: false },
+            { statement: 'الابن هو عقل ونطق الله', answer: true },
+            { statement: 'إبراهيم استقبل ثلاث ملائكة وهذا رمز للثالوث', answer: true },
+            { statement: 'في قانون الإيمان نقول نؤمن بثلاثة آلهة', answer: false },
+            { statement: 'الروح القدس هو خاصية الحياة', answer: true },
+            { statement: 'السيرافيم قالوا قدوس مرتين فقط', answer: false },
+            { statement: 'الجوهر الإلهي واحد والخواص ثلاثة', answer: true },
+            { statement: 'عيد الظهور الإلهي يحتفل بعماد المسيح', answer: true }
+        ],
+        whoAmI: [
+            {
+                clues: ['أنا أقنوم من أقانيم الثالوث', 'أنا مصدر اللاهوت', 'منّي وُلد الابن', 'أنا خاصية الوجود'],
+                answer: 'الآب'
+            },
+            {
+                clues: ['أنا اللوجوس', 'أنا عقل الله ونطقه', 'أنا مولود من الآب', 'تجسدت وصرت إنساناً'],
+                answer: 'الابن'
+            },
+            {
+                clues: ['أنا منبثق من الآب', 'أنا خاصية الحياة', 'ظهرت في هيئة حمامة', 'أنا الأقنوم الثالث'],
+                answer: 'الروح القدس'
+            },
+            {
+                clues: ['أنا نبي من العهد القديم', 'رأيت السيرافيم', 'سمعت "قدوس قدوس قدوس"', 'سفري من أكبر أسفار الأنبياء'],
+                answer: 'إشعياء النبي'
+            },
+            {
+                clues: ['أنا حدث مهم في حياة المسيح', 'حدثت في نهر الأردن', 'ظهر فيّ الثالوث كله', 'الكنيسة تحتفل بي في عيد الظهور الإلهي'],
+                answer: 'عماد المسيح'
+            }
+        ],
+        sortVerse: [
+            {
+                full: 'فاذهبوا وتلمذوا جميع الأمم وعمدوهم باسم الآب والابن والروح القدس',
+                ref: 'مت ٢٨: ١٩'
+            },
+            {
+                full: 'في البدء كان الكلمة والكلمة كان عند الله وكان الكلمة الله',
+                ref: 'يو ١: ١'
+            },
+            {
+                full: 'نعمل الإنسان على صورتنا كشبهنا',
+                ref: 'تك ١: ٢٦'
+            }
+        ],
+        fillBlank: [
+            { text: 'نؤمن بإله ___ في ثلاثة أقانيم', blank: 'واحد', options: ['واحد', 'عظيم', 'ثلاثة', 'كثير'] },
+            { text: 'الآب والابن و___ القدس', blank: 'الروح', options: ['الروح', 'الملاك', 'القديس', 'الكاهن'] },
+            { text: 'كلمة أقنوم معناها ___ يقوم عليها الكيان الإلهي', blank: 'صفة', options: ['صفة', 'جزء', 'نصف', 'قطعة'] },
+            { text: 'الابن مولود من الآب كمولد ___ من العقل', blank: 'الفكر', options: ['الفكر', 'الماء', 'النار', 'الهواء'] },
+            { text: 'الروح القدس ظهر في هيئة ___ في عماد المسيح', blank: 'حمامة', options: ['حمامة', 'نار', 'سحابة', 'نجمة'] },
+            { text: 'بنقول 1×1×1 = ___ صحيح', blank: 'واحد', options: ['واحد', 'ثلاثة', 'صفر', 'تسعة'] },
+            { text: 'اللوجوس معناها ___', blank: 'الكلمة', options: ['الكلمة', 'الحياة', 'النور', 'القوة'] },
+            { text: 'إشعياء سمع السيرافيم يقولون قدوس قدوس قدوس رب ___', blank: 'الجنود', options: ['الجنود', 'الأرض', 'السماء', 'الكون'] }
+        ],
+        matchPairs: [
+            { left: 'الآب', right: 'خاصية الوجود' },
+            { left: 'الابن', right: 'خاصية العقل والنطق' },
+            { left: 'الروح القدس', right: 'خاصية الحياة' },
+            { left: 'القرص', right: 'يشبه الآب' },
+            { left: 'الشعاع', right: 'يشبه الابن' },
+            { left: 'الحرارة', right: 'يشبه الروح القدس' }
+        ]
+    }
+};
+
+// Mini-game state
+var miniGameState = {
+    type: null,
+    index: 0,
+    score: 0,
+    total: 0,
+    answers: [],
+    timer: null,
+    timeLeft: 0,
+    data: null,
+    // Who Am I
+    clueIndex: 0,
+    maxPoints: 0,
+    // Sort Verse
+    selectedWords: [],
+    // Match Pairs
+    selectedLeft: null,
+    matched: []
+};
+
+function getMiniGamesForLesson() {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson;
+    return LESSON_MINI_GAMES[key] || null;
+}
+
+// Render mini-games hub inside learn tab
+function renderMiniGamesSection() {
+    var games = getMiniGamesForLesson();
+    if (!games) return '';
+
+    var html = '<div class="mini-games-section">';
+    html += '<div class="mini-games-header">';
+    html += '<h3><i class="fas fa-gamepad"></i> الركن الترفيهي</h3>';
+    html += '<p>العب واكسب نجوم إضافية! كل لعبة ليها مكافأة</p>';
+    html += '</div>';
+    html += '<div class="mini-games-grid">';
+
+    if (games.trueFalse) {
+        html += '<div class="mini-game-card mg-truefalse" onclick="startMiniGame(\'trueFalse\')">';
+        html += '<div class="mg-card-icon"><i class="fas fa-bolt"></i></div>';
+        html += '<h4>صح ولا غلط</h4>';
+        html += '<p>20 سؤال × 5 ثواني</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+        html += getMiniGameBadge('trueFalse');
+        html += '</div>';
+    }
+    if (games.whoAmI) {
+        html += '<div class="mini-game-card mg-whoami" onclick="startMiniGame(\'whoAmI\')">';
+        html += '<div class="mg-card-icon"><i class="fas fa-user-secret"></i></div>';
+        html += '<h4>من أنا؟</h4>';
+        html += '<p>' + games.whoAmI.length + ' شخصيات</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+        html += getMiniGameBadge('whoAmI');
+        html += '</div>';
+    }
+    if (games.sortVerse) {
+        html += '<div class="mini-game-card mg-sort" onclick="startMiniGame(\'sortVerse\')">';
+        html += '<div class="mg-card-icon"><i class="fas fa-sort-amount-down"></i></div>';
+        html += '<h4>رتّب الآية</h4>';
+        html += '<p>' + games.sortVerse.length + ' آيات</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+        html += getMiniGameBadge('sortVerse');
+        html += '</div>';
+    }
+    if (games.fillBlank) {
+        html += '<div class="mini-game-card mg-fill" onclick="startMiniGame(\'fillBlank\')">';
+        html += '<div class="mg-card-icon"><i class="fas fa-pen-fancy"></i></div>';
+        html += '<h4>الكلمة الناقصة</h4>';
+        html += '<p>' + games.fillBlank.length + ' أسئلة</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+        html += getMiniGameBadge('fillBlank');
+        html += '</div>';
+    }
+    if (games.matchPairs) {
+        html += '<div class="mini-game-card mg-match" onclick="startMiniGame(\'matchPairs\')">';
+        html += '<div class="mg-card-icon"><i class="fas fa-link"></i></div>';
+        html += '<h4>وصّل الصح</h4>';
+        html += '<p>' + games.matchPairs.length + ' أزواج</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+        html += getMiniGameBadge('matchPairs');
+        html += '</div>';
+    }
+
+    html += '</div></div>';
+    return html;
+}
+
+function getMiniGameBadge(type) {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson + '_mg_' + type;
+    var best = GameState.miniGameScores && GameState.miniGameScores[key];
+    if (best) {
+        return '<div class="mg-card-best"><i class="fas fa-trophy"></i> ' + best + '</div>';
+    }
+    return '<div class="mg-card-new">جديد!</div>';
+}
+
+function saveMiniGameScore(type, score) {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson + '_mg_' + type;
+    if (!GameState.miniGameScores) GameState.miniGameScores = {};
+    var prev = GameState.miniGameScores[key] || 0;
+    if (score > prev) {
+        GameState.miniGameScores[key] = score;
+    }
+    // Award stars
+    var stars = Math.floor(score / 2);
+    if (stars > 0) {
+        GameState.stars = (GameState.stars || 0) + stars;
+        showToast('حصلت على ' + stars + ' ⭐ نجوم!', 'success');
+    }
+    saveToLocalStorage();
+    if (typeof saveToCloud === 'function') saveToCloud();
+}
+
+// ========== START MINI GAME ==========
+function startMiniGame(type) {
+    var games = getMiniGamesForLesson();
+    if (!games || !games[type]) return;
+
+    miniGameState = {
+        type: type,
+        index: 0,
+        score: 0,
+        total: 0,
+        answers: [],
+        timer: null,
+        timeLeft: 0,
+        data: null,
+        clueIndex: 0,
+        maxPoints: 0,
+        selectedWords: [],
+        selectedLeft: null,
+        matched: []
+    };
+
+    initAudio();
+
+    if (type === 'trueFalse') startTrueFalseGame(games.trueFalse);
+    else if (type === 'whoAmI') startWhoAmIGame(games.whoAmI);
+    else if (type === 'sortVerse') startSortVerseGame(games.sortVerse);
+    else if (type === 'fillBlank') startFillBlankGame(games.fillBlank);
+    else if (type === 'matchPairs') startMatchPairsGame(games.matchPairs);
+}
+
+function renderMiniGameUI(title, icon, bodyHtml) {
+    var container = document.getElementById('l2-lesson-body');
+    if (!container) return;
+    var html = '<div class="mini-game-screen">';
+    html += '<div class="mg-header">';
+    html += '<div class="mg-title"><i class="fas fa-' + icon + '"></i> ' + title + '</div>';
+    html += '<div class="mg-score-bar">النقاط: <strong id="mg-score">' + miniGameState.score + '</strong></div>';
+    html += '</div>';
+    html += '<div class="mg-body" id="mg-body">' + bodyHtml + '</div>';
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+function showMiniGameResult(title) {
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
+    saveMiniGameScore(miniGameState.type, miniGameState.score);
+
+    var pct = miniGameState.total > 0 ? Math.round((miniGameState.score / miniGameState.total) * 100) : 0;
+    var stars = Math.floor(miniGameState.score / 2);
+    var emoji = pct >= 80 ? '🏆' : (pct >= 50 ? '👏' : '💪');
+
+    var html = '<div class="mg-result">';
+    html += '<div class="mg-result-emoji">' + emoji + '</div>';
+    html += '<h3>' + title + '</h3>';
+    html += '<div class="mg-result-score">' + miniGameState.score + ' / ' + miniGameState.total + '</div>';
+    html += '<div class="mg-result-stars">حصلت على ' + stars + ' ⭐</div>';
+    html += '<div class="mg-result-btns">';
+    html += '<button class="btn btn-primary" onclick="startMiniGame(\'' + miniGameState.type + '\')"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
+    html += '<button class="btn btn-secondary" onclick="renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i></span></button>';
+    html += '</div></div>';
+
+    var body = document.getElementById('mg-body');
+    if (body) body.innerHTML = html;
+    else renderMiniGameUI(title, 'trophy', html);
+
+    if (pct >= 60) launchConfetti(2000);
+}
+
+// ========== TRUE/FALSE BLITZ ==========
+function startTrueFalseGame(data) {
+    var shuffled = data.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
+    }
+    miniGameState.data = shuffled.slice(0, 20);
+    miniGameState.total = 20;
+    miniGameState.index = 0;
+    miniGameState.score = 0;
+    miniGameState.timeLeft = 5;
+    renderTrueFalseQ();
+}
+
+function renderTrueFalseQ() {
+    if (miniGameState.index >= miniGameState.data.length) {
+        showMiniGameResult('صح ولا غلط');
+        return;
+    }
+    var q = miniGameState.data[miniGameState.index];
+    var progress = (miniGameState.index + 1) + '/' + miniGameState.data.length;
+
+    var html = '<div class="mg-progress">' + progress + '</div>';
+    html += '<div class="mg-timer-bar"><div class="mg-timer-fill" id="mg-timer-fill" style="width:100%"></div></div>';
+    html += '<div class="mg-tf-statement" id="mg-tf-statement">' + q.statement + '</div>';
+    html += '<div class="mg-tf-buttons">';
+    html += '<button class="mg-tf-btn mg-tf-true" onclick="answerTrueFalse(true)"><i class="fas fa-check"></i> صح</button>';
+    html += '<button class="mg-tf-btn mg-tf-false" onclick="answerTrueFalse(false)"><i class="fas fa-times"></i> غلط</button>';
+    html += '</div>';
+
+    renderMiniGameUI('صح ولا غلط ⚡', 'bolt', html);
+
+    // Start timer
+    miniGameState.timeLeft = 5;
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
+    miniGameState.timer = setInterval(function() {
+        miniGameState.timeLeft -= 0.1;
+        var fill = document.getElementById('mg-timer-fill');
+        if (fill) fill.style.width = Math.max(0, (miniGameState.timeLeft / 5) * 100) + '%';
+        if (miniGameState.timeLeft <= 0) {
+            clearInterval(miniGameState.timer);
+            answerTrueFalse(null); // Time's up
+        }
+    }, 100);
+}
+
+function answerTrueFalse(answer) {
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
+    var q = miniGameState.data[miniGameState.index];
+    var correct = answer === q.answer;
+
+    if (correct) {
+        miniGameState.score++;
+        playCorrectSound();
+        vibrate(50);
+    } else {
+        playWrongSound();
+        vibrate([50, 30, 50]);
+    }
+
+    // Flash feedback
+    var stmt = document.getElementById('mg-tf-statement');
+    if (stmt) {
+        stmt.style.background = correct ? 'rgba(0,184,148,0.2)' : 'rgba(255,107,107,0.2)';
+        stmt.style.borderColor = correct ? '#00B894' : '#FF6B6B';
+    }
+
+    // Update score display
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+
+    miniGameState.index++;
+    setTimeout(renderTrueFalseQ, 600);
+}
+
+// ========== WHO AM I? ==========
+function startWhoAmIGame(data) {
+    miniGameState.data = data.slice();
+    miniGameState.total = data.length * 4; // Max 4 points per character
+    miniGameState.index = 0;
+    miniGameState.score = 0;
+    renderWhoAmIQ();
+}
+
+function renderWhoAmIQ() {
+    if (miniGameState.index >= miniGameState.data.length) {
+        showMiniGameResult('من أنا؟');
+        return;
+    }
+    var item = miniGameState.data[miniGameState.index];
+    miniGameState.clueIndex = 0;
+    miniGameState.maxPoints = 4;
+
+    var html = '<div class="mg-progress">' + (miniGameState.index + 1) + '/' + miniGameState.data.length + '</div>';
+    html += '<div class="mg-wai-card">';
+    html += '<div class="mg-wai-icon"><i class="fas fa-user-secret"></i></div>';
+    html += '<h4>من أنا؟</h4>';
+    html += '<div class="mg-wai-clues" id="mg-wai-clues">';
+    html += '<div class="mg-wai-clue visible">💡 ' + item.clues[0] + '</div>';
+    for (var i = 1; i < item.clues.length; i++) {
+        html += '<div class="mg-wai-clue hidden" id="mg-clue-' + i + '">💡 ' + item.clues[i] + '</div>';
+    }
+    html += '</div>';
+    html += '<div class="mg-wai-points" id="mg-wai-points">🏆 ' + miniGameState.maxPoints + ' نقاط</div>';
+    html += '<div class="mg-wai-actions">';
+    html += '<button class="btn btn-secondary mg-wai-hint-btn" id="mg-hint-btn" onclick="whoAmIHint()"><span><i class="fas fa-eye"></i> تلميح تاني (-1 نقطة)</span></button>';
+    html += '<button class="btn btn-primary mg-wai-answer-btn" onclick="whoAmIGuess()"><span><i class="fas fa-lightbulb"></i> أعرفه!</span></button>';
+    html += '</div></div>';
+
+    renderMiniGameUI('من أنا؟ 🎭', 'user-secret', html);
+}
+
+function whoAmIHint() {
+    var item = miniGameState.data[miniGameState.index];
+    miniGameState.clueIndex++;
+    miniGameState.maxPoints = Math.max(1, 4 - miniGameState.clueIndex);
+
+    if (miniGameState.clueIndex < item.clues.length) {
+        var clueEl = document.getElementById('mg-clue-' + miniGameState.clueIndex);
+        if (clueEl) { clueEl.classList.remove('hidden'); clueEl.classList.add('visible'); }
+    }
+
+    var pointsEl = document.getElementById('mg-wai-points');
+    if (pointsEl) pointsEl.innerHTML = '🏆 ' + miniGameState.maxPoints + ' نقاط';
+
+    // Hide hint button if no more clues
+    if (miniGameState.clueIndex >= item.clues.length - 1) {
+        var hintBtn = document.getElementById('mg-hint-btn');
+        if (hintBtn) hintBtn.style.display = 'none';
+    }
+}
+
+function whoAmIGuess() {
+    var item = miniGameState.data[miniGameState.index];
+    // Show input modal
+    var overlay = document.createElement('div');
+    overlay.id = 'mg-guess-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Cairo,sans-serif;direction:rtl';
+
+    // Build options (correct + 2 random wrong)
+    var allAnswers = miniGameState.data.map(function(d) { return d.answer; });
+    var wrongAnswers = allAnswers.filter(function(a) { return a !== item.answer; });
+    // Shuffle wrong answers and take 2
+    for (var i = wrongAnswers.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = wrongAnswers[i]; wrongAnswers[i] = wrongAnswers[j]; wrongAnswers[j] = t;
+    }
+    var options = [item.answer, wrongAnswers[0] || 'إجابة خاطئة', wrongAnswers[1] || 'إجابة خاطئة 2'];
+    // Shuffle options
+    for (var i = options.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = options[i]; options[i] = options[j]; options[j] = t;
+    }
+
+    var btnsHtml = '';
+    options.forEach(function(opt) {
+        btnsHtml += '<button onclick="checkWhoAmI(\'' + opt.replace(/'/g, "\\'") + '\')" style="width:100%;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text-primary);border-radius:12px;padding:14px;font-family:Cairo;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:8px;transition:all 0.2s">' + opt + '</button>';
+    });
+
+    overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:20px;padding:24px;max-width:340px;width:100%;text-align:center">' +
+        '<h3 style="color:var(--text-primary);margin:0 0 16px">من هو؟</h3>' +
+        btnsHtml +
+        '<button onclick="document.getElementById(\'mg-guess-overlay\').remove()" style="background:none;border:none;color:var(--text-muted);font-family:Cairo;font-size:13px;cursor:pointer;margin-top:4px">إلغاء</button></div>';
+    document.body.appendChild(overlay);
+}
+
+function checkWhoAmI(guess) {
+    var overlay = document.getElementById('mg-guess-overlay');
+    if (overlay) overlay.remove();
+
+    var item = miniGameState.data[miniGameState.index];
+    var correct = guess === item.answer;
+
+    if (correct) {
+        miniGameState.score += miniGameState.maxPoints;
+        playCorrectSound();
+        showToast('✅ صح! ' + item.answer + ' (+' + miniGameState.maxPoints + ')', 'success');
+    } else {
+        playWrongSound();
+        showToast('❌ الإجابة الصح: ' + item.answer, 'error');
+    }
+
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+
+    miniGameState.index++;
+    setTimeout(renderWhoAmIQ, 1000);
+}
+
+// ========== SORT THE VERSE ==========
+function startSortVerseGame(data) {
+    miniGameState.data = data.slice();
+    miniGameState.total = data.length * 5;
+    miniGameState.index = 0;
+    miniGameState.score = 0;
+    renderSortVerseQ();
+}
+
+function renderSortVerseQ() {
+    if (miniGameState.index >= miniGameState.data.length) {
+        showMiniGameResult('رتّب الآية');
+        return;
+    }
+    var item = miniGameState.data[miniGameState.index];
+    var words = item.full.split(' ');
+    miniGameState.selectedWords = [];
+
+    // Shuffle words
+    var shuffled = words.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
+    }
+
+    var html = '<div class="mg-progress">' + (miniGameState.index + 1) + '/' + miniGameState.data.length + '</div>';
+    html += '<div class="mg-sv-ref"><i class="fas fa-book-bible"></i> ' + item.ref + '</div>';
+    html += '<div class="mg-sv-result" id="mg-sv-result"><span class="mg-sv-placeholder">اضغط على الكلمات بالترتيب الصح...</span></div>';
+    html += '<div class="mg-sv-words" id="mg-sv-words">';
+    shuffled.forEach(function(w, idx) {
+        html += '<button class="mg-sv-word" data-word="' + w + '" data-idx="' + idx + '" onclick="selectSortWord(this)">' + w + '</button>';
+    });
+    html += '</div>';
+    html += '<div class="mg-sv-actions">';
+    html += '<button class="btn btn-secondary" onclick="resetSortVerse()"><span><i class="fas fa-undo"></i> إعادة</span></button>';
+    html += '<button class="btn btn-primary" onclick="checkSortVerse()"><span><i class="fas fa-check"></i> تأكيد</span></button>';
+    html += '</div>';
+
+    renderMiniGameUI('رتّب الآية 📖', 'sort-amount-down', html);
+}
+
+function selectSortWord(btn) {
+    if (btn.classList.contains('used')) return;
+    btn.classList.add('used');
+    miniGameState.selectedWords.push(btn.getAttribute('data-word'));
+
+    var result = document.getElementById('mg-sv-result');
+    if (result) {
+        result.innerHTML = miniGameState.selectedWords.map(function(w) {
+            return '<span class="mg-sv-selected">' + w + '</span>';
+        }).join(' ');
+    }
+}
+
+function resetSortVerse() {
+    miniGameState.selectedWords = [];
+    var result = document.getElementById('mg-sv-result');
+    if (result) result.innerHTML = '<span class="mg-sv-placeholder">اضغط على الكلمات بالترتيب الصح...</span>';
+    document.querySelectorAll('.mg-sv-word').forEach(function(btn) { btn.classList.remove('used'); });
+}
+
+function checkSortVerse() {
+    var item = miniGameState.data[miniGameState.index];
+    var correctWords = item.full.split(' ');
+    var userWords = miniGameState.selectedWords;
+
+    if (userWords.length !== correctWords.length) {
+        showToast('رتّب كل الكلمات الأول!', 'error');
+        return;
+    }
+
+    var correct = true;
+    for (var i = 0; i < correctWords.length; i++) {
+        if (correctWords[i] !== userWords[i]) { correct = false; break; }
+    }
+
+    if (correct) {
+        miniGameState.score += 5;
+        playCorrectSound();
+        showToast('✅ ممتاز! الآية صح!', 'success');
+    } else {
+        playWrongSound();
+        showToast('❌ الترتيب الصح: ' + item.full, 'error');
+    }
+
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+
+    miniGameState.index++;
+    setTimeout(renderSortVerseQ, 1500);
+}
+
+// ========== FILL IN THE BLANK ==========
+function startFillBlankGame(data) {
+    var shuffled = data.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
+    }
+    miniGameState.data = shuffled;
+    miniGameState.total = data.length * 2;
+    miniGameState.index = 0;
+    miniGameState.score = 0;
+    renderFillBlankQ();
+}
+
+function renderFillBlankQ() {
+    if (miniGameState.index >= miniGameState.data.length) {
+        showMiniGameResult('الكلمة الناقصة');
+        return;
+    }
+    var q = miniGameState.data[miniGameState.index];
+    var displayText = q.text.replace('___', '<span class="mg-fb-blank">؟</span>');
+
+    // Shuffle options
+    var opts = q.options.slice();
+    for (var i = opts.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = opts[i]; opts[i] = opts[j]; opts[j] = t;
+    }
+
+    var html = '<div class="mg-progress">' + (miniGameState.index + 1) + '/' + miniGameState.data.length + '</div>';
+    html += '<div class="mg-fb-text">' + displayText + '</div>';
+    html += '<div class="mg-fb-options">';
+    opts.forEach(function(opt) {
+        html += '<button class="mg-fb-option" onclick="answerFillBlank(\'' + opt.replace(/'/g, "\\'") + '\')">' + opt + '</button>';
+    });
+    html += '</div>';
+
+    renderMiniGameUI('الكلمة الناقصة ✏️', 'pen-fancy', html);
+}
+
+function answerFillBlank(answer) {
+    var q = miniGameState.data[miniGameState.index];
+    var correct = answer === q.blank;
+
+    if (correct) {
+        miniGameState.score += 2;
+        playCorrectSound();
+        vibrate(50);
+    } else {
+        playWrongSound();
+        vibrate([50, 30, 50]);
+        showToast('الكلمة الصح: ' + q.blank, 'error');
+    }
+
+    // Visual feedback on blank
+    var blank = document.querySelector('.mg-fb-blank');
+    if (blank) {
+        blank.textContent = q.blank;
+        blank.style.background = correct ? 'rgba(0,184,148,0.3)' : 'rgba(255,107,107,0.3)';
+        blank.style.color = correct ? '#00B894' : '#FF6B6B';
+    }
+
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+
+    miniGameState.index++;
+    setTimeout(renderFillBlankQ, 800);
+}
+
+// ========== MATCH PAIRS ==========
+function startMatchPairsGame(data) {
+    miniGameState.data = data.slice();
+    miniGameState.total = data.length * 2;
+    miniGameState.score = 0;
+    miniGameState.matched = [];
+    miniGameState.selectedLeft = null;
+    renderMatchPairs();
+}
+
+function renderMatchPairs() {
+    var data = miniGameState.data;
+    var matched = miniGameState.matched;
+
+    if (matched.length === data.length) {
+        showMiniGameResult('وصّل الصح');
+        return;
+    }
+
+    // Shuffle right side
+    var rightItems = data.map(function(d, i) { return { text: d.right, idx: i }; });
+    for (var i = rightItems.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = rightItems[i]; rightItems[i] = rightItems[j]; rightItems[j] = t;
+    }
+
+    var html = '<div class="mg-progress">' + matched.length + '/' + data.length + ' متصلين</div>';
+    html += '<div class="mg-mp-container">';
+
+    // Left column
+    html += '<div class="mg-mp-col mg-mp-left">';
+    data.forEach(function(d, idx) {
+        var isMatched = matched.indexOf(idx) >= 0;
+        var isSelected = miniGameState.selectedLeft === idx;
+        html += '<button class="mg-mp-item' + (isMatched ? ' matched' : '') + (isSelected ? ' selected' : '') + '" ' +
+            (isMatched ? 'disabled' : 'onclick="selectMatchLeft(' + idx + ')"') + '>' + d.left + '</button>';
+    });
+    html += '</div>';
+
+    // Right column
+    html += '<div class="mg-mp-col mg-mp-right">';
+    rightItems.forEach(function(item) {
+        var isMatched = matched.indexOf(item.idx) >= 0;
+        html += '<button class="mg-mp-item' + (isMatched ? ' matched' : '') + '" ' +
+            (isMatched ? 'disabled' : 'onclick="selectMatchRight(' + item.idx + ')"') + '>' + item.text + '</button>';
+    });
+    html += '</div>';
+
+    html += '</div>';
+
+    renderMiniGameUI('وصّل الصح 🔗', 'link', html);
+}
+
+function selectMatchLeft(idx) {
+    miniGameState.selectedLeft = idx;
+    // Re-render to show selection
+    renderMatchPairs();
+}
+
+function selectMatchRight(rightIdx) {
+    if (miniGameState.selectedLeft === null) {
+        showToast('اختار من الشمال الأول!', 'info');
+        return;
+    }
+
+    var leftIdx = miniGameState.selectedLeft;
+    var correct = leftIdx === rightIdx;
+
+    if (correct) {
+        miniGameState.matched.push(leftIdx);
+        miniGameState.score += 2;
+        playCorrectSound();
+        vibrate(50);
+    } else {
+        playWrongSound();
+        vibrate([50, 30, 50]);
+    }
+
+    miniGameState.selectedLeft = null;
+
+    var scoreEl = document.getElementById('mg-score');
+    if (scoreEl) scoreEl.textContent = miniGameState.score;
+
+    setTimeout(renderMatchPairs, 500);
+}
+
+// ========== PULL TO REFRESH ==========
+var pullToRefreshState = { startY: 0, pulling: false };
+
+function initPullToRefresh() {
+    var indicator = document.createElement('div');
+    indicator.id = 'ptr-indicator';
+    indicator.style.cssText = 'position:fixed;top:0;left:0;right:0;height:0;background:linear-gradient(135deg,var(--primary),#a29bfe);z-index:9999;transition:height 0.2s;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:Cairo,sans-serif;color:#fff;font-weight:700;font-size:14px';
+    indicator.innerHTML = '<i class="fas fa-sync-alt" id="ptr-icon" style="margin-left:8px"></i> اسحب للتحديث';
+    document.body.appendChild(indicator);
+
+    document.addEventListener('touchstart', function(e) {
+        if (window.scrollY === 0) {
+            pullToRefreshState.startY = e.touches[0].clientY;
+            pullToRefreshState.pulling = true;
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+        if (!pullToRefreshState.pulling) return;
+        var diff = e.touches[0].clientY - pullToRefreshState.startY;
+        if (diff > 0 && diff < 150) {
+            var ind = document.getElementById('ptr-indicator');
+            if (ind) {
+                ind.style.height = Math.min(diff * 0.5, 50) + 'px';
+                if (diff > 80) {
+                    ind.innerHTML = '<i class="fas fa-sync-alt fa-spin" style="margin-left:8px"></i> حرر للتحديث';
+                }
+            }
+        }
+    }, { passive: true });
+
+    document.addEventListener('touchend', function() {
+        if (!pullToRefreshState.pulling) return;
+        var ind = document.getElementById('ptr-indicator');
+        var h = ind ? parseInt(ind.style.height) : 0;
+
+        if (h >= 40) {
+            // Trigger refresh
+            if (ind) {
+                ind.innerHTML = '<i class="fas fa-sync-alt fa-spin" style="margin-left:8px"></i> جاري التحديث...';
+                ind.style.height = '40px';
+            }
+            setTimeout(function() {
+                window.location.reload();
+            }, 600);
+        } else {
+            if (ind) ind.style.height = '0';
+        }
+        pullToRefreshState.pulling = false;
+    });
+}
+
+// Init pull to refresh on load
+if ('ontouchstart' in window) {
+    document.addEventListener('DOMContentLoaded', initPullToRefresh);
 }
 
 // --- Lesson Summary Tab ---

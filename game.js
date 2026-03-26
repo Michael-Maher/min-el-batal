@@ -127,6 +127,7 @@ function submitRegister() {
                 showToast('أهلاً بيك تاني يا بطل!', 'success');
                 showScreen('home-hub-screen');
                 syncLeaderboard();
+                requestNotificationsAfterLogin();
                 return;
             }
 
@@ -147,6 +148,7 @@ function submitRegister() {
                     saveToCloud();
                     showToast('تم التسجيل بنجاح!', 'success');
                     showScreen('character-screen');
+                    requestNotificationsAfterLogin();
                 })
                 .catch(function(err) {
                     console.error('Name check error:', err);
@@ -327,7 +329,7 @@ const CHARACTERS = {
         name: 'داود النبي',
         emoji: '🎵',
         color: '#E8A838',
-        image: 'images/david.png',
+        image: 'images/david-opt.jpg',
         role: 'المرنم الشجاع صاحب المقلاع',
         ability: 'ضربة المقلاع - قوة مضاعفة',
         unlocked: true
@@ -336,7 +338,7 @@ const CHARACTERS = {
         name: 'فيلومينا الأمينة',
         emoji: '⚓',
         color: '#F5A0B8',
-        image: 'images/philomena.png',
+        image: 'images/philomena-opt.jpg',
         role: 'القديسة الأمينة حتى الموت',
         ability: 'إيمان ثابت - حماية من الخطأ',
         unlocked: true
@@ -345,7 +347,7 @@ const CHARACTERS = {
         name: 'بولس الرسول',
         emoji: '✉️',
         color: '#7B5EA7',
-        image: 'images/paul.png',
+        image: 'images/paul-opt.jpg',
         role: 'رسول الأمم وكاتب الرسائل',
         ability: 'سيف الروح - كشف الإجابة',
         cost: 30,
@@ -355,7 +357,7 @@ const CHARACTERS = {
         name: 'مارجرجس الروماني',
         emoji: '🐴',
         color: '#D4461A',
-        image: 'images/george.png',
+        image: 'images/george-opt.jpg',
         role: 'الشهيد الشجاع قاتل التنين',
         ability: 'رمح النصر - نقاط إضافية',
         cost: 50,
@@ -3851,7 +3853,7 @@ function renderLampScreen() {
     // Update lamp image (fixed bottom-left)
     var lampImg = document.getElementById('lamp-main-image');
     if (lampImg) {
-        lampImg.src = allDone ? 'images/on_lamp.png' : 'images/off_lamp.png';
+        lampImg.src = allDone ? 'images/on_lamp-opt.png' : 'images/off_lamp-opt.png';
         lampImg.className = 'lamp-main-image' + (allDone ? ' lamp-lit' : '');
     }
     // Show/hide lamp container
@@ -7880,3 +7882,220 @@ function loadFromLocalStorage() {
     }
     return false;
 }
+
+// ============================================================
+// PWA: Service Worker, Push Notifications & Install Prompt
+// ============================================================
+
+// --- Service Worker Registration ---
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function() {
+        navigator.serviceWorker.register('/sw.js')
+            .then(function(reg) {
+                console.log('[PWA] Service Worker registered, scope:', reg.scope);
+                // Check for updates every 30 minutes
+                setInterval(function() { reg.update(); }, 30 * 60 * 1000);
+            })
+            .catch(function(err) {
+                console.warn('[PWA] SW registration failed:', err);
+            });
+    });
+}
+
+// --- Push Notifications (Firebase Cloud Messaging) ---
+var fcmToken = null;
+
+function initPushNotifications() {
+    if (typeof firebase === 'undefined' || !firebase.messaging) {
+        console.warn('[FCM] Firebase Messaging not available');
+        return;
+    }
+
+    var messaging = firebase.messaging();
+
+    // Request permission
+    Notification.requestPermission().then(function(permission) {
+        if (permission === 'granted') {
+            console.log('[FCM] Notification permission granted');
+            return messaging.getToken({
+                vapidKey: 'BCK-Gml28B9WpWb_umCHAwmVqNP6FFptoLLLxWpfQwGkNc7zC_ixVRNYQL5t2Ls4lG3v_pa42WCZ9jQeCNtN3tk' // Will be set when VAPID key is generated in Firebase Console
+            });
+        } else {
+            console.log('[FCM] Notification permission denied');
+        }
+    }).then(function(token) {
+        if (token) {
+            fcmToken = token;
+            console.log('[FCM] Token:', token.substring(0, 20) + '...');
+            // Save token to Firestore for the user
+            if (firebaseDb && GameState.playerPhone) {
+                firebaseDb.collection('players').doc(GameState.playerPhone).update({
+                    fcmToken: token,
+                    lastTokenUpdate: new Date().toISOString()
+                }).catch(function(err) {
+                    console.warn('[FCM] Failed to save token:', err);
+                });
+            }
+        }
+    }).catch(function(err) {
+        console.warn('[FCM] Token error:', err);
+    });
+
+    // Handle foreground messages
+    messaging.onMessage(function(payload) {
+        console.log('[FCM] Foreground message:', payload);
+        var title = payload.notification ? payload.notification.title : 'مين البطل؟';
+        var body = payload.notification ? payload.notification.body : '';
+        showToast(title + (body ? ': ' + body : ''), 'info');
+
+        // If it's a competition invite, show a special prompt
+        if (payload.data && payload.data.type === 'compete_invite') {
+            showCompeteInvite(payload.data);
+        }
+    });
+}
+
+function showCompeteInvite(data) {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.innerHTML = '<div class="modal-card" style="text-align:center;max-width:320px">' +
+        '<div style="font-size:48px;margin-bottom:12px">⚡</div>' +
+        '<h3 style="color:var(--text-primary);margin:0 0 8px">دعوة مسابقة!</h3>' +
+        '<p style="color:var(--text-secondary);font-size:14px;margin:0 0 16px">' +
+        (data.hostName || 'صاحبك') + ' بيتحداك تلعب معاه</p>' +
+        '<p style="color:var(--gold);font-size:24px;font-weight:900;letter-spacing:6px">' +
+        (data.roomCode || '') + '</p>' +
+        '<div style="display:flex;gap:10px;margin-top:16px">' +
+        '<button class="btn btn-primary" style="flex:1" onclick="this.closest(\'.modal-overlay\').remove();' +
+        'showScreen(\'compete-screen\');"><span>ادخل!</span></button>' +
+        '<button class="btn btn-secondary" style="flex:1" onclick="this.closest(\'.modal-overlay\').remove()"><span>مش دلوقتي</span></button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
+}
+
+// Auto-init notifications after login (delayed to not annoy users immediately)
+function requestNotificationsAfterLogin() {
+    setTimeout(function() {
+        if (GameState.playerPhone && 'Notification' in window) {
+            // Only ask if not already decided
+            if (Notification.permission === 'default') {
+                // Show a friendly in-app prompt first
+                showNotificationPrompt();
+            } else if (Notification.permission === 'granted') {
+                initPushNotifications();
+            }
+        }
+    }, 5000); // Wait 5 seconds after login
+}
+
+function showNotificationPrompt() {
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'notif-prompt-overlay';
+    overlay.innerHTML = '<div class="modal-card" style="text-align:center;max-width:340px">' +
+        '<div style="font-size:48px;margin-bottom:12px">🔔</div>' +
+        '<h3 style="color:var(--text-primary);font-size:18px;margin:0 0 8px">فعّل الإشعارات</h3>' +
+        '<p style="color:var(--text-secondary);font-size:13px;line-height:1.6;margin:0 0 16px">' +
+        'عشان نبلّغك لما حد يتحداك في مسابقة أو لما يكون فيه درس جديد</p>' +
+        '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<button class="btn btn-primary" onclick="acceptNotifications()"><span><i class="fas fa-bell"></i> فعّل الإشعارات</span></button>' +
+        '<button class="btn btn-secondary" onclick="dismissNotificationPrompt()"><span>مش دلوقتي</span></button>' +
+        '</div></div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
+}
+
+function acceptNotifications() {
+    var overlay = document.getElementById('notif-prompt-overlay');
+    if (overlay) { overlay.classList.remove('active'); setTimeout(function() { overlay.remove(); }, 300); }
+    initPushNotifications();
+}
+
+function dismissNotificationPrompt() {
+    var overlay = document.getElementById('notif-prompt-overlay');
+    if (overlay) { overlay.classList.remove('active'); setTimeout(function() { overlay.remove(); }, 300); }
+    // Remember they dismissed, don't ask again for 7 days
+    localStorage.setItem('minElBatal_notifDismissed', Date.now().toString());
+}
+
+// --- Install Prompt (Add to Home Screen) ---
+var deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    console.log('[PWA] Install prompt captured');
+    // Show install banner after a delay
+    setTimeout(showInstallBanner, 10000); // Show after 10 seconds
+});
+
+function showInstallBanner() {
+    if (!deferredInstallPrompt) return;
+    // Don't show if already installed or dismissed recently
+    if (window.matchMedia('(display-mode: standalone)').matches) return;
+    if (localStorage.getItem('minElBatal_installDismissed')) {
+        var dismissed = parseInt(localStorage.getItem('minElBatal_installDismissed'));
+        if (Date.now() - dismissed < 3 * 24 * 60 * 60 * 1000) return; // 3 days
+    }
+
+    var banner = document.createElement('div');
+    banner.id = 'install-banner';
+    banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;padding:16px 20px;z-index:9999;display:flex;align-items:center;gap:12px;font-family:Cairo,sans-serif;box-shadow:0 -4px 20px rgba(0,0,0,0.3);animation:slideUp 0.4s ease;direction:rtl';
+    banner.innerHTML = '<img src="images/Logo-192.png" style="width:40px;height:40px;border-radius:10px">' +
+        '<div style="flex:1"><strong style="font-size:14px">حمّل مين البطل؟</strong>' +
+        '<p style="font-size:11px;opacity:0.85;margin:2px 0 0">أضفها على موبايلك وشغّلها زي الأبلكيشن</p></div>' +
+        '<button onclick="installApp()" style="background:#fff;color:var(--primary);border:none;border-radius:20px;padding:8px 16px;font-family:Cairo;font-weight:700;font-size:13px;cursor:pointer">حمّل</button>' +
+        '<button onclick="dismissInstallBanner()" style="background:none;border:none;color:rgba(255,255,255,0.7);font-size:18px;cursor:pointer;padding:4px">&times;</button>';
+    document.body.appendChild(banner);
+}
+
+function installApp() {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(function(result) {
+        if (result.outcome === 'accepted') {
+            showToast('تم تثبيت التطبيق! 🎉', 'success');
+            showAchievement('📱', 'تم التحميل!', 'حمّلت مين البطل على موبايلك');
+        }
+        deferredInstallPrompt = null;
+        dismissInstallBanner();
+    });
+}
+
+function dismissInstallBanner() {
+    var banner = document.getElementById('install-banner');
+    if (banner) banner.remove();
+    localStorage.setItem('minElBatal_installDismissed', Date.now().toString());
+}
+
+// iOS Install Detection
+function showIOSInstallHint() {
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    var isInStandalone = window.matchMedia('(display-mode: standalone)').matches;
+    if (isIOS && !isInStandalone) {
+        var dismissed = localStorage.getItem('minElBatal_iosHintDismissed');
+        if (dismissed && Date.now() - parseInt(dismissed) < 7 * 24 * 60 * 60 * 1000) return;
+
+        setTimeout(function() {
+            var hint = document.createElement('div');
+            hint.id = 'ios-install-hint';
+            hint.style.cssText = 'position:fixed;bottom:0;left:0;right:0;background:var(--bg-card);border-top:1px solid var(--border);padding:16px 20px;z-index:9999;text-align:center;font-family:Cairo,sans-serif;direction:rtl;animation:slideUp 0.4s ease';
+            hint.innerHTML = '<p style="font-size:13px;color:var(--text-primary);margin:0 0 4px"><strong>حمّل التطبيق على الآيفون</strong></p>' +
+                '<p style="font-size:12px;color:var(--text-secondary);margin:0">اضغط <i class="fas fa-share-from-square" style="color:var(--primary)"></i> ثم <strong>"Add to Home Screen"</strong></p>' +
+                '<button onclick="this.parentNode.remove();localStorage.setItem(\'minElBatal_iosHintDismissed\',Date.now())" ' +
+                'style="position:absolute;top:8px;left:8px;background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer">&times;</button>';
+            document.body.appendChild(hint);
+        }, 15000);
+    }
+}
+
+// Slideup animation for banners
+var styleEl = document.createElement('style');
+styleEl.textContent = '@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }';
+document.head.appendChild(styleEl);
+
+// Initialize iOS hint on load
+window.addEventListener('load', function() {
+    showIOSInstallHint();
+});

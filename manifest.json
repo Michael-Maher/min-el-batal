@@ -1,0 +1,42 @@
+{
+  "name": "مين البطل - اتبعني",
+  "short_name": "مين البطل",
+  "description": "لعبة تعليم مسيحي لخدمة إعدادي أولاد - كنيسة الشهيدة رفقة بالعمرانية",
+  "start_url": "/index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "ar",
+  "theme_color": "#041C32",
+  "background_color": "#041C32",
+  "categories": ["education", "games"],
+  "icons": [
+    {
+      "src": "images/Logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "images/Logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "المسابقات الجماعية",
+      "short_name": "المسابقات",
+      "url": "/index.html#compete",
+      "icons": [{ "src": "images/Logo-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "مدرسة أتبعني",
+      "short_name": "أتبعني",
+      "url": "/index.html#level2",
+      "icons": [{ "src": "images/Logo-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

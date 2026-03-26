@@ -5128,7 +5128,7 @@ body {
 
 /* Competitions Card Special Background */
 .hub-card-competitions .hub-card-bg {
-    background-image: url('images/competitions-bg.png') !important;
+    background-image: url('images/competitions-bg-opt.jpg') !important;
     background-size: cover !important;
     background-position: center !important;
     background-color: #0c3547 !important;

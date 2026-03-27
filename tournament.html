@@ -240,6 +240,24 @@ select.admin-input { appearance: none; cursor: pointer; }
     box-shadow: 0 0 30px rgba(255,215,0,0.3);
     animation: matchPulse 2s infinite;
 }
+.match-card.paused-match {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 15px rgba(255,215,0,0.2);
+    cursor: pointer;
+    position: relative;
+}
+.match-card.paused-match::after {
+    content: '⏸ متوقف — اضغط للاستكمال';
+    position: absolute;
+    bottom: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px;
+    color: var(--gold);
+    white-space: nowrap;
+    font-weight: 700;
+    font-family: 'Cairo';
+}
 @keyframes matchPulse {
     0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.2); }
     50% { box-shadow: 0 0 40px rgba(255,215,0,0.4); }
@@ -780,6 +798,115 @@ select.admin-input { appearance: none; cursor: pointer; }
     animation: turnGlow 1.5s infinite;
 }
 .waiting-sub { color: var(--muted); font-size: 16px; margin-top: 8px; }
+
+/* ============ PAUSE OVERLAY ============ */
+.pause-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 700;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.pause-icon {
+    font-size: 80px;
+    color: var(--gold);
+    animation: pausePulse 2s ease-in-out infinite;
+    margin-bottom: 16px;
+}
+@keyframes pausePulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.95); }
+}
+.pause-text {
+    font-size: 36px;
+    font-weight: 900;
+    color: #fff;
+    margin-bottom: 8px;
+}
+.pause-sub {
+    font-size: 16px;
+    color: var(--muted);
+    margin-bottom: 24px;
+}
+.pause-resume-btn {
+    background: linear-gradient(135deg, var(--team-a), var(--team-b));
+    border: none;
+    color: #fff;
+    font-family: 'Cairo';
+    font-size: 22px;
+    font-weight: 800;
+    padding: 16px 48px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.pause-resume-btn:hover { transform: scale(1.05); box-shadow: 0 8px 30px rgba(108,92,231,0.4); }
+
+/* ============ REVEAL MODE ============ */
+/* Options hidden until admin reveals */
+.options-hidden .option-btn,
+.options-hidden .tf-btn {
+    background: rgba(255,255,255,0.03) !important;
+    border-color: var(--border) !important;
+    color: transparent !important;
+    position: relative;
+    cursor: default;
+    pointer-events: none;
+}
+.options-hidden .option-btn::after,
+.options-hidden .tf-btn::after {
+    content: '؟';
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: 28px;
+    font-weight: 900;
+}
+.options-hidden .option-btn .option-shape { visibility: hidden; }
+
+/* Reveal button (shown on screen for admin) */
+.reveal-btn {
+    display: block;
+    margin: 20px auto 0;
+    background: linear-gradient(135deg, #FFD700, #FFA502);
+    border: none;
+    color: #000;
+    font-family: 'Cairo';
+    font-size: 22px;
+    font-weight: 900;
+    padding: 16px 48px;
+    border-radius: 16px;
+    cursor: pointer;
+    animation: revealPulse 1.5s ease-in-out infinite;
+    transition: all 0.3s;
+}
+@keyframes revealPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+    50% { box-shadow: 0 0 40px rgba(255,215,0,0.6); }
+}
+.reveal-btn:hover { transform: scale(1.05); }
+
+/* Revealed animation */
+.options-revealing .option-btn,
+.options-revealing .tf-btn {
+    animation: optionReveal 0.5s ease both;
+}
+.options-revealing .option-btn:nth-child(1) { animation-delay: 0s; }
+.options-revealing .option-btn:nth-child(2) { animation-delay: 0.1s; }
+.options-revealing .option-btn:nth-child(3) { animation-delay: 0.2s; }
+.options-revealing .option-btn:nth-child(4) { animation-delay: 0.3s; }
+@keyframes optionReveal {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -846,6 +973,22 @@ select.admin-input { appearance: none; cursor: pointer; }
     <!-- Admin match controls (during match) -->
     <div class="admin-section" id="matchControls" style="display:none">
         <h3><i class="fas fa-gamepad"></i> التحكم في الماتش</h3>
+
+        <!-- Pause / Resume -->
+        <button class="admin-btn" onclick="togglePauseMatch()" id="pauseBtn" style="background:rgba(253,203,110,0.15);border-color:var(--gold)">
+            <i class="fas fa-pause" id="pauseIcon"></i> <span id="pauseText">إيقاف مؤقت</span>
+        </button>
+
+        <!-- Reveal mode toggle -->
+        <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="revealModeToggle" onchange="toggleRevealMode()" checked>
+            <label for="revealModeToggle" style="color:var(--muted);font-size:12px;cursor:pointer">
+                <i class="fas fa-eye"></i> الأدمن يكشف الإجابة (تشويق)
+            </label>
+        </div>
+
+        <hr style="border-color:var(--border);margin:10px 0">
+
         <button class="admin-btn primary" onclick="adminNextQuestion()" id="nextQBtn">
             <i class="fas fa-forward"></i> السؤال التالي
         </button>
@@ -854,6 +997,9 @@ select.admin-input { appearance: none; cursor: pointer; }
         </button>
         <button class="admin-btn danger" onclick="adminEndMatch()">
             <i class="fas fa-flag-checkered"></i> إنهاء الماتش
+        </button>
+        <button class="admin-btn" onclick="adminPauseAndSave()" style="background:rgba(108,92,231,0.1)">
+            <i class="fas fa-save"></i> إيقاف وحفظ (أكمل بعدين)
         </button>
         <div style="margin-top:12px;">
             <h3><i class="fas fa-gavel"></i> تحكم يدوي</h3>
@@ -871,6 +1017,14 @@ select.admin-input { appearance: none; cursor: pointer; }
             <button class="admin-btn" onclick="adminForceWinner('b')" style="background:rgba(0,206,201,0.15)">
                 <i class="fas fa-crown"></i> فريق B يفوز
             </button>
+        </div>
+
+        <!-- Admin answer hint (shown when reveal mode is on) -->
+        <div id="adminAnswerHint" style="display:none;margin-top:12px;">
+            <div style="background:rgba(255,215,0,0.1);border:1px solid rgba(255,215,0,0.3);border-radius:12px;padding:12px;text-align:center;">
+                <div style="color:var(--gold);font-size:11px;margin-bottom:4px"><i class="fas fa-key"></i> الإجابة الصحيحة</div>
+                <div id="adminAnswerText" style="color:#fff;font-size:16px;font-weight:800"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -905,6 +1059,8 @@ select.admin-input { appearance: none; cursor: pointer; }
     <div class="key-hint"><kbd>A</kbd> لوحة التحكم</div>
     <div class="key-hint"><kbd>F</kbd> شاشة كاملة</div>
     <div class="key-hint"><kbd>Space</kbd> السؤال التالي</div>
+    <div class="key-hint"><kbd>R</kbd> كشف الإجابة</div>
+    <div class="key-hint"><kbd>P</kbd> إيقاف مؤقت</div>
     <div class="key-hint"><kbd>1-4</kbd> اختيار الإجابة</div>
 </div>
 
@@ -1059,7 +1215,9 @@ var matchState = {
     timer: null,
     timeLeft: 0,
     answered: false,
-    paused: false
+    paused: false,
+    revealMode: true, // admin reveals answers (suspense mode)
+    revealed: false   // have options been revealed for current question?
 };
 
 // Default team colors/images
@@ -1329,7 +1487,8 @@ function renderBracket() {
 
         roundMatches.forEach(function(match) {
             var isActive = match.status === 'active';
-            var cls = 'match-card' + (isActive ? ' active-match' : '');
+            var isPaused = match.status === 'paused';
+            var cls = 'match-card' + (isActive ? ' active-match' : '') + (isPaused ? ' paused-match' : '');
 
             html += '<div class="' + cls + '" onclick="clickMatch(\'' + match.id + '\')">';
 
@@ -1340,7 +1499,7 @@ function renderBracket() {
                 html += '<div class="match-team' + (winA ? ' winner' : '') + (loseA ? ' loser' : '') + '">';
                 html += '<img class="match-team-img" src="' + match.teamA.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
                 html += '<span class="match-team-name">' + match.teamA.name + '</span>';
-                if (match.status === 'done' || match.status === 'active')
+                if (match.status === 'done' || match.status === 'active' || match.status === 'paused')
                     html += '<span class="match-team-score">' + match.scoreA + '</span>';
                 html += '</div>';
             } else {
@@ -1354,7 +1513,7 @@ function renderBracket() {
                 html += '<div class="match-team' + (winB ? ' winner' : '') + (loseB ? ' loser' : '') + '">';
                 html += '<img class="match-team-img" src="' + match.teamB.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
                 html += '<span class="match-team-name">' + match.teamB.name + '</span>';
-                if (match.status === 'done' || match.status === 'active')
+                if (match.status === 'done' || match.status === 'active' || match.status === 'paused')
                     html += '<span class="match-team-score">' + match.scoreB + '</span>';
                 html += '</div>';
             } else {
@@ -1362,7 +1521,11 @@ function renderBracket() {
             }
 
             if (match.teamA && match.teamB) {
-                html += '<div class="match-vs">VS</div>';
+                if (isPaused) {
+                    html += '<div class="match-vs" style="color:var(--gold)"><i class="fas fa-pause"></i></div>';
+                } else {
+                    html += '<div class="match-vs">VS</div>';
+                }
             }
 
             html += '</div>'; // match-card
@@ -1393,8 +1556,43 @@ function clickMatch(matchId) {
     if (match.status === 'done') return;
     if (!match.teamA || !match.teamB) return;
 
-    // Start match
+    // Resume paused match
+    if (match.status === 'paused' && match._savedMatchState) {
+        resumeSavedMatch(match);
+        return;
+    }
+
+    // Start new match
     startMatch(match);
+}
+
+function resumeSavedMatch(match) {
+    currentMatch = match;
+    match.status = 'active';
+    var saved = match._savedMatchState;
+
+    matchState.questions = saved.questions;
+    matchState.currentQ = saved.currentQ;
+    matchState.turn = saved.turn;
+    matchState.scoreA = saved.scoreA;
+    matchState.scoreB = saved.scoreB;
+    matchState.answered = false;
+    matchState.paused = false;
+    matchState.revealed = false;
+
+    delete match._savedMatchState;
+
+    document.getElementById('matchControls').style.display = '';
+    // Reset pause button state
+    var icon = document.getElementById('pauseIcon');
+    var text = document.getElementById('pauseText');
+    if (icon) icon.className = 'fas fa-pause';
+    if (text) text.textContent = 'إيقاف مؤقت';
+
+    showView('matchView');
+    renderScoreboard();
+    showNextQuestion();
+    saveTournament();
 }
 
 // ============================================================
@@ -1456,6 +1654,7 @@ function showNextQuestion() {
     }
 
     matchState.answered = false;
+    matchState.revealed = false;
     var q = matchState.questions[matchState.currentQ];
     var area = document.getElementById('questionArea');
 
@@ -1472,9 +1671,12 @@ function showNextQuestion() {
     html += '<span id="timerText">' + tournament.timePerQuestion + '</span>';
     html += '</div>';
 
+    // hiddenClass: if revealMode on, hide options initially
+    var hiddenClass = matchState.revealMode ? ' options-hidden' : '';
+
     if (q.type === 'mcq') {
         html += '<div class="question-text">' + q.q + '</div>';
-        html += '<div class="options-grid">';
+        html += '<div class="options-grid' + hiddenClass + '" id="optionsContainer">';
         var shapes = ['▲', '◆', '●', '★'];
         q.options.forEach(function(opt, idx) {
             html += '<button class="option-btn" id="opt-' + idx + '" onclick="answerQuestion(' + idx + ')">';
@@ -1483,12 +1685,18 @@ function showNextQuestion() {
             html += '</button>';
         });
         html += '</div>';
+        if (matchState.revealMode) {
+            html += '<button class="reveal-btn" id="revealBtn" onclick="revealOptions()"><i class="fas fa-eye"></i> اكشف الاختيارات!</button>';
+        }
     } else if (q.type === 'tf') {
         html += '<div class="question-text">' + q.q + '</div>';
-        html += '<div class="tf-grid">';
+        html += '<div class="tf-grid' + hiddenClass + '" id="optionsContainer">';
         html += '<button class="tf-btn tf-true" id="opt-0" onclick="answerQuestion(0)"><i class="fas fa-check"></i> صح</button>';
         html += '<button class="tf-btn tf-false" id="opt-1" onclick="answerQuestion(1)"><i class="fas fa-times"></i> غلط</button>';
         html += '</div>';
+        if (matchState.revealMode) {
+            html += '<button class="reveal-btn" id="revealBtn" onclick="revealOptions()"><i class="fas fa-eye"></i> اكشف الاختيارات!</button>';
+        }
     } else if (q.type === 'fill') {
         var displayText = q.q.replace('___', '<span class="blank">___</span>');
         html += '<div class="question-text">' + displayText + '</div>';
@@ -1498,13 +1706,58 @@ function showNextQuestion() {
         html += '<button class="tf-btn tf-true" onclick="adminFillAnswer(true)"><i class="fas fa-check"></i> صح</button>';
         html += '<button class="tf-btn tf-false" onclick="adminFillAnswer(false)"><i class="fas fa-times"></i> غلط</button>';
         html += '</div>';
-        html += '<div style="margin-top:12px;padding:12px;background:rgba(255,215,0,0.1);border-radius:12px;color:var(--gold);font-size:16px;font-weight:700">الإجابة: ' + q.answer + '</div>';
         html += '</div>';
     }
 
     area.innerHTML = html;
     renderScoreboard();
+
+    // Show admin answer hint in sidebar
+    updateAdminAnswerHint(q);
+
+    // Timer: in reveal mode, don't start until revealed (for mcq/tf)
+    if (matchState.revealMode && (q.type === 'mcq' || q.type === 'tf')) {
+        // Timer paused until reveal
+    } else {
+        startTimer();
+    }
+}
+
+function updateAdminAnswerHint(q) {
+    var hint = document.getElementById('adminAnswerHint');
+    var text = document.getElementById('adminAnswerText');
+    if (!hint || !text) return;
+
+    if (q.type === 'mcq') {
+        text.textContent = q.options[q.correct];
+        hint.style.display = '';
+    } else if (q.type === 'tf') {
+        text.textContent = q.correct === 0 ? '✅ صح' : '❌ غلط';
+        hint.style.display = '';
+    } else if (q.type === 'fill') {
+        text.textContent = q.answer;
+        hint.style.display = '';
+    } else {
+        hint.style.display = 'none';
+    }
+}
+
+function revealOptions() {
+    matchState.revealed = true;
+    var container = document.getElementById('optionsContainer');
+    var btn = document.getElementById('revealBtn');
+    if (container) {
+        container.classList.remove('options-hidden');
+        container.classList.add('options-revealing');
+    }
+    if (btn) btn.remove();
+
+    // Now start the timer
     startTimer();
+}
+
+function toggleRevealMode() {
+    matchState.revealMode = document.getElementById('revealModeToggle').checked;
 }
 
 function startTimer() {
@@ -1512,6 +1765,9 @@ function startTimer() {
     if (matchState.timer) clearInterval(matchState.timer);
 
     matchState.timer = setInterval(function() {
+        // Don't tick while paused
+        if (matchState.paused) return;
+
         matchState.timeLeft -= 0.1;
         var pct = matchState.timeLeft / tournament.timePerQuestion;
         var offset = 314 * (1 - pct);
@@ -1708,10 +1964,90 @@ function launchConfetti() {
 }
 
 // ============================================================
+// PAUSE / RESUME
+// ============================================================
+function togglePauseMatch() {
+    if (!currentMatch) return;
+    if (matchState.paused) {
+        resumeMatch();
+    } else {
+        pauseMatch();
+    }
+}
+
+function pauseMatch() {
+    matchState.paused = true;
+    clearInterval(matchState.timer);
+
+    // Update admin button
+    var icon = document.getElementById('pauseIcon');
+    var text = document.getElementById('pauseText');
+    if (icon) icon.className = 'fas fa-play';
+    if (text) text.textContent = 'استكمال';
+
+    // Show pause overlay
+    var overlay = document.createElement('div');
+    overlay.className = 'pause-overlay';
+    overlay.id = 'pauseOverlay';
+    overlay.innerHTML =
+        '<div class="pause-icon"><i class="fas fa-pause-circle"></i></div>' +
+        '<div class="pause-text">اللعبة متوقفة</div>' +
+        '<div class="pause-sub">اضغط P أو زرار الاستكمال من لوحة التحكم</div>' +
+        '<button class="pause-resume-btn" onclick="resumeMatch()"><i class="fas fa-play"></i> استكمال</button>';
+    document.body.appendChild(overlay);
+}
+
+function resumeMatch() {
+    matchState.paused = false;
+
+    // Update admin button
+    var icon = document.getElementById('pauseIcon');
+    var text = document.getElementById('pauseText');
+    if (icon) icon.className = 'fas fa-pause';
+    if (text) text.textContent = 'إيقاف مؤقت';
+
+    // Remove pause overlay
+    var overlay = document.getElementById('pauseOverlay');
+    if (overlay) overlay.remove();
+
+    // Resume timer if question is still active and options are revealed (or not in reveal mode)
+    if (!matchState.answered) {
+        var q = matchState.questions[matchState.currentQ];
+        if (!matchState.revealMode || matchState.revealed || q.type === 'fill') {
+            startTimer();
+        }
+    }
+}
+
+function adminPauseAndSave() {
+    if (!currentMatch) return;
+    if (!confirm('إيقاف الماتش وحفظ الحالة؟ تقدر تكمل بعدين')) return;
+
+    clearInterval(matchState.timer);
+
+    // Save match state
+    currentMatch.scoreA = matchState.scoreA;
+    currentMatch.scoreB = matchState.scoreB;
+    currentMatch.status = 'paused';
+    currentMatch._savedMatchState = {
+        questions: matchState.questions,
+        currentQ: matchState.currentQ,
+        turn: matchState.turn,
+        scoreA: matchState.scoreA,
+        scoreB: matchState.scoreB
+    };
+
+    document.getElementById('matchControls').style.display = 'none';
+    saveTournament();
+    showBracket();
+}
+
+// ============================================================
 // ADMIN MATCH CONTROLS
 // ============================================================
 function adminNextQuestion() {
     if (!currentMatch) return;
+    if (matchState.paused) return; // don't advance while paused
     clearInterval(matchState.timer);
     matchState.answered = true;
     nextTurn();
@@ -1772,12 +2108,26 @@ document.addEventListener('keydown', function(e) {
 
     if (e.key === 'a' || e.key === 'A' || e.key === 'ش') toggleAdmin();
     if (e.key === 'f' || e.key === 'F' || e.key === 'ب') toggleFullscreen();
-    if (e.key === ' ') { e.preventDefault(); adminNextQuestion(); }
+    if (e.key === 'p' || e.key === 'P' || e.key === 'ح') { e.preventDefault(); togglePauseMatch(); }
+    if (e.key === 'r' || e.key === 'R' || e.key === 'ق') {
+        e.preventDefault();
+        var revBtn = document.getElementById('revealBtn');
+        if (revBtn) revBtn.click();
+    }
+    if (e.key === ' ') {
+        e.preventDefault();
+        // If paused, resume instead
+        if (matchState.paused) { resumeMatch(); return; }
+        adminNextQuestion();
+    }
     if (e.key === '1') { var b = document.getElementById('opt-0'); if (b) b.click(); }
     if (e.key === '2') { var b = document.getElementById('opt-1'); if (b) b.click(); }
     if (e.key === '3') { var b = document.getElementById('opt-2'); if (b) b.click(); }
     if (e.key === '4') { var b = document.getElementById('opt-3'); if (b) b.click(); }
     if (e.key === 'Escape') {
+        // If paused overlay is showing, resume
+        var pauseOv = document.getElementById('pauseOverlay');
+        if (pauseOv) { resumeMatch(); return; }
         var ov = document.getElementById('winnerOverlay');
         if (ov) { closeWinnerAndShowBracket(); return; }
         if (document.getElementById('matchView').classList.contains('active')) {

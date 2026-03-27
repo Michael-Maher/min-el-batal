@@ -5703,12 +5703,12 @@ function usePowerUp(type) {
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
 var FAITH_MAP_POSITIONS = [
-    { left: 10, top: 35 },  // 1. الثالوث القدوس (top-left)
-    { left: 22, top: 60 },  // 2. التجسد (left-center)
-    { left: 40, top: 72 },  // 3. الفداء (center-bottom)
-    { left: 55, top: 35 },  // 4. المجيء الثاني (center-right-top)
-    { left: 72, top: 70 },  // 5. المعمودية والميرون (right-bottom)
-    { left: 87, top: 55 }   // 6. التوبة والاعتراف (far-right)
+    { left: 7.5,  top: 32 },  // 1. الثالوث القدوس (top-left circle)
+    { left: 19,   top: 53 },  // 2. التجسد (left-center circle)
+    { left: 37.5, top: 67 },  // 3. الفداء (center-bottom, cross area)
+    { left: 54,   top: 28 },  // 4. المجيء الثاني (center-right-top circle)
+    { left: 72,   top: 64 },  // 5. التوبة والاعتراف (right-lower circle)
+    { left: 88,   top: 44 }   // 6. المعمودية والميرون (far-right circle)
 ];
 
 function renderLevel2Map() {
@@ -5781,8 +5781,8 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
     var positions = FAITH_MAP_POSITIONS;
     var avatar = document.getElementById('l2-imgmap-avatar');
     if (avatar && positions[currentStation]) {
-        avatar.style.left = (positions[currentStation].left - 3) + '%';
-        avatar.style.top = (positions[currentStation].top - 6) + '%';
+        avatar.style.left = (positions[currentStation].left - 2) + '%';
+        avatar.style.top = (positions[currentStation].top - 10) + '%';
     }
 
     // Render nodes
@@ -5855,8 +5855,8 @@ function animateCharacterToNode(targetIdx, positions, callback) {
     var startIdx = 0;
     var minDist = Infinity;
     for (var i = 0; i < positions.length; i++) {
-        var dl = (positions[i].left - 3) - currentLeft;
-        var dt = (positions[i].top - 6) - currentTop;
+        var dl = (positions[i].left - 2) - currentLeft;
+        var dt = (positions[i].top - 10) - currentTop;
         var dist = Math.sqrt(dl * dl + dt * dt);
         if (dist < minDist) { minDist = dist; startIdx = i; }
     }
@@ -5889,8 +5889,8 @@ function animateCharacterToNode(targetIdx, positions, callback) {
             return;
         }
         var nodeIdx = path[stepIdx];
-        av.style.left = (positions[nodeIdx].left - 3) + '%';
-        av.style.top = (positions[nodeIdx].top - 6) + '%';
+        av.style.left = (positions[nodeIdx].left - 2) + '%';
+        av.style.top = (positions[nodeIdx].top - 10) + '%';
 
         // Highlight passed node
         var nodeEl = document.querySelectorAll('.l2-imgmap-node')[nodeIdx];

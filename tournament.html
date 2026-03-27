@@ -1088,6 +1088,291 @@ select.admin-input { appearance: none; cursor: pointer; }
 }
 .admin-team-item button:hover { color: var(--wrong); background: rgba(255,107,107,0.1); }
 .admin-team-item button:first-of-type:hover { color: var(--team-a); background: rgba(108,92,231,0.1); }
+
+/* ============ MANUAL ADVANCE - NEXT BUTTON ============ */
+.next-question-btn {
+    display: block;
+    margin: 24px auto 0;
+    background: linear-gradient(135deg, var(--gold), #FFA502);
+    border: none;
+    color: #000;
+    font-family: 'Cairo';
+    font-size: 22px;
+    font-weight: 900;
+    padding: 16px 48px;
+    border-radius: 16px;
+    cursor: pointer;
+    animation: nextBtnPulse 1.2s ease-in-out infinite;
+    transition: all 0.3s;
+    z-index: 10;
+}
+.next-question-btn:hover { transform: scale(1.08); }
+@keyframes nextBtnPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.3), 0 0 40px rgba(255,215,0,0.1); }
+    50% { box-shadow: 0 0 30px rgba(255,215,0,0.6), 0 0 60px rgba(255,215,0,0.2); }
+}
+
+/* Admin toggle switch */
+.admin-toggle-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+.admin-toggle-switch .toggle-track {
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--border);
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+.admin-toggle-switch .toggle-track.active {
+    background: rgba(108,92,231,0.4);
+    border-color: var(--team-a);
+}
+.admin-toggle-switch .toggle-track::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: all 0.3s;
+}
+.admin-toggle-switch .toggle-track.active::after {
+    right: 22px;
+    background: var(--team-a);
+}
+
+/* ============ FLOATING SCORE TEXT ============ */
+.floating-score {
+    position: fixed;
+    font-size: 60px;
+    font-weight: 900;
+    pointer-events: none;
+    z-index: 900;
+    animation: floatUp 1.4s ease-out forwards;
+    text-shadow: 0 0 30px currentColor, 0 4px 12px rgba(0,0,0,0.5);
+}
+@keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(0.5); }
+    30% { opacity: 1; transform: translateY(-30px) scale(1.3); }
+    100% { opacity: 0; transform: translateY(-120px) scale(0.8); }
+}
+
+/* ============ SCREEN SHAKE ============ */
+@keyframes screenShake {
+    0%, 100% { transform: translate(0, 0); }
+    10% { transform: translate(-8px, -4px); }
+    20% { transform: translate(8px, 4px); }
+    30% { transform: translate(-6px, 2px); }
+    40% { transform: translate(6px, -2px); }
+    50% { transform: translate(-4px, 4px); }
+    60% { transform: translate(4px, -4px); }
+    70% { transform: translate(-2px, 2px); }
+    80% { transform: translate(2px, -2px); }
+    90% { transform: translate(-1px, 1px); }
+}
+body.screen-shake {
+    animation: screenShake 0.5s ease-in-out;
+}
+
+/* ============ GREEN FLASH BORDER ============ */
+.correct-flash {
+    position: fixed;
+    inset: 0;
+    border: 6px solid var(--correct);
+    border-radius: 0;
+    pointer-events: none;
+    z-index: 899;
+    animation: correctFlash 0.8s ease-out forwards;
+    box-shadow: inset 0 0 80px rgba(0,184,148,0.15);
+}
+@keyframes correctFlash {
+    0% { opacity: 1; border-width: 6px; box-shadow: inset 0 0 80px rgba(0,184,148,0.25); }
+    50% { opacity: 0.8; border-width: 4px; }
+    100% { opacity: 0; border-width: 0px; box-shadow: none; }
+}
+
+/* ============ WRONG RED FLASH ============ */
+.wrong-flash {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 899;
+    animation: wrongFlash 0.5s ease-out forwards;
+    background: radial-gradient(circle at center, rgba(255,107,107,0.15), transparent 70%);
+}
+@keyframes wrongFlash {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ============ ROUND COUNTER OVERLAY ============ */
+.round-counter-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(10,14,39,0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 750;
+    animation: fadeIn 0.3s ease;
+}
+.round-counter-number {
+    font-size: 140px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 60px rgba(255,215,0,0.5), 0 0 120px rgba(255,215,0,0.2);
+    animation: roundCounterPop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+    line-height: 1;
+}
+.round-counter-label {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--muted);
+    margin-top: 8px;
+    animation: roundCounterSlide 0.5s ease-out 0.2s both;
+}
+.round-counter-bar {
+    width: 200px;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    margin-top: 20px;
+    overflow: hidden;
+    animation: roundCounterSlide 0.5s ease-out 0.3s both;
+}
+.round-counter-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--team-a), var(--gold), var(--team-b));
+    border-radius: 2px;
+    transition: width 0.5s ease;
+}
+@keyframes roundCounterPop {
+    0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+    60% { transform: scale(1.1) rotate(2deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+@keyframes roundCounterSlide {
+    0% { transform: translateY(20px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+/* ============ SCORE COMPARISON BAR ============ */
+.score-comparison {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 0 40px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+}
+.score-comparison-bar {
+    flex: 1;
+    height: 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    overflow: hidden;
+    display: flex;
+    position: relative;
+}
+.score-bar-a {
+    height: 100%;
+    background: linear-gradient(90deg, var(--team-a), rgba(108,92,231,0.6));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 4px 0 0 4px;
+    min-width: 2px;
+}
+.score-bar-b {
+    height: 100%;
+    background: linear-gradient(90deg, rgba(0,206,201,0.6), var(--team-b));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 0 4px 4px 0;
+    margin-right: auto;
+    min-width: 2px;
+}
+.score-bar-label {
+    font-size: 11px;
+    font-weight: 800;
+    min-width: 24px;
+    text-align: center;
+}
+.score-bar-label-a { color: var(--team-a); }
+.score-bar-label-b { color: var(--team-b); }
+
+/* ============ PARTICLE BURST ============ */
+.particle-burst {
+    position: fixed;
+    pointer-events: none;
+    z-index: 898;
+}
+.particle {
+    position: absolute;
+    border-radius: 50%;
+    animation: particleFly 0.8s ease-out forwards;
+}
+@keyframes particleFly {
+    0% { transform: translate(0, 0) scale(1); opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* ============ TURN TRANSITION ENHANCED ============ */
+.turn-transition-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 600;
+    animation: fadeIn 0.3s ease;
+}
+.turn-transition-overlay.team-a-turn {
+    background: radial-gradient(circle at center, rgba(108,92,231,0.15), rgba(0,0,0,0.8));
+}
+.turn-transition-overlay.team-b-turn {
+    background: radial-gradient(circle at center, rgba(0,206,201,0.15), rgba(0,0,0,0.8));
+}
+.turn-transition-overlay .turn-glow {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+.turn-transition-overlay.team-a-turn .turn-glow {
+    box-shadow: inset 0 0 120px rgba(108,92,231,0.2), inset 0 0 300px rgba(108,92,231,0.05);
+}
+.turn-transition-overlay.team-b-turn .turn-glow {
+    box-shadow: inset 0 0 120px rgba(0,206,201,0.2), inset 0 0 300px rgba(0,206,201,0.05);
+}
+.turn-team-img-large {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 12px;
+    animation: turnImgPop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+.turn-transition-overlay.team-a-turn .turn-team-img-large {
+    border: 3px solid var(--team-a);
+    box-shadow: 0 0 40px rgba(108,92,231,0.4);
+}
+.turn-transition-overlay.team-b-turn .turn-team-img-large {
+    border: 3px solid var(--team-b);
+    box-shadow: 0 0 40px rgba(0,206,201,0.4);
+}
+@keyframes turnImgPop {
+    0% { transform: scale(0.5); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
 </style>
 </head>
 <body>
@@ -1172,7 +1457,15 @@ select.admin-input { appearance: none; cursor: pointer; }
         <div style="margin-top:8px;display:flex;align-items:center;gap:8px;">
             <input type="checkbox" id="revealModeToggle" onchange="toggleRevealMode()" checked>
             <label for="revealModeToggle" style="color:var(--muted);font-size:12px;cursor:pointer">
-                <i class="fas fa-eye"></i> الأدمن يكشف الإجابة (تشويق)
+                <i class="fas fa-eye"></i> الأدمن يكشف ��لإجابة (تشويق)
+            </label>
+        </div>
+
+        <!-- Auto/Manual advance toggle -->
+        <div class="admin-toggle-switch" style="margin-top:8px;">
+            <div class="toggle-track" id="autoAdvanceTrack" onclick="toggleAutoAdvance()"></div>
+            <label style="color:var(--muted);font-size:12px;cursor:pointer" onclick="toggleAutoAdvance()">
+                <i class="fas fa-forward-step"></i> <span id="advanceModeLabel">يدوي — الأدمن يضغط التالي</span>
             </label>
         </div>
 
@@ -1240,6 +1533,14 @@ select.admin-input { appearance: none; cursor: pointer; }
 <div class="view match-view" id="matchView">
     <div class="stadium-lights"></div>
     <div class="scoreboard" id="scoreboard"></div>
+    <div class="score-comparison" id="scoreComparison">
+        <span class="score-bar-label score-bar-label-a" id="scoreBarLabelA">0</span>
+        <div class="score-comparison-bar">
+            <div class="score-bar-a" id="scoreBarA" style="width:50%"></div>
+            <div class="score-bar-b" id="scoreBarB" style="width:50%"></div>
+        </div>
+        <span class="score-bar-label score-bar-label-b" id="scoreBarLabelB">0</span>
+    </div>
     <div class="turn-indicator" id="turnIndicator"></div>
     <div class="question-area" id="questionArea"></div>
 </div>
@@ -1407,7 +1708,9 @@ var matchState = {
     answered: false,
     paused: false,
     revealMode: true, // admin reveals answers (suspense mode)
-    revealed: false   // have options been revealed for current question?
+    revealed: false,  // have options been revealed for current question?
+    autoAdvance: false, // false = manual (admin presses next), true = auto-advance
+    waitingForNext: false // true when answer shown and waiting for admin to press next
 };
 
 // Default team colors/images

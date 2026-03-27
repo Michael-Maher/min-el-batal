@@ -149,15 +149,39 @@ function submitLogin() {
     // Determine if input is email or username
     var fieldName = usernameOrEmail.indexOf('@') >= 0 ? 'email' : 'username';
 
+    // Try login by username or email
     firebaseDb.collection('players').where(fieldName, '==', usernameOrEmail).get()
         .then(function(snapshot) {
-            if (snapshot.empty) {
-                showToast(fieldName === 'email' ? 'الإيميل ده مش مسجل' : 'اسم المستخدم ده مش مسجل', 'error');
+            // Fallback: if not found and looks like a phone number, try phone-based lookup
+            if (snapshot.empty && /^01\d{9}$/.test(usernameOrEmail)) {
+                return firebaseDb.collection('players').doc(usernameOrEmail).get()
+                    .then(function(doc) {
+                        if (!doc.exists) return null;
+                        return { docs: [doc], _phoneDoc: true };
+                    });
+            }
+            return snapshot;
+        })
+        .then(function(snapshot) {
+            if (!snapshot || (snapshot.docs ? snapshot.docs.length === 0 : !snapshot.exists)) {
+                showToast('المعلومات دي مش مسجلة', 'error');
                 resetLoginBtn(btn);
                 return;
             }
-            var doc = snapshot.docs[0];
-            var existingData = doc.data();
+
+            var doc = snapshot.docs ? snapshot.docs[0] : snapshot;
+            var existingData = doc.data ? doc.data() : doc;
+
+            // Old account with no password — guide to register to set password
+            if (!existingData.passwordHash) {
+                showToast('حسابك قديم، سجّل من جديد باستخدام نفس رقم تليفونك لتفعيله', 'info');
+                resetLoginBtn(btn);
+                // Switch to register tab and pre-fill phone
+                showRegisterView();
+                var phoneField = document.getElementById('player-phone');
+                if (phoneField) { phoneField.value = existingData.playerPhone || ''; }
+                return;
+            }
 
             // Check password
             if (existingData.passwordHash !== hashedPw) {
@@ -172,7 +196,6 @@ function submitLogin() {
                     GameState[key] = existingData[key];
                 }
             });
-            // Also restore fields not in GameState template
             GameState.username = existingData.username || '';
             GameState.email = existingData.email || '';
 
@@ -248,6 +271,17 @@ function submitRegister() {
             return;
         }
         if (!results[2].empty) {
+            var existingPhoneDoc = results[2].docs[0];
+            var existingPhoneData = existingPhoneDoc.data();
+            // Legacy account (no password) — migrate instead of block
+            if (!existingPhoneData.passwordHash) {
+                showToast('عندك حساب قديم، بنفعّله...', 'info');
+                migrateOldAccount(existingPhoneDoc.id, {
+                    name: name, username: username, email: email,
+                    phone: phone, year: year, hashedPw: hashedPw
+                }, btn);
+                return;
+            }
             showToast('رقم التليفون ده مسجل قبل كده', 'error');
             resetRegisterBtn(btn);
             return;
@@ -296,6 +330,41 @@ function resetRegisterBtn(btn) {
         btn.disabled = false;
         btn.innerHTML = '<span>سجّل حساب جديد <i class="fas fa-user-plus"></i></span>';
     }
+}
+
+// Migrate old account (phone-only, no password) to new system
+function migrateOldAccount(docId, newData, btn) {
+    var docRef = firebaseDb.collection('players').doc(docId);
+    docRef.update({
+        playerName: newData.name,
+        username: newData.username,
+        email: newData.email,
+        academicYear: newData.year,
+        passwordHash: newData.hashedPw,
+        playerPhone: newData.phone,
+        migratedAt: new Date().toISOString(),
+        lastUpdated: new Date().toISOString()
+    }).then(function() {
+        // Load all old data into GameState
+        return docRef.get();
+    }).then(function(doc) {
+        var data = doc.data();
+        Object.keys(data).forEach(function(key) {
+            if (key in GameState && key !== 'lastUpdated') GameState[key] = data[key];
+        });
+        GameState.playerPhone = newData.phone;
+        GameState.username = newData.username;
+        GameState.email = newData.email;
+        handleRememberMe(true, newData.phone);
+        showToast('تم تفعيل حسابك القديم! 🎉 أهلاً بيك تاني ' + GameState.playerName.split(' ')[0], 'success');
+        showScreen('home-hub-screen');
+        syncLeaderboard();
+        requestNotificationsAfterLogin();
+    }).catch(function(err) {
+        console.error('Migration error:', err);
+        showToast('حصل مشكلة، حاول تاني', 'error');
+        resetRegisterBtn(btn);
+    });
 }
 
 function handleRememberMe(rememberMe, phone) {

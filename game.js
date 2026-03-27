@@ -4479,7 +4479,7 @@ var LEVEL2_SUBJECTS = {
         desc: 'لاهوت وعقيدة',
         icon: '✝️',
         color: '#e74c3c',
-        mapImage: 'images/level2-full-bg-opt.jpg',
+        mapImage: 'images/level2-map-new-opt.jpg',
         lessons: [
             {
                 name: 'التثليث والتوحيد',
@@ -5703,12 +5703,12 @@ function usePowerUp(type) {
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
 var FAITH_MAP_POSITIONS = [
-    { left: 11, top: 38 },  // 1. التثليث والتوحيد
-    { left: 26, top: 62 },  // 2. التجسد
-    { left: 40, top: 38 },  // 3. الفداء
-    { left: 62, top: 28 },  // 4. القيامة والمجيء الثاني
-    { left: 65, top: 70 },  // 5. المعمودية والميرون
-    { left: 82, top: 52 }   // 6. التوبة والاعتراف
+    { left: 10, top: 35 },  // 1. الثالوث القدوس (top-left)
+    { left: 22, top: 60 },  // 2. التجسد (left-center)
+    { left: 40, top: 72 },  // 3. الفداء (center-bottom)
+    { left: 55, top: 35 },  // 4. المجيء الثاني (center-right-top)
+    { left: 72, top: 70 },  // 5. المعمودية والميرون (right-bottom)
+    { left: 87, top: 55 }   // 6. التوبة والاعتراف (far-right)
 ];
 
 function renderLevel2Map() {

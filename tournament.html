@@ -1,0 +1,1837 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>كأس مين البطل 🏆</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+:root {
+    --bg: #0a0e27;
+    --bg2: #141937;
+    --card: #1a2040;
+    --border: rgba(255,255,255,0.08);
+    --gold: #FFD700;
+    --silver: #C0C0C0;
+    --bronze: #CD7F32;
+    --team-a: #6C5CE7;
+    --team-b: #00CEC9;
+    --correct: #00B894;
+    --wrong: #FF6B6B;
+    --text: #fff;
+    --muted: rgba(255,255,255,0.5);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Cairo', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+}
+
+/* ============ ADMIN SIDEBAR ============ */
+.admin-sidebar {
+    position: fixed;
+    top: 0; right: 0;
+    width: 380px;
+    height: 100vh;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    z-index: 1000;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    padding: 20px;
+    direction: rtl;
+}
+.admin-sidebar.open { transform: translateX(0); }
+.admin-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1001;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(108, 92, 231, 0.3);
+    border: 2px solid var(--team-a);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+    backdrop-filter: blur(8px);
+}
+.admin-toggle:hover { background: var(--team-a); transform: scale(1.1); }
+.admin-toggle.active { background: var(--team-a); right: 396px; }
+.admin-section { margin-bottom: 20px; }
+.admin-section h3 {
+    font-size: 16px;
+    color: var(--gold);
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.admin-btn {
+    display: block;
+    width: 100%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    font-family: 'Cairo';
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    text-align: center;
+}
+.admin-btn:hover { background: rgba(108, 92, 231, 0.2); border-color: var(--team-a); }
+.admin-btn.primary { background: var(--team-a); border-color: var(--team-a); }
+.admin-btn.primary:hover { background: #5a4bd1; }
+.admin-btn.danger { background: rgba(255,107,107,0.15); border-color: var(--wrong); color: var(--wrong); }
+.admin-input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.05);
+    color: #fff;
+    font-family: 'Cairo';
+    font-size: 13px;
+    margin-bottom: 8px;
+    outline: none;
+}
+.admin-input:focus { border-color: var(--team-a); }
+.admin-input::placeholder { color: var(--muted); }
+select.admin-input { appearance: none; cursor: pointer; }
+
+/* Team list in admin */
+.admin-team-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+}
+.admin-team-item img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--border);
+}
+.admin-team-item .team-name { flex: 1; font-weight: 700; font-size: 13px; }
+.admin-team-item button {
+    background: none;
+    border: none;
+    color: var(--wrong);
+    cursor: pointer;
+    font-size: 14px;
+    padding: 4px;
+}
+
+/* Subject/Lesson picker */
+.admin-subject-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 0;
+    font-size: 13px;
+}
+.admin-subject-check input { accent-color: var(--team-a); }
+.admin-lesson-list { padding-right: 24px; }
+.admin-lesson-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    font-size: 12px;
+    color: var(--muted);
+}
+.admin-lesson-check input { accent-color: var(--team-b); }
+
+/* ============ MAIN VIEWS ============ */
+.view { display: none; width: 100vw; height: 100vh; }
+.view.active { display: flex; }
+
+/* ============ BRACKET VIEW ============ */
+.bracket-view {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #141937 0%, #0a0e27 100%);
+    position: relative;
+    overflow: hidden;
+}
+.bracket-title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+    white-space: nowrap;
+    z-index: 5;
+}
+.bracket-title i { margin-left: 12px; }
+
+.bracket-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    height: 80vh;
+    width: 95vw;
+    position: relative;
+}
+
+/* Each round column */
+.bracket-round {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    min-width: 180px;
+    position: relative;
+    z-index: 2;
+}
+.round-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+/* Match card */
+.match-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 0;
+    width: 170px;
+    margin: 8px 0;
+    overflow: hidden;
+    transition: all 0.4s ease;
+    cursor: pointer;
+    position: relative;
+}
+.match-card:hover { border-color: var(--team-a); transform: scale(1.04); box-shadow: 0 0 20px rgba(108,92,231,0.3); }
+.match-card.active-match {
+    border-color: var(--gold) !important;
+    box-shadow: 0 0 30px rgba(255,215,0,0.3);
+    animation: matchPulse 2s infinite;
+}
+@keyframes matchPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.2); }
+    50% { box-shadow: 0 0 40px rgba(255,215,0,0.4); }
+}
+.match-team {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    position: relative;
+    transition: background 0.3s;
+}
+.match-team:first-child { border-bottom: 1px solid var(--border); }
+.match-team.winner { background: rgba(0,184,148,0.12); }
+.match-team.loser { opacity: 0.4; }
+.match-team-img {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(255,255,255,0.15);
+    flex-shrink: 0;
+}
+.match-team-name {
+    flex: 1;
+    font-size: 13px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.match-team-score {
+    font-size: 16px;
+    font-weight: 900;
+    min-width: 24px;
+    text-align: center;
+    color: var(--gold);
+}
+.match-team-empty {
+    padding: 10px 12px;
+    color: var(--muted);
+    font-size: 12px;
+    text-align: center;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.match-team-empty:first-child { border-bottom: 1px solid var(--border); }
+.match-vs {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg);
+    border: 2px solid var(--border);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: 900;
+    color: var(--gold);
+    z-index: 3;
+}
+
+/* SVG connector lines */
+.bracket-lines {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+}
+.bracket-lines line {
+    stroke: rgba(255,255,255,0.08);
+    stroke-width: 2;
+}
+.bracket-lines line.active-line {
+    stroke: var(--gold);
+    stroke-width: 2;
+    filter: drop-shadow(0 0 4px rgba(255,215,0,0.3));
+}
+
+/* Trophy in center for final */
+.bracket-trophy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+}
+.bracket-trophy-icon {
+    font-size: 64px;
+    color: var(--gold);
+    text-shadow: 0 0 40px rgba(255,215,0,0.5);
+    animation: trophyFloat 3s ease-in-out infinite;
+}
+@keyframes trophyFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-10px); }
+}
+.bracket-trophy-label {
+    font-size: 14px;
+    color: var(--gold);
+    font-weight: 800;
+    margin-top: 8px;
+}
+
+/* ============ MATCH VIEW (GAMEPLAY) ============ */
+.match-view {
+    flex-direction: column;
+    background: radial-gradient(ellipse at center, #141937 0%, #0a0e27 100%);
+    position: relative;
+}
+
+/* Scoreboard */
+.scoreboard {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 20px 40px;
+    width: 100%;
+}
+.scoreboard-team {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex: 1;
+    padding: 16px 24px;
+    border-radius: 16px;
+    transition: all 0.3s;
+}
+.scoreboard-team.team-a { background: rgba(108,92,231,0.12); border: 2px solid rgba(108,92,231,0.3); justify-content: flex-end; }
+.scoreboard-team.team-b { background: rgba(0,206,201,0.12); border: 2px solid rgba(0,206,201,0.3); flex-direction: row-reverse; justify-content: flex-end; }
+.scoreboard-team.active-turn { border-color: var(--gold); box-shadow: 0 0 30px rgba(255,215,0,0.2); animation: turnPulse 1.5s infinite; }
+@keyframes turnPulse {
+    0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.2); }
+    50% { box-shadow: 0 0 40px rgba(255,215,0,0.4); }
+}
+.scoreboard-img {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid rgba(255,255,255,0.2);
+}
+.scoreboard-info { text-align: center; }
+.scoreboard-info h3 { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+.scoreboard-score {
+    font-size: 48px;
+    font-weight: 900;
+    min-width: 80px;
+    text-align: center;
+}
+.scoreboard-team.team-a .scoreboard-score { color: var(--team-a); }
+.scoreboard-team.team-b .scoreboard-score { color: var(--team-b); }
+
+.scoreboard-vs {
+    font-size: 28px;
+    font-weight: 900;
+    color: var(--gold);
+    padding: 0 24px;
+    text-shadow: 0 0 20px rgba(255,215,0,0.3);
+}
+
+/* Turn indicator */
+.turn-indicator {
+    text-align: center;
+    padding: 8px;
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--gold);
+    animation: turnGlow 1.5s ease-in-out infinite;
+}
+@keyframes turnGlow {
+    0%, 100% { opacity: 0.7; }
+    50% { opacity: 1; text-shadow: 0 0 20px rgba(255,215,0,0.5); }
+}
+
+/* Question area */
+.question-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 60px;
+    max-width: 1000px;
+    margin: 0 auto;
+    width: 100%;
+}
+.question-counter {
+    font-size: 14px;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.question-type-badge {
+    display: inline-block;
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    background: rgba(108,92,231,0.15);
+    color: var(--team-a);
+}
+.question-text {
+    font-size: 32px;
+    font-weight: 800;
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 32px;
+    max-width: 800px;
+}
+
+/* Timer */
+.match-timer {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    border: 4px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    font-weight: 900;
+    margin-bottom: 16px;
+    position: relative;
+}
+.match-timer.warning { border-color: var(--wrong); color: var(--wrong); animation: timerShake 0.3s infinite; }
+@keyframes timerShake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-3px); }
+    75% { transform: translateX(3px); }
+}
+.timer-circle {
+    position: absolute;
+    inset: -4px;
+}
+.timer-circle circle {
+    fill: none;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: center;
+}
+.timer-circle .timer-bg { stroke: var(--border); }
+.timer-circle .timer-fill { stroke: var(--team-a); transition: stroke-dashoffset 0.1s linear; }
+.timer-circle .timer-fill.warning { stroke: var(--wrong); }
+
+/* Options grid */
+.options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    width: 100%;
+    max-width: 800px;
+}
+.option-btn {
+    padding: 20px 24px;
+    border-radius: 16px;
+    border: 2px solid var(--border);
+    background: rgba(255,255,255,0.04);
+    color: #fff;
+    font-family: 'Cairo';
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 70px;
+}
+.option-btn:hover { border-color: var(--team-a); background: rgba(108,92,231,0.1); transform: scale(1.02); }
+.option-btn:active { transform: scale(0.98); }
+.option-btn .option-shape {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 900;
+    flex-shrink: 0;
+}
+.option-btn:nth-child(1) .option-shape { background: rgba(255,107,107,0.2); color: #FF6B6B; }
+.option-btn:nth-child(2) .option-shape { background: rgba(108,92,231,0.2); color: #6C5CE7; }
+.option-btn:nth-child(3) .option-shape { background: rgba(0,206,201,0.2); color: #00CEC9; }
+.option-btn:nth-child(4) .option-shape { background: rgba(253,203,110,0.2); color: #FDCB6E; }
+.option-btn.correct { background: rgba(0,184,148,0.2) !important; border-color: var(--correct) !important; }
+.option-btn.wrong { background: rgba(255,107,107,0.2) !important; border-color: var(--wrong) !important; }
+.option-btn.disabled { pointer-events: none; opacity: 0.6; }
+
+/* True/False buttons */
+.tf-grid {
+    display: flex;
+    gap: 24px;
+    width: 100%;
+    max-width: 600px;
+    justify-content: center;
+}
+.tf-btn {
+    flex: 1;
+    padding: 30px;
+    border-radius: 20px;
+    border: 3px solid var(--border);
+    background: rgba(255,255,255,0.04);
+    color: #fff;
+    font-family: 'Cairo';
+    font-size: 28px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.3s;
+    text-align: center;
+}
+.tf-btn.tf-true:hover { border-color: var(--correct); background: rgba(0,184,148,0.1); }
+.tf-btn.tf-false:hover { border-color: var(--wrong); background: rgba(255,107,107,0.1); }
+.tf-btn.correct { background: rgba(0,184,148,0.25) !important; border-color: var(--correct) !important; }
+.tf-btn.wrong { background: rgba(255,107,107,0.25) !important; border-color: var(--wrong) !important; }
+
+/* Fill blank */
+.fill-blank-text {
+    font-size: 26px;
+    font-weight: 700;
+    text-align: center;
+    line-height: 2;
+    margin-bottom: 24px;
+}
+.fill-blank-text .blank {
+    display: inline-block;
+    min-width: 120px;
+    border-bottom: 3px dashed var(--team-a);
+    padding: 0 8px;
+    color: var(--team-a);
+}
+
+/* Answer feedback overlay */
+.answer-feedback {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    animation: feedbackIn 0.3s ease;
+    pointer-events: none;
+}
+@keyframes feedbackIn { from { opacity: 0; transform: scale(0.8); } to { opacity: 1; transform: scale(1); } }
+.feedback-icon {
+    font-size: 120px;
+    text-shadow: 0 0 60px rgba(0,0,0,0.5);
+}
+.feedback-correct .feedback-icon { color: var(--correct); }
+.feedback-wrong .feedback-icon { color: var(--wrong); }
+.feedback-text {
+    font-size: 28px;
+    font-weight: 800;
+    margin-top: 8px;
+}
+
+/* ============ WINNER CELEBRATION ============ */
+.winner-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 800;
+    animation: fadeIn 0.5s ease;
+}
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+.winner-trophy {
+    font-size: 100px;
+    animation: trophyBounce 1s ease infinite;
+    margin-bottom: 16px;
+}
+@keyframes trophyBounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-20px) scale(1.1); }
+}
+.winner-text {
+    font-size: 40px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 30px rgba(255,215,0,0.4);
+    margin-bottom: 8px;
+}
+.winner-team-name {
+    font-size: 52px;
+    font-weight: 900;
+    margin-bottom: 12px;
+}
+.winner-team-img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid var(--gold);
+    box-shadow: 0 0 40px rgba(255,215,0,0.3);
+    margin-bottom: 20px;
+}
+.winner-score {
+    font-size: 24px;
+    color: var(--muted);
+    margin-bottom: 24px;
+}
+
+/* Confetti */
+.confetti-piece {
+    position: fixed;
+    z-index: 900;
+    font-size: 14px;
+    animation: confettiFall 3s ease forwards;
+    pointer-events: none;
+}
+@keyframes confettiFall {
+    0% { opacity: 1; transform: translateY(-20px) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+}
+
+/* ============ SETUP VIEW ============ */
+.setup-view {
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at center, #141937 0%, #0a0e27 100%);
+}
+.setup-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 40px;
+    max-width: 500px;
+    width: 90%;
+    text-align: center;
+}
+.setup-card h2 {
+    font-size: 32px;
+    font-weight: 900;
+    color: var(--gold);
+    margin-bottom: 8px;
+}
+.setup-card p {
+    color: var(--muted);
+    margin-bottom: 24px;
+    font-size: 15px;
+}
+
+/* Background particles */
+.bg-particle {
+    position: fixed;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: rgba(108,92,231,0.3);
+    animation: bgFloat 20s linear infinite;
+    pointer-events: none;
+}
+@keyframes bgFloat {
+    0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translateY(-20px) translateX(50px); opacity: 0; }
+}
+
+/* Keyboard hint */
+.keyboard-hint {
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    z-index: 100;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+}
+.keyboard-hint:hover { opacity: 1; }
+.key-hint {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--muted);
+}
+.key-hint kbd {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-family: monospace;
+}
+
+/* Fullscreen button */
+.fullscreen-btn {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    z-index: 1001;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid var(--border);
+    color: #fff;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s;
+}
+.fullscreen-btn:hover { background: rgba(255,255,255,0.1); }
+
+/* Waiting screen */
+.waiting-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 600;
+}
+.waiting-text {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--gold);
+    animation: turnGlow 1.5s infinite;
+}
+.waiting-sub { color: var(--muted); font-size: 16px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- Admin Toggle -->
+<button class="admin-toggle" id="adminToggle" onclick="toggleAdmin()">
+    <i class="fas fa-cog"></i>
+</button>
+
+<!-- Fullscreen Toggle -->
+<button class="fullscreen-btn" onclick="toggleFullscreen()">
+    <i class="fas fa-expand"></i>
+</button>
+
+<!-- Admin Sidebar -->
+<div class="admin-sidebar" id="adminSidebar">
+    <div class="admin-section">
+        <h3><i class="fas fa-trophy"></i> البطولة</h3>
+        <input class="admin-input" id="tournamentName" placeholder="اسم البطولة" value="كأس مين البطل">
+        <select class="admin-input" id="questionsPerMatch">
+            <option value="6">6 أسئلة لكل ماتش</option>
+            <option value="8">8 أسئلة لكل ماتش</option>
+            <option value="10" selected>10 أسئلة لكل ماتش</option>
+            <option value="14">14 سؤال لكل ماتش</option>
+            <option value="20">20 سؤال لكل ماتش</option>
+        </select>
+        <select class="admin-input" id="timePerQuestion">
+            <option value="10">10 ثواني لكل سؤال</option>
+            <option value="15" selected>15 ثانية لكل سؤال</option>
+            <option value="20">20 ثانية لكل سؤال</option>
+            <option value="30">30 ثانية لكل سؤال</option>
+        </select>
+    </div>
+
+    <div class="admin-section">
+        <h3><i class="fas fa-users"></i> الفرق</h3>
+        <div id="teamsList"></div>
+        <div style="display:flex;gap:6px;">
+            <input class="admin-input" id="newTeamName" placeholder="اسم الفريق" style="flex:1">
+            <button class="admin-btn primary" onclick="addTeam()" style="width:auto;padding:10px 16px">
+                <i class="fas fa-plus"></i>
+            </button>
+        </div>
+        <input class="admin-input" id="newTeamImage" placeholder="رابط صورة الفريق (اختياري)">
+    </div>
+
+    <div class="admin-section">
+        <h3><i class="fas fa-book"></i> المواد والدروس</h3>
+        <div id="subjectPicker"></div>
+    </div>
+
+    <div class="admin-section">
+        <button class="admin-btn primary" onclick="startTournament()" id="startTournamentBtn">
+            <i class="fas fa-play"></i> ابدأ البطولة
+        </button>
+        <button class="admin-btn" onclick="showBracket()" id="showBracketBtn" style="display:none">
+            <i class="fas fa-sitemap"></i> عرض الشجرة
+        </button>
+        <button class="admin-btn danger" onclick="resetTournament()" id="resetBtn" style="display:none">
+            <i class="fas fa-redo"></i> إعادة تعيين
+        </button>
+    </div>
+
+    <!-- Admin match controls (during match) -->
+    <div class="admin-section" id="matchControls" style="display:none">
+        <h3><i class="fas fa-gamepad"></i> التحكم في الماتش</h3>
+        <button class="admin-btn primary" onclick="adminNextQuestion()" id="nextQBtn">
+            <i class="fas fa-forward"></i> السؤال التالي
+        </button>
+        <button class="admin-btn" onclick="adminSkipQuestion()">
+            <i class="fas fa-forward-step"></i> تخطي السؤال
+        </button>
+        <button class="admin-btn danger" onclick="adminEndMatch()">
+            <i class="fas fa-flag-checkered"></i> إنهاء الماتش
+        </button>
+        <div style="margin-top:12px;">
+            <h3><i class="fas fa-gavel"></i> تحكم يدوي</h3>
+            <div style="display:flex;gap:6px">
+                <button class="admin-btn" onclick="adminAddPoint('a')" style="flex:1;background:rgba(108,92,231,0.15);border-color:var(--team-a)">+1 فريق A</button>
+                <button class="admin-btn" onclick="adminAddPoint('b')" style="flex:1;background:rgba(0,206,201,0.15);border-color:var(--team-b)">+1 فريق B</button>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:4px">
+                <button class="admin-btn" onclick="adminRemovePoint('a')" style="flex:1">-1 فريق A</button>
+                <button class="admin-btn" onclick="adminRemovePoint('b')" style="flex:1">-1 فريق B</button>
+            </div>
+            <button class="admin-btn" onclick="adminForceWinner('a')" style="margin-top:8px;background:rgba(108,92,231,0.15)">
+                <i class="fas fa-crown"></i> فريق A يفوز
+            </button>
+            <button class="admin-btn" onclick="adminForceWinner('b')" style="background:rgba(0,206,201,0.15)">
+                <i class="fas fa-crown"></i> فريق B يفوز
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- SETUP VIEW -->
+<div class="view setup-view active" id="setupView">
+    <div class="setup-card">
+        <div style="font-size:64px;margin-bottom:12px;">🏆</div>
+        <h2>كأس مين البطل</h2>
+        <p>أضف الفرق واختار المواد من لوحة التحكم ثم ابدأ البطولة!</p>
+        <button class="admin-btn primary" onclick="toggleAdmin()" style="font-size:18px;padding:16px">
+            <i class="fas fa-cog"></i> افتح لوحة التحكم
+        </button>
+    </div>
+</div>
+
+<!-- BRACKET VIEW -->
+<div class="view bracket-view" id="bracketView">
+    <div class="bracket-title"><i class="fas fa-trophy"></i> <span id="bracketTitleText">كأس مين البطل</span></div>
+    <div class="bracket-container" id="bracketContainer"></div>
+</div>
+
+<!-- MATCH VIEW -->
+<div class="view match-view" id="matchView">
+    <div class="scoreboard" id="scoreboard"></div>
+    <div class="turn-indicator" id="turnIndicator"></div>
+    <div class="question-area" id="questionArea"></div>
+</div>
+
+<!-- Keyboard hints -->
+<div class="keyboard-hint">
+    <div class="key-hint"><kbd>A</kbd> لوحة التحكم</div>
+    <div class="key-hint"><kbd>F</kbd> شاشة كاملة</div>
+    <div class="key-hint"><kbd>Space</kbd> السؤال التالي</div>
+    <div class="key-hint"><kbd>1-4</kbd> اختيار الإجابة</div>
+</div>
+
+<!-- Background particles -->
+<script>
+for (var i = 0; i < 20; i++) {
+    var p = document.createElement('div');
+    p.className = 'bg-particle';
+    p.style.left = Math.random() * 100 + 'vw';
+    p.style.animationDelay = Math.random() * 20 + 's';
+    p.style.animationDuration = (15 + Math.random() * 15) + 's';
+    p.style.width = p.style.height = (2 + Math.random() * 4) + 'px';
+    document.body.appendChild(p);
+}
+</script>
+
+<script>
+// ============================================================
+// QUESTIONS DATABASE — imported from LEVEL2_SUBJECTS
+// ============================================================
+var SUBJECTS = {
+    faith: {
+        name: 'إيماننا الأرثوذوكسي',
+        icon: '✝️',
+        lessons: [
+            {
+                name: 'التثليث والتوحيد',
+                questions: [
+                    { q: 'كم عدد أقانيم الثالوث القدوس؟', options: ['٢', '٣', '٤', '١'], correct: 1, type: 'mcq' },
+                    { q: 'كلمة "أقنوم" هي كلمة...', options: ['يونانية', 'عربية', 'سريانية', 'قبطية'], correct: 2, type: 'mcq' },
+                    { q: 'أقنوم الابن يُسمى أيضاً اللوجوس (الكلمة)', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الروح القدس هو خاصية...', options: ['الوجود', 'النطق والعقل', 'الحياة', 'القوة'], correct: 2, type: 'mcq' },
+                    { q: 'هل الثالوث يعني ثلاثة آلهة؟', options: ['نعم', 'أحياناً', 'لا، إله واحد', 'غير محدد'], correct: 2, type: 'mcq' },
+                    { q: 'بنقول 1×1×1 والنتيجة واحد صحيح', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'في عماد المسيح ظهر الثالوث: الروح القدس في هيئة...', options: ['نار', 'حمامة', 'سحابة', 'ريح'], correct: 1, type: 'mcq' },
+                    { q: 'صلواتنا تبدأ بـ"باسم" وليس "بأسماء" لأن الله واحد', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الآب هو خاصية ___ الله', answer: 'الوجود', type: 'fill' },
+                    { q: 'الابن هو خاصية ___ الله', answer: 'العقل والنطق', type: 'fill' },
+                    { q: 'كلمة "لوجوس" معناها...', options: ['الحياة', 'النور', 'الكلمة', 'القوة'], correct: 2, type: 'mcq' },
+                    { q: 'في سفر التكوين قال الله "نعمل الإنسان على صورتنا" بصيغة الجمع', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الروح القدس منبثق من الآب', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الشمس واحدة وفيها: القرص والشعاع و...', options: ['الماء', 'الحرارة', 'الهواء', 'الظل'], correct: 1, type: 'mcq' },
+                    { q: '"أنا في الآب والآب فيّ" — من أقوال المسيح عن الثالوث', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'في قانون الإيمان نقول "نؤمن بإله واحد"', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'عيد الظهور الإلهي يحتفل بـ...', options: ['الميلاد', 'القيامة', 'عماد المسيح', 'الصعود'], correct: 2, type: 'mcq' },
+                    { q: 'الآب غير مولود، الابن مولود، الروح القدس...', options: ['مولود أيضاً', 'منبثق', 'مخلوق', 'غير موجود'], correct: 1, type: 'mcq' },
+                    { q: 'للاهوت مبدأ أو مصدر واحد هو ___ ', answer: 'الآب', type: 'fill' },
+                    { q: 'إشعياء رأى السيرافيم يقولون "قدوس قدوس قدوس" ثلاث مرات إشارة للثالوث', options: ['صح', 'غلط'], correct: 0, type: 'tf' }
+                ]
+            },
+            {
+                name: 'التجسد الإلهي',
+                questions: [
+                    { q: 'بسبب سقوط آدم دخل ___ للعالم', answer: 'الموت', type: 'fill' },
+                    { q: 'ربنا اختار أن يفدي الإنسان', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'من أي أقنوم تجسد؟', options: ['الآب', 'الابن', 'الروح القدس', 'الثلاثة'], correct: 1, type: 'mcq' },
+                    { q: 'التجسد يعني أن الله أخذ جسداً حقيقياً', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'المسيح طبيعة واحدة من طبيعتين', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: '"والكلمة صار جسداً وحل بيننا" في إنجيل...', options: ['متى', 'مرقس', 'لوقا', 'يوحنا'], correct: 3, type: 'mcq' },
+                    { q: 'العذراء مريم لُقبت بـ"ثيؤطوكوس" أي...', options: ['القديسة', 'والدة الإله', 'أم النور', 'العذراء فقط'], correct: 1, type: 'mcq' },
+                    { q: 'المسيح شابهنا في كل شيء ما عدا الخطية', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'اتحاد اللاهوت والناسوت بغير اختلاط ولا امتزاج ولا تغيير', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'عمانوئيل معناها...', options: ['الله قوي', 'الله معنا', 'الله عظيم', 'الله محب'], correct: 1, type: 'mcq' },
+                    { q: 'مثال على اتحاد اللاهوت بالناسوت هو الحديد المحمي بالنار', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'المسيح جاع وعطش لأنه إنسان حقيقي', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'العذراء مريم حبلت بالمسيح بقوة...', options: ['يوسف', 'الملائكة', 'الروح القدس', 'البشر'], correct: 2, type: 'mcq' },
+                    { q: 'الموت الروحي يعني الانفصال عن ___', answer: 'الله', type: 'fill' },
+                    { q: 'في إشعياء "ها العذراء تحبل وتلد ابناً وتدعو اسمه ___"', answer: 'عمانوئيل', type: 'fill' }
+                ]
+            },
+            {
+                name: 'الفداء والصليب',
+                questions: [
+                    { q: 'الفداء يعني أن المسيح مات بدلاً عنا', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'صُلب المسيح يوم...', options: ['الأحد', 'الاثنين', 'الأربعاء', 'الجمعة'], correct: 3, type: 'mcq' },
+                    { q: 'قام المسيح من الأموات في اليوم ___', answer: 'الثالث', type: 'fill' },
+                    { q: 'بموت المسيح على الصليب كسر شوكة الموت والخطية', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الذي مات على الصليب هو الناسوت فقط واللاهوت لم يفارقه', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'أول من اعترف بالمسيح على الصليب هو...', options: ['بطرس', 'يوحنا', 'اللص اليمين', 'قائد المئة'], correct: 2, type: 'mcq' },
+                    { q: 'حجاب الهيكل انشق عند موت المسيح من فوق لتحت', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'القيامة أثبتت أن المسيح هو ___', answer: 'الله', type: 'fill' },
+                    { q: 'عيد القيامة يأتي بعد صوم مدته ___ يوم', answer: '55', type: 'fill' },
+                    { q: 'الصليب هو علامة ___ و النصرة', answer: 'الحب', type: 'fill' }
+                ]
+            },
+            {
+                name: 'المجيء الثاني',
+                questions: [
+                    { q: 'المسيح سيأتي مرة ثانية ليدين الأحياء والأموات', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'لا يعلم متى المجيء الثاني إلا...', options: ['الملائكة', 'الأنبياء', 'الله وحده', 'الكهنة'], correct: 2, type: 'mcq' },
+                    { q: 'في المجيء الثاني ستقوم الأجساد من الموت', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'علامات المجيء الثاني تشمل ظهور ___', answer: 'ضد المسيح', type: 'fill' },
+                    { q: 'الدينونة ستكون حسب أعمال كل إنسان', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'المؤمنون سيكونون مع المسيح في...', options: ['الأرض', 'السماء', 'الملكوت الأبدي', 'غير معروف'], correct: 2, type: 'mcq' },
+                    { q: 'نقول في قانون الإيمان "وأيضاً يأتي في مجده ليدين الأحياء و___"', answer: 'الأموات', type: 'fill' },
+                    { q: 'الحياة الأبدية هي أن يعرفوا الله الحقيقي وحده', options: ['صح', 'غلط'], correct: 0, type: 'tf' }
+                ]
+            },
+            {
+                name: 'المعمودية والميرون',
+                questions: [
+                    { q: 'المعمودية هي باب الأسرار الكنسية', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'يُعمَّد الطفل بالتغطيس ___ مرات', answer: '3', type: 'fill' },
+                    { q: 'المعمودية تمنح الإنسان...', options: ['المال', 'الميلاد الثاني', 'القوة الجسدية', 'الشهرة'], correct: 1, type: 'mcq' },
+                    { q: 'سر الميرون يُعطى مباشرة بعد المعمودية', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الميرون يمنح مواهب ___', answer: 'الروح القدس', type: 'fill' },
+                    { q: 'المعمودية لا تُعاد لأنها ختم أبدي', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'المسيح اعتمد في نهر...', options: ['النيل', 'الأردن', 'الفرات', 'دجلة'], correct: 1, type: 'mcq' },
+                    { q: '"مَن آمن واعتمد خلص" في إنجيل...', options: ['متى', 'مرقس', 'لوقا', 'يوحنا'], correct: 1, type: 'mcq' },
+                    { q: 'يُرشم المعمَّد بزيت الميرون ___ رشمة', answer: '36', type: 'fill' },
+                    { q: 'الميرون طبخه البابا أثناسيوس الرسولي', options: ['صح', 'غلط'], correct: 1, type: 'tf' }
+                ]
+            },
+            {
+                name: 'سر التوبة والاعتراف',
+                questions: [
+                    { q: 'التوبة تعني الرجوع إلى الله', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'الاعتراف يكون أمام...', options: ['أي شخص', 'الكاهن', 'الشماس', 'أي مسيحي'], correct: 1, type: 'mcq' },
+                    { q: 'الكاهن ملزم بسر ___ الاعتراف', answer: 'كتمان', type: 'fill' },
+                    { q: 'قال المسيح "من غفرتم خطاياه تُغفر له"', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'أب الاعتراف يُسمى أيضاً أب ___', answer: 'الاعتراف', type: 'fill' },
+                    { q: 'التوبة تتضمن الندم + الاعتراف + ___', answer: 'التغيير', type: 'fill' },
+                    { q: 'مثل الابن الضال يعلمنا عن محبة الله ورحمته', options: ['صح', 'غلط'], correct: 0, type: 'tf' },
+                    { q: 'لازم نتوب قبل التناول', options: ['صح', 'غلط'], correct: 0, type: 'tf' }
+                ]
+            }
+        ]
+    }
+};
+
+// ============================================================
+// TOURNAMENT STATE
+// ============================================================
+var tournament = {
+    name: 'كأس مين البطل',
+    teams: [],
+    matches: [], // { id, round, teamA, teamB, scoreA, scoreB, winner, status: 'pending'|'active'|'done' }
+    rounds: 0,
+    questionsPerMatch: 10,
+    timePerQuestion: 15,
+    selectedSubjects: {},
+    started: false
+};
+
+var currentMatch = null;
+var matchState = {
+    questions: [],
+    currentQ: 0,
+    turn: 'a', // 'a' or 'b'
+    scoreA: 0,
+    scoreB: 0,
+    timer: null,
+    timeLeft: 0,
+    answered: false,
+    paused: false
+};
+
+// Default team colors/images
+var DEFAULT_AVATARS = [
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%236C5CE7" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">🦅</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%2300CEC9" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">🦁</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%23FF6B6B" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">⚡</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%2300B894" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">🔥</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%23FDCB6E" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">⭐</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%23A29BFE" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">🏰</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%23FD79A8" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">🌟</text></svg>'),
+    'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect fill="%2374B9FF" width="64" height="64" rx="32"/><text x="32" y="42" text-anchor="middle" fill="white" font-size="28" font-family="Arial">✝️</text></svg>')
+];
+
+// ============================================================
+// ADMIN FUNCTIONS
+// ============================================================
+function toggleAdmin() {
+    var sb = document.getElementById('adminSidebar');
+    var btn = document.getElementById('adminToggle');
+    sb.classList.toggle('open');
+    btn.classList.toggle('active');
+}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(function() {});
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+function addTeam() {
+    var name = document.getElementById('newTeamName').value.trim();
+    if (!name) return;
+    var image = document.getElementById('newTeamImage').value.trim();
+    if (!image) image = DEFAULT_AVATARS[tournament.teams.length % DEFAULT_AVATARS.length];
+    tournament.teams.push({ name: name, image: image, id: Date.now() });
+    document.getElementById('newTeamName').value = '';
+    document.getElementById('newTeamImage').value = '';
+    renderTeamsList();
+    saveTournament();
+}
+
+function removeTeam(id) {
+    tournament.teams = tournament.teams.filter(function(t) { return t.id !== id; });
+    renderTeamsList();
+    saveTournament();
+}
+
+function renderTeamsList() {
+    var html = '';
+    tournament.teams.forEach(function(team) {
+        html += '<div class="admin-team-item">';
+        html += '<img src="' + team.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+        html += '<span class="team-name">' + team.name + '</span>';
+        html += '<button onclick="removeTeam(' + team.id + ')"><i class="fas fa-trash"></i></button>';
+        html += '</div>';
+    });
+    document.getElementById('teamsList').innerHTML = html;
+}
+
+function renderSubjectPicker() {
+    var html = '';
+    Object.keys(SUBJECTS).forEach(function(subKey) {
+        var sub = SUBJECTS[subKey];
+        html += '<div class="admin-subject-check">';
+        html += '<input type="checkbox" id="sub-' + subKey + '" onchange="toggleSubject(\'' + subKey + '\')" checked>';
+        html += '<label for="sub-' + subKey + '">' + sub.icon + ' ' + sub.name + '</label>';
+        html += '</div>';
+        html += '<div class="admin-lesson-list" id="lessons-' + subKey + '">';
+        sub.lessons.forEach(function(lesson, idx) {
+            html += '<div class="admin-lesson-check">';
+            html += '<input type="checkbox" id="lesson-' + subKey + '-' + idx + '" checked data-sub="' + subKey + '" data-lesson="' + idx + '">';
+            html += '<label for="lesson-' + subKey + '-' + idx + '">' + lesson.name + ' (' + lesson.questions.length + ')</label>';
+            html += '</div>';
+        });
+        html += '</div>';
+    });
+    document.getElementById('subjectPicker').innerHTML = html;
+}
+
+function toggleSubject(subKey) {
+    var checked = document.getElementById('sub-' + subKey).checked;
+    var lessonDiv = document.getElementById('lessons-' + subKey);
+    var checks = lessonDiv.querySelectorAll('input[type=checkbox]');
+    checks.forEach(function(cb) { cb.checked = checked; });
+}
+
+function getSelectedQuestions() {
+    var questions = [];
+    var checkboxes = document.querySelectorAll('.admin-lesson-check input:checked');
+    checkboxes.forEach(function(cb) {
+        var subKey = cb.dataset.sub;
+        var lessonIdx = parseInt(cb.dataset.lesson);
+        if (SUBJECTS[subKey] && SUBJECTS[subKey].lessons[lessonIdx]) {
+            SUBJECTS[subKey].lessons[lessonIdx].questions.forEach(function(q) {
+                questions.push(Object.assign({}, q, { subject: subKey, lesson: lessonIdx }));
+            });
+        }
+    });
+    return questions;
+}
+
+// ============================================================
+// TOURNAMENT BRACKET LOGIC
+// ============================================================
+function startTournament() {
+    var teamCount = tournament.teams.length;
+    if (teamCount < 2) { alert('لازم فريقين على الأقل!'); return; }
+
+    // Pad to nearest power of 2
+    var size = 2;
+    while (size < teamCount) size *= 2;
+
+    tournament.questionsPerMatch = parseInt(document.getElementById('questionsPerMatch').value);
+    tournament.timePerQuestion = parseInt(document.getElementById('timePerQuestion').value);
+    tournament.name = document.getElementById('tournamentName').value.trim() || 'كأس مين البطل';
+    tournament.rounds = Math.log2(size);
+    tournament.matches = [];
+    tournament.started = true;
+
+    // Shuffle teams
+    var shuffled = tournament.teams.slice();
+    for (var i = shuffled.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = shuffled[i]; shuffled[i] = shuffled[j]; shuffled[j] = t;
+    }
+
+    // Fill byes
+    while (shuffled.length < size) shuffled.push(null);
+
+    // Create round 1 matches
+    for (var m = 0; m < size / 2; m++) {
+        var match = {
+            id: 'r1_m' + m,
+            round: 1,
+            pos: m,
+            teamA: shuffled[m * 2],
+            teamB: shuffled[m * 2 + 1],
+            scoreA: 0,
+            scoreB: 0,
+            winner: null,
+            status: 'pending'
+        };
+        // Auto-advance byes
+        if (!match.teamA && match.teamB) { match.winner = match.teamB; match.status = 'done'; }
+        else if (match.teamA && !match.teamB) { match.winner = match.teamA; match.status = 'done'; }
+        else if (!match.teamA && !match.teamB) { match.status = 'done'; }
+        tournament.matches.push(match);
+    }
+
+    // Create subsequent round matches (empty)
+    for (var r = 2; r <= tournament.rounds; r++) {
+        var matchesInRound = size / Math.pow(2, r);
+        for (var mm = 0; mm < matchesInRound; mm++) {
+            tournament.matches.push({
+                id: 'r' + r + '_m' + mm,
+                round: r,
+                pos: mm,
+                teamA: null,
+                teamB: null,
+                scoreA: 0,
+                scoreB: 0,
+                winner: null,
+                status: 'pending'
+            });
+        }
+    }
+
+    // Advance byes
+    advanceByes();
+
+    document.getElementById('startTournamentBtn').style.display = 'none';
+    document.getElementById('showBracketBtn').style.display = '';
+    document.getElementById('resetBtn').style.display = '';
+
+    saveTournament();
+    showBracket();
+}
+
+function advanceByes() {
+    for (var r = 1; r < tournament.rounds; r++) {
+        var currentRound = tournament.matches.filter(function(m) { return m.round === r; });
+        var nextRound = tournament.matches.filter(function(m) { return m.round === r + 1; });
+
+        for (var i = 0; i < currentRound.length; i += 2) {
+            var nextMatch = nextRound[Math.floor(i / 2)];
+            if (!nextMatch) continue;
+            if (currentRound[i].winner) {
+                nextMatch.teamA = currentRound[i].winner;
+            }
+            if (currentRound[i + 1] && currentRound[i + 1].winner) {
+                nextMatch.teamB = currentRound[i + 1].winner;
+            }
+            // Auto-advance if one team and other is bye
+            if (nextMatch.teamA && !nextMatch.teamB && !currentRound[i + 1]) {
+                nextMatch.winner = nextMatch.teamA;
+                nextMatch.status = 'done';
+            }
+        }
+    }
+}
+
+function resetTournament() {
+    if (!confirm('متأكد؟ هيتم حذف كل بيانات البطولة!')) return;
+    tournament.matches = [];
+    tournament.started = false;
+    tournament.rounds = 0;
+    document.getElementById('startTournamentBtn').style.display = '';
+    document.getElementById('showBracketBtn').style.display = 'none';
+    document.getElementById('resetBtn').style.display = 'none';
+    document.getElementById('matchControls').style.display = 'none';
+    showView('setupView');
+    saveTournament();
+}
+
+// ============================================================
+// BRACKET RENDERING
+// ============================================================
+function showBracket() {
+    showView('bracketView');
+    document.getElementById('bracketTitleText').textContent = tournament.name;
+    renderBracket();
+}
+
+function showView(id) {
+    document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+}
+
+function renderBracket() {
+    var container = document.getElementById('bracketContainer');
+    var totalRounds = tournament.rounds;
+    if (totalRounds < 1) return;
+
+    var roundNames = [];
+    if (totalRounds === 1) roundNames = ['النهائي'];
+    else if (totalRounds === 2) roundNames = ['نصف النهائي', 'النهائي'];
+    else if (totalRounds === 3) roundNames = ['ربع النهائي', 'نصف النهائي', 'النهائي'];
+    else if (totalRounds === 4) roundNames = ['دور الـ16', 'ربع النهائي', 'نصف النهائي', 'النهائي'];
+    else {
+        for (var rr = 1; rr <= totalRounds; rr++) roundNames.push('الدور ' + rr);
+    }
+
+    // Build right side (rounds 1 to semi) + trophy + left side (mirrored for visual)
+    // For RTL Arabic: right side = early rounds, left side = later rounds approaching center
+    // We'll do a standard bracket: left rounds → trophy center ← right rounds (mirrored)
+
+    var html = '';
+
+    // Left half (top half of bracket)
+    var leftMatches = [];
+    var rightMatches = [];
+
+    // Split round 1 matches into two halves
+    var r1 = tournament.matches.filter(function(m) { return m.round === 1; });
+    var half = Math.ceil(r1.length / 2);
+
+    // For simplicity, render all rounds left-to-right with trophy in middle
+    for (var round = 1; round <= totalRounds; round++) {
+        var roundMatches = tournament.matches.filter(function(m) { return m.round === round; });
+        var spacing = Math.pow(2, round - 1) * 16;
+
+        html += '<div class="bracket-round" style="gap:' + spacing + 'px">';
+        html += '<div class="round-label">' + roundNames[round - 1] + '</div>';
+
+        roundMatches.forEach(function(match) {
+            var isActive = match.status === 'active';
+            var cls = 'match-card' + (isActive ? ' active-match' : '');
+
+            html += '<div class="' + cls + '" onclick="clickMatch(\'' + match.id + '\')">';
+
+            // Team A
+            if (match.teamA) {
+                var winA = match.winner && match.winner.id === match.teamA.id;
+                var loseA = match.winner && match.winner.id !== match.teamA.id;
+                html += '<div class="match-team' + (winA ? ' winner' : '') + (loseA ? ' loser' : '') + '">';
+                html += '<img class="match-team-img" src="' + match.teamA.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+                html += '<span class="match-team-name">' + match.teamA.name + '</span>';
+                if (match.status === 'done' || match.status === 'active')
+                    html += '<span class="match-team-score">' + match.scoreA + '</span>';
+                html += '</div>';
+            } else {
+                html += '<div class="match-team-empty">—</div>';
+            }
+
+            // Team B
+            if (match.teamB) {
+                var winB = match.winner && match.winner.id === match.teamB.id;
+                var loseB = match.winner && match.winner.id !== match.teamB.id;
+                html += '<div class="match-team' + (winB ? ' winner' : '') + (loseB ? ' loser' : '') + '">';
+                html += '<img class="match-team-img" src="' + match.teamB.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+                html += '<span class="match-team-name">' + match.teamB.name + '</span>';
+                if (match.status === 'done' || match.status === 'active')
+                    html += '<span class="match-team-score">' + match.scoreB + '</span>';
+                html += '</div>';
+            } else {
+                html += '<div class="match-team-empty">—</div>';
+            }
+
+            if (match.teamA && match.teamB) {
+                html += '<div class="match-vs">VS</div>';
+            }
+
+            html += '</div>'; // match-card
+        });
+
+        html += '</div>'; // bracket-round
+    }
+
+    // Trophy
+    var finalMatch = tournament.matches.filter(function(m) { return m.round === totalRounds; })[0];
+    html += '<div class="bracket-trophy">';
+    if (finalMatch && finalMatch.winner) {
+        html += '<img src="' + finalMatch.winner.image + '" style="width:80px;height:80px;border-radius:50%;border:3px solid var(--gold);margin-bottom:8px" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+        html += '<div class="bracket-trophy-icon">🏆</div>';
+        html += '<div class="bracket-trophy-label">' + finalMatch.winner.name + '</div>';
+    } else {
+        html += '<div class="bracket-trophy-icon">🏆</div>';
+        html += '<div class="bracket-trophy-label">البطل</div>';
+    }
+    html += '</div>';
+
+    container.innerHTML = html;
+}
+
+function clickMatch(matchId) {
+    var match = tournament.matches.find(function(m) { return m.id === matchId; });
+    if (!match) return;
+    if (match.status === 'done') return;
+    if (!match.teamA || !match.teamB) return;
+
+    // Start match
+    startMatch(match);
+}
+
+// ============================================================
+// MATCH GAMEPLAY
+// ============================================================
+function startMatch(match) {
+    currentMatch = match;
+    match.status = 'active';
+    match.scoreA = 0;
+    match.scoreB = 0;
+
+    // Get questions
+    var allQ = getSelectedQuestions();
+    if (allQ.length === 0) { alert('مفيش أسئلة! اختار مواد ودروس من لوحة التحكم'); return; }
+
+    // Shuffle and pick
+    shuffle(allQ);
+    matchState.questions = allQ.slice(0, tournament.questionsPerMatch);
+    matchState.currentQ = 0;
+    matchState.turn = 'a';
+    matchState.scoreA = 0;
+    matchState.scoreB = 0;
+    matchState.answered = false;
+
+    document.getElementById('matchControls').style.display = '';
+    showView('matchView');
+    renderScoreboard();
+    showNextQuestion();
+    saveTournament();
+}
+
+function renderScoreboard() {
+    if (!currentMatch) return;
+    var html = '';
+    html += '<div class="scoreboard-team team-a' + (matchState.turn === 'a' ? ' active-turn' : '') + '">';
+    html += '<img class="scoreboard-img" src="' + currentMatch.teamA.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+    html += '<div class="scoreboard-info"><h3>' + currentMatch.teamA.name + '</h3></div>';
+    html += '<div class="scoreboard-score">' + matchState.scoreA + '</div>';
+    html += '</div>';
+
+    html += '<div class="scoreboard-vs">VS</div>';
+
+    html += '<div class="scoreboard-team team-b' + (matchState.turn === 'b' ? ' active-turn' : '') + '">';
+    html += '<div class="scoreboard-score">' + matchState.scoreB + '</div>';
+    html += '<div class="scoreboard-info"><h3>' + currentMatch.teamB.name + '</h3></div>';
+    html += '<img class="scoreboard-img" src="' + currentMatch.teamB.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+    html += '</div>';
+
+    document.getElementById('scoreboard').innerHTML = html;
+
+    var turnTeam = matchState.turn === 'a' ? currentMatch.teamA.name : currentMatch.teamB.name;
+    document.getElementById('turnIndicator').innerHTML = '🎯 دور: <strong>' + turnTeam + '</strong>';
+}
+
+function showNextQuestion() {
+    if (matchState.currentQ >= matchState.questions.length) {
+        endMatch();
+        return;
+    }
+
+    matchState.answered = false;
+    var q = matchState.questions[matchState.currentQ];
+    var area = document.getElementById('questionArea');
+
+    var counter = (matchState.currentQ + 1) + ' / ' + matchState.questions.length;
+    var typeLabels = { mcq: 'اختر الإجابة', tf: 'صح ولا غلط', fill: 'أكمل' };
+
+    var html = '<div class="question-counter">' + counter + '</div>';
+    html += '<div class="question-type-badge">' + (typeLabels[q.type] || '') + '</div>';
+
+    // Timer
+    html += '<div class="match-timer" id="matchTimer">';
+    html += '<svg class="timer-circle" viewBox="0 0 108 108"><circle class="timer-bg" cx="54" cy="54" r="50"/>';
+    html += '<circle class="timer-fill" id="timerFill" cx="54" cy="54" r="50" stroke-dasharray="314" stroke-dashoffset="0"/></svg>';
+    html += '<span id="timerText">' + tournament.timePerQuestion + '</span>';
+    html += '</div>';
+
+    if (q.type === 'mcq') {
+        html += '<div class="question-text">' + q.q + '</div>';
+        html += '<div class="options-grid">';
+        var shapes = ['▲', '◆', '●', '★'];
+        q.options.forEach(function(opt, idx) {
+            html += '<button class="option-btn" id="opt-' + idx + '" onclick="answerQuestion(' + idx + ')">';
+            html += '<span class="option-shape">' + shapes[idx] + '</span>';
+            html += '<span>' + opt + '</span>';
+            html += '</button>';
+        });
+        html += '</div>';
+    } else if (q.type === 'tf') {
+        html += '<div class="question-text">' + q.q + '</div>';
+        html += '<div class="tf-grid">';
+        html += '<button class="tf-btn tf-true" id="opt-0" onclick="answerQuestion(0)"><i class="fas fa-check"></i> صح</button>';
+        html += '<button class="tf-btn tf-false" id="opt-1" onclick="answerQuestion(1)"><i class="fas fa-times"></i> غلط</button>';
+        html += '</div>';
+    } else if (q.type === 'fill') {
+        var displayText = q.q.replace('___', '<span class="blank">___</span>');
+        html += '<div class="question-text">' + displayText + '</div>';
+        html += '<div style="text-align:center;margin-top:16px">';
+        html += '<div style="font-size:18px;color:var(--muted);margin-bottom:12px">الإجابة عند الأدمن — اضغط صح أو غلط</div>';
+        html += '<div class="tf-grid">';
+        html += '<button class="tf-btn tf-true" onclick="adminFillAnswer(true)"><i class="fas fa-check"></i> صح</button>';
+        html += '<button class="tf-btn tf-false" onclick="adminFillAnswer(false)"><i class="fas fa-times"></i> غلط</button>';
+        html += '</div>';
+        html += '<div style="margin-top:12px;padding:12px;background:rgba(255,215,0,0.1);border-radius:12px;color:var(--gold);font-size:16px;font-weight:700">الإجابة: ' + q.answer + '</div>';
+        html += '</div>';
+    }
+
+    area.innerHTML = html;
+    renderScoreboard();
+    startTimer();
+}
+
+function startTimer() {
+    matchState.timeLeft = tournament.timePerQuestion;
+    if (matchState.timer) clearInterval(matchState.timer);
+
+    matchState.timer = setInterval(function() {
+        matchState.timeLeft -= 0.1;
+        var pct = matchState.timeLeft / tournament.timePerQuestion;
+        var offset = 314 * (1 - pct);
+
+        var fill = document.getElementById('timerFill');
+        var text = document.getElementById('timerText');
+        var timer = document.getElementById('matchTimer');
+
+        if (fill) {
+            fill.style.strokeDashoffset = offset;
+            if (matchState.timeLeft <= 5) {
+                fill.classList.add('warning');
+                if (timer) timer.classList.add('warning');
+            }
+        }
+        if (text) text.textContent = Math.ceil(matchState.timeLeft);
+
+        if (matchState.timeLeft <= 0) {
+            clearInterval(matchState.timer);
+            if (!matchState.answered) {
+                matchState.answered = true;
+                showFeedback(false);
+                setTimeout(function() { nextTurn(); }, 1500);
+            }
+        }
+    }, 100);
+}
+
+function answerQuestion(idx) {
+    if (matchState.answered) return;
+    matchState.answered = true;
+    clearInterval(matchState.timer);
+
+    var q = matchState.questions[matchState.currentQ];
+    var correct = idx === q.correct;
+
+    // Highlight correct/wrong
+    var btn = document.getElementById('opt-' + idx);
+    if (btn) btn.classList.add(correct ? 'correct' : 'wrong');
+
+    // Show correct answer
+    if (!correct) {
+        var correctBtn = document.getElementById('opt-' + q.correct);
+        if (correctBtn) correctBtn.classList.add('correct');
+    }
+
+    // Disable all
+    document.querySelectorAll('.option-btn, .tf-btn').forEach(function(b) { b.classList.add('disabled'); });
+
+    if (correct) {
+        // Speed bonus
+        var bonus = matchState.timeLeft > tournament.timePerQuestion * 0.6 ? 2 : 1;
+        if (matchState.turn === 'a') matchState.scoreA += bonus;
+        else matchState.scoreB += bonus;
+    }
+
+    showFeedback(correct);
+    setTimeout(function() { nextTurn(); }, 1800);
+}
+
+function adminFillAnswer(correct) {
+    if (matchState.answered) return;
+    matchState.answered = true;
+    clearInterval(matchState.timer);
+
+    if (correct) {
+        var bonus = matchState.timeLeft > tournament.timePerQuestion * 0.6 ? 2 : 1;
+        if (matchState.turn === 'a') matchState.scoreA += bonus;
+        else matchState.scoreB += bonus;
+    }
+
+    showFeedback(correct);
+    setTimeout(function() { nextTurn(); }, 1800);
+}
+
+function showFeedback(correct) {
+    var overlay = document.createElement('div');
+    overlay.className = 'answer-feedback ' + (correct ? 'feedback-correct' : 'feedback-wrong');
+    overlay.innerHTML = '<div style="text-align:center"><div class="feedback-icon">' +
+        (correct ? '<i class="fas fa-check-circle"></i>' : '<i class="fas fa-times-circle"></i>') +
+        '</div><div class="feedback-text" style="color:' + (correct ? 'var(--correct)' : 'var(--wrong)') + '">' +
+        (correct ? 'إجابة صحيحة! 🎉' : 'إجابة خاطئة ❌') + '</div></div>';
+    document.body.appendChild(overlay);
+
+    setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 1500);
+}
+
+function nextTurn() {
+    matchState.currentQ++;
+    matchState.turn = matchState.turn === 'a' ? 'b' : 'a';
+
+    if (matchState.currentQ >= matchState.questions.length) {
+        endMatch();
+        return;
+    }
+
+    // Show turn transition
+    var turnTeam = matchState.turn === 'a' ? currentMatch.teamA : currentMatch.teamB;
+    var overlay = document.createElement('div');
+    overlay.className = 'waiting-overlay';
+    overlay.innerHTML = '<div class="waiting-text">🎯 دور ' + turnTeam.name + '</div>' +
+        '<div class="waiting-sub">استعد...</div>';
+    document.body.appendChild(overlay);
+
+    setTimeout(function() {
+        if (overlay.parentNode) overlay.remove();
+        showNextQuestion();
+    }, 1500);
+}
+
+function endMatch() {
+    clearInterval(matchState.timer);
+
+    currentMatch.scoreA = matchState.scoreA;
+    currentMatch.scoreB = matchState.scoreB;
+
+    if (matchState.scoreA > matchState.scoreB) {
+        currentMatch.winner = currentMatch.teamA;
+    } else if (matchState.scoreB > matchState.scoreA) {
+        currentMatch.winner = currentMatch.teamB;
+    } else {
+        // Tie — random (admin can override)
+        currentMatch.winner = Math.random() > 0.5 ? currentMatch.teamA : currentMatch.teamB;
+    }
+    currentMatch.status = 'done';
+
+    // Advance winner to next round
+    advanceWinner(currentMatch);
+    document.getElementById('matchControls').style.display = 'none';
+
+    // Show winner celebration
+    showWinnerCelebration(currentMatch);
+    saveTournament();
+}
+
+function advanceWinner(match) {
+    var nextRound = match.round + 1;
+    var nextPos = Math.floor(match.pos / 2);
+    var nextMatch = tournament.matches.find(function(m) {
+        return m.round === nextRound && m.pos === nextPos;
+    });
+    if (!nextMatch) return; // was the final
+
+    if (match.pos % 2 === 0) {
+        nextMatch.teamA = match.winner;
+    } else {
+        nextMatch.teamB = match.winner;
+    }
+}
+
+function showWinnerCelebration(match) {
+    launchConfetti();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'winner-overlay';
+    overlay.id = 'winnerOverlay';
+
+    var isFinal = match.round === tournament.rounds;
+    var title = isFinal ? '🏆 بطل البطولة! 🏆' : '🎉 فاز بالماتش!';
+
+    overlay.innerHTML = '<div class="winner-trophy">' + (isFinal ? '🏆' : '⭐') + '</div>' +
+        '<div class="winner-text">' + title + '</div>' +
+        '<img class="winner-team-img" src="' + match.winner.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">' +
+        '<div class="winner-team-name">' + match.winner.name + '</div>' +
+        '<div class="winner-score">' + match.scoreA + ' - ' + match.scoreB + '</div>' +
+        '<button class="admin-btn primary" onclick="closeWinnerAndShowBracket()" style="width:auto;padding:16px 40px;font-size:18px">' +
+        '<i class="fas fa-sitemap"></i> ' + (isFinal ? 'عرض النتيجة' : 'الماتش التالي') + '</button>';
+
+    document.body.appendChild(overlay);
+}
+
+function closeWinnerAndShowBracket() {
+    var ov = document.getElementById('winnerOverlay');
+    if (ov) ov.remove();
+    currentMatch = null;
+    showBracket();
+}
+
+function launchConfetti() {
+    var colors = ['#FFD700', '#FF6B6B', '#6C5CE7', '#00CEC9', '#FDCB6E', '#FD79A8', '#00B894'];
+    var shapes = ['■', '●', '▲', '★', '♦', '✝'];
+    for (var i = 0; i < 80; i++) {
+        var piece = document.createElement('div');
+        piece.className = 'confetti-piece';
+        piece.textContent = shapes[Math.floor(Math.random() * shapes.length)];
+        piece.style.left = Math.random() * 100 + 'vw';
+        piece.style.color = colors[Math.floor(Math.random() * colors.length)];
+        piece.style.fontSize = (10 + Math.random() * 16) + 'px';
+        piece.style.animationDuration = (2 + Math.random() * 2) + 's';
+        piece.style.animationDelay = Math.random() * 0.5 + 's';
+        document.body.appendChild(piece);
+        setTimeout(function(el) { if (el.parentNode) el.remove(); }.bind(null, piece), 4000);
+    }
+}
+
+// ============================================================
+// ADMIN MATCH CONTROLS
+// ============================================================
+function adminNextQuestion() {
+    if (!currentMatch) return;
+    clearInterval(matchState.timer);
+    matchState.answered = true;
+    nextTurn();
+}
+
+function adminSkipQuestion() {
+    if (!currentMatch) return;
+    clearInterval(matchState.timer);
+    matchState.answered = true;
+    matchState.currentQ++;
+    // Don't switch turn for skip
+    if (matchState.currentQ >= matchState.questions.length) {
+        endMatch();
+    } else {
+        showNextQuestion();
+    }
+}
+
+function adminEndMatch() {
+    if (!currentMatch) return;
+    if (!confirm('إنهاء الماتش بالنتيجة الحالية؟')) return;
+    endMatch();
+}
+
+function adminAddPoint(team) {
+    if (!currentMatch) return;
+    if (team === 'a') matchState.scoreA++;
+    else matchState.scoreB++;
+    renderScoreboard();
+}
+
+function adminRemovePoint(team) {
+    if (!currentMatch) return;
+    if (team === 'a') matchState.scoreA = Math.max(0, matchState.scoreA - 1);
+    else matchState.scoreB = Math.max(0, matchState.scoreB - 1);
+    renderScoreboard();
+}
+
+function adminForceWinner(team) {
+    if (!currentMatch) return;
+    if (!confirm('تأكيد فوز الفريق؟')) return;
+    clearInterval(matchState.timer);
+    currentMatch.scoreA = matchState.scoreA;
+    currentMatch.scoreB = matchState.scoreB;
+    currentMatch.winner = team === 'a' ? currentMatch.teamA : currentMatch.teamB;
+    currentMatch.status = 'done';
+    advanceWinner(currentMatch);
+    document.getElementById('matchControls').style.display = 'none';
+    showWinnerCelebration(currentMatch);
+    saveTournament();
+}
+
+// ============================================================
+// KEYBOARD SHORTCUTS
+// ============================================================
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+    if (e.key === 'a' || e.key === 'A' || e.key === 'ش') toggleAdmin();
+    if (e.key === 'f' || e.key === 'F' || e.key === 'ب') toggleFullscreen();
+    if (e.key === ' ') { e.preventDefault(); adminNextQuestion(); }
+    if (e.key === '1') { var b = document.getElementById('opt-0'); if (b) b.click(); }
+    if (e.key === '2') { var b = document.getElementById('opt-1'); if (b) b.click(); }
+    if (e.key === '3') { var b = document.getElementById('opt-2'); if (b) b.click(); }
+    if (e.key === '4') { var b = document.getElementById('opt-3'); if (b) b.click(); }
+    if (e.key === 'Escape') {
+        var ov = document.getElementById('winnerOverlay');
+        if (ov) { closeWinnerAndShowBracket(); return; }
+        if (document.getElementById('matchView').classList.contains('active')) {
+            showBracket();
+        }
+    }
+});
+
+// ============================================================
+// PERSISTENCE (localStorage)
+// ============================================================
+function saveTournament() {
+    try {
+        localStorage.setItem('minElBatal_tournament', JSON.stringify(tournament));
+    } catch(e) {}
+}
+
+function loadTournament() {
+    try {
+        var saved = localStorage.getItem('minElBatal_tournament');
+        if (saved) {
+            var data = JSON.parse(saved);
+            if (data.started) {
+                tournament = data;
+                document.getElementById('startTournamentBtn').style.display = 'none';
+                document.getElementById('showBracketBtn').style.display = '';
+                document.getElementById('resetBtn').style.display = '';
+                renderTeamsList();
+                showBracket();
+                return;
+            } else if (data.teams && data.teams.length > 0) {
+                tournament.teams = data.teams;
+            }
+        }
+    } catch(e) {}
+    renderTeamsList();
+}
+
+// ============================================================
+// UTILS
+// ============================================================
+function shuffle(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderSubjectPicker();
+loadTournament();
+</script>
+</body>
+</html>

@@ -7841,6 +7841,16 @@ function renderCompeteHub() {
 
     html += '</div>';
 
+    // Tournament Cup Card
+    html += '<div class="compete-tournament-card" onclick="window.open(\'tournament.html\', \'_blank\')">';
+    html += '<div class="compete-tournament-bg"></div>';
+    html += '<div class="compete-tournament-content">';
+    html += '<div class="compete-tournament-icon">🏆</div>';
+    html += '<h3>كأس مين البطل</h3>';
+    html += '<p>بطولة خروج بين الفرق — زي كأس العالم!</p>';
+    html += '<div class="compete-tournament-badge"><i class="fas fa-tv"></i> يُعرض على البروجكتور</div>';
+    html += '</div></div>';
+
     // Weekly ranking
     html += '<h4 class="compete-section-title"><i class="fas fa-crown"></i> ترتيب الأسبوع</h4>';
     html += '<div id="compete-weekly-ranking"></div>';

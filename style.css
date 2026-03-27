@@ -5417,6 +5417,58 @@ body {
 .compete-mode-team:hover { border-color: #6C5CE7; background: linear-gradient(135deg, rgba(108, 92, 231, 0.08), transparent); }
 .compete-mode-team .compete-mode-icon { color: #a29bfe; }
 
+/* Tournament Cup Card */
+.compete-tournament-card {
+    position: relative;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 2px solid rgba(255, 215, 0, 0.3);
+    border-radius: 20px;
+    overflow: hidden;
+    cursor: pointer;
+    margin: 16px 0 20px;
+    transition: all 0.3s ease;
+}
+.compete-tournament-card:active { transform: scale(0.98); }
+.compete-tournament-bg {
+    position: absolute;
+    inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23FFD700' fill-opacity='0.04'%3E%3Cpath d='M20 0L40 20L20 40L0 20z'/%3E%3C/g%3E%3C/svg%3E") repeat;
+}
+.compete-tournament-content {
+    position: relative;
+    z-index: 1;
+    padding: 20px;
+    text-align: center;
+}
+.compete-tournament-icon {
+    font-size: 44px;
+    margin-bottom: 6px;
+    filter: drop-shadow(0 0 12px rgba(255,215,0,0.4));
+}
+.compete-tournament-content h3 {
+    font-size: 18px;
+    font-weight: 800;
+    color: #FFD700;
+    margin: 0 0 4px;
+    text-shadow: 0 0 12px rgba(255,215,0,0.3);
+}
+.compete-tournament-content p {
+    font-size: 12px;
+    color: rgba(255,255,255,0.6);
+    margin: 0 0 10px;
+}
+.compete-tournament-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: rgba(255,215,0,0.1);
+    border: 1px solid rgba(255,215,0,0.2);
+    color: #FFD700;
+    font-size: 11px;
+    font-weight: 700;
+}
+.compete-tournament-badge i { margin-left: 4px; }
+
 .compete-mode-icon {
     font-size: 32px !important;
     margin-bottom: 8px;

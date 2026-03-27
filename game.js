@@ -172,14 +172,11 @@ function submitLogin() {
             var doc = snapshot.docs ? snapshot.docs[0] : snapshot;
             var existingData = doc.data ? doc.data() : doc;
 
-            // Old account with no password — guide to register to set password
+            // Old account with no password — show upgrade form directly
             if (!existingData.passwordHash) {
-                showToast('حسابك قديم، سجّل من جديد باستخدام نفس رقم تليفونك لتفعيله', 'info');
                 resetLoginBtn(btn);
-                // Switch to register tab and pre-fill phone
-                showRegisterView();
-                var phoneField = document.getElementById('player-phone');
-                if (phoneField) { phoneField.value = existingData.playerPhone || ''; }
+                var docId = doc.id || (snapshot._phoneDoc ? usernameOrEmail : doc.ref ? doc.ref.id : usernameOrEmail);
+                showOldAccountUpgrade(existingData, docId);
                 return;
             }
 
@@ -273,9 +270,8 @@ function submitRegister() {
         if (!results[2].empty) {
             var existingPhoneDoc = results[2].docs[0];
             var existingPhoneData = existingPhoneDoc.data();
-            // Legacy account (no password) — migrate instead of block
+            // Legacy account (no password) — migrate it with the data from registration form
             if (!existingPhoneData.passwordHash) {
-                showToast('عندك حساب قديم، بنفعّله...', 'info');
                 migrateOldAccount(existingPhoneDoc.id, {
                     name: name, username: username, email: email,
                     phone: phone, year: year, hashedPw: hashedPw
@@ -364,6 +360,140 @@ function migrateOldAccount(docId, newData, btn) {
         console.error('Migration error:', err);
         showToast('حصل مشكلة، حاول تاني', 'error');
         resetRegisterBtn(btn);
+    });
+}
+
+// Show upgrade form for old accounts (phone-only, no password)
+function showOldAccountUpgrade(existingData, docId) {
+    var oldName = existingData.playerName || '';
+    var oldPhone = existingData.playerPhone || docId || '';
+
+    // Replace login/register view with upgrade form
+    var loginView = document.getElementById('login-view');
+    var registerView = document.getElementById('register-view');
+    if (loginView) loginView.style.display = 'none';
+    if (registerView) registerView.style.display = 'none';
+
+    // Create upgrade overlay
+    var existing = document.getElementById('upgrade-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'upgrade-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;font-family:Cairo,sans-serif;';
+
+    overlay.innerHTML = '<div style="background:var(--bg-card,#1a2040);border-radius:24px;padding:28px 20px;max-width:400px;width:100%;text-align:center;border:1px solid rgba(255,255,255,0.1)">' +
+        '<div style="font-size:48px;margin-bottom:8px">👋</div>' +
+        '<h2 style="color:#fff;font-size:20px;margin:0 0 4px">أهلاً بيك تاني يا ' + (oldName.split(' ')[0] || 'بطل') + '!</h2>' +
+        '<p style="color:rgba(255,255,255,0.5);font-size:13px;margin:0 0 16px">لقيناك حسابك القديم 🎉<br>كمّل البيانات دي وهتدخل فوراً</p>' +
+
+        '<div style="text-align:right;margin-bottom:8px">' +
+        '<label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:4px">اسم المستخدم (بالإنجليزي)</label>' +
+        '<input type="text" id="upgrade-username" placeholder="مثال: michael_2025" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-family:Cairo;font-size:14px;direction:ltr;text-align:left" autocomplete="username">' +
+        '</div>' +
+
+        '<div style="text-align:right;margin-bottom:8px">' +
+        '<label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:4px">الإيميل</label>' +
+        '<input type="email" id="upgrade-email" placeholder="email@example.com" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-family:Cairo;font-size:14px;direction:ltr;text-align:left" autocomplete="email">' +
+        '</div>' +
+
+        '<div style="text-align:right;margin-bottom:8px">' +
+        '<label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:4px">كلمة السر الجديدة (٦ حروف على الأقل)</label>' +
+        '<input type="password" id="upgrade-password" placeholder="كلمة السر" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-family:Cairo;font-size:14px" autocomplete="new-password">' +
+        '</div>' +
+
+        '<div style="text-align:right;margin-bottom:16px">' +
+        '<label style="color:rgba(255,255,255,0.6);font-size:12px;display:block;margin-bottom:4px">السنة الدراسية</label>' +
+        '<select id="upgrade-year" style="width:100%;padding:12px;border-radius:12px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.05);color:#fff;font-family:Cairo;font-size:14px">' +
+        '<option value="">اختار السنة</option>' +
+        '<option value="prep1">أولى إعدادي</option>' +
+        '<option value="prep2">تانية إعدادي</option>' +
+        '<option value="prep3">تالتة إعدادي</option>' +
+        '</select>' +
+        '</div>' +
+
+        '<button id="upgrade-btn" onclick="submitOldAccountUpgrade(\'' + docId.replace(/'/g, "\\'") + '\', \'' + oldPhone.replace(/'/g, "\\'") + '\')" style="width:100%;padding:14px;border-radius:14px;border:none;background:linear-gradient(135deg,#6C5CE7,#a29bfe);color:#fff;font-family:Cairo;font-size:16px;font-weight:800;cursor:pointer">' +
+        '<i class="fas fa-rocket"></i> فعّل حسابك</button>' +
+
+        '<button onclick="closeUpgradeOverlay()" style="background:none;border:none;color:rgba(255,255,255,0.4);font-family:Cairo;font-size:13px;cursor:pointer;margin-top:12px;display:block;width:100%">إلغاء</button>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+}
+
+function closeUpgradeOverlay() {
+    var ov = document.getElementById('upgrade-overlay');
+    if (ov) ov.remove();
+    showLoginView();
+}
+
+function submitOldAccountUpgrade(docId, phone) {
+    var username = document.getElementById('upgrade-username').value.trim().toLowerCase();
+    var email = document.getElementById('upgrade-email').value.trim().toLowerCase();
+    var password = document.getElementById('upgrade-password').value;
+    var year = document.getElementById('upgrade-year').value;
+
+    if (!username || username.length < 3) { showToast('اسم المستخدم لازم ٣ حروف على الأقل', 'error'); return; }
+    if (!/^[a-z0-9_.-]+$/.test(username)) { showToast('اسم المستخدم بالإنجليزي بس', 'error'); return; }
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('اكتب إيميل صحيح', 'error'); return; }
+    if (!password || password.length < 6) { showToast('كلمة السر لازم ٦ حروف على الأقل', 'error'); return; }
+    if (!year) { showToast('اختار السنة الدراسية', 'error'); return; }
+
+    var btn = document.getElementById('upgrade-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التفعيل...'; }
+
+    var hashedPw = hashPassword(password);
+
+    // Check uniqueness of username and email
+    Promise.all([
+        firebaseDb.collection('players').where('username', '==', username).get(),
+        firebaseDb.collection('players').where('email', '==', email).get()
+    ]).then(function(results) {
+        if (!results[0].empty) {
+            showToast('اسم المستخدم ده مستخدم قبل كده', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rocket"></i> فعّل حسابك'; }
+            return;
+        }
+        if (!results[1].empty) {
+            showToast('الإيميل ده مسجل قبل كده', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rocket"></i> فعّل حسابك'; }
+            return;
+        }
+
+        // Migrate
+        var docRef = firebaseDb.collection('players').doc(docId);
+        docRef.update({
+            username: username,
+            email: email,
+            academicYear: year,
+            passwordHash: hashedPw,
+            migratedAt: new Date().toISOString(),
+            lastUpdated: new Date().toISOString()
+        }).then(function() {
+            return docRef.get();
+        }).then(function(doc) {
+            var data = doc.data();
+            Object.keys(data).forEach(function(key) {
+                if (key in GameState && key !== 'lastUpdated') GameState[key] = data[key];
+            });
+            GameState.username = username;
+            GameState.email = email;
+            GameState.playerPhone = phone;
+            handleRememberMe(true, phone);
+            closeUpgradeOverlay();
+            showToast('تم تفعيل حسابك! 🎉 أهلاً بيك تاني يا ' + GameState.playerName.split(' ')[0], 'success');
+            showScreen('home-hub-screen');
+            syncLeaderboard();
+            requestNotificationsAfterLogin();
+        }).catch(function(err) {
+            console.error('Upgrade error:', err);
+            showToast('حصل مشكلة، حاول تاني', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rocket"></i> فعّل حسابك'; }
+        });
+    }).catch(function(err) {
+        console.error('Upgrade check error:', err);
+        showToast('حصل مشكلة، حاول تاني', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-rocket"></i> فعّل حسابك'; }
     });
 }
 

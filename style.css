@@ -5445,6 +5445,19 @@ body {
     margin-bottom: 6px;
     filter: drop-shadow(0 0 12px rgba(255,215,0,0.4));
 }
+.compete-tournament-logo {
+    width: 90px;
+    height: 90px;
+    object-fit: contain;
+    border-radius: 50%;
+    margin-bottom: 8px;
+    filter: drop-shadow(0 0 16px rgba(255,215,0,0.5));
+    animation: tournamentLogoFloat 3s ease-in-out infinite;
+}
+@keyframes tournamentLogoFloat {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-6px) scale(1.05); }
+}
 .compete-tournament-content h3 {
     font-size: 18px;
     font-weight: 800;

@@ -409,11 +409,28 @@ select.admin-input { appearance: none; cursor: pointer; }
 }
 .scoreboard-info { text-align: center; }
 .scoreboard-info h3 { font-size: 22px; font-weight: 800; margin-bottom: 2px; }
+.scoreboard-members {
+    font-size: 11px;
+    color: var(--muted);
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .scoreboard-score {
     font-size: 48px;
     font-weight: 900;
     min-width: 80px;
     text-align: center;
+    transition: all 0.3s;
+}
+.scoreboard-score.score-bump {
+    animation: scoreBump 0.4s ease;
+}
+@keyframes scoreBump {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.4); text-shadow: 0 0 20px currentColor; }
+    100% { transform: scale(1); }
 }
 .scoreboard-team.team-a .scoreboard-score { color: var(--team-a); }
 .scoreboard-team.team-b .scoreboard-score { color: var(--team-b); }
@@ -701,6 +718,27 @@ select.admin-input { appearance: none; cursor: pointer; }
     width: 90%;
     text-align: center;
 }
+.setup-logo {
+    width: 140px;
+    height: 140px;
+    object-fit: contain;
+    margin-bottom: 12px;
+    filter: drop-shadow(0 0 30px rgba(255,215,0,0.4));
+    animation: setupLogoFloat 3s ease-in-out infinite;
+}
+@keyframes setupLogoFloat {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    25% { transform: translateY(-8px) rotate(-2deg); }
+    75% { transform: translateY(-4px) rotate(2deg); }
+}
+.bracket-logo {
+    width: 40px;
+    height: 40px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-left: 8px;
+    filter: drop-shadow(0 0 8px rgba(255,215,0,0.5));
+}
 .setup-card h2 {
     font-size: 32px;
     font-weight: 900;
@@ -907,6 +945,149 @@ select.admin-input { appearance: none; cursor: pointer; }
     from { transform: scale(0.8); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
 }
+
+/* ============ EXTRA ANIMATIONS ============ */
+/* Match intro overlay */
+.match-intro {
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(circle at center, rgba(10,14,39,0.95), rgba(10,14,39,1));
+    z-index: 800;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+}
+.match-intro-vs {
+    font-size: 100px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 60px rgba(255,215,0,0.5);
+    animation: introVsPulse 1s ease-in-out infinite alternate;
+}
+@keyframes introVsPulse {
+    from { transform: scale(0.9); opacity: 0.7; }
+    to { transform: scale(1.1); opacity: 1; }
+}
+.match-intro-team {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    animation: introTeamSlide 0.6s ease-out both;
+}
+.match-intro-team:first-child { animation-name: introTeamSlideRight; }
+.match-intro-team:last-child { animation-name: introTeamSlideLeft; animation-delay: 0.2s; }
+@keyframes introTeamSlideRight {
+    from { transform: translateX(100px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes introTeamSlideLeft {
+    from { transform: translateX(-100px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+.match-intro-team img {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    border: 3px solid var(--gold);
+}
+.match-intro-team h2 {
+    font-size: 32px;
+    font-weight: 900;
+}
+.match-intro-team:first-child h2 { color: var(--team-a); }
+.match-intro-team:last-child h2 { color: var(--team-b); }
+.match-intro-members {
+    font-size: 13px;
+    color: var(--muted);
+    max-width: 300px;
+}
+
+/* Stadium light beams behind scoreboard */
+.stadium-lights {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+}
+.stadium-lights::before,
+.stadium-lights::after {
+    content: '';
+    position: absolute;
+    top: -50%;
+    width: 200px;
+    height: 200%;
+    background: linear-gradient(180deg, transparent, rgba(108,92,231,0.03), transparent);
+    animation: stadiumSweep 8s linear infinite;
+}
+.stadium-lights::before { left: 10%; animation-delay: 0s; }
+.stadium-lights::after { right: 10%; animation-delay: 4s; }
+@keyframes stadiumSweep {
+    0% { transform: translateX(-100px) rotate(-15deg); }
+    50% { transform: translateX(100px) rotate(15deg); }
+    100% { transform: translateX(-100px) rotate(-15deg); }
+}
+
+/* Question entrance animation */
+.question-area-animated {
+    animation: questionSlideUp 0.4s ease-out;
+}
+@keyframes questionSlideUp {
+    from { transform: translateY(40px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+/* Bracket match entrance */
+.match-card {
+    animation: bracketCardIn 0.4s ease both;
+}
+.bracket-round:nth-child(1) .match-card { animation-delay: 0s; }
+.bracket-round:nth-child(2) .match-card { animation-delay: 0.15s; }
+.bracket-round:nth-child(3) .match-card { animation-delay: 0.3s; }
+.bracket-round:nth-child(4) .match-card { animation-delay: 0.45s; }
+@keyframes bracketCardIn {
+    from { transform: scale(0.9) translateY(10px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+/* Winner overlay enhanced */
+.winner-overlay {
+    background: radial-gradient(circle at center, rgba(10,14,39,0.95), rgba(10,14,39,1)) !important;
+}
+
+/* Admin team item enhanced */
+.admin-team-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 10px;
+    margin-bottom: 6px;
+    border: 1px solid var(--border);
+    transition: all 0.2s;
+}
+.admin-team-item:hover { background: rgba(255,255,255,0.06); }
+.admin-team-item img {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    object-fit: cover;
+}
+.admin-team-item button {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 6px;
+    transition: all 0.2s;
+}
+.admin-team-item button:hover { color: var(--wrong); background: rgba(255,107,107,0.1); }
+.admin-team-item button:first-of-type:hover { color: var(--team-a); background: rgba(108,92,231,0.1); }
 </style>
 </head>
 <body>
@@ -950,7 +1131,15 @@ select.admin-input { appearance: none; cursor: pointer; }
                 <i class="fas fa-plus"></i>
             </button>
         </div>
-        <input class="admin-input" id="newTeamImage" placeholder="رابط صورة الفريق (اختياري)">
+        <div style="display:flex;gap:6px;align-items:center;">
+            <input class="admin-input" id="newTeamImage" placeholder="رابط صورة (اختياري)" style="flex:1">
+            <label class="admin-btn" style="width:auto;padding:10px 12px;cursor:pointer;text-align:center" title="ارفع صورة">
+                <i class="fas fa-camera"></i>
+                <input type="file" accept="image/*" id="teamImageFile" onchange="handleTeamImageUpload()" style="display:none">
+            </label>
+        </div>
+        <input class="admin-input" id="newTeamMembers" placeholder="أسماء الأعضاء (مفصولة بفاصلة)">
+        <div style="font-size:10px;color:var(--muted);margin-top:-4px">مثال: مايكل, جرجس, بولا, مارك</div>
     </div>
 
     <div class="admin-section">
@@ -1032,7 +1221,7 @@ select.admin-input { appearance: none; cursor: pointer; }
 <!-- SETUP VIEW -->
 <div class="view setup-view active" id="setupView">
     <div class="setup-card">
-        <div style="font-size:64px;margin-bottom:12px;">🏆</div>
+        <img src="images/tournament-logo.png" alt="كأس مين البطل" class="setup-logo">
         <h2>كأس مين البطل</h2>
         <p>أضف الفرق واختار المواد من لوحة التحكم ثم ابدأ البطولة!</p>
         <button class="admin-btn primary" onclick="toggleAdmin()" style="font-size:18px;padding:16px">
@@ -1043,12 +1232,13 @@ select.admin-input { appearance: none; cursor: pointer; }
 
 <!-- BRACKET VIEW -->
 <div class="view bracket-view" id="bracketView">
-    <div class="bracket-title"><i class="fas fa-trophy"></i> <span id="bracketTitleText">كأس مين البطل</span></div>
+    <div class="bracket-title"><img src="images/tournament-logo.png" class="bracket-logo"> <span id="bracketTitleText">كأس مين البطل</span></div>
     <div class="bracket-container" id="bracketContainer"></div>
 </div>
 
 <!-- MATCH VIEW -->
 <div class="view match-view" id="matchView">
+    <div class="stadium-lights"></div>
     <div class="scoreboard" id="scoreboard"></div>
     <div class="turn-indicator" id="turnIndicator"></div>
     <div class="question-area" id="questionArea"></div>
@@ -1255,15 +1445,53 @@ function addTeam() {
     if (!name) return;
     var image = document.getElementById('newTeamImage').value.trim();
     if (!image) image = DEFAULT_AVATARS[tournament.teams.length % DEFAULT_AVATARS.length];
-    tournament.teams.push({ name: name, image: image, id: Date.now() });
+    var membersInput = document.getElementById('newTeamMembers').value.trim();
+    var members = membersInput ? membersInput.split(/[,،]/).map(function(m) { return m.trim(); }).filter(Boolean) : [];
+    tournament.teams.push({ name: name, image: image, members: members, id: Date.now() });
     document.getElementById('newTeamName').value = '';
     document.getElementById('newTeamImage').value = '';
+    document.getElementById('newTeamMembers').value = '';
+    document.getElementById('teamImageFile').value = '';
     renderTeamsList();
     saveTournament();
 }
 
+function handleTeamImageUpload() {
+    var fileInput = document.getElementById('teamImageFile');
+    var file = fileInput.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        // Resize to 200x200 for storage efficiency
+        var img = new Image();
+        img.onload = function() {
+            var canvas = document.createElement('canvas');
+            canvas.width = 200;
+            canvas.height = 200;
+            var ctx = canvas.getContext('2d');
+            var size = Math.min(img.width, img.height);
+            var sx = (img.width - size) / 2;
+            var sy = (img.height - size) / 2;
+            ctx.drawImage(img, sx, sy, size, size, 0, 0, 200, 200);
+            document.getElementById('newTeamImage').value = canvas.toDataURL('image/jpeg', 0.7);
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
 function removeTeam(id) {
     tournament.teams = tournament.teams.filter(function(t) { return t.id !== id; });
+    renderTeamsList();
+    saveTournament();
+}
+
+function editTeamMembers(id) {
+    var team = tournament.teams.find(function(t) { return t.id === id; });
+    if (!team) return;
+    var input = prompt('أسماء الأعضاء (مفصولة بفاصلة):', (team.members || []).join(', '));
+    if (input === null) return;
+    team.members = input.split(/[,،]/).map(function(m) { return m.trim(); }).filter(Boolean);
     renderTeamsList();
     saveTournament();
 }
@@ -1273,7 +1501,15 @@ function renderTeamsList() {
     tournament.teams.forEach(function(team) {
         html += '<div class="admin-team-item">';
         html += '<img src="' + team.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+        html += '<div style="flex:1;min-width:0">';
         html += '<span class="team-name">' + team.name + '</span>';
+        if (team.members && team.members.length > 0) {
+            html += '<div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+            html += '<i class="fas fa-user" style="margin-left:2px"></i> ' + team.members.join(' · ');
+            html += '</div>';
+        }
+        html += '</div>';
+        html += '<button onclick="editTeamMembers(' + team.id + ')" title="تعديل الأعضاء"><i class="fas fa-user-edit"></i></button>';
         html += '<button onclick="removeTeam(' + team.id + ')"><i class="fas fa-trash"></i></button>';
         html += '</div>';
     });
@@ -1618,10 +1854,50 @@ function startMatch(match) {
     matchState.answered = false;
 
     document.getElementById('matchControls').style.display = '';
+    // Reset pause button state
+    var pIcon = document.getElementById('pauseIcon');
+    var pText = document.getElementById('pauseText');
+    if (pIcon) pIcon.className = 'fas fa-pause';
+    if (pText) pText.textContent = 'إيقاف مؤقت';
+
     showView('matchView');
     renderScoreboard();
-    showNextQuestion();
+
+    // Show match intro animation
+    showMatchIntro(match, function() {
+        showNextQuestion();
+    });
     saveTournament();
+}
+
+function showMatchIntro(match, callback) {
+    var overlay = document.createElement('div');
+    overlay.className = 'match-intro';
+    overlay.id = 'matchIntro';
+
+    var membersA = match.teamA.members && match.teamA.members.length > 0 ?
+        '<div class="match-intro-members">' + match.teamA.members.join(' · ') + '</div>' : '';
+    var membersB = match.teamB.members && match.teamB.members.length > 0 ?
+        '<div class="match-intro-members">' + match.teamB.members.join(' · ') + '</div>' : '';
+
+    overlay.innerHTML =
+        '<img src="images/tournament-logo.png" style="width:80px;margin-bottom:8px;filter:drop-shadow(0 0 20px rgba(255,215,0,0.5));animation:setupLogoFloat 2s ease-in-out infinite">' +
+        '<div class="match-intro-team">' +
+            '<img src="' + match.teamA.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">' +
+            '<div><h2>' + match.teamA.name + '</h2>' + membersA + '</div>' +
+        '</div>' +
+        '<div class="match-intro-vs">VS</div>' +
+        '<div class="match-intro-team">' +
+            '<img src="' + match.teamB.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">' +
+            '<div><h2>' + match.teamB.name + '</h2>' + membersB + '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+
+    setTimeout(function() {
+        if (overlay.parentNode) overlay.remove();
+        if (callback) callback();
+    }, 3000);
 }
 
 function renderScoreboard() {
@@ -1629,22 +1905,31 @@ function renderScoreboard() {
     var html = '';
     html += '<div class="scoreboard-team team-a' + (matchState.turn === 'a' ? ' active-turn' : '') + '">';
     html += '<img class="scoreboard-img" src="' + currentMatch.teamA.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
-    html += '<div class="scoreboard-info"><h3>' + currentMatch.teamA.name + '</h3></div>';
-    html += '<div class="scoreboard-score">' + matchState.scoreA + '</div>';
+    html += '<div class="scoreboard-info"><h3>' + currentMatch.teamA.name + '</h3>';
+    if (currentMatch.teamA.members && currentMatch.teamA.members.length > 0) {
+        html += '<div class="scoreboard-members">' + currentMatch.teamA.members.join(' · ') + '</div>';
+    }
+    html += '</div>';
+    html += '<div class="scoreboard-score" id="scoreA">' + matchState.scoreA + '</div>';
     html += '</div>';
 
     html += '<div class="scoreboard-vs">VS</div>';
 
     html += '<div class="scoreboard-team team-b' + (matchState.turn === 'b' ? ' active-turn' : '') + '">';
-    html += '<div class="scoreboard-score">' + matchState.scoreB + '</div>';
-    html += '<div class="scoreboard-info"><h3>' + currentMatch.teamB.name + '</h3></div>';
+    html += '<div class="scoreboard-score" id="scoreB">' + matchState.scoreB + '</div>';
+    html += '<div class="scoreboard-info"><h3>' + currentMatch.teamB.name + '</h3>';
+    if (currentMatch.teamB.members && currentMatch.teamB.members.length > 0) {
+        html += '<div class="scoreboard-members">' + currentMatch.teamB.members.join(' · ') + '</div>';
+    }
+    html += '</div>';
     html += '<img class="scoreboard-img" src="' + currentMatch.teamB.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
     html += '</div>';
 
     document.getElementById('scoreboard').innerHTML = html;
 
-    var turnTeam = matchState.turn === 'a' ? currentMatch.teamA.name : currentMatch.teamB.name;
-    document.getElementById('turnIndicator').innerHTML = '🎯 دور: <strong>' + turnTeam + '</strong>';
+    var turnTeam = matchState.turn === 'a' ? currentMatch.teamA : currentMatch.teamB;
+    var turnColor = matchState.turn === 'a' ? 'var(--team-a)' : 'var(--team-b)';
+    document.getElementById('turnIndicator').innerHTML = '<span style="color:' + turnColor + '">🎯 دور: <strong>' + turnTeam.name + '</strong></span>';
 }
 
 function showNextQuestion() {
@@ -1710,6 +1995,9 @@ function showNextQuestion() {
     }
 
     area.innerHTML = html;
+    area.classList.remove('question-area-animated');
+    void area.offsetWidth; // trigger reflow
+    area.classList.add('question-area-animated');
     renderScoreboard();
 
     // Show admin answer hint in sidebar
@@ -1822,6 +2110,14 @@ function answerQuestion(idx) {
         var bonus = matchState.timeLeft > tournament.timePerQuestion * 0.6 ? 2 : 1;
         if (matchState.turn === 'a') matchState.scoreA += bonus;
         else matchState.scoreB += bonus;
+        // Animate score bump
+        var scoreId = matchState.turn === 'a' ? 'scoreA' : 'scoreB';
+        var scoreEl = document.getElementById(scoreId);
+        if (scoreEl) {
+            scoreEl.textContent = matchState.turn === 'a' ? matchState.scoreA : matchState.scoreB;
+            scoreEl.classList.add('score-bump');
+            setTimeout(function() { scoreEl.classList.remove('score-bump'); }, 500);
+        }
     }
 
     showFeedback(correct);
@@ -1926,12 +2222,18 @@ function showWinnerCelebration(match) {
     overlay.id = 'winnerOverlay';
 
     var isFinal = match.round === tournament.rounds;
-    var title = isFinal ? '🏆 بطل البطولة! 🏆' : '🎉 فاز بالماتش!';
+    var title = isFinal ? 'بطل البطولة!' : 'فاز بالماتش!';
 
-    overlay.innerHTML = '<div class="winner-trophy">' + (isFinal ? '🏆' : '⭐') + '</div>' +
+    var winnerMembers = match.winner.members && match.winner.members.length > 0 ?
+        '<div style="color:var(--muted);font-size:14px;margin-top:4px">' + match.winner.members.join(' · ') + '</div>' : '';
+
+    overlay.innerHTML =
+        '<img src="images/tournament-logo.png" style="width:' + (isFinal ? '100px' : '60px') + ';filter:drop-shadow(0 0 30px rgba(255,215,0,0.6));animation:setupLogoFloat 2s ease-in-out infinite;margin-bottom:8px">' +
+        '<div class="winner-trophy">' + (isFinal ? '🏆' : '⭐') + '</div>' +
         '<div class="winner-text">' + title + '</div>' +
         '<img class="winner-team-img" src="' + match.winner.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">' +
         '<div class="winner-team-name">' + match.winner.name + '</div>' +
+        winnerMembers +
         '<div class="winner-score">' + match.scoreA + ' - ' + match.scoreB + '</div>' +
         '<button class="admin-btn primary" onclick="closeWinnerAndShowBracket()" style="width:auto;padding:16px 40px;font-size:18px">' +
         '<i class="fas fa-sitemap"></i> ' + (isFinal ? 'عرض النتيجة' : 'الماتش التالي') + '</button>';

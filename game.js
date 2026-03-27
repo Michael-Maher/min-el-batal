@@ -7845,7 +7845,7 @@ function renderCompeteHub() {
     html += '<div class="compete-tournament-card" onclick="window.open(\'tournament.html\', \'_blank\')">';
     html += '<div class="compete-tournament-bg"></div>';
     html += '<div class="compete-tournament-content">';
-    html += '<div class="compete-tournament-icon">🏆</div>';
+    html += '<img src="images/tournament-logo.png" alt="كأس مين البطل" class="compete-tournament-logo">';
     html += '<h3>كأس مين البطل</h3>';
     html += '<p>بطولة خروج بين الفرق — زي كأس العالم!</p>';
     html += '<div class="compete-tournament-badge"><i class="fas fa-tv"></i> يُعرض على البروجكتور</div>';

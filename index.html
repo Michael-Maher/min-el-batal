@@ -163,6 +163,7 @@
                     <div class="hub-player-info" onclick="showProfileEdit()">
                         <h3 id="hub-player-name"></h3>
                         <p class="hub-rank" id="hub-rank"></p>
+                        <div class="hub-team-badge" id="hub-team-badge" onclick="event.stopPropagation(); showScreen('teams-screen')"></div>
                         <span class="edit-name-hint"><i class="fas fa-pen"></i></span>
                     </div>
                     <div class="hub-stats">
@@ -1158,7 +1159,6 @@
                 <button class="lb-tab-modern" onclick="switchLBTab('streak')" data-tab="streak"><i class="fas fa-fire"></i> السلسلة</button>
                 <button class="lb-tab-modern" onclick="switchLBTab('gems')" data-tab="gems"><i class="fas fa-gem"></i> الجواهر</button>
                 <button class="lb-tab-modern" onclick="switchLBTab('levels')" data-tab="levels"><i class="fas fa-layer-group"></i> المستويات</button>
-                <button class="lb-tab-modern" onclick="switchLBTab('xp')" data-tab="xp"><i class="fas fa-bolt"></i> XP</button>
                 <button class="lb-tab-modern" onclick="switchLBTab('teams')" data-tab="teams"><i class="fas fa-users"></i> الفرق</button>
                 <div class="lb-tab-indicator"></div>
             </div>
@@ -1190,13 +1190,22 @@
             </div>
             <div id="rewards-shop-body"></div>
 
-            <!-- Team Section -->
-            <div class="team-section-wrap">
-                <h3 class="rewards-section-title"><i class="fas fa-users"></i> فريقك</h3>
-                <div id="team-section-body"></div>
+            <div style="margin-top:16px">
+                <button class="btn btn-secondary" style="width:100%" onclick="showScreen('teams-screen')"><span><i class="fas fa-users"></i> فريقي والفرق المتاحة</span></button>
             </div>
 
             <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
+        </div>
+    </div>
+
+    <!-- ============ TEAMS SCREEN ============ -->
+    <div id="teams-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-users"></i> الفرق</h2>
+            </div>
+            <div id="teams-screen-body"></div>
         </div>
     </div>
 

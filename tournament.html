@@ -27,19 +27,36 @@
 body {
     font-family: 'Cairo', sans-serif;
     background: var(--bg);
+    background-image: url('images/tourment-bg-opt.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
     color: var(--text);
     overflow: hidden;
     height: 100vh;
     width: 100vw;
 }
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: rgba(10, 14, 39, 0.75);
+    z-index: 0;
+    pointer-events: none;
+}
 
 /* ============ ADMIN SIDEBAR ============ */
+.admin-sidebar, .main-content, #adminSidebar, #matchArea, #setupScreen, .bracket-view, .welcome-area {
+    position: relative;
+    z-index: 1;
+}
 .admin-sidebar {
     position: fixed;
     top: 0; right: 0;
     width: 380px;
     height: 100vh;
-    background: var(--bg2);
+    background: rgba(20, 25, 55, 0.95);
+    backdrop-filter: blur(10px);
     border-left: 1px solid var(--border);
     z-index: 1000;
     transform: translateX(100%);

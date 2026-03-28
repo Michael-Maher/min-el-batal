@@ -66,7 +66,11 @@ const GameState = {
     bibleChapter: 1,        // Current chapter in Mark (1-16)
     highlightedVerses: {},   // { 'mark_1': [0, 5, 12], ... }
     lessonSummaries: {},      // { 'faith_0': { text: '...', image: '...', date: '...' } }
-    watchedVideos: {}         // { 'faith_lesson_0_video': true, ... }
+    watchedVideos: {},        // { 'faith_lesson_0_video': true, ... }
+    xp: 0,
+    team: '',
+    redeemedRewards: [],
+    dailyLoginDate: ''        // last daily login XP date 'YYYY-MM-DD'
 };
 
 // --- Firebase Initialization ---
@@ -544,6 +548,10 @@ function saveToCloud() {
         highlightedVerses: GameState.highlightedVerses || {},
         lessonSummaries: GameState.lessonSummaries || {},
         watchedVideos: GameState.watchedVideos || {},
+        xp: GameState.xp || 0,
+        team: GameState.team || '',
+        redeemedRewards: GameState.redeemedRewards || [],
+        dailyLoginDate: GameState.dailyLoginDate || '',
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -612,6 +620,8 @@ function syncLeaderboard() {
         bestStreak: GameState.bestStreak,
         perfectLevels: GameState.perfectLevels,
         gamesPlayed: GameState.gamesPlayed,
+        xp: GameState.xp || 0,
+        team: GameState.team || '',
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     return docRef.set(entry, { merge: true })
@@ -1626,7 +1636,7 @@ function showScreen(id) {
         if (inner) inner.scrollTop = 0;
     }
     window.scrollTo(0, 0);
-    var fabScreens = ['map-screen','category-screen','shop-screen','leaderboard-screen','settings-screen','lamp-screen'];
+    var fabScreens = ['map-screen','category-screen','shop-screen','leaderboard-screen','settings-screen','lamp-screen','rewards-shop-screen'];
     var fab = document.getElementById('fab-container');
     if (fab) fab.style.display = fabScreens.indexOf(id) >= 0 ? 'flex' : 'none';
     // Hide lamp fixed element when leaving lamp screen
@@ -1646,6 +1656,7 @@ function showScreen(id) {
     if (id === 'devotion-screen') renderDevotion();
     if (id === 'exercises-screen') renderExercises();
     if (id === 'compete-screen') renderCompeteHub();
+    if (id === 'rewards-shop-screen') { renderRewardsShop(); renderTeamSection(); }
 }
 
 function createParticles() {
@@ -3077,6 +3088,7 @@ function submitMission() {
     GameState.stars += mission.starsReward;
     GameState.gems += mission.reward;
     GameState.missionsCompleted++;
+    awardXP(40, 'complete mission');
 
     // Advance level
     if (num >= GameState.currentLevel && num < LEVELS.length) {
@@ -3769,6 +3781,7 @@ function renderLeaderboard() {
         '<div class="lb-my-stat"><span class="lb-my-stat-value">'+GameState.stars+'</span><span class="lb-my-stat-label">نجوم ⭐</span></div>' +
         '<div class="lb-my-stat"><span class="lb-my-stat-value">'+GameState.bestStreak+'</span><span class="lb-my-stat-label">سلسلة 🔥</span></div>' +
         '<div class="lb-my-stat"><span class="lb-my-stat-value">'+GameState.gems+'</span><span class="lb-my-stat-label">جواهر 💎</span></div>' +
+        '<div class="lb-my-stat"><span class="lb-my-stat-value">Lv.'+ getXpLevel() +'</span><span class="lb-my-stat-label">XP 🏆</span></div>' +
         '</div>';
 
     // Achievements grid
@@ -3825,12 +3838,14 @@ function renderLeaderboardList() {
             streak: p.bestStreak || p.streak || 0,
             gems: p.gems || 0,
             level: p.currentLevel || p.level || 1,
-            character: p.character || 'david'
+            character: p.character || 'david',
+            xp: p.xp || 0,
+            team: p.team || ''
         };
     });
     var meExists = allPlayers.find(function(p) { return p.phone === GameState.playerPhone; });
     if (!meExists && GameState.playerName) {
-        allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel, character: GameState.character });
+        allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel, character: GameState.character, xp: GameState.xp || 0, team: GameState.team || '' });
     }
     // Update current player data in list
     allPlayers.forEach(function(p) {
@@ -3841,10 +3856,12 @@ function renderLeaderboardList() {
             p.gems = GameState.gems;
             p.level = GameState.currentLevel;
             p.character = GameState.character;
+            p.xp = GameState.xp || 0;
+            p.team = GameState.team || '';
         }
     });
 
-    var sortKey = currentLBTab === 'stars' ? 'stars' : currentLBTab === 'streak' ? 'streak' : currentLBTab === 'gems' ? 'gems' : 'level';
+    var sortKey = currentLBTab === 'stars' ? 'stars' : currentLBTab === 'streak' ? 'streak' : currentLBTab === 'gems' ? 'gems' : currentLBTab === 'xp' ? 'xp' : 'level';
     allPlayers.sort(function(a, b) { return (b[sortKey] || 0) - (a[sortKey] || 0); });
 
     // Top 3 Podium
@@ -3887,7 +3904,11 @@ function renderLeaderboardList() {
 function switchLBTab(tab) {
     currentLBTab = tab;
     updateLBTabIndicator();
-    renderLeaderboardList();
+    if (tab === 'teams') {
+        renderTeamLeaderboard();
+    } else {
+        renderLeaderboardList();
+    }
 }
 
 // --- Profile Edit ---
@@ -4045,6 +4066,10 @@ function logout() {
     GameState.paulJourneyStation = 1;
     GameState.paulJourneyData = {};
     GameState.lampData = { points: 0, streakDays: 0, lastActiveDate: '', dailyLog: {} };
+    GameState.xp = 0;
+    GameState.team = '';
+    GameState.redeemedRewards = [];
+    GameState.dailyLoginDate = '';
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
     // Reset login form fields
@@ -4056,6 +4081,426 @@ function logout() {
     showLoginView();
     showScreen('splash-screen');
     showToast('تم تسجيل الخروج');
+}
+
+// ============================================================
+// XP SYSTEM, REWARDS SHOP, TEAMS, ANTI-FARMING
+// ============================================================
+
+// --- XP Helper ---
+function getXpLevel() {
+    return Math.floor((GameState.xp || 0) / 200) + 1;
+}
+
+function awardXP(amount, reason) {
+    if (!amount || amount <= 0) return;
+    GameState.xp = (GameState.xp || 0) + amount;
+    console.log('XP awarded: +' + amount + ' (' + reason + ') Total: ' + GameState.xp);
+}
+
+// --- Daily Login XP ---
+function checkDailyLoginXP() {
+    var today = new Date().toISOString().split('T')[0];
+    if (GameState.dailyLoginDate !== today) {
+        GameState.dailyLoginDate = today;
+        awardXP(10, 'daily login');
+        saveToCloud();
+    }
+}
+
+// --- Anti-Farming: Diminishing Returns ---
+function getDiminishingFactor(attempts) {
+    if (!attempts || attempts <= 1) return 1.0;
+    if (attempts === 2) return 0.8;
+    if (attempts === 3) return 0.6;
+    return 0.4; // 4+
+}
+
+function canAttemptQuiz(subKey, lessonIdx) {
+    var data = GameState.level2Data && GameState.level2Data[subKey] &&
+        GameState.level2Data[subKey]['lesson_' + lessonIdx];
+    if (!data || !data.lastAttemptTime) return true;
+    var elapsed = Date.now() - data.lastAttemptTime;
+    var cooldownMs = 5 * 60 * 1000; // 5 minutes
+    return elapsed >= cooldownMs;
+}
+
+function getCooldownRemaining(subKey, lessonIdx) {
+    var data = GameState.level2Data && GameState.level2Data[subKey] &&
+        GameState.level2Data[subKey]['lesson_' + lessonIdx];
+    if (!data || !data.lastAttemptTime) return 0;
+    var elapsed = Date.now() - data.lastAttemptTime;
+    var cooldownMs = 5 * 60 * 1000;
+    return Math.max(0, cooldownMs - elapsed);
+}
+
+// --- First-Time Bonus ---
+function checkFirstTimePerfect(subKey, lessonIdx, percentage) {
+    if (!GameState.level2Data) GameState.level2Data = {};
+    if (!GameState.level2Data[subKey]) GameState.level2Data[subKey] = {};
+    var data = GameState.level2Data[subKey]['lesson_' + lessonIdx] || {};
+    // Only on FIRST attempt and score >= 90%
+    if ((!data.attempts || data.attempts === 0) && percentage >= 90) {
+        // Mark it
+        if (!GameState.level2Data[subKey]['lesson_' + lessonIdx]) {
+            GameState.level2Data[subKey]['lesson_' + lessonIdx] = {};
+        }
+        GameState.level2Data[subKey]['lesson_' + lessonIdx].firstAttemptPerfect = true;
+        // Award bonuses
+        GameState.gems = (GameState.gems || 0) + 20;
+        GameState.stars = (GameState.stars || 0) + 10;
+        awardXP(100, 'first attempt perfect');
+        // Show achievement
+        setTimeout(function() {
+            showAchievement('🏅', 'أول مرة بطل!', 'نتيجة ممتازة من أول مرة! +20 جواهر +10 نجوم');
+        }, 1000);
+        return true;
+    }
+    return false;
+}
+
+// --- Rewards Catalog ---
+var REWARDS_CATALOG = [
+    { id: 'meal_mcdonalds', name: 'وجبة ماكدونالدز 🍔', desc: 'وجبة من ماكدونالدز', cost: { stars: 3000, gems: 50 }, icon: '🍔', category: 'instant' },
+    { id: 'airpods', name: 'AirPods 🎧', desc: 'سماعات AirPods', cost: { stars: 5000, gems: 100 }, icon: '🎧', category: 'premium' },
+    { id: 'trip_discount', name: 'خصم رحلة الكنيسة ✈️', desc: 'خصم على رحلة المؤتمر', cost: { stars: 10000, gems: 200 }, icon: '✈️', category: 'premium' },
+    { id: 'watch', name: 'ساعة ذكية ⌚', desc: 'ساعة ذكية', cost: { stars: 8000, gems: 150 }, icon: '⌚', category: 'premium' },
+    { id: 'wallet', name: 'محفظة جلد 👛', desc: 'محفظة جلد طبيعي', cost: { stars: 4000, gems: 80 }, icon: '👛', category: 'instant' },
+    { id: 'money_50', name: '50 جنيه 💵', desc: 'مبلغ نقدي 50 جنيه', cost: { stars: 2000, gems: 40 }, icon: '💵', category: 'instant' },
+    { id: 'money_100', name: '100 جنيه 💵', desc: 'مبلغ نقدي 100 جنيه', cost: { stars: 4000, gems: 80 }, icon: '💵', category: 'instant' },
+    { id: 'cross_necklace', name: 'صليب فضة ✝️', desc: 'صليب فضة حقيقي', cost: { stars: 6000, gems: 120 }, icon: '✝️', category: 'premium' },
+    { id: 'bible_cover', name: 'غلاف كتاب مقدس 📖', desc: 'غلاف جلد للكتاب المقدس', cost: { stars: 3000, gems: 60 }, icon: '📖', category: 'instant' },
+    { id: 'surprise_box', name: 'صندوق مفاجآت 🎁', desc: 'هدية مفاجأة!', cost: { stars: 1500, gems: 30 }, icon: '🎁', category: 'instant' }
+];
+
+// --- Rewards Shop Rendering ---
+function renderRewardsShop() {
+    var container = document.getElementById('rewards-shop-body');
+    if (!container) return;
+
+    var html = '';
+    // Balance bar
+    html += '<div class="rewards-balance">';
+    html += '<div class="rewards-balance-item"><span class="stat-icon">⭐</span><span>' + (GameState.stars || 0) + '</span><span class="rewards-balance-label">نجوم</span></div>';
+    html += '<div class="rewards-balance-item"><span class="stat-icon">💎</span><span>' + (GameState.gems || 0) + '</span><span class="rewards-balance-label">جواهر</span></div>';
+    html += '<div class="rewards-balance-item"><span class="stat-icon">🏆</span><span>Lv.' + getXpLevel() + '</span><span class="rewards-balance-label">المستوى</span></div>';
+    html += '</div>';
+
+    // Instant rewards
+    html += '<h3 class="rewards-section-title"><i class="fas fa-gift"></i> هدايا فورية</h3>';
+    html += '<div class="rewards-grid">';
+    REWARDS_CATALOG.filter(function(r) { return r.category === 'instant'; }).forEach(function(reward) {
+        html += renderRewardCard(reward);
+    });
+    html += '</div>';
+
+    // Premium rewards
+    html += '<h3 class="rewards-section-title"><i class="fas fa-crown"></i> هدايا مميزة</h3>';
+    html += '<div class="rewards-grid">';
+    REWARDS_CATALOG.filter(function(r) { return r.category === 'premium'; }).forEach(function(reward) {
+        html += renderRewardCard(reward);
+    });
+    html += '</div>';
+
+    // Redeemed history
+    if (GameState.redeemedRewards && GameState.redeemedRewards.length > 0) {
+        html += '<h3 class="rewards-section-title"><i class="fas fa-history"></i> طلباتك السابقة</h3>';
+        html += '<div class="rewards-history">';
+        GameState.redeemedRewards.slice().reverse().forEach(function(r) {
+            var item = REWARDS_CATALOG.find(function(c) { return c.id === r.id; });
+            html += '<div class="reward-history-item">';
+            html += '<span class="reward-history-icon">' + (item ? item.icon : '🎁') + '</span>';
+            html += '<div class="reward-history-info"><span>' + (item ? item.name : r.id) + '</span><small>' + (r.date || '') + '</small></div>';
+            html += '<span class="reward-history-status">' + (r.fulfilled ? '✅' : '⏳') + '</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+    }
+
+    container.innerHTML = html;
+}
+
+function renderRewardCard(reward) {
+    var canAfford = (GameState.stars || 0) >= reward.cost.stars && (GameState.gems || 0) >= reward.cost.gems;
+    var html = '<div class="reward-card ' + (canAfford ? '' : 'reward-locked') + '">';
+    html += '<div class="reward-icon">' + reward.icon + '</div>';
+    html += '<h4 class="reward-name">' + reward.name + '</h4>';
+    html += '<p class="reward-desc">' + reward.desc + '</p>';
+    html += '<div class="reward-cost">';
+    html += '<span>⭐ ' + reward.cost.stars + '</span>';
+    html += '<span>💎 ' + reward.cost.gems + '</span>';
+    html += '</div>';
+    html += '<button class="btn ' + (canAfford ? 'btn-primary' : 'btn-secondary') + ' btn-sm reward-btn" ' +
+        (canAfford ? 'onclick="redeemReward(\'' + reward.id + '\')"' : 'disabled') + '>' +
+        '<span>' + (canAfford ? '<i class="fas fa-gift"></i> اطلب' : '<i class="fas fa-lock"></i> مش كفاية') + '</span></button>';
+    html += '</div>';
+    return html;
+}
+
+function redeemReward(rewardId) {
+    var reward = REWARDS_CATALOG.find(function(r) { return r.id === rewardId; });
+    if (!reward) return;
+    if ((GameState.stars || 0) < reward.cost.stars || (GameState.gems || 0) < reward.cost.gems) {
+        showToast('مش معاك نجوم أو جواهر كفاية!', 'error');
+        return;
+    }
+
+    // Deduct
+    GameState.stars -= reward.cost.stars;
+    GameState.gems -= reward.cost.gems;
+
+    // Record redemption
+    if (!GameState.redeemedRewards) GameState.redeemedRewards = [];
+    var redemption = {
+        id: reward.id,
+        date: new Date().toISOString().split('T')[0],
+        fulfilled: false
+    };
+    GameState.redeemedRewards.push(redemption);
+
+    // Save to Firestore reward_requests collection
+    if (firebaseDb && GameState.playerPhone) {
+        firebaseDb.collection('reward_requests').add({
+            playerPhone: GameState.playerPhone,
+            playerName: GameState.playerName,
+            rewardId: reward.id,
+            rewardName: reward.name,
+            cost: reward.cost,
+            date: new Date().toISOString(),
+            fulfilled: false
+        }).catch(function(e) { console.error('Reward request save error:', e); });
+    }
+
+    saveToCloud();
+    syncLeaderboard();
+    showToast('تم طلب ' + reward.name + ' بنجاح! 🎉', 'success');
+    showAchievement('🎁', 'طلبت هدية!', reward.name);
+    renderRewardsShop();
+}
+
+// --- Team System ---
+function renderTeamSection() {
+    var container = document.getElementById('team-section-body');
+    if (!container) return;
+
+    var html = '';
+    if (GameState.team) {
+        html += '<div class="team-current">';
+        html += '<div class="team-badge"><i class="fas fa-users"></i></div>';
+        html += '<h4>فريقك: ' + GameState.team + '</h4>';
+        html += '<button class="btn btn-danger btn-sm" onclick="leaveTeam()"><span><i class="fas fa-sign-out-alt"></i> اترك الفريق</span></button>';
+        html += '</div>';
+    } else {
+        html += '<div class="team-join-section">';
+        html += '<h4><i class="fas fa-users"></i> انضم لفريق أو أنشئ واحد</h4>';
+        html += '<div class="team-input-row">';
+        html += '<input type="text" id="team-name-input" class="input-field" placeholder="اسم الفريق" maxlength="20">';
+        html += '</div>';
+        html += '<div class="team-btn-row">';
+        html += '<button class="btn btn-primary btn-sm" onclick="joinTeam()"><span><i class="fas fa-sign-in-alt"></i> انضم</span></button>';
+        html += '<button class="btn btn-secondary btn-sm" onclick="createTeam()"><span><i class="fas fa-plus"></i> أنشئ</span></button>';
+        html += '</div>';
+        html += '</div>';
+    }
+    container.innerHTML = html;
+}
+
+function joinTeam() {
+    var input = document.getElementById('team-name-input');
+    var teamName = input ? input.value.trim() : '';
+    if (!teamName || teamName.length < 2) {
+        showToast('اكتب اسم الفريق (حرفين على الأقل)', 'error');
+        return;
+    }
+
+    if (!firebaseDb) {
+        showToast('مفيش اتصال بالسيرفر', 'error');
+        return;
+    }
+
+    // Check if team exists and has room
+    firebaseDb.collection('teams').doc(teamName).get().then(function(doc) {
+        if (!doc.exists) {
+            showToast('الفريق ده مش موجود - ممكن تنشئه!', 'error');
+            return;
+        }
+        var teamData = doc.data();
+        var members = teamData.members || [];
+        if (members.length >= 6) {
+            showToast('الفريق ده ممتلئ (أقصى عدد 6)', 'error');
+            return;
+        }
+        if (members.indexOf(GameState.playerPhone) >= 0) {
+            showToast('أنت موجود في الفريق ده بالفعل!', 'error');
+            return;
+        }
+        members.push(GameState.playerPhone);
+        return firebaseDb.collection('teams').doc(teamName).update({
+            members: members,
+            memberNames: firebase.firestore.FieldValue.arrayUnion(GameState.playerName)
+        }).then(function() {
+            GameState.team = teamName;
+            saveToCloud();
+            syncLeaderboard();
+            showToast('انضممت لفريق ' + teamName + '! 🎉', 'success');
+            renderTeamSection();
+        });
+    }).catch(function(e) {
+        console.error('Join team error:', e);
+        showToast('حصل مشكلة، حاول تاني', 'error');
+    });
+}
+
+function createTeam() {
+    var input = document.getElementById('team-name-input');
+    var teamName = input ? input.value.trim() : '';
+    if (!teamName || teamName.length < 2) {
+        showToast('اكتب اسم الفريق (حرفين على الأقل)', 'error');
+        return;
+    }
+
+    if (!firebaseDb) {
+        showToast('مفيش اتصال بالسيرفر', 'error');
+        return;
+    }
+
+    firebaseDb.collection('teams').doc(teamName).get().then(function(doc) {
+        if (doc.exists) {
+            showToast('الاسم ده موجود بالفعل - اختار اسم تاني', 'error');
+            return;
+        }
+        return firebaseDb.collection('teams').doc(teamName).set({
+            name: teamName,
+            members: [GameState.playerPhone],
+            memberNames: [GameState.playerName],
+            createdBy: GameState.playerPhone,
+            createdAt: new Date().toISOString()
+        }).then(function() {
+            GameState.team = teamName;
+            saveToCloud();
+            syncLeaderboard();
+            showToast('تم إنشاء فريق ' + teamName + '! 🎉', 'success');
+            renderTeamSection();
+        });
+    }).catch(function(e) {
+        console.error('Create team error:', e);
+        showToast('حصل مشكلة، حاول تاني', 'error');
+    });
+}
+
+function leaveTeam() {
+    if (!GameState.team) return;
+    var teamName = GameState.team;
+
+    if (firebaseDb) {
+        firebaseDb.collection('teams').doc(teamName).get().then(function(doc) {
+            if (doc.exists) {
+                var teamData = doc.data();
+                var members = (teamData.members || []).filter(function(m) { return m !== GameState.playerPhone; });
+                var memberNames = (teamData.memberNames || []).filter(function(n) { return n !== GameState.playerName; });
+                if (members.length === 0) {
+                    // Delete team if empty
+                    return firebaseDb.collection('teams').doc(teamName).delete();
+                } else {
+                    return firebaseDb.collection('teams').doc(teamName).update({
+                        members: members,
+                        memberNames: memberNames
+                    });
+                }
+            }
+        }).catch(function(e) { console.error('Leave team error:', e); });
+    }
+
+    GameState.team = '';
+    saveToCloud();
+    syncLeaderboard();
+    showToast('تركت الفريق', 'success');
+    renderTeamSection();
+}
+
+// --- Team Leaderboard ---
+function loadTeamLeaderboard() {
+    if (!firebaseDb) return Promise.resolve([]);
+    return firebaseDb.collection('teams').get().then(function(snapshot) {
+        var teams = [];
+        var promises = [];
+        snapshot.forEach(function(doc) {
+            var teamData = doc.data();
+            teams.push({
+                name: teamData.name || doc.id,
+                members: teamData.members || [],
+                memberNames: teamData.memberNames || [],
+                totalStars: 0,
+                totalGems: 0,
+                totalXp: 0
+            });
+        });
+        // For each team, sum up member stats from leaderboard collection
+        teams.forEach(function(team) {
+            team.members.forEach(function(phone) {
+                var match = leaderboardData.find(function(p) { return (p.playerPhone || p.phone) === phone; });
+                if (match) {
+                    team.totalStars += (match.stars || 0);
+                    team.totalGems += (match.gems || 0);
+                    team.totalXp += (match.xp || 0);
+                }
+            });
+        });
+        teams.sort(function(a, b) { return b.totalStars - a.totalStars; });
+        return teams;
+    }).catch(function(e) {
+        console.error('Team leaderboard error:', e);
+        return [];
+    });
+}
+
+function renderTeamLeaderboard() {
+    var list = document.getElementById('leaderboard-list');
+    var podium = document.getElementById('lb-podium');
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+    podium.innerHTML = '';
+
+    loadTeamLeaderboard().then(function(teams) {
+        list.innerHTML = '';
+        podium.innerHTML = '';
+
+        if (teams.length === 0) {
+            podium.innerHTML = '<p style="text-align:center;padding:40px;color:var(--text-muted);width:100%">مفيش فرق لسه - كون أول فريق!</p>';
+            return;
+        }
+
+        // Top 3 podium
+        var podiumClasses = ['gold', 'silver', 'bronze'];
+        var podiumOrder = [1, 0, 2];
+        podiumOrder.forEach(function(idx) {
+            var t = teams[idx];
+            if (!t) return;
+            var isMyTeam = t.name === GameState.team;
+            var item = document.createElement('div');
+            item.className = 'lb-podium-item ' + podiumClasses[idx];
+            var crown = idx === 0 ? '<div class="lb-podium-crown">👑</div>' : '';
+            var medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+            item.innerHTML = crown +
+                '<div class="lb-podium-rank">' + medal + '</div>' +
+                '<div class="lb-podium-avatar" style="font-size:32px">👥</div>' +
+                '<div class="lb-podium-name">' + t.name + (isMyTeam ? ' (فريقك)' : '') + '</div>' +
+                '<div class="lb-podium-score">⭐ ' + t.totalStars + '</div>' +
+                '<div style="font-size:11px;color:var(--text-muted)">' + t.members.length + ' أعضاء</div>';
+            podium.appendChild(item);
+        });
+
+        // 4th+ as list
+        teams.slice(3).forEach(function(t, i) {
+            var el = document.createElement('div');
+            var isMyTeam = t.name === GameState.team;
+            el.className = 'lb-item-modern' + (isMyTeam ? ' me' : '');
+            el.style.animationDelay = (i * 0.05) + 's';
+            el.innerHTML = '<span class="lb-rank-num">' + (i + 4) + '</span>' +
+                '<span class="lb-name">👥 ' + t.name + (isMyTeam ? ' (فريقك)' : '') + ' <small>(' + t.members.length + ')</small></span>' +
+                '<span class="lb-score">⭐ ' + t.totalStars + '</span>';
+            list.appendChild(el);
+        });
+    });
 }
 
 // --- Init ---
@@ -5267,7 +5712,24 @@ function renderHomeHub() {
     var gemsEl = document.getElementById('hub-gems');
     if (gemsEl) gemsEl.textContent = GameState.gems;
 
-    // XP bar
+    // XP stat in hub header
+    var xpStatEl = document.getElementById('hub-xp-stat');
+    if (!xpStatEl) {
+        var hubStats = document.querySelector('.hub-stats');
+        if (hubStats) {
+            var xpDiv = document.createElement('div');
+            xpDiv.className = 'stat';
+            xpDiv.innerHTML = '<span class="stat-icon">🏆</span><span id="hub-xp-stat">0</span>';
+            hubStats.appendChild(xpDiv);
+            xpStatEl = document.getElementById('hub-xp-stat');
+        }
+    }
+    if (xpStatEl) xpStatEl.textContent = 'Lv.' + getXpLevel();
+
+    // Check daily login XP
+    checkDailyLoginXP();
+
+    // XP bar (shows XP progress within current level)
     var xpWrap = document.getElementById('hub-xp-bar-wrap');
     if (!xpWrap) {
         xpWrap = document.createElement('div');
@@ -5279,17 +5741,14 @@ function renderHomeHub() {
         }
     }
     if (xpWrap) {
-        var currentRankIdx = 0;
-        for (var ri = 0; ri < RANKS.length; ri++) {
-            if (GameState.stars >= RANKS[ri].min) currentRankIdx = ri;
-        }
-        var nextRank = RANKS[Math.min(currentRankIdx + 1, RANKS.length - 1)];
-        var currentMin = RANKS[currentRankIdx].min;
-        var nextMin = nextRank.min;
-        var xpPct = nextMin > currentMin ? Math.min(((GameState.stars - currentMin) / (nextMin - currentMin)) * 100, 100) : 100;
+        var totalXp = GameState.xp || 0;
+        var currentXpLevel = getXpLevel();
+        var xpInLevel = totalXp - ((currentXpLevel - 1) * 200);
+        var xpPct = Math.min((xpInLevel / 200) * 100, 100);
+        var nextLevelXp = currentXpLevel * 200;
         xpWrap.innerHTML = '<div class="hub-xp-bar"><div class="hub-xp-fill" style="width:' + xpPct + '%"></div></div>' +
-            '<div class="hub-xp-info"><span class="hub-xp-text">' + GameState.stars + ' / ' + nextMin + ' نجمة</span>' +
-            '<span class="hub-xp-level"><i class="fas fa-arrow-up"></i> ' + nextRank.title + '</span></div>';
+            '<div class="hub-xp-info"><span class="hub-xp-text">XP ' + totalXp + ' / ' + nextLevelXp + '</span>' +
+            '<span class="hub-xp-level"><i class="fas fa-arrow-up"></i> المستوى ' + currentXpLevel + '</span></div>';
     }
 
     // Daily streak
@@ -7461,12 +7920,13 @@ function submitLessonSummary() {
     };
 
     GameState.stars += 5;
+    awardXP(30, 'submit summary');
     window._lessonSummaryImage = null;
     window._lessonSummaryAudio = null;
 
     saveToCloud();
     saveToLocalStorage();
-    showToast('تم حفظ التلخيص! ⭐ +5 نجوم', 'success');
+    showToast('تم حفظ التلخيص! ⭐ +5 نجوم + 30 XP', 'success');
 
     // Re-render learn stage
     level2State.currentStage = 'learn';
@@ -7479,14 +7939,25 @@ function markVideoWatched(videoKey) {
     if (!GameState.watchedVideos) GameState.watchedVideos = {};
     GameState.watchedVideos[videoKey] = true;
     GameState.stars += 10;
+    awardXP(20, 'watch video');
     saveToCloud();
-    showAchievement('🎬', 'شاهدت الوعظة!', 'كسبت 10 نجوم إضافية ⭐');
+    showAchievement('🎬', 'شاهدت الوعظة!', 'كسبت 10 نجوم + 20 XP ⭐');
     // Re-render to show watched badge
     setTimeout(function() { renderLevel2Lesson(); }, 2000);
 }
 
 // --- Start Quiz ---
 function startLevel2Quiz() {
+    // Anti-farming cooldown check
+    var _subKey = level2State.currentSubject;
+    var _lessonIdx = level2State.currentLesson;
+    if (!canAttemptQuiz(_subKey, _lessonIdx)) {
+        var remaining = getCooldownRemaining(_subKey, _lessonIdx);
+        var mins = Math.ceil(remaining / 60000);
+        showToast('استنى ' + mins + ' دقيقة قبل ما تحاول تاني ⏳', 'warning');
+        return;
+    }
+
     level2State.currentStage = 'quiz';
     level2State.quizIndex = 0;
     level2State.quizScore = 0;
@@ -7817,11 +8288,12 @@ function renderLevel2Result(container, lesson, subject) {
     var MAX_STATION_STARS = 30;
     var stars = Math.round(percentage / 100 * MAX_STATION_STARS);
 
-    // Save progress (keep best score)
+    // Save progress (keep best score) with anti-farming
     if (!GameState.level2Data) GameState.level2Data = {};
     if (!GameState.level2Data[level2State.currentSubject]) GameState.level2Data[level2State.currentSubject] = {};
     var existingData = GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] || {};
     var existingStars = existingData.stars || 0;
+    var currentAttempts = existingData.attempts || 0;
 
     if (level2State.examMode) {
         // Subject-level exam
@@ -7831,6 +8303,8 @@ function renderLevel2Result(container, lesson, subject) {
                     stars: stars, score: score, total: total, date: new Date().toISOString()
                 };
                 GameState.stars += stars;
+                awardXP(50, 'exam complete');
+                if (percentage >= 90) awardXP(100, 'exam perfect');
                 saveToCloud();
                 syncLeaderboard();
             }
@@ -7841,22 +8315,52 @@ function renderLevel2Result(container, lesson, subject) {
                     stars: stars, score: score, total: total, date: new Date().toISOString()
                 };
                 GameState.stars += stars;
+                awardXP(50, 'exam complete');
+                if (percentage >= 90) awardXP(100, 'exam perfect');
                 saveToCloud();
                 syncLeaderboard();
             }
         }
     } else {
-        // Practice mode: keep best score, cap at 30
-        if (stars > existingStars) {
+        // Practice mode: anti-farming diminishing returns
+        var attemptNum = currentAttempts + 1;
+        var diminishingFactor = getDiminishingFactor(attemptNum);
+        var adjustedStars = Math.round(stars * diminishingFactor);
+
+        // Check first-time perfect bonus (before incrementing attempts)
+        checkFirstTimePerfect(level2State.currentSubject, level2State.currentLesson, percentage);
+
+        // Keep best score, but new score is multiplied by diminishing factor before comparing
+        if (adjustedStars > existingStars) {
             GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] = {
-                stars: stars, score: score, total: total
+                stars: adjustedStars, score: score, total: total,
+                attempts: attemptNum,
+                lastAttemptTime: Date.now(),
+                firstAttemptPerfect: existingData.firstAttemptPerfect || false
             };
-            var newStars = stars - existingStars;
+            var newStars = adjustedStars - existingStars;
             GameState.stars += newStars;
-            GameState.gems += Math.ceil(stars / 10);
-            saveToCloud();
-            syncLeaderboard();
+            GameState.gems += Math.ceil(adjustedStars / 10);
+        } else {
+            // Still track attempts and cooldown even if score didn't improve
+            var _existing = GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson];
+            if (!_existing) {
+                GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson] = { stars: 0 };
+                _existing = GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson];
+            }
+            _existing.attempts = attemptNum;
+            _existing.lastAttemptTime = Date.now();
         }
+
+        // XP for completing a station quiz
+        awardXP(50, 'station complete');
+        if (percentage >= 90 && attemptNum === 1) awardXP(100, 'first attempt perfect');
+
+        // Update stars variable for display (show adjusted)
+        stars = adjustedStars;
+
+        saveToCloud();
+        syncLeaderboard();
     }
 
     var starRatio = stars / MAX_STATION_STARS;
@@ -7911,6 +8415,19 @@ function renderLevel2Result(container, lesson, subject) {
         }
         if (level2State.maxCombo >= 3) {
             html += '<div class="bonus-badge">🔥 كومبو نار!</div>';
+        }
+        html += '<div class="bonus-badge">🏆 +50 XP</div>';
+        // Show diminishing returns info
+        var _attemptNum = currentAttempts + 1;
+        if (_attemptNum > 1) {
+            var _factor = getDiminishingFactor(_attemptNum);
+            html += '<div class="bonus-badge" style="color:var(--warning)">📉 المحاولة ' + _attemptNum + ' (' + Math.round(_factor * 100) + '% من النجوم)</div>';
+        }
+        // Show first-time perfect
+        var _lessonData = GameState.level2Data[level2State.currentSubject] &&
+            GameState.level2Data[level2State.currentSubject]['lesson_' + level2State.currentLesson];
+        if (_lessonData && _lessonData.firstAttemptPerfect) {
+            html += '<div class="bonus-badge" style="color:var(--success)">🏅 أول مرة بطل!</div>';
         }
         html += '</div>';
     }
@@ -8790,10 +9307,12 @@ function renderCompeteResults(room) {
         }
     }
 
-    // Award stars
+    // Award stars + XP
     if (myRank >= 0) {
         GameState.stars = (GameState.stars || 0) + reward;
         GameState.gems = (GameState.gems || 0) + Math.floor(reward / 4);
+        awardXP(50, 'competition participation');
+        if (myRank === 0) awardXP(60, 'competition win');
         saveToLocalStorage();
         if (typeof saveToCloud === 'function') saveToCloud();
     }

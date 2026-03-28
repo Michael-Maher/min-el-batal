@@ -7408,3 +7408,146 @@ body {
 [data-theme="light"] .mg-fb-option { background: #fff; border-color: rgba(0,0,0,0.1); }
 [data-theme="light"] .mg-mp-item { background: #fff; border-color: rgba(0,0,0,0.1); }
 [data-theme="light"] .mg-wai-clue { background: rgba(0,0,0,0.03); }
+
+/* ============ REWARDS SHOP ============ */
+.rewards-header { text-align: center; margin-bottom: 24px; }
+.rewards-header h2 { font-size: 24px; color: var(--gold); margin-bottom: 4px; }
+
+.rewards-balance {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 24px;
+}
+.rewards-balance-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-weight: 700;
+    font-size: 18px;
+}
+.rewards-balance-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.rewards-section-title {
+    font-size: 18px;
+    color: var(--text-primary);
+    margin: 24px 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.rewards-section-title i { color: var(--gold); }
+
+.rewards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.reward-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    text-align: center;
+    transition: var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+.reward-card:hover { border-color: var(--gold); transform: translateY(-2px); box-shadow: 0 4px 20px var(--glow-gold); }
+.reward-card.reward-locked { opacity: 0.5; }
+.reward-icon { font-size: 40px; margin-bottom: 4px; }
+.reward-name { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+.reward-desc { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+.reward-cost {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--gold);
+    margin: 4px 0;
+}
+.reward-btn { width: 100%; margin-top: auto; }
+
+/* Reward History */
+.rewards-history { display: flex; flex-direction: column; gap: 8px; }
+.reward-history-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+}
+.reward-history-icon { font-size: 24px; }
+.reward-history-info { flex: 1; }
+.reward-history-info span { font-size: 13px; font-weight: 700; display: block; }
+.reward-history-info small { font-size: 11px; color: var(--text-muted); }
+.reward-history-status { font-size: 18px; }
+
+/* ============ TEAM SECTION ============ */
+.team-section-wrap {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+}
+.team-current {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+.team-badge {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; color: white;
+}
+.team-current h4 { flex: 1; font-size: 16px; }
+
+.team-join-section {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    text-align: center;
+}
+.team-join-section h4 { margin-bottom: 14px; font-size: 16px; }
+.team-input-row { margin-bottom: 12px; }
+.team-input-row .input-field { text-align: center; }
+.team-btn-row { display: flex; gap: 10px; justify-content: center; }
+
+/* Light theme adjustments for rewards */
+[data-theme="light"] .reward-card { background: #fff; border-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .reward-card:hover { border-color: var(--gold); }
+[data-theme="light"] .team-current { background: #fff; border-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .team-join-section { background: #fff; border-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .rewards-balance { background: #fff; border-color: rgba(0,0,0,0.08); }
+[data-theme="light"] .reward-history-item { background: #fff; border-color: rgba(0,0,0,0.08); }
+
+/* Mobile responsive for rewards grid */
+@media (max-width: 400px) {
+    .rewards-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .reward-card { padding: 12px 8px; }
+    .reward-icon { font-size: 32px; }
+    .reward-name { font-size: 12px; }
+    .rewards-balance { gap: 12px; padding: 12px; }
+    .rewards-balance-item { font-size: 15px; }
+}

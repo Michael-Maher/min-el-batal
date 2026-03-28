@@ -249,6 +249,7 @@
             <div class="hub-footer-btns">
                 <button class="fab" onclick="showScreen('leaderboard-screen')" title="لوحة الأبطال"><i class="fas fa-trophy"></i></button>
                 <button class="fab" onclick="showScreen('shop-screen')" title="متجر السلاح"><i class="fas fa-shield-halved"></i></button>
+                <button class="fab" onclick="showScreen('rewards-shop-screen')" title="متجر الهدايا"><i class="fas fa-gift"></i></button>
                 <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
             </div>
         </div>
@@ -1157,6 +1158,8 @@
                 <button class="lb-tab-modern" onclick="switchLBTab('streak')" data-tab="streak"><i class="fas fa-fire"></i> السلسلة</button>
                 <button class="lb-tab-modern" onclick="switchLBTab('gems')" data-tab="gems"><i class="fas fa-gem"></i> الجواهر</button>
                 <button class="lb-tab-modern" onclick="switchLBTab('levels')" data-tab="levels"><i class="fas fa-layer-group"></i> المستويات</button>
+                <button class="lb-tab-modern" onclick="switchLBTab('xp')" data-tab="xp"><i class="fas fa-bolt"></i> XP</button>
+                <button class="lb-tab-modern" onclick="switchLBTab('teams')" data-tab="teams"><i class="fas fa-users"></i> الفرق</button>
                 <div class="lb-tab-indicator"></div>
             </div>
 
@@ -1173,6 +1176,25 @@
             <!-- Ranked List -->
             <h3 class="lb-section-title-modern"><i class="fas fa-ranking-star"></i> الترتيب</h3>
             <div class="leaderboard-list" id="leaderboard-list"></div>
+
+            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
+        </div>
+    </div>
+
+    <!-- ============ REWARDS SHOP ============ -->
+    <div id="rewards-shop-screen" class="screen">
+        <div class="screen-inner">
+            <div class="rewards-header">
+                <h2><i class="fas fa-gift"></i> متجر الهدايا</h2>
+                <p class="card-subtitle">اجمع نجوم وجواهر واستبدلها بهدايا حقيقية!</p>
+            </div>
+            <div id="rewards-shop-body"></div>
+
+            <!-- Team Section -->
+            <div class="team-section-wrap">
+                <h3 class="rewards-section-title"><i class="fas fa-users"></i> فريقك</h3>
+                <div id="team-section-body"></div>
+            </div>
 
             <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
         </div>
@@ -1246,6 +1268,7 @@
     <div class="fab-container" id="fab-container" style="display:none;">
         <button class="fab" onclick="showScreen('leaderboard-screen')" title="لوحة الأبطال"><i class="fas fa-trophy"></i></button>
         <button class="fab" onclick="showScreen('shop-screen')" title="متجر السلاح"><i class="fas fa-shield-halved"></i></button>
+        <button class="fab" onclick="showScreen('rewards-shop-screen')" title="متجر الهدايا"><i class="fas fa-gift"></i></button>
         <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
     </div>
 

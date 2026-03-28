@@ -1726,6 +1726,100 @@ var DEFAULT_AVATARS = [
 ];
 
 // ============================================================
+// AUDIO SYSTEM (Web Audio API)
+// ============================================================
+var audioCtx = null;
+function initAudio() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+document.addEventListener('click', function() { initAudio(); }, { once: true });
+
+function playTone(freq, duration, type) {
+    if (!audioCtx || audioCtx.state === 'suspended') { initAudio(); return; }
+    try {
+        var osc = audioCtx.createOscillator();
+        var gain = audioCtx.createGain();
+        osc.type = type || 'sine';
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    } catch(e) {}
+}
+
+function playCorrectSound() {
+    playTone(523, 0.12, 'sine');
+    setTimeout(function() { playTone(659, 0.12, 'sine'); }, 100);
+    setTimeout(function() { playTone(784, 0.2, 'sine'); }, 200);
+}
+
+function playWrongSound() {
+    playTone(250, 0.2, 'sawtooth');
+    setTimeout(function() { playTone(180, 0.3, 'sawtooth'); }, 120);
+}
+
+function playTickSound() {
+    playTone(900, 0.05, 'sine');
+}
+
+function playMatchStartSound() {
+    // Dramatic VS intro
+    playTone(150, 0.3, 'sawtooth');
+    setTimeout(function() { playTone(200, 0.2, 'square'); }, 150);
+    setTimeout(function() { playTone(400, 0.15, 'sine'); }, 300);
+    setTimeout(function() { playTone(600, 0.2, 'sine'); }, 450);
+    setTimeout(function() { playTone(800, 0.25, 'triangle'); }, 600);
+}
+
+function playTurnSound() {
+    playTone(700, 0.08, 'sine');
+    setTimeout(function() { playTone(900, 0.12, 'sine'); }, 100);
+}
+
+function playTimeoutSound() {
+    playTone(400, 0.15, 'sawtooth');
+    setTimeout(function() { playTone(300, 0.15, 'sawtooth'); }, 100);
+    setTimeout(function() { playTone(200, 0.3, 'sawtooth'); }, 200);
+}
+
+function playVictorySound() {
+    playTone(523, 0.15, 'sine');
+    setTimeout(function() { playTone(659, 0.15, 'sine'); }, 120);
+    setTimeout(function() { playTone(784, 0.15, 'sine'); }, 240);
+    setTimeout(function() { playTone(1047, 0.3, 'sine'); }, 360);
+    setTimeout(function() { playTone(1047, 0.1, 'triangle'); }, 500);
+    setTimeout(function() { playTone(1319, 0.4, 'sine'); }, 600);
+}
+
+function playCelebrationSound() {
+    playTone(523, 0.12, 'sine');
+    setTimeout(function() { playTone(659, 0.12, 'sine'); }, 100);
+    setTimeout(function() { playTone(784, 0.12, 'sine'); }, 200);
+    setTimeout(function() { playTone(1047, 0.2, 'sine'); }, 300);
+    setTimeout(function() { playTone(784, 0.1, 'triangle'); }, 450);
+    setTimeout(function() { playTone(1047, 0.15, 'sine'); }, 550);
+    setTimeout(function() { playTone(1319, 0.3, 'sine'); }, 650);
+    setTimeout(function() { playTone(1568, 0.4, 'triangle'); }, 800);
+}
+
+function playTournamentStartSound() {
+    // Epic tournament opening fanfare
+    playTone(262, 0.2, 'sine');
+    setTimeout(function() { playTone(330, 0.2, 'sine'); }, 200);
+    setTimeout(function() { playTone(392, 0.2, 'sine'); }, 400);
+    setTimeout(function() { playTone(523, 0.3, 'triangle'); }, 600);
+    setTimeout(function() { playTone(659, 0.15, 'sine'); }, 850);
+    setTimeout(function() { playTone(784, 0.15, 'sine'); }, 1000);
+    setTimeout(function() { playTone(1047, 0.4, 'sine'); }, 1150);
+}
+
+// ============================================================
 // ADMIN FUNCTIONS
 // ============================================================
 function toggleAdmin() {
@@ -1867,6 +1961,7 @@ function getSelectedQuestions() {
 function startTournament() {
     var teamCount = tournament.teams.length;
     if (teamCount < 2) { alert('لازم فريقين على الأقل!'); return; }
+    playTournamentStartSound();
 
     // Pad to nearest power of 2
     var size = 2;
@@ -2174,6 +2269,7 @@ function startMatch(match) {
 }
 
 function showMatchIntro(match, callback) {
+    playMatchStartSound();
     var overlay = document.createElement('div');
     overlay.className = 'match-intro';
     overlay.id = 'matchIntro';
@@ -2233,6 +2329,8 @@ function renderScoreboard() {
     var turnTeam = matchState.turn === 'a' ? currentMatch.teamA : currentMatch.teamB;
     var turnColor = matchState.turn === 'a' ? 'var(--team-a)' : 'var(--team-b)';
     document.getElementById('turnIndicator').innerHTML = '<span style="color:' + turnColor + '">🎯 دور: <strong>' + turnTeam.name + '</strong></span>';
+
+    updateScoreBar();
 }
 
 function showNextQuestion() {
@@ -2372,6 +2470,9 @@ function startTimer() {
             if (matchState.timeLeft <= 5) {
                 fill.classList.add('warning');
                 if (timer) timer.classList.add('warning');
+                if (Math.ceil(matchState.timeLeft) !== Math.ceil(matchState.timeLeft + 0.1)) {
+                    playTickSound();
+                }
             }
         }
         if (text) text.textContent = Math.ceil(matchState.timeLeft);
@@ -2380,8 +2481,15 @@ function startTimer() {
             clearInterval(matchState.timer);
             if (!matchState.answered) {
                 matchState.answered = true;
+                triggerScreenShake();
+                showWrongFlash();
+                playTimeoutSound();
                 showFeedback(false);
-                setTimeout(function() { nextTurn(); }, 1500);
+                if (matchState.autoAdvance) {
+                    setTimeout(function() { nextTurn(); }, 1500);
+                } else {
+                    setTimeout(function() { showNextQuestionButton(); }, 800);
+                }
             }
         }
     }, 100);
@@ -2421,10 +2529,32 @@ function answerQuestion(idx) {
             scoreEl.classList.add('score-bump');
             setTimeout(function() { scoreEl.classList.remove('score-bump'); }, 500);
         }
+        // Gamification: floating score, green flash, particle burst
+        showFloatingScore(matchState.turn, bonus);
+        showCorrectFlash();
+        playCorrectSound();
+        // Particle burst at the clicked button
+        if (btn) {
+            var r = btn.getBoundingClientRect();
+            spawnParticleBurst(r.left + r.width / 2, r.top + r.height / 2);
+        }
+    } else {
+        // Wrong: screen shake + red flash + sound
+        triggerScreenShake();
+        showWrongFlash();
+        playWrongSound();
     }
 
+    updateScoreBar();
     showFeedback(correct);
-    setTimeout(function() { nextTurn(); }, 1800);
+
+    // Manual vs auto advance
+    if (matchState.autoAdvance) {
+        setTimeout(function() { nextTurn(); }, 1800);
+    } else {
+        // Wait for admin to press next
+        setTimeout(function() { showNextQuestionButton(); }, 800);
+    }
 }
 
 function adminFillAnswer(correct) {
@@ -2436,10 +2566,24 @@ function adminFillAnswer(correct) {
         var bonus = matchState.timeLeft > tournament.timePerQuestion * 0.6 ? 2 : 1;
         if (matchState.turn === 'a') matchState.scoreA += bonus;
         else matchState.scoreB += bonus;
+        showFloatingScore(matchState.turn, bonus);
+        showCorrectFlash();
+        playCorrectSound();
+        spawnParticleBurst(window.innerWidth / 2, window.innerHeight / 2);
+    } else {
+        triggerScreenShake();
+        showWrongFlash();
+        playWrongSound();
     }
 
+    updateScoreBar();
     showFeedback(correct);
-    setTimeout(function() { nextTurn(); }, 1800);
+
+    if (matchState.autoAdvance) {
+        setTimeout(function() { nextTurn(); }, 1800);
+    } else {
+        setTimeout(function() { showNextQuestionButton(); }, 800);
+    }
 }
 
 function showFeedback(correct) {
@@ -2455,6 +2599,11 @@ function showFeedback(correct) {
 }
 
 function nextTurn() {
+    // Remove any leftover next button
+    var nextBtn = document.getElementById('nextQuestionOverlayBtn');
+    if (nextBtn) nextBtn.remove();
+    matchState.waitingForNext = false;
+
     matchState.currentQ++;
     matchState.turn = matchState.turn === 'a' ? 'b' : 'a';
 
@@ -2463,18 +2612,26 @@ function nextTurn() {
         return;
     }
 
-    // Show turn transition
+    // Show round counter animation
+    showRoundCounter(matchState.currentQ + 1, matchState.questions.length);
+
+    // Show enhanced turn transition with team color glow
     var turnTeam = matchState.turn === 'a' ? currentMatch.teamA : currentMatch.teamB;
+    var turnClass = matchState.turn === 'a' ? 'team-a-turn' : 'team-b-turn';
+    var turnColor = matchState.turn === 'a' ? 'var(--team-a)' : 'var(--team-b)';
     var overlay = document.createElement('div');
-    overlay.className = 'waiting-overlay';
-    overlay.innerHTML = '<div class="waiting-text">🎯 دور ' + turnTeam.name + '</div>' +
+    overlay.className = 'turn-transition-overlay ' + turnClass;
+    playTurnSound();
+    overlay.innerHTML = '<div class="turn-glow"></div>' +
+        '<img class="turn-team-img-large" src="' + turnTeam.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">' +
+        '<div class="waiting-text" style="color:' + turnColor + '">🎯 دور ' + turnTeam.name + '</div>' +
         '<div class="waiting-sub">استعد...</div>';
     document.body.appendChild(overlay);
 
     setTimeout(function() {
         if (overlay.parentNode) overlay.remove();
         showNextQuestion();
-    }, 1500);
+    }, 1800);
 }
 
 function endMatch() {
@@ -2519,6 +2676,12 @@ function advanceWinner(match) {
 
 function showWinnerCelebration(match) {
     launchConfetti();
+    var isFinalMatch = match.round === tournament.rounds;
+    if (isFinalMatch) {
+        playCelebrationSound();
+    } else {
+        playVictorySound();
+    }
 
     var overlay = document.createElement('div');
     overlay.className = 'winner-overlay';
@@ -2653,6 +2816,12 @@ function adminPauseAndSave() {
 function adminNextQuestion() {
     if (!currentMatch) return;
     if (matchState.paused) return; // don't advance while paused
+    // If waiting for next, trigger it
+    if (matchState.waitingForNext) {
+        var nextBtn = document.getElementById('nextQuestionOverlayBtn');
+        if (nextBtn) nextBtn.click();
+        return;
+    }
     clearInterval(matchState.timer);
     matchState.answered = true;
     nextTurn();
@@ -2662,6 +2831,9 @@ function adminSkipQuestion() {
     if (!currentMatch) return;
     clearInterval(matchState.timer);
     matchState.answered = true;
+    matchState.waitingForNext = false;
+    var nb = document.getElementById('nextQuestionOverlayBtn');
+    if (nb) nb.remove();
     matchState.currentQ++;
     // Don't switch turn for skip
     if (matchState.currentQ >= matchState.questions.length) {
@@ -2706,6 +2878,140 @@ function adminForceWinner(team) {
 }
 
 // ============================================================
+// AUTO/MANUAL ADVANCE
+// ============================================================
+function toggleAutoAdvance() {
+    matchState.autoAdvance = !matchState.autoAdvance;
+    var track = document.getElementById('autoAdvanceTrack');
+    var label = document.getElementById('advanceModeLabel');
+    if (track) track.classList.toggle('active', matchState.autoAdvance);
+    if (label) label.textContent = matchState.autoAdvance ?
+        'تلقائي — ينتقل تلقائي بعد الإجابة' :
+        'يدوي — الأدمن يضغط التالي';
+}
+
+// Show "Next Question" button on screen for manual advance
+function showNextQuestionButton() {
+    // Remove any existing
+    var existing = document.getElementById('nextQuestionOverlayBtn');
+    if (existing) existing.remove();
+    matchState.waitingForNext = true;
+    var btn = document.createElement('button');
+    btn.className = 'next-question-btn';
+    btn.id = 'nextQuestionOverlayBtn';
+    btn.innerHTML = '<i class="fas fa-forward"></i> السؤال التالي (Space)';
+    btn.onclick = function() {
+        matchState.waitingForNext = false;
+        btn.remove();
+        nextTurn();
+    };
+    document.getElementById('questionArea').appendChild(btn);
+}
+
+// ============================================================
+// GAMIFICATION EFFECTS
+// ============================================================
+function showFloatingScore(team, points) {
+    var scoreEl = document.getElementById(team === 'a' ? 'scoreA' : 'scoreB');
+    if (!scoreEl) return;
+    var rect = scoreEl.getBoundingClientRect();
+    var el = document.createElement('div');
+    el.className = 'floating-score';
+    el.textContent = '+' + points;
+    el.style.color = team === 'a' ? 'var(--team-a)' : 'var(--team-b)';
+    el.style.left = (rect.left + rect.width / 2 - 30) + 'px';
+    el.style.top = (rect.top - 10) + 'px';
+    document.body.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 1500);
+}
+
+function triggerScreenShake() {
+    document.body.classList.add('screen-shake');
+    setTimeout(function() { document.body.classList.remove('screen-shake'); }, 500);
+}
+
+function showCorrectFlash() {
+    var el = document.createElement('div');
+    el.className = 'correct-flash';
+    document.body.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 800);
+}
+
+function showWrongFlash() {
+    var el = document.createElement('div');
+    el.className = 'wrong-flash';
+    document.body.appendChild(el);
+    setTimeout(function() { if (el.parentNode) el.remove(); }, 500);
+}
+
+function spawnParticleBurst(x, y) {
+    var colors = ['#FFD700', '#00B894', '#6C5CE7', '#00CEC9', '#FDCB6E', '#FD79A8'];
+    var container = document.createElement('div');
+    container.className = 'particle-burst';
+    container.style.left = x + 'px';
+    container.style.top = y + 'px';
+    for (var i = 0; i < 24; i++) {
+        var p = document.createElement('div');
+        p.className = 'particle';
+        var angle = (Math.PI * 2 * i) / 24 + (Math.random() - 0.5) * 0.5;
+        var dist = 60 + Math.random() * 80;
+        var size = 4 + Math.random() * 6;
+        p.style.width = size + 'px';
+        p.style.height = size + 'px';
+        p.style.background = colors[Math.floor(Math.random() * colors.length)];
+        p.style.boxShadow = '0 0 6px ' + p.style.background;
+        // Set the end position via custom property
+        var tx = Math.cos(angle) * dist;
+        var ty = Math.sin(angle) * dist;
+        p.style.animation = 'none';
+        p.offsetHeight; // reflow
+        p.style.animation = 'particleFly 0.8s ease-out forwards';
+        p.style.setProperty('--tx', tx + 'px');
+        p.style.setProperty('--ty', ty + 'px');
+        // Use inline keyframes via transform
+        p.animate([
+            { transform: 'translate(0, 0) scale(1)', opacity: 1 },
+            { transform: 'translate(' + tx + 'px, ' + ty + 'px) scale(0)', opacity: 0 }
+        ], { duration: 600 + Math.random() * 400, easing: 'ease-out', fill: 'forwards' });
+        container.appendChild(p);
+    }
+    document.body.appendChild(container);
+    setTimeout(function() { if (container.parentNode) container.remove(); }, 1200);
+}
+
+function showRoundCounter(qNum, total) {
+    var overlay = document.createElement('div');
+    overlay.className = 'round-counter-overlay';
+    overlay.id = 'roundCounterOverlay';
+    var pct = Math.round((qNum / total) * 100);
+    overlay.innerHTML =
+        '<div class="round-counter-number">' + qNum + '</div>' +
+        '<div class="round-counter-label">السؤال ' + qNum + ' من ' + total + '</div>' +
+        '<div class="round-counter-bar"><div class="round-counter-bar-fill" style="width:0%"></div></div>';
+    document.body.appendChild(overlay);
+    // Animate bar fill
+    setTimeout(function() {
+        var fill = overlay.querySelector('.round-counter-bar-fill');
+        if (fill) fill.style.width = pct + '%';
+    }, 100);
+    setTimeout(function() { if (overlay.parentNode) overlay.remove(); }, 1300);
+}
+
+function updateScoreBar() {
+    var total = matchState.scoreA + matchState.scoreB;
+    var pctA = total > 0 ? (matchState.scoreA / total) * 100 : 50;
+    var pctB = total > 0 ? (matchState.scoreB / total) * 100 : 50;
+    var barA = document.getElementById('scoreBarA');
+    var barB = document.getElementById('scoreBarB');
+    var lblA = document.getElementById('scoreBarLabelA');
+    var lblB = document.getElementById('scoreBarLabelB');
+    if (barA) barA.style.width = pctA + '%';
+    if (barB) barB.style.width = pctB + '%';
+    if (lblA) lblA.textContent = matchState.scoreA;
+    if (lblB) lblB.textContent = matchState.scoreB;
+}
+
+// ============================================================
 // KEYBOARD SHORTCUTS
 // ============================================================
 document.addEventListener('keydown', function(e) {
@@ -2723,6 +3029,12 @@ document.addEventListener('keydown', function(e) {
         e.preventDefault();
         // If paused, resume instead
         if (matchState.paused) { resumeMatch(); return; }
+        // If waiting for next (manual advance), trigger next
+        if (matchState.waitingForNext) {
+            var nextBtn = document.getElementById('nextQuestionOverlayBtn');
+            if (nextBtn) nextBtn.click();
+            return;
+        }
         adminNextQuestion();
     }
     if (e.key === '1') { var b = document.getElementById('opt-0'); if (b) b.click(); }

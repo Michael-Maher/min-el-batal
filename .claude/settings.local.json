@@ -29,7 +29,16 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git merge:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(sips -s format jpeg -s formatOptions 82 --resampleWidth 1200 /Users/mmichaelmaher/Documents/min-el-batal/images/level1-bg.png --out /Users/mmichaelmaher/Documents/min-el-batal/images/level1-bg-opt.jpg)",
+      "Bash(sips -s format jpeg -s formatOptions 82 --resampleWidth 1200 /Users/mmichaelmaher/Documents/min-el-batal/images/holy-part-bg.png --out /Users/mmichaelmaher/Documents/min-el-batal/images/holy-part-bg-opt.jpg)",
+      "Bash(pkill -f \"firebase deploy\")",
+      "Bash(ls -la /Users/mmichaelmaher/Documents/min-el-batal/images/min-elbatal-tour*)",
+      "Bash(sips -Z 400 images/min-elbatal-tourment.png --out images/tournament-logo.png)",
+      "Bash(sips -g pixelWidth -g pixelHeight /Users/mmichaelmaher/Documents/min-el-batal/images/level2-map-new.png)",
+      "Bash(sips -Z 2000 /Users/mmichaelmaher/Documents/min-el-batal/images/level2-map-new.png --out /Users/mmichaelmaher/Documents/min-el-batal/images/level2-map-new-opt.jpg -s format jpeg -s formatOptions 75)",
+      "Bash(node -e \"try { require\\(''fs''\\).readFileSync\\(''game.js'',''utf8''\\); console.log\\(''game.js: OK''\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")",
+      "Bash(node -e \"try { var c = require\\(''fs''\\).readFileSync\\(''game.js'',''utf8''\\); var lines = c.split\\(''\\\\n''\\); console.log\\(''Total lines:'', lines.length\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")"
     ]
   }
 }

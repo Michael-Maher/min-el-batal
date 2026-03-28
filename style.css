@@ -2207,6 +2207,22 @@ body {
 .l2-imgmap-node-stars i.earned {
     color: var(--gold);
 }
+.node-progress-row {
+    display: flex;
+    gap: 2px;
+    justify-content: center;
+    margin-top: 2px;
+}
+.node-progress-dot {
+    font-size: 8px;
+    opacity: 0.35;
+    filter: grayscale(1);
+    transition: all 0.3s;
+}
+.node-progress-dot.done {
+    opacity: 1;
+    filter: grayscale(0);
+}
 
 .l2-map-inner {
     padding: 16px 16px 40px;

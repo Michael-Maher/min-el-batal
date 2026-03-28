@@ -5106,6 +5106,65 @@ function playTickSound() {
     playTone(900, 0.05, 'sine');
 }
 
+function playVictorySound() {
+    // Triumphant ascending fanfare
+    playTone(523, 0.15, 'sine');   // C5
+    setTimeout(function() { playTone(659, 0.15, 'sine'); }, 120);  // E5
+    setTimeout(function() { playTone(784, 0.15, 'sine'); }, 240);  // G5
+    setTimeout(function() { playTone(1047, 0.3, 'sine'); }, 360);  // C6
+    setTimeout(function() { playTone(1047, 0.1, 'triangle'); }, 500); // shimmer
+    setTimeout(function() { playTone(1319, 0.4, 'sine'); }, 600);  // E6 hold
+}
+
+function playMatchStartSound() {
+    // Dramatic VS intro - deep impact then rise
+    playTone(150, 0.3, 'sawtooth');
+    setTimeout(function() { playTone(200, 0.2, 'square'); }, 150);
+    setTimeout(function() { playTone(400, 0.15, 'sine'); }, 300);
+    setTimeout(function() { playTone(600, 0.2, 'sine'); }, 450);
+    setTimeout(function() { playTone(800, 0.25, 'triangle'); }, 600);
+}
+
+function playTurnSound() {
+    // Quick alert chime
+    playTone(700, 0.08, 'sine');
+    setTimeout(function() { playTone(900, 0.12, 'sine'); }, 100);
+}
+
+function playTimeoutSound() {
+    // Descending fail buzz
+    playTone(400, 0.15, 'sawtooth');
+    setTimeout(function() { playTone(300, 0.15, 'sawtooth'); }, 100);
+    setTimeout(function() { playTone(200, 0.3, 'sawtooth'); }, 200);
+}
+
+function playCelebrationSound() {
+    // Epic winner celebration - multi-layered
+    playTone(523, 0.12, 'sine');
+    setTimeout(function() { playTone(659, 0.12, 'sine'); }, 100);
+    setTimeout(function() { playTone(784, 0.12, 'sine'); }, 200);
+    setTimeout(function() { playTone(1047, 0.2, 'sine'); }, 300);
+    setTimeout(function() { playTone(784, 0.1, 'triangle'); }, 450);
+    setTimeout(function() { playTone(1047, 0.15, 'sine'); }, 550);
+    setTimeout(function() { playTone(1319, 0.3, 'sine'); }, 650);
+    setTimeout(function() { playTone(1568, 0.4, 'triangle'); }, 800);
+}
+
+function playStationUnlockSound() {
+    // Magical unlock - sparkle ascend
+    playTone(440, 0.1, 'sine');
+    setTimeout(function() { playTone(554, 0.1, 'sine'); }, 80);
+    setTimeout(function() { playTone(659, 0.1, 'sine'); }, 160);
+    setTimeout(function() { playTone(880, 0.15, 'triangle'); }, 240);
+    setTimeout(function() { playTone(1109, 0.2, 'sine'); }, 340);
+}
+
+function playNavigateSound() {
+    // Soft click/pop
+    playTone(600, 0.04, 'sine');
+    setTimeout(function() { playTone(800, 0.06, 'sine'); }, 40);
+}
+
 // --- HAPTIC FEEDBACK ---
 function vibrate(pattern) {
     try {
@@ -5706,9 +5765,9 @@ var FAITH_MAP_POSITIONS = [
     { left: 7.5,  top: 32 },  // 1. الثالوث القدوس (top-left circle)
     { left: 19,   top: 53 },  // 2. التجسد (left-center circle)
     { left: 37.5, top: 67 },  // 3. الفداء (center-bottom, cross area)
-    { left: 54,   top: 28 },  // 4. المجيء الثاني (center-right-top circle)
-    { left: 72,   top: 64 },  // 5. التوبة والاعتراف (right-lower circle)
-    { left: 88,   top: 44 }   // 6. المعمودية والميرون (far-right circle)
+    { left: 54,   top: 42 },  // 4. المجيء الثاني (moved down)
+    { left: 72,   top: 76 },  // 5. التوبة والاعتراف (moved down)
+    { left: 88,   top: 58 }   // 6. المعمودية والميرون (moved down)
 ];
 
 function renderLevel2Map() {
@@ -5723,14 +5782,19 @@ function renderLevel2Map() {
     if (iconEl) iconEl.textContent = subject.icon;
     if (nameEl) nameEl.textContent = subject.name;
 
-    // Calculate stars
+    // Calculate stars and determine current station position
     var earnedStars = 0;
     var currentStation = 0; // Where the character should stand
     for (var s = 0; s < subject.lessons.length; s++) {
         var ld = subjectData['lesson_' + s];
+        var smKey = subKey + '_' + s;
+        var hasSm = GameState.lessonSummaries && GameState.lessonSummaries[smKey];
+        var hasQz = ld && ld.stars > 0;
         if (ld && ld.stars > 0) {
             earnedStars += ld.stars;
-            currentStation = s + 1; // Move past completed
+        }
+        if (hasSm && hasQz) {
+            currentStation = s + 1; // Move past fully completed stations
         }
     }
     if (currentStation >= subject.lessons.length) currentStation = subject.lessons.length - 1;
@@ -5793,11 +5857,21 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         var lesson = subject.lessons[i];
         var lessonData = subjectData['lesson_' + i] || {};
         var stars = lessonData.stars || 0;
-        var isCompleted = stars > 0;
+
+        // Station completion requires: summary submitted + quiz completed (stars > 0)
+        var summaryKey = level2State.currentSubject + '_' + i;
+        var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
+        var hasQuizScore = stars > 0;
+        var isCompleted = hasSummary && hasQuizScore;
+
+        // First station always available; next station requires previous to be fully completed
         var isAvailable = (i === 0);
         if (i > 0) {
+            var prevSummaryKey = level2State.currentSubject + '_' + (i - 1);
+            var prevHasSummary = GameState.lessonSummaries && GameState.lessonSummaries[prevSummaryKey];
             var prevData = subjectData['lesson_' + (i - 1)] || {};
-            isAvailable = (prevData.stars || 0) > 0;
+            var prevHasQuiz = (prevData.stars || 0) > 0;
+            isAvailable = prevHasSummary && prevHasQuiz;
         }
 
         var stateClass = isCompleted ? 'l2-imgmap-node-completed' : (isAvailable ? 'l2-imgmap-node-available' : 'l2-imgmap-node-locked');
@@ -5810,12 +5884,21 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         node.style.top = positions[i].top + '%';
 
         var circleContent = isCompleted ? '<i class="fas fa-check"></i>' : (i + 1);
-        // Show stars out of 30
+        // Show stars out of 30 + completion progress
         var starsHTML = '<div class="l2-imgmap-node-stars">';
         if (stars > 0) {
             starsHTML += '<span class="node-star-count">⭐' + stars + '</span>';
         } else {
             starsHTML += '<span class="node-star-count dim">⭐0</span>';
+        }
+        // Show progress badges (summary + quiz)
+        if (isAvailable || isCompleted) {
+            var progressIcons = '';
+            progressIcons += '<span class="node-progress-dot ' + (hasSummary ? 'done' : '') + '" title="تلخيص">📝</span>';
+            progressIcons += '<span class="node-progress-dot ' + (hasQuizScore ? 'done' : '') + '" title="اختبار">❓</span>';
+            if (!isCompleted && (hasSummary || hasQuizScore)) {
+                starsHTML += '<div class="node-progress-row">' + progressIcons + '</div>';
+            }
         }
         starsHTML += '</div>';
 
@@ -5829,13 +5912,14 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         if (isAvailable || isCompleted) {
             (function(idx) {
                 node.onclick = function() {
+                    playNavigateSound();
                     animateCharacterToNode(idx, positions, function() {
                         startLevel2Lesson(idx);
                     });
                 };
             })(i);
         } else {
-            node.onclick = function() { showToast('أكمل الدرس السابق الأول! 🔒', 'warning'); };
+            node.onclick = function() { playWrongSound(); showToast('أكمل الدرس السابق الأول! 🔒', 'warning'); };
         }
 
         nodesContainer.appendChild(node);
@@ -5915,11 +5999,20 @@ function renderLevel2ListMap(subject, subjectData) {
         var lesson = subject.lessons[i];
         var lessonData = subjectData['lesson_' + i] || {};
         var stars = lessonData.stars || 0;
-        var isCompleted = stars > 0;
+
+        // Station completion requires: summary + quiz
+        var lmSummaryKey = level2State.currentSubject + '_' + i;
+        var lmHasSummary = GameState.lessonSummaries && GameState.lessonSummaries[lmSummaryKey];
+        var lmHasQuiz = stars > 0;
+        var isCompleted = lmHasSummary && lmHasQuiz;
+
         var isAvailable = (i === 0);
         if (i > 0) {
+            var prevSmKey = level2State.currentSubject + '_' + (i - 1);
+            var prevSmDone = GameState.lessonSummaries && GameState.lessonSummaries[prevSmKey];
             var prevData = subjectData['lesson_' + (i - 1)] || {};
-            isAvailable = (prevData.stars || 0) > 0;
+            var prevQzDone = (prevData.stars || 0) > 0;
+            isAvailable = prevSmDone && prevQzDone;
         }
 
         var stateClass = isCompleted ? 'l2-map-node-completed' : (isAvailable ? 'l2-map-node-available' : 'l2-map-node-locked');
@@ -7770,6 +7863,13 @@ function renderLevel2Result(container, lesson, subject) {
     var icon = starRatio >= 0.9 ? '🏆' : (starRatio >= 0.7 ? '⭐' : (starRatio >= 0.4 ? '👍' : '😔'));
     var title = starRatio >= 0.9 ? 'ممتاز! أداء رائع!' : (starRatio >= 0.7 ? 'أحسنت! كويس جداً' : (starRatio >= 0.4 ? 'محتاج تذاكر أكتر' : 'حاول تاني يا بطل!'));
 
+    // Play sound based on result
+    if (starRatio >= 0.7) {
+        playVictorySound();
+    } else if (starRatio >= 0.4) {
+        playCorrectSound();
+    }
+
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> تعلّم</button>' +
         '<button class="l2-stage-tab completed"><i class="fas fa-check"></i> ألعاب</button>' +
@@ -7850,6 +7950,16 @@ function renderLevel2Result(container, lesson, subject) {
     // Big celebration if good score
     if (stars >= 2) {
         showResultCelebration(stars);
+    }
+
+    // Check if this station just became fully completed (unlocking next)
+    var justCompletedSummaryKey = level2State.currentSubject + '_' + level2State.currentLesson;
+    var justHasSummary = GameState.lessonSummaries && GameState.lessonSummaries[justCompletedSummaryKey];
+    if (justHasSummary && stars > 0 && level2State.currentLesson < subject.lessons.length - 1) {
+        setTimeout(function() {
+            playStationUnlockSound();
+            showToast('🔓 تم فتح المحطة التالية!', 'success');
+        }, 1500);
     }
 }
 
@@ -8439,8 +8549,10 @@ function startCompeteTimer(seconds, qIdx) {
             fill.style.width = (competeState.timeLeft / seconds * 100) + '%';
             if (competeState.timeLeft <= 3) {
                 fill.className = 'compete-timer-fill warning';
+                playTickSound();
             } else if (competeState.timeLeft <= 5) {
                 fill.style.background = 'linear-gradient(90deg, #f39c12, #e17055)';
+                playTickSound();
             }
         }
         if (competeState.timeLeft <= 0) {

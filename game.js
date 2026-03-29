@@ -72,7 +72,9 @@ const GameState = {
     teamLogo: '',
     teamColor: '',
     redeemedRewards: [],
-    dailyLoginDate: ''        // last daily login XP date 'YYYY-MM-DD'
+    dailyLoginDate: '',       // last daily login XP date 'YYYY-MM-DD'
+    miniGameScores: {},       // { 'faith_0_mg_trueFalse': 15, ... }
+    stationScores: {}         // { 'faith_0': { sermon: 10, summary: 10, games: 45, total: 65 } }
 };
 
 // --- Firebase Initialization ---
@@ -556,6 +558,8 @@ function saveToCloud() {
         teamColor: GameState.teamColor || '',
         redeemedRewards: GameState.redeemedRewards || [],
         dailyLoginDate: GameState.dailyLoginDate || '',
+        miniGameScores: GameState.miniGameScores || {},
+        stationScores: GameState.stationScores || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -6083,6 +6087,25 @@ function launchConfetti(duration) {
     setTimeout(function() { container.remove(); }, (duration || 3000) + 1000);
 }
 
+// --- Answer Feedback Overlay ---
+function showAnswerFeedback(isCorrect) {
+    var existing = document.querySelector('.answer-feedback-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'answer-feedback-overlay ' + (isCorrect ? 'correct' : 'wrong');
+    overlay.innerHTML = isCorrect
+        ? '<div class="af-icon">✅</div><div class="af-text">صح! برافو 🎉</div>'
+        : '<div class="af-icon">❌</div><div class="af-text">غلط! حاول تاني 💪</div>';
+    document.body.appendChild(overlay);
+
+    requestAnimationFrame(function() { overlay.classList.add('show'); });
+    setTimeout(function() {
+        overlay.classList.remove('show');
+        setTimeout(function() { overlay.remove(); }, 400);
+    }, 800);
+}
+
 // --- Level 2 Subjects Render ---
 function renderLevel2Subjects() {
     var totalStars = 0;
@@ -6560,20 +6583,20 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         var lessonData = subjectData['lesson_' + i] || {};
         var stars = lessonData.stars || 0;
 
-        // Station completion requires: summary submitted + quiz completed (stars > 0)
-        var summaryKey = level2State.currentSubject + '_' + i;
+        // Station scoring: use stationScores (max 80)
+        var stationKey = level2State.currentSubject + '_' + i;
+        var stScore = getStationScore(stationKey);
+        var summaryKey = stationKey;
         var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
-        var hasQuizScore = stars > 0;
-        var isCompleted = hasSummary && hasQuizScore;
+        var hasQuizScore = stScore.games > 0;
+        var isCompleted = stScore.total >= STATION_UNLOCK_THRESHOLD;
 
-        // First station always available; next station requires previous to be fully completed
+        // First station always available; next station requires previous station score >= 70
         var isAvailable = (i === 0);
         if (i > 0) {
-            var prevSummaryKey = level2State.currentSubject + '_' + (i - 1);
-            var prevHasSummary = GameState.lessonSummaries && GameState.lessonSummaries[prevSummaryKey];
-            var prevData = subjectData['lesson_' + (i - 1)] || {};
-            var prevHasQuiz = (prevData.stars || 0) > 0;
-            isAvailable = prevHasSummary && prevHasQuiz;
+            var prevStationKey = level2State.currentSubject + '_' + (i - 1);
+            var prevScore = getStationScore(prevStationKey);
+            isAvailable = prevScore.total >= STATION_UNLOCK_THRESHOLD;
         }
 
         var stateClass = isCompleted ? 'l2-imgmap-node-completed' : (isAvailable ? 'l2-imgmap-node-available' : 'l2-imgmap-node-locked');
@@ -6585,21 +6608,22 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         node.style.left = positions[i].left + '%';
         node.style.top = positions[i].top + '%';
 
-        var MAX_STATION_STARS = 30;
         var circleContent = isCompleted ? '<i class="fas fa-check"></i>' : (i + 1);
-        // Show score/max for each station
+        // Show station score / max
         var starsHTML = '<div class="l2-imgmap-node-stars">';
-        starsHTML += '<span class="node-star-count ' + (stars > 0 ? '' : 'dim') + '">⭐ ' + stars + '/' + MAX_STATION_STARS + '</span>';
-        // Show progress badges (summary + quiz)
+        var scoreColor = stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : (stScore.total > 0 ? '#FDCB6E' : '');
+        starsHTML += '<span class="node-star-count ' + (stScore.total > 0 ? '' : 'dim') + '" style="' + (scoreColor ? 'color:'+scoreColor : '') + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>';
+        // Show progress badges (sermon + summary + games)
         if (isAvailable || isCompleted) {
             var progressIcons = '';
+            progressIcons += '<span class="node-progress-dot ' + (stScore.sermon > 0 ? 'done' : '') + '" title="وعظة">🎬</span>';
             progressIcons += '<span class="node-progress-dot ' + (hasSummary ? 'done' : '') + '" title="تلخيص">📝</span>';
-            progressIcons += '<span class="node-progress-dot ' + (hasQuizScore ? 'done' : '') + '" title="اختبار">❓</span>';
+            progressIcons += '<span class="node-progress-dot ' + (hasQuizScore ? 'done' : '') + '" title="ألعاب">🎮</span>';
             starsHTML += '<div class="node-progress-row">' + progressIcons + '</div>';
         }
         // Show unlock requirement for locked stations
         if (!isAvailable && !isCompleted) {
-            starsHTML += '<div class="node-unlock-req"><i class="fas fa-lock"></i> أكمل المحطة السابقة</div>';
+            starsHTML += '<div class="node-unlock-req"><i class="fas fa-lock"></i> جيب ' + STATION_UNLOCK_THRESHOLD + '+ من المحطة السابقة</div>';
         }
         starsHTML += '</div>';
 
@@ -6907,11 +6931,18 @@ function renderLevel2Learn(container, lesson, subject) {
 
     html += '<div class="l2-learn-verse"><i class="fas fa-book-bible"></i> ' + lesson.verse + '</div>';
 
-    // Show previous best score if exists
-    var prevData = GameState.level2Data && GameState.level2Data[subKey] &&
-        GameState.level2Data[subKey]['lesson_' + lessonIdx];
-    if (prevData && prevData.stars > 0) {
-        html += '<div class="l2-learn-prev-score">أعلى نتيجة سابقة: ⭐ ' + prevData.stars + '/30 (' + prevData.score + '/' + prevData.total + ' إجابة صح)</div>';
+    // Show station score progress
+    var stationKey = subKey + '_' + lessonIdx;
+    var stScore = getStationScore(stationKey);
+    if (stScore.total > 0) {
+        html += '<div class="l2-learn-prev-score" style="padding:12px;background:rgba(108,92,231,0.1);border-radius:12px;text-align:center">';
+        html += '<div style="font-size:13px;color:var(--text-muted)">نتيجة المحطة</div>';
+        html += '<div style="font-size:22px;font-weight:800;color:' + (stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : 'var(--gold)') + '">' + stScore.total + ' / ' + STATION_MAX_SCORE + '</div>';
+        html += '<div style="display:flex;justify-content:space-around;margin-top:6px;font-size:12px;color:var(--text-muted)">';
+        html += '<span>🎬 وعظة ' + stScore.sermon + '/10</span>';
+        html += '<span>📝 تلخيص ' + stScore.summary + '/10</span>';
+        html += '<span>🎮 ألعاب ' + stScore.games + '/60</span>';
+        html += '</div></div>';
     }
 
     html += '</div>';
@@ -6962,6 +6993,19 @@ function renderLevel2Games(container, lesson, subject) {
         '<button class="l2-stage-tab active"><i class="fas fa-gamepad"></i> ألعاب</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
+
+    // Station score bar at top
+    var stationKey = subKey + '_' + lessonIdx;
+    var stScore = getStationScore(stationKey);
+    html += '<div style="padding:10px 16px;background:rgba(108,92,231,0.12);border-radius:12px;margin-bottom:12px;text-align:center">';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between">';
+    html += '<span style="font-size:12px;color:var(--text-muted)">نتيجة المحطة</span>';
+    html += '<span style="font-size:18px;font-weight:800;color:' + (stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : 'var(--gold)') + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>';
+    html += '</div>';
+    html += '<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px;overflow:hidden">';
+    html += '<div style="height:100%;width:' + Math.min(stScore.total / STATION_MAX_SCORE * 100, 100) + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:3px"></div>';
+    html += '</div>';
+    html += '</div>';
 
     // Mini-games section
     html += renderMiniGamesSection();
@@ -7573,6 +7617,7 @@ function answerMixedTF(answer) {
     if (miniGameState.timer) clearInterval(miniGameState.timer);
     var round = miniGameState.data[miniGameState.index];
     var correct = answer === round.data.answer;
+    showAnswerFeedback(correct);
     if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
     else { playWrongSound(); vibrate([50, 30, 50]); }
     var stmt = document.getElementById('mg-tf-statement');
@@ -7589,6 +7634,7 @@ function answerMixedTF(answer) {
 function answerMixedFB(answer) {
     var round = miniGameState.data[miniGameState.index];
     var correct = answer === round.data.blank;
+    showAnswerFeedback(correct);
     if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
     else { playWrongSound(); vibrate([50, 30, 50]); showToast('الكلمة الصح: ' + round.data.blank, 'error'); }
     var blank = document.querySelector('.mg-fb-blank');
@@ -7606,6 +7652,7 @@ function answerMixedFB(answer) {
 function answerMixedMCQ(idx) {
     var round = miniGameState.data[miniGameState.index];
     var correct = idx === round.data.correct;
+    showAnswerFeedback(correct);
     if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
     else { playWrongSound(); vibrate([50, 30, 50]); showToast('الإجابة: ' + round.data.options[round.data.correct], 'error'); }
     var scoreEl = document.getElementById('mg-score');
@@ -7685,19 +7732,78 @@ function getMiniGameBadge(type) {
     return '<div class="mg-card-new">جديد!</div>';
 }
 
+// Station scoring: max 80 per station (10 sermon + 10 summary + 60 games)
+// Games: mixed challenge max 60, or 6 mini-games × 10 each = 60
+// Best score is always kept (max of old vs new)
+var STATION_MAX_SCORE = 80;
+var STATION_GAMES_MAX = 60;
+var STATION_SERMON_SCORE = 10;
+var STATION_SUMMARY_SCORE = 10;
+var STATION_UNLOCK_THRESHOLD = 70; // 70-80 to unlock next station
+
+function getStationKey() {
+    return level2State.currentSubject + '_' + level2State.currentLesson;
+}
+
+function getStationScore(stationKey) {
+    if (!GameState.stationScores) GameState.stationScores = {};
+    return GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, total: 0 };
+}
+
+function updateStationScore(stationKey, field, newScore) {
+    if (!GameState.stationScores) GameState.stationScores = {};
+    var current = GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, total: 0 };
+
+    // Keep best score (max)
+    var maxForField = field === 'sermon' ? STATION_SERMON_SCORE : (field === 'summary' ? STATION_SUMMARY_SCORE : STATION_GAMES_MAX);
+    var cappedScore = Math.min(newScore, maxForField);
+
+    if (cappedScore > current[field]) {
+        current[field] = cappedScore;
+    }
+
+    current.total = Math.min(current.sermon + current.summary + current.games, STATION_MAX_SCORE);
+    GameState.stationScores[stationKey] = current;
+    saveToLocalStorage();
+    return current;
+}
+
 function saveMiniGameScore(type, score) {
-    var key = level2State.currentSubject + '_' + level2State.currentLesson + '_mg_' + type;
+    var stationKey = getStationKey();
+    var mgKey = stationKey + '_mg_' + type;
     if (!GameState.miniGameScores) GameState.miniGameScores = {};
-    var prev = GameState.miniGameScores[key] || 0;
+    var prev = GameState.miniGameScores[mgKey] || 0;
+
+    // Keep best score
     if (score > prev) {
-        GameState.miniGameScores[key] = score;
+        GameState.miniGameScores[mgKey] = score;
     }
-    // Award stars
-    var stars = Math.floor(score / 2);
-    if (stars > 0) {
-        GameState.stars = (GameState.stars || 0) + stars;
-        showToast('حصلت على ' + stars + ' ⭐ نجوم!', 'success');
+
+    // Calculate total games score for this station from all mini-games
+    var totalGamesScore = 0;
+    var gameTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'];
+    gameTypes.forEach(function(gt) {
+        var k = stationKey + '_mg_' + gt;
+        var s = GameState.miniGameScores[k] || 0;
+        if (gt === 'mixedChallenge') {
+            // Mixed challenge: scale to max 60
+            totalGamesScore = Math.max(totalGamesScore, Math.min(Math.round(s * 60 / 26), STATION_GAMES_MAX));
+        } else {
+            totalGamesScore += Math.min(s, 10); // Each mini-game max 10
+        }
+    });
+    // Cap individual mini-games total at 60
+    totalGamesScore = Math.min(totalGamesScore, STATION_GAMES_MAX);
+
+    // Update station score (games portion)
+    var stScore = updateStationScore(stationKey, 'games', totalGamesScore);
+
+    // Award gems based on score
+    var gemsEarned = Math.floor(score / 4);
+    if (gemsEarned > 0) {
+        GameState.gems = (GameState.gems || 0) + gemsEarned;
     }
+
     saveToLocalStorage();
     if (typeof saveToCloud === 'function') saveToCloud();
 }
@@ -7775,6 +7881,7 @@ function answerCharactersQ(selected, correct) {
         if (i === correct) btn.classList.add('mg-correct');
         if (i === selected && selected !== correct) btn.classList.add('mg-wrong');
     });
+    showAnswerFeedback(selected === correct);
     if (selected === correct) {
         miniGameState.score += 2;
         updateMGScore();
@@ -7806,18 +7913,42 @@ function showMiniGameResult(title) {
     saveMiniGameScore(miniGameState.type, miniGameState.score);
 
     var pct = miniGameState.total > 0 ? Math.round((miniGameState.score / miniGameState.total) * 100) : 0;
-    var stars = Math.floor(miniGameState.score / 2);
-    var emoji = pct >= 80 ? '🏆' : (pct >= 50 ? '👏' : '💪');
+    var emoji = pct >= 90 ? '🏆' : (pct >= 70 ? '🌟' : (pct >= 50 ? '👏' : '💪'));
+    var message = pct >= 90 ? 'ممتاز! أداء رائع!' : (pct >= 70 ? 'برافو عليك!' : (pct >= 50 ? 'كويس، كمّل!' : 'حاول تاني هتعمل أحسن!'));
+
+    // Get station score
+    var stationKey = getStationKey();
+    var stScore = getStationScore(stationKey);
 
     var html = '<div class="mg-result">';
     html += '<div class="mg-result-emoji">' + emoji + '</div>';
     html += '<h3>' + title + '</h3>';
     html += '<div class="mg-result-score">' + miniGameState.score + ' / ' + miniGameState.total + '</div>';
-    html += '<div class="mg-result-stars">حصلت على ' + stars + ' ⭐</div>';
+    html += '<div class="mg-result-message" style="color:var(--gold);font-size:16px;margin:8px 0">' + message + '</div>';
+
+    // Show station score progress bar
+    html += '<div class="mg-station-score" style="margin:12px 0;padding:12px;background:rgba(108,92,231,0.15);border-radius:12px;text-align:center">';
+    html += '<div style="font-size:13px;color:var(--text-muted);margin-bottom:6px">نتيجة المحطة</div>';
+    html += '<div style="font-size:24px;font-weight:800;color:' + (stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : 'var(--gold)') + '">' + stScore.total + ' / ' + STATION_MAX_SCORE + '</div>';
+    html += '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:8px;overflow:hidden">';
+    html += '<div style="height:100%;width:' + Math.min(stScore.total / STATION_MAX_SCORE * 100, 100) + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:4px;transition:width 1s"></div>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-around;margin-top:8px;font-size:11px;color:var(--text-muted)">';
+    html += '<span>🎬 ' + stScore.sermon + '/10</span>';
+    html += '<span>📝 ' + stScore.summary + '/10</span>';
+    html += '<span>🎮 ' + stScore.games + '/60</span>';
+    html += '</div>';
+    if (stScore.total >= STATION_UNLOCK_THRESHOLD) {
+        html += '<div style="color:#00B894;font-size:13px;margin-top:6px"><i class="fas fa-unlock"></i> المحطة الجاية مفتوحة!</div>';
+    } else {
+        html += '<div style="color:var(--text-muted);font-size:13px;margin-top:6px">🔒 محتاج ' + (STATION_UNLOCK_THRESHOLD - stScore.total) + ' نقطة كمان لفتح المحطة الجاية</div>';
+    }
+    html += '</div>';
+
     html += '<div class="mg-result-btns">';
     var replayType = miniGameState.type;
     html += '<button class="btn btn-primary" onclick="startMiniGame(\'' + replayType + '\')"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
-    html += '<button class="btn btn-secondary" onclick="miniGameState.type=null;level2State.currentStage=\'games\';renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i></span></button>';
+    html += '<button class="btn btn-secondary" onclick="miniGameState.type=null;level2State.currentStage=\'games\';renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>';
     html += '</div></div>';
 
     var body = document.getElementById('mg-body');
@@ -7825,6 +7956,9 @@ function showMiniGameResult(title) {
     else renderMiniGameUI(title, 'trophy', html);
 
     if (pct >= 60) launchConfetti(2000);
+    if (pct >= 90) {
+        setTimeout(function() { launchConfetti(1500); }, 1000);
+    }
 }
 
 // ========== TRUE/FALSE BLITZ ==========
@@ -7878,6 +8012,8 @@ function answerTrueFalse(answer) {
     if (miniGameState.timer) clearInterval(miniGameState.timer);
     var q = miniGameState.data[miniGameState.index];
     var correct = answer === q.answer;
+
+    showAnswerFeedback(correct);
 
     if (correct) {
         miniGameState.score++;
@@ -8153,6 +8289,8 @@ function answerFillBlank(answer) {
     var q = miniGameState.data[miniGameState.index];
     var correct = answer === q.blank;
 
+    showAnswerFeedback(correct);
+
     if (correct) {
         miniGameState.score += 2;
         playCorrectSound();
@@ -8364,6 +8502,7 @@ function showLessonSummaryTab() {
     html += '</div>';
 
     // Submit button - different text if re-editing
+    var summaryKey = subKey + '_' + lessonIdx;
     var alreadyHasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
     if (alreadyHasSummary) {
         html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
@@ -8467,10 +8606,12 @@ function submitLessonSummary() {
         date: getTodayKey()
     };
 
-    // Only award stars on FIRST submission
+    // Only award station score on FIRST submission
     if (!alreadySubmitted) {
-        GameState.stars += 5;
-        showToast('تم حفظ التلخيص! ⭐ +5 نجوم', 'success');
+        var stationKey = subKey + '_' + lessonIdx;
+        updateStationScore(stationKey, 'summary', STATION_SUMMARY_SCORE);
+        GameState.gems = (GameState.gems || 0) + 3;
+        showToast('تم حفظ التلخيص! +10 نقاط للمحطة + 3 جواهر 💎', 'success');
     } else {
         showToast('تم تحديث التلخيص! ✅', 'success');
     }
@@ -8490,10 +8631,14 @@ function markVideoWatched(videoKey) {
     if (GameState.watchedVideos && GameState.watchedVideos[videoKey]) return; // already rewarded
     if (!GameState.watchedVideos) GameState.watchedVideos = {};
     GameState.watchedVideos[videoKey] = true;
-    GameState.stars += 10;
-    awardXP(20, 'watch video');
+
+    // Update station score: sermon = 10 points
+    var stationKey = getStationKey();
+    updateStationScore(stationKey, 'sermon', STATION_SERMON_SCORE);
+
+    GameState.gems = (GameState.gems || 0) + 5;
     saveToCloud();
-    showAchievement('🎬', 'شاهدت الوعظة!', 'كسبت 10 نجوم + 20 XP ⭐');
+    showAchievement('🎬', 'شاهدت الوعظة!', 'كسبت 10 نقاط للمحطة + 5 جواهر 💎');
     // Re-render to show watched badge
     setTimeout(function() { renderLevel2Lesson(); }, 2000);
 }
@@ -10562,8 +10707,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Restore username/email from cloud
                 GameState.username = data.username || '';
                 GameState.email = data.email || '';
+                // Restore missing fields from cloud
+                if (data.miniGameScores) GameState.miniGameScores = data.miniGameScores;
+                if (data.stationScores) GameState.stationScores = data.stationScores;
                 showToast('أهلاً بيك يا ' + GameState.playerName.split(' ')[0] + '!', 'success');
                 showScreen('home-hub-screen');
+                // Force team badge update after cloud data is loaded
+                updateHubTeamBadge();
                 syncLeaderboard();
             } else {
                 // No cloud data found for this phone, clear remember

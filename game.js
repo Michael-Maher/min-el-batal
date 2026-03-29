@@ -630,6 +630,7 @@ function syncLeaderboard() {
         gamesPlayed: GameState.gamesPlayed,
         xp: GameState.xp || 0,
         team: GameState.team || '',
+        stationScores: GameState.stationScores || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     return docRef.set(entry, { merge: true })
@@ -4170,17 +4171,11 @@ function checkFirstTimePerfect(subKey, lessonIdx, percentage) {
 
 // --- Rewards Catalog ---
 var REWARDS_CATALOG = [
-    { id: 'surprise_box', name: 'صندوق مفاجآت 🎁', desc: 'هدية مفاجأة!', cost: { stars: 1500, gems: 30 }, icon: '🎁', category: 'instant' },
-    { id: 'meal_mcdonalds', name: 'وجبة ماكدونالدز 🍔', desc: 'وجبة من ماكدونالدز', cost: { stars: 3000, gems: 50 }, icon: '🍔', category: 'instant' },
-    { id: 'bible_cover', name: 'غلاف كتاب مقدس 📖', desc: 'غلاف جلد للكتاب المقدس', cost: { stars: 3000, gems: 60 }, icon: '📖', category: 'instant' },
-    { id: 'money_50', name: '50 جنيه نقدي 💵', desc: 'جائزة نقدية 50 جنيه', cost: { stars: 3500, gems: 70 }, icon: '💵', category: 'instant' },
-    { id: 'wallet', name: 'محفظة جلد 👛', desc: 'محفظة جلد طبيعي', cost: { stars: 4000, gems: 80 }, icon: '👛', category: 'instant' },
-    { id: 'airpods', name: 'AirPods 🎧', desc: 'سماعات AirPods', cost: { stars: 5000, gems: 100 }, icon: '🎧', category: 'premium' },
-    { id: 'money_100', name: '100 جنيه نقدي 💰', desc: 'جائزة نقدية 100 جنيه', cost: { stars: 5500, gems: 110 }, icon: '💰', category: 'premium' },
-    { id: 'cross_necklace', name: 'صليب فضة ✝️', desc: 'صليب فضة حقيقي', cost: { stars: 6000, gems: 120 }, icon: '✝️', category: 'premium' },
-    { id: 'money_200', name: '200 جنيه نقدي 🤑', desc: 'جائزة نقدية 200 جنيه', cost: { stars: 7000, gems: 140 }, icon: '🤑', category: 'premium' },
-    { id: 'watch', name: 'ساعة ذكية ⌚', desc: 'ساعة ذكية', cost: { stars: 8000, gems: 150 }, icon: '⌚', category: 'premium' },
-    { id: 'trip_discount', name: 'خصم رحلة الكنيسة ✈️', desc: 'خصم على رحلة المؤتمر', cost: { stars: 10000, gems: 200 }, icon: '✈️', category: 'premium' }
+    { id: 'trip_discount', name: 'خصم ١٠٪ على رحلة الخدمة ✈️', desc: 'خصم على رحلة الخدمة القادمة', cost: { stars: 5000, gems: 30 }, icon: '✈️', category: 'instant' },
+    { id: 'surprise_box', name: 'صندوق المفاجآت 🎁', desc: 'هدية مفاجأة!', cost: { stars: 10000, gems: 50 }, icon: '🎁', category: 'instant' },
+    { id: 'conf_discount', name: 'خصم ١٠٪ على المؤتمر ⛪', desc: 'خصم على المؤتمر القادم', cost: { stars: 15000, gems: 70 }, icon: '⛪', category: 'instant' },
+    { id: 'cash_prize', name: 'هدية نقدية فورية 💰', desc: 'جائزة نقدية فورية', cost: { stars: 20000, gems: 90 }, icon: '💰', category: 'premium' },
+    { id: 'phone_case', name: 'جراب موبايل 📱', desc: 'جراب موبايل مميز', cost: { stars: 30000, gems: 110 }, icon: '📱', category: 'premium' }
 ];
 
 // --- Rewards Shop Rendering ---
@@ -4640,19 +4635,20 @@ function createTeam() {
 
 function leaveTeam() {
     if (!GameState.team) return;
+    if (!confirm('متأكد إنك عايز تسيب الفريق؟')) return;
     var teamName = GameState.team;
+    var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
 
     if (firebaseDb) {
-        firebaseDb.collection('teams').doc(teamName).get().then(function(doc) {
+        firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
             if (doc.exists) {
                 var teamData = doc.data();
                 var members = (teamData.members || []).filter(function(m) { return m !== GameState.playerPhone; });
                 var memberNames = (teamData.memberNames || []).filter(function(n) { return n !== GameState.playerName; });
                 if (members.length === 0) {
-                    // Delete team if empty
-                    return firebaseDb.collection('teams').doc(teamName).delete();
+                    return firebaseDb.collection('teams').doc(docId).delete();
                 } else {
-                    return firebaseDb.collection('teams').doc(teamName).update({
+                    return firebaseDb.collection('teams').doc(docId).update({
                         members: members,
                         memberNames: memberNames
                     });
@@ -4663,6 +4659,7 @@ function leaveTeam() {
 
     GameState.team = '';
     GameState.teamLogo = '';
+    GameState.teamColor = '';
     saveToCloud();
     syncLeaderboard();
     showToast('تركت الفريق', 'success');
@@ -4675,11 +4672,18 @@ function updateHubTeamBadge() {
     var badge = document.getElementById('hub-team-badge');
     if (!badge) return;
     if (GameState.team) {
-        badge.innerHTML = '<span class="hub-team-logo">' + (GameState.teamLogo || '⚔️') + '</span><span class="hub-team-name">' + GameState.team + '</span>';
+        var teamColor = GameState.teamColor || '#6C5CE7';
+        badge.innerHTML = '<span class="hub-team-logo">' + (GameState.teamLogo || '⚔️') + '</span>' +
+            '<span class="hub-team-name" style="color:' + teamColor + '">' + GameState.team + '</span>' +
+            '<button class="hub-team-leave" onclick="event.stopPropagation();leaveTeam()" title="اسيب الفريق"><i class="fas fa-sign-out-alt"></i></button>';
         badge.style.display = 'flex';
+        badge.style.borderColor = teamColor;
+        badge.style.background = teamColor + '22';
     } else {
         badge.innerHTML = '<span class="hub-team-empty"><i class="fas fa-users"></i> انضم لفريق</span>';
         badge.style.display = 'flex';
+        badge.style.borderColor = 'rgba(108, 92, 231, 0.3)';
+        badge.style.background = 'rgba(108, 92, 231, 0.15)';
     }
 }
 
@@ -8507,19 +8511,41 @@ function showLessonSummaryTab() {
     if (alreadyHasSummary) {
         html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
             '<span><i class="fas fa-save"></i> حفظ التعديلات</span></button>';
-        // Pre-fill existing text
-        setTimeout(function() {
-            var ta = document.getElementById('lesson-summary-text');
-            if (ta && alreadyHasSummary.text) ta.value = alreadyHasSummary.text;
-        }, 100);
     } else {
         html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
-            '<span><i class="fas fa-paper-plane"></i> سلّم التلخيص (+5 ⭐)</span></button>';
+            '<span><i class="fas fa-paper-plane"></i> سلّم التلخيص (+10 نقاط)</span></button>';
     }
 
     html += '</div>';
 
     container.innerHTML = html;
+
+    // Pre-fill existing data after DOM is ready
+    if (alreadyHasSummary) {
+        setTimeout(function() {
+            // Pre-fill text
+            var ta = document.getElementById('lesson-summary-text');
+            if (ta && alreadyHasSummary.text) ta.value = alreadyHasSummary.text;
+
+            // Pre-fill image
+            if (alreadyHasSummary.image) {
+                var imgPreview = document.getElementById('lesson-summary-img-preview');
+                if (imgPreview) {
+                    imgPreview.innerHTML = '<img src="' + alreadyHasSummary.image + '" class="l2-summary-preview-img"><button class="l2-summary-remove-img" onclick="this.parentElement.innerHTML=\'\'; window._lessonSummaryImage=null;">✕</button>';
+                    window._lessonSummaryImage = alreadyHasSummary.image;
+                }
+            }
+
+            // Pre-fill audio
+            if (alreadyHasSummary.audio) {
+                var audioPreview = document.getElementById('lesson-audio-preview');
+                if (audioPreview) {
+                    audioPreview.innerHTML = '<audio controls src="' + alreadyHasSummary.audio + '" style="width:100%;margin-top:8px"></audio><button class="btn btn-sm" onclick="this.previousElementSibling.remove();this.remove();window._lessonSummaryAudio=null;" style="margin-top:4px;font-size:11px;color:#FF6B6B">🗑️ حذف التسجيل</button>';
+                    window._lessonSummaryAudio = alreadyHasSummary.audio;
+                }
+            }
+        }, 50);
+    }
 }
 
 var lessonRecorder = null;
@@ -10102,16 +10128,19 @@ function loadCompeteRankings() {
                 var d = doc.data();
                 var rankEmoji = rank === 1 ? '🥇' : (rank === 2 ? '🥈' : (rank === 3 ? '🥉' : rank));
                 var isMe = doc.id === GameState.playerPhone;
+                var playerName = d.playerName || d.name || 'لاعب';
+                var teamBadge = d.team ? '<span style="font-size:9px;color:var(--text-muted);margin-right:4px">(' + d.team + ')</span>' : '';
                 html += '<div class="compete-rank-item ' + (isMe ? 'me' : '') + '">';
                 html += '<span class="compete-rank-pos">' + rankEmoji + '</span>';
-                html += '<span class="compete-rank-name">' + (d.name || 'لاعب') + '</span>';
-                html += '<span class="compete-rank-stars">⭐ ' + (d.stars || 0) + '</span>';
+                html += '<span class="compete-rank-name">' + playerName + teamBadge + '</span>';
+                html += '<span class="compete-rank-stars">⭐ ' + (d.stars || 0) + ' 💎 ' + (d.gems || 0) + '</span>';
                 html += '</div>';
             });
             if (!html) html = '<p class="compete-empty">مفيش ترتيب لسه</p>';
             container.innerHTML = html;
         })
-        .catch(function() {
+        .catch(function(err) {
+            console.error('Ranking load error:', err);
             container.innerHTML = '<p class="compete-empty">خطأ في تحميل الترتيب</p>';
         });
 }

@@ -48,7 +48,7 @@ body::after {
     content: '';
     position: fixed;
     inset: 0;
-    background: rgba(10, 14, 39, 0.75);
+    background: rgba(10, 14, 39, 0.55);
     z-index: 0;
     pointer-events: none;
 }
@@ -736,8 +736,10 @@ select.admin-input { appearance: none; cursor: pointer; }
     background: transparent;
 }
 .setup-card {
-    background: var(--card);
-    border: 1px solid var(--border);
+    background: rgba(26, 32, 64, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.1);
     border-radius: 24px;
     padding: 40px;
     max-width: 500px;

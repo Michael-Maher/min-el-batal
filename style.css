@@ -7619,6 +7619,29 @@ body {
     box-shadow: 0 0 12px rgba(255, 215, 0, 0.3);
 }
 
+/* Team Color Picker */
+.team-color-picker { margin-bottom: 10px; }
+.team-colors-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}
+.team-color-option {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.team-color-option:hover { transform: scale(1.1); }
+.team-color-option.selected {
+    border-color: white;
+    transform: scale(1.2);
+    box-shadow: 0 0 12px currentColor;
+}
+.team-image-upload { margin-bottom: 10px; }
+
 /* Browse Teams */
 .teams-browse-section { margin-top: 20px; }
 .teams-browse-title { font-size: 16px; margin-bottom: 12px; }
@@ -7647,6 +7670,16 @@ body {
 .open-team-info h4 { font-size: 15px; margin-bottom: 2px; }
 .open-team-info p { font-size: 12px; color: var(--text-muted); }
 .open-team-names { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.open-team-members-detail { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.team-member-chip {
+    font-size: 10px;
+    background: rgba(255,255,255,0.08);
+    padding: 2px 8px;
+    border-radius: 10px;
+    color: var(--text-secondary);
+}
+.open-team-action { flex-shrink: 0; }
+[data-theme="light"] .team-member-chip { background: rgba(0,0,0,0.05); }
 .open-team-status { font-size: 12px; color: var(--success); font-weight: 700; }
 .open-team-status.full { color: var(--text-muted); }
 

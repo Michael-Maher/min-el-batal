@@ -21,5 +21,13 @@ service cloud.firestore {
     match /lessons/{lessonId} {
       allow read, write: if true;
     }
+    // Teams collection - for team management
+    match /teams/{teamId} {
+      allow read, write: if true;
+    }
+    // Reward requests - for gift redemptions
+    match /reward_requests/{requestId} {
+      allow read, write: if true;
+    }
   }
 }

@@ -70,6 +70,7 @@ const GameState = {
     xp: 0,
     team: '',
     teamLogo: '',
+    teamColor: '',
     redeemedRewards: [],
     dailyLoginDate: ''        // last daily login XP date 'YYYY-MM-DD'
 };
@@ -552,6 +553,7 @@ function saveToCloud() {
         xp: GameState.xp || 0,
         team: GameState.team || '',
         teamLogo: GameState.teamLogo || '',
+        teamColor: GameState.teamColor || '',
         redeemedRewards: GameState.redeemedRewards || [],
         dailyLoginDate: GameState.dailyLoginDate || '',
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
@@ -4164,16 +4166,14 @@ function checkFirstTimePerfect(subKey, lessonIdx, percentage) {
 
 // --- Rewards Catalog ---
 var REWARDS_CATALOG = [
+    { id: 'surprise_box', name: 'صندوق مفاجآت 🎁', desc: 'هدية مفاجأة!', cost: { stars: 1500, gems: 30 }, icon: '🎁', category: 'instant' },
     { id: 'meal_mcdonalds', name: 'وجبة ماكدونالدز 🍔', desc: 'وجبة من ماكدونالدز', cost: { stars: 3000, gems: 50 }, icon: '🍔', category: 'instant' },
-    { id: 'airpods', name: 'AirPods 🎧', desc: 'سماعات AirPods', cost: { stars: 5000, gems: 100 }, icon: '🎧', category: 'premium' },
-    { id: 'trip_discount', name: 'خصم رحلة الكنيسة ✈️', desc: 'خصم على رحلة المؤتمر', cost: { stars: 10000, gems: 200 }, icon: '✈️', category: 'premium' },
-    { id: 'watch', name: 'ساعة ذكية ⌚', desc: 'ساعة ذكية', cost: { stars: 8000, gems: 150 }, icon: '⌚', category: 'premium' },
-    { id: 'wallet', name: 'محفظة جلد 👛', desc: 'محفظة جلد طبيعي', cost: { stars: 4000, gems: 80 }, icon: '👛', category: 'instant' },
-    { id: 'money_50', name: '50 جنيه 💵', desc: 'مبلغ نقدي 50 جنيه', cost: { stars: 2000, gems: 40 }, icon: '💵', category: 'instant' },
-    { id: 'money_100', name: '100 جنيه 💵', desc: 'مبلغ نقدي 100 جنيه', cost: { stars: 4000, gems: 80 }, icon: '💵', category: 'instant' },
-    { id: 'cross_necklace', name: 'صليب فضة ✝️', desc: 'صليب فضة حقيقي', cost: { stars: 6000, gems: 120 }, icon: '✝️', category: 'premium' },
     { id: 'bible_cover', name: 'غلاف كتاب مقدس 📖', desc: 'غلاف جلد للكتاب المقدس', cost: { stars: 3000, gems: 60 }, icon: '📖', category: 'instant' },
-    { id: 'surprise_box', name: 'صندوق مفاجآت 🎁', desc: 'هدية مفاجأة!', cost: { stars: 1500, gems: 30 }, icon: '🎁', category: 'instant' }
+    { id: 'wallet', name: 'محفظة جلد 👛', desc: 'محفظة جلد طبيعي', cost: { stars: 4000, gems: 80 }, icon: '👛', category: 'instant' },
+    { id: 'airpods', name: 'AirPods 🎧', desc: 'سماعات AirPods', cost: { stars: 5000, gems: 100 }, icon: '🎧', category: 'premium' },
+    { id: 'cross_necklace', name: 'صليب فضة ✝️', desc: 'صليب فضة حقيقي', cost: { stars: 6000, gems: 120 }, icon: '✝️', category: 'premium' },
+    { id: 'watch', name: 'ساعة ذكية ⌚', desc: 'ساعة ذكية', cost: { stars: 8000, gems: 150 }, icon: '⌚', category: 'premium' },
+    { id: 'trip_discount', name: 'خصم رحلة الكنيسة ✈️', desc: 'خصم على رحلة المؤتمر', cost: { stars: 10000, gems: 200 }, icon: '✈️', category: 'premium' }
 ];
 
 // --- Rewards Shop Rendering ---
@@ -4234,7 +4234,7 @@ function renderRewardCard(reward) {
     html += '</div>';
     html += '<button class="btn ' + (canAfford ? 'btn-primary' : 'btn-secondary') + ' btn-sm reward-btn" ' +
         (canAfford ? 'onclick="redeemReward(\'' + reward.id + '\')"' : 'disabled') + '>' +
-        '<span>' + (canAfford ? '<i class="fas fa-gift"></i> اطلب' : '<i class="fas fa-lock"></i> مش كفاية') + '</span></button>';
+        '<span>' + (canAfford ? '<i class="fas fa-gift"></i> اطلب' : '<i class="fas fa-lock"></i> جمّع أكتر') + '</span></button>';
     html += '</div>';
     return html;
 }
@@ -4309,12 +4309,28 @@ function renderTeamsScreen() {
         html += '<h3><i class="fas fa-plus-circle"></i> أنشئ فريق جديد</h3>';
         html += '<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">أقصى عدد 6 أعضاء في الفريق</p>';
         html += '<input type="text" id="create-team-name" class="input-field" placeholder="اسم الفريق" maxlength="20" style="margin-bottom:10px">';
+        // Logo picker
         html += '<div class="team-logo-picker">';
         html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">اختار شعار:</p>';
         html += '<div class="team-logos-grid" id="team-logos-grid">';
         TEAM_LOGOS.forEach(function(logo, idx) {
             html += '<div class="team-logo-option ' + (idx === 0 ? 'selected' : '') + '" data-logo="' + logo + '" onclick="selectTeamLogo(this, \'' + logo + '\')">' + logo + '</div>';
         });
+        html += '</div></div>';
+        // Color picker
+        html += '<div class="team-color-picker">';
+        html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">اختار لون الفريق:</p>';
+        html += '<div class="team-colors-grid">';
+        TEAM_COLORS.forEach(function(color, idx) {
+            html += '<div class="team-color-option ' + (idx === 0 ? 'selected' : '') + '" style="background:' + color + '" onclick="selectTeamColor(this,\'' + color + '\')"></div>';
+        });
+        html += '</div></div>';
+        // Image upload
+        html += '<div class="team-image-upload">';
+        html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">صورة الفريق (اختياري):</p>';
+        html += '<div style="display:flex;gap:10px;align-items:center;">';
+        html += '<label class="btn btn-secondary btn-sm" style="cursor:pointer"><span><i class="fas fa-camera"></i> اختار صورة</span><input type="file" accept="image/*" onchange="handleTeamImage(event)" style="display:none"></label>';
+        html += '<div id="team-img-preview"></div>';
         html += '</div></div>';
         html += '<button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="createTeam()"><span><i class="fas fa-plus"></i> أنشئ الفريق</span></button>';
         html += '</div>';
@@ -4331,10 +4347,33 @@ function renderTeamsScreen() {
 }
 
 var _selectedTeamLogo = '⚔️';
+var _selectedTeamColor = '#6C5CE7';
+var _teamImageData = '';
+var TEAM_COLORS = ['#6C5CE7','#00CEC9','#E17055','#00B894','#FDCB6E','#E84393','#0984E3','#D63031','#6AB04C','#F9CA24','#30336B','#22A6B3'];
+
 function selectTeamLogo(el, logo) {
     _selectedTeamLogo = logo;
     document.querySelectorAll('.team-logo-option').forEach(function(o) { o.classList.remove('selected'); });
     el.classList.add('selected');
+}
+
+function selectTeamColor(el, color) {
+    _selectedTeamColor = color;
+    document.querySelectorAll('.team-color-option').forEach(function(o) { o.classList.remove('selected'); });
+    el.classList.add('selected');
+}
+
+function handleTeamImage(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        _teamImageData = e.target.result;
+        var preview = document.getElementById('team-img-preview');
+        if (preview) preview.innerHTML = '<img src="' + _teamImageData + '" style="width:60px;height:60px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)">';
+        showToast('تم اختيار الصورة ✅', 'success');
+    };
+    reader.readAsDataURL(file);
 }
 
 function loadOpenTeams() {
@@ -4350,25 +4389,39 @@ function loadOpenTeams() {
         snapshot.forEach(function(doc) {
             var t = doc.data();
             var members = t.members || [];
+            var memberNames = t.memberNames || [];
             var isFull = members.length >= 6;
             var isMyTeam = GameState.team === t.name;
             var isMember = members.indexOf(GameState.playerPhone) >= 0;
-            html += '<div class="open-team-card ' + (isFull ? 'full' : '') + '">';
-            html += '<div class="open-team-logo">' + (t.logo || '⚔️') + '</div>';
+            var teamColor = t.color || '#6C5CE7';
+            html += '<div class="open-team-card ' + (isFull ? 'full' : '') + '" style="border-right: 4px solid ' + teamColor + '">';
+            // Team logo/image
+            if (t.image) {
+                html += '<div class="open-team-logo"><img src="' + t.image + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></div>';
+            } else {
+                html += '<div class="open-team-logo" style="background:linear-gradient(135deg, ' + teamColor + '33, ' + teamColor + '66)">' + (t.logo || '⚔️') + '</div>';
+            }
             html += '<div class="open-team-info">';
             html += '<h4>' + t.name + '</h4>';
-            html += '<p>' + members.length + '/6 أعضاء</p>';
-            if (t.memberNames && t.memberNames.length > 0) {
-                html += '<p class="open-team-names">' + t.memberNames.slice(0, 3).join('، ') + (t.memberNames.length > 3 ? '...' : '') + '</p>';
+            html += '<p><i class="fas fa-users" style="margin-left:4px"></i> ' + members.length + '/6 أعضاء</p>';
+            // Show ALL member names
+            if (memberNames.length > 0) {
+                html += '<div class="open-team-members-detail">';
+                memberNames.forEach(function(name, idx) {
+                    html += '<span class="team-member-chip">' + (idx + 1) + '. ' + name + '</span>';
+                });
+                html += '</div>';
             }
             html += '</div>';
+            html += '<div class="open-team-action">';
             if (isMyTeam || isMember) {
                 html += '<span class="open-team-status">✅ فريقك</span>';
             } else if (isFull) {
                 html += '<span class="open-team-status full">ممتلئ</span>';
             } else {
-                html += '<button class="btn btn-primary btn-sm" onclick="requestJoinTeam(\'' + t.name.replace(/'/g, "\\'") + '\')"><span>انضم</span></button>';
+                html += '<button class="btn btn-primary btn-sm" onclick="requestJoinTeam(\'' + doc.id.replace(/'/g, "\\'") + '\')"><span>انضم</span></button>';
             }
+            html += '</div>';
             html += '</div>';
         });
         list.innerHTML = html;
@@ -4394,12 +4447,37 @@ function loadMyTeamMembers() {
     });
 }
 
-function requestJoinTeam(teamName) {
+function requestJoinTeam(docId) {
     if (GameState.team) {
         showToast('لازم تترك فريقك الأول قبل ما تنضم لفريق تاني', 'error');
         return;
     }
-    joinTeamByName(teamName);
+    joinTeamByDocId(docId);
+}
+
+function joinTeamByDocId(docId) {
+    if (!firebaseDb) { showToast('مفيش اتصال', 'error'); return; }
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        if (!doc.exists) { showToast('الفريق مش موجود', 'error'); return; }
+        var teamData = doc.data();
+        var members = teamData.members || [];
+        if (members.length >= 6) { showToast('الفريق ممتلئ!', 'error'); return; }
+        if (members.indexOf(GameState.playerPhone) >= 0) { showToast('أنت موجود بالفعل!', 'error'); return; }
+        members.push(GameState.playerPhone);
+        return firebaseDb.collection('teams').doc(docId).update({
+            members: members,
+            memberNames: firebase.firestore.FieldValue.arrayUnion(GameState.playerName)
+        }).then(function() {
+            GameState.team = teamData.name;
+            GameState.teamLogo = teamData.logo || '⚔️';
+            GameState.teamColor = teamData.color || '#6C5CE7';
+            saveToCloud();
+            syncLeaderboard();
+            showToast('انضممت لفريق ' + teamData.name + '! 🎉', 'success');
+            renderTeamsScreen();
+            updateHubTeamBadge();
+        });
+    }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
 }
 
 function renderTeamSection() {
@@ -4468,20 +4546,32 @@ function createTeam() {
     }
 
     if (!firebaseDb) {
-        showToast('مفيش اتصال بالسيرفر', 'error');
+        // Fallback: save team locally if no firebase connection
+        GameState.team = teamName;
+        GameState.teamLogo = _selectedTeamLogo || '⚔️';
+        GameState.teamColor = _selectedTeamColor || '#6C5CE7';
+        saveToLocalStorage();
+        showToast('تم إنشاء فريق ' + teamName + '! 🎉 (محلي)', 'success');
+        renderTeamsScreen();
+        updateHubTeamBadge();
         return;
     }
 
     var logo = _selectedTeamLogo || '⚔️';
+    var color = _selectedTeamColor || '#6C5CE7';
+    // Use a safe document ID (replace problematic chars)
+    var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
 
-    firebaseDb.collection('teams').doc(teamName).get().then(function(doc) {
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
         if (doc.exists) {
             showToast('الاسم ده موجود بالفعل - اختار اسم تاني', 'error');
             return;
         }
-        return firebaseDb.collection('teams').doc(teamName).set({
+        return firebaseDb.collection('teams').doc(docId).set({
             name: teamName,
             logo: logo,
+            color: color,
+            image: _teamImageData || '',
             members: [GameState.playerPhone],
             memberNames: [GameState.playerName],
             createdBy: GameState.playerPhone,
@@ -4489,6 +4579,8 @@ function createTeam() {
         }).then(function() {
             GameState.team = teamName;
             GameState.teamLogo = logo;
+            GameState.teamColor = color;
+            _teamImageData = '';
             saveToCloud();
             syncLeaderboard();
             showToast('تم إنشاء فريق ' + teamName + '! 🎉', 'success');
@@ -4497,7 +4589,7 @@ function createTeam() {
         });
     }).catch(function(e) {
         console.error('Create team error:', e);
-        showToast('حصل مشكلة، حاول تاني', 'error');
+        showToast('حصل مشكلة: ' + (e.message || e.code || 'خطأ غير معروف'), 'error');
     });
 }
 
@@ -6321,7 +6413,7 @@ var FAITH_MAP_POSITIONS = [
     { left: 37.5, top: 67 },  // 3. الفداء (center-bottom, cross area)
     { left: 54,   top: 42 },  // 4. المجيء الثاني (moved down)
     { left: 72,   top: 76 },  // 5. التوبة والاعتراف (moved down)
-    { left: 88,   top: 58 }   // 6. المعمودية والميرون (moved down)
+    { left: 88,   top: 68 }   // 6. المعمودية والميرون (moved more down)
 ];
 
 function renderLevel2Map() {
@@ -6767,20 +6859,22 @@ function renderLevel2Learn(container, lesson, subject) {
 
     html += '</div>';
 
-    // If summary not submitted yet, show summary section
+    // Summary section - always visible
     if (!hasSummary) {
         html += '<div class="l2-summary-required">';
         html += '<h4><i class="fas fa-pen"></i> لازم تعمل تلخيص الأول قبل ما تبدأ المسابقات</h4>';
         html += '<button class="btn btn-primary" onclick="showLessonSummaryTab()" style="width:100%;margin-top:8px;">' +
-            '<span><i class="fas fa-pen"></i> اكتب تلخيص الدرس</span></button>';
+            '<span><i class="fas fa-pen"></i> اكتب تلخيص الدرس (+5 نجوم)</span></button>';
         html += '</div>';
     } else {
-        // Show saved summary
+        // Show saved summary with edit option (no extra stars)
         var savedSummary = GameState.lessonSummaries[summaryKey];
         html += '<div class="l2-saved-summary">';
-        html += '<h4><i class="fas fa-check-circle"></i> تلخيصك المحفوظ</h4>';
+        html += '<h4><i class="fas fa-check-circle" style="color:var(--success)"></i> تلخيصك ✅</h4>';
         if (savedSummary.text) html += '<p>' + savedSummary.text + '</p>';
         if (savedSummary.image) html += '<img src="' + savedSummary.image + '" class="l2-summary-saved-img">';
+        html += '<button class="btn btn-secondary btn-sm" onclick="showLessonSummaryTab()" style="margin-top:8px">' +
+            '<span><i class="fas fa-pen"></i> عدّل التلخيص</span></button>';
         html += '</div>';
 
         // Button to go to games/quiz tab
@@ -7921,9 +8015,20 @@ function showLessonSummaryTab() {
     html += '<div id="lesson-audio-preview"></div>';
     html += '</div>';
 
-    // Submit button
-    html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
-        '<span><i class="fas fa-paper-plane"></i> سلّم التلخيص (+5 ⭐)</span></button>';
+    // Submit button - different text if re-editing
+    var alreadyHasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
+    if (alreadyHasSummary) {
+        html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
+            '<span><i class="fas fa-save"></i> حفظ التعديلات</span></button>';
+        // Pre-fill existing text
+        setTimeout(function() {
+            var ta = document.getElementById('lesson-summary-text');
+            if (ta && alreadyHasSummary.text) ta.value = alreadyHasSummary.text;
+        }, 100);
+    } else {
+        html += '<button class="btn btn-primary" onclick="submitLessonSummary()" style="width:100%;margin-top:16px;">' +
+            '<span><i class="fas fa-paper-plane"></i> سلّم التلخيص (+5 ⭐)</span></button>';
+    }
 
     html += '</div>';
 
@@ -8006,6 +8111,7 @@ function submitLessonSummary() {
     }
 
     if (!GameState.lessonSummaries) GameState.lessonSummaries = {};
+    var alreadySubmitted = GameState.lessonSummaries[summaryKey];
     GameState.lessonSummaries[summaryKey] = {
         text: text,
         image: image,
@@ -8013,14 +8119,18 @@ function submitLessonSummary() {
         date: getTodayKey()
     };
 
-    GameState.stars += 5;
-    awardXP(30, 'submit summary');
+    // Only award stars on FIRST submission
+    if (!alreadySubmitted) {
+        GameState.stars += 5;
+        showToast('تم حفظ التلخيص! ⭐ +5 نجوم', 'success');
+    } else {
+        showToast('تم تحديث التلخيص! ✅', 'success');
+    }
     window._lessonSummaryImage = null;
     window._lessonSummaryAudio = null;
 
     saveToCloud();
     saveToLocalStorage();
-    showToast('تم حفظ التلخيص! ⭐ +5 نجوم + 30 XP', 'success');
 
     // Re-render learn stage
     level2State.currentStage = 'learn';
@@ -10148,6 +10258,8 @@ function saveToLocalStorage() {
     } catch(e) {
         console.warn('localStorage save failed:', e);
     }
+    // Always sync to cloud as well
+    saveToCloud();
 }
 
 function loadFromLocalStorage() {

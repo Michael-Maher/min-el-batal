@@ -46,7 +46,8 @@ body::before {
 }
 
 /* ============ ADMIN SIDEBAR ============ */
-.admin-sidebar, .main-content, #adminSidebar, #matchArea, #setupScreen, .bracket-view, .welcome-area {
+.admin-sidebar, .main-content, #adminSidebar, #matchArea, #setupScreen, .bracket-view, .welcome-area,
+.view, .admin-toggle, .fullscreen-btn, .keyboard-hint, .round-counter-overlay, .next-question-overlay {
     position: relative;
     z-index: 1;
 }
@@ -1390,6 +1391,57 @@ body.screen-shake {
     0% { transform: scale(0.5); opacity: 0; }
     100% { transform: scale(1); opacity: 1; }
 }
+
+/* ============ MOBILE RESPONSIVE ============ */
+@media (max-width: 768px) {
+    body { overflow: auto; height: auto; min-height: 100vh; }
+    .view { height: auto; min-height: 100vh; }
+    .admin-sidebar { width: 100%; }
+    .admin-toggle { top: 8px; left: 8px; width: 40px; height: 40px; font-size: 16px; }
+    .fullscreen-btn { top: 8px; left: 56px; width: 40px; height: 40px; font-size: 16px; }
+    .keyboard-hint { display: none; }
+
+    /* Scoreboard mobile */
+    .scoreboard { flex-direction: column; gap: 8px; padding: 12px; }
+    .scoreboard-team { gap: 8px; padding: 10px 12px; justify-content: center !important; }
+    .scoreboard-team.team-b { flex-direction: row !important; }
+    .scoreboard-img { width: 40px; height: 40px; }
+    .scoreboard-info h3 { font-size: 14px; }
+    .scoreboard-members { max-width: 120px; font-size: 9px; }
+    .scoreboard-score { font-size: 28px; min-width: 50px; }
+    .scoreboard-vs { padding: 4px 12px; font-size: 18px; }
+
+    /* Question area mobile */
+    .question-area { padding: 12px 16px; }
+    .question-text { font-size: 18px !important; padding: 16px !important; }
+    .options-grid { grid-template-columns: 1fr !important; gap: 8px !important; padding: 0 !important; }
+    .option-btn { font-size: 14px !important; padding: 12px !important; }
+    .tf-buttons { gap: 12px !important; }
+    .tf-btn { font-size: 16px !important; padding: 14px 24px !important; }
+
+    /* Bracket mobile */
+    .bracket-title { font-size: 20px; top: 10px; }
+    .bracket-logo { width: 40px !important; height: 40px !important; }
+    .bracket-container { transform: scale(0.6); transform-origin: top center; }
+
+    /* Setup mobile */
+    .setup-card { padding: 24px; margin: 16px; }
+    .setup-logo { width: 100px; height: 100px; }
+    .setup-card h2 { font-size: 24px; }
+
+    /* Score comparison mobile */
+    .score-comparison { padding: 0 12px; }
+
+    /* Turn transition mobile */
+    .turn-transition-overlay { padding: 20px; }
+    .turn-team-img-large { width: 80px !important; height: 80px !important; }
+}
+
+@media (max-width: 480px) {
+    .scoreboard-info h3 { font-size: 12px; }
+    .scoreboard-score { font-size: 22px; min-width: 40px; }
+    .question-text { font-size: 16px !important; }
+}
 </style>
 </head>
 <body>
@@ -2520,18 +2572,32 @@ function answerQuestion(idx) {
     var q = matchState.questions[matchState.currentQ];
     var correct = idx === q.correct;
 
-    // Highlight correct/wrong
+    // Highlight the selected answer
     var btn = document.getElementById('opt-' + idx);
     if (btn) btn.classList.add(correct ? 'correct' : 'wrong');
 
-    // Show correct answer
-    if (!correct) {
-        var correctBtn = document.getElementById('opt-' + q.correct);
-        if (correctBtn) correctBtn.classList.add('correct');
-    }
+    // DON'T show correct answer automatically - admin must reveal it
+    // Store correct index for later reveal
+    matchState.pendingCorrectIdx = q.correct;
+    matchState.pendingAnswerCorrect = correct;
 
     // Disable all
     document.querySelectorAll('.option-btn, .tf-btn').forEach(function(b) { b.classList.add('disabled'); });
+
+    // Show "reveal answer" button for admin
+    if (!correct) {
+        var revealCorrectBtn = document.createElement('button');
+        revealCorrectBtn.className = 'admin-btn primary';
+        revealCorrectBtn.id = 'revealCorrectBtn';
+        revealCorrectBtn.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:999;font-size:16px;padding:12px 24px;border-radius:30px;animation:turnPulse 1.5s infinite';
+        revealCorrectBtn.innerHTML = '<i class="fas fa-eye"></i> اعرض الإجابة الصحيحة';
+        revealCorrectBtn.onclick = function() {
+            var correctBtn = document.getElementById('opt-' + matchState.pendingCorrectIdx);
+            if (correctBtn) correctBtn.classList.add('correct');
+            revealCorrectBtn.remove();
+        };
+        document.body.appendChild(revealCorrectBtn);
+    }
 
     if (correct) {
         // Speed bonus
@@ -2616,9 +2682,11 @@ function showFeedback(correct) {
 }
 
 function nextTurn() {
-    // Remove any leftover next button
+    // Remove any leftover next button and reveal button
     var nextBtn = document.getElementById('nextQuestionOverlayBtn');
     if (nextBtn) nextBtn.remove();
+    var revealBtn = document.getElementById('revealCorrectBtn');
+    if (revealBtn) revealBtn.remove();
     matchState.waitingForNext = false;
 
     matchState.currentQ++;

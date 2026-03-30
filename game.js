@@ -74,7 +74,8 @@ const GameState = {
     redeemedRewards: [],
     dailyLoginDate: '',       // last daily login XP date 'YYYY-MM-DD'
     miniGameScores: {},       // { 'faith_0_mg_trueFalse': 15, ... }
-    stationScores: {}         // { 'faith_0': { sermon: 10, summary: 10, games: 45, total: 65 } }
+    stationScores: {},        // { 'faith_0': { sermon: 10, summary: 10, games: 45, total: 65 } }
+    teamLastAction: 0         // timestamp of last team join/leave action
 };
 
 // --- Firebase Initialization ---
@@ -204,6 +205,55 @@ function submitLogin() {
             GameState.username = existingData.username || '';
             GameState.email = existingData.email || '';
 
+            // Merge localStorage scores (in case cloud save didn't complete last session)
+            var localBackup = {};
+            try {
+                var saved = localStorage.getItem('minElBatal_gameState');
+                if (saved) localBackup = JSON.parse(saved);
+            } catch(e) {}
+            // Merge score objects keeping max values
+            ['stationScores', 'miniGameScores'].forEach(function(scoreKey) {
+                var cloudObj = GameState[scoreKey] || {};
+                var localObj = localBackup[scoreKey] || {};
+                var merged = {};
+                var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
+                allKeys.forEach(function(k) {
+                    if (scoreKey === 'stationScores') {
+                        var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
+                        var l = localObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
+                        merged[k] = {
+                            sermon: Math.max(c.sermon || 0, l.sermon || 0),
+                            summary: Math.max(c.summary || 0, l.summary || 0),
+                            games: Math.max(c.games || 0, l.games || 0),
+                            total: 0
+                        };
+                        merged[k].total = Math.min(merged[k].sermon + merged[k].summary + merged[k].games, 80);
+                    } else {
+                        merged[k] = Math.max(cloudObj[k] || 0, localObj[k] || 0);
+                    }
+                });
+                GameState[scoreKey] = merged;
+            });
+            // Merge numeric stats
+            ['stars', 'gems', 'totalCorrect', 'totalAnswered', 'bestStreak', 'gamesPlayed', 'xp'].forEach(function(k) {
+                GameState[k] = Math.max(GameState[k] || 0, localBackup[k] || 0);
+            });
+            // Merge object maps (watchedVideos, lessonSummaries)
+            ['watchedVideos', 'lessonSummaries'].forEach(function(k) {
+                var cloudMap = GameState[k] || {};
+                var localMap = localBackup[k] || {};
+                GameState[k] = Object.assign({}, localMap, cloudMap);
+            });
+            // Team: use local if local has a more recent team action (teamLastAction timestamp)
+            var localTeamTime = localBackup.teamLastAction || 0;
+            var cloudTeamTime = existingData.teamLastAction || 0;
+            if (localTeamTime > cloudTeamTime) {
+                GameState.team = localBackup.team || '';
+                GameState.teamLogo = localBackup.teamLogo || '';
+                GameState.teamColor = localBackup.teamColor || '';
+            }
+
+            console.log('Login merged scores:', JSON.stringify(GameState.stationScores));
             handleRememberMe(rememberMe, GameState.playerPhone);
             showToast('أهلاً بيك يا ' + GameState.playerName.split(' ')[0] + '!', 'success');
             showScreen('home-hub-screen');
@@ -560,6 +610,7 @@ function saveToCloud() {
         dailyLoginDate: GameState.dailyLoginDate || '',
         miniGameScores: GameState.miniGameScores || {},
         stationScores: GameState.stationScores || {},
+        teamLastAction: GameState.teamLastAction || 0,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -4900,6 +4951,10 @@ function joinTeamByName(teamName) {
 }
 
 function createTeam() {
+    if (GameState.team) {
+        showToast('أنت بالفعل في فريق! اترك فريقك الحالي أولاً.', 'error');
+        return;
+    }
     var input = document.getElementById('create-team-name');
     var teamName = input ? input.value.trim() : '';
     if (!teamName || teamName.length < 2) {
@@ -4944,8 +4999,9 @@ function createTeam() {
             GameState.team = teamName;
             GameState.teamLogo = logo;
             GameState.teamColor = color;
+            GameState.teamLastAction = Date.now();
             _teamImageData = '';
-            saveToCloud();
+            saveToLocalStorage(); // saves to cloud too
             syncLeaderboard();
             showToast('تم إنشاء فريق ' + teamName + '! 🎉', 'success');
             renderTeamsScreen();
@@ -4961,6 +5017,12 @@ function leaveTeam() {
     if (!GameState.team) return;
     if (!confirm('متأكد إنك عايز تسيب الفريق؟')) return;
     var teamName = GameState.team;
+    // Mark team as left immediately in local state
+    GameState.team = '';
+    GameState.teamLogo = '';
+    GameState.teamColor = '';
+    GameState.teamLastAction = Date.now();
+    saveToLocalStorage(true); // Save locally immediately so it survives reload
     var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
 
     if (firebaseDb) {
@@ -4989,10 +5051,7 @@ function leaveTeam() {
         }).catch(function(e) { console.error('Leave team error:', e); });
     }
 
-    GameState.team = '';
-    GameState.teamLogo = '';
-    GameState.teamColor = '';
-    saveToCloud();
+    saveToLocalStorage(); // Cloud save with team: '' and teamLastAction timestamp
     syncLeaderboard();
     showToast('تركت الفريق', 'success');
     renderTeamsScreen();
@@ -6823,12 +6882,12 @@ function usePowerUp(type) {
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
 var FAITH_MAP_POSITIONS = [
-    { left: 10,   top: 28 },  // 1. الثالوث القدوس - under title text
-    { left: 18,   top: 50 },  // 2. التجسد - under title text
-    { left: 38,   top: 62 },  // 3. الفداء - under title text
-    { left: 55,   top: 35 },  // 4. المجئ الثاني - under title text
-    { left: 73,   top: 65 },  // 5. التوبة والاعتراف - under title text
-    { left: 88,   top: 65 }   // 6. المعمودية والميرون - under title text
+    { left: 7,    top: 64 },  // 1. الثالوث القدوس - below Arabic text
+    { left: 16,   top: 77 },  // 2. التجسد - below Arabic text
+    { left: 33,   top: 85 },  // 3. الفداء - below Arabic text
+    { left: 49,   top: 77 },  // 4. المجئ الثاني - below Arabic text
+    { left: 63,   top: 88 },  // 5. المعمودية والميرون - on numbered circle (text at bottom edge)
+    { left: 82,   top: 86 }   // 6. التوبة والاعتراف - on numbered circle (text at bottom edge)
 ];
 
 function renderLevel2Map() {
@@ -11129,10 +11188,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateHubTeamBadge();
                 syncLeaderboard();
             } else {
-                // No cloud data found for this phone, clear remember
+                // No cloud data found for this phone — account was deleted
+                // Clear all local data to prevent stale re-login
                 localStorage.removeItem('minElBatal_remember');
+                localStorage.removeItem('minElBatal_gameState');
                 resetLoginBtn(btn);
                 showScreen('splash-screen');
+                showToast('الحساب مش موجود - سجّل حساب جديد', 'info');
             }
         }).catch(function() {
             resetLoginBtn(btn);

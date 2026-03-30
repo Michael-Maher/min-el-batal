@@ -28,10 +28,11 @@ body {
     font-family: 'Cairo', sans-serif;
     background: var(--bg);
     color: var(--text);
-    overflow: hidden;
-    height: 100vh;
+    overflow: auto;
+    min-height: 100vh;
     width: 100vw;
     position: relative;
+    -webkit-overflow-scrolling: touch;
 }
 body::before {
     content: '';
@@ -190,17 +191,18 @@ select.admin-input { appearance: none; cursor: pointer; }
 .admin-lesson-check input { accent-color: var(--team-b); }
 
 /* ============ MAIN VIEWS ============ */
-.view { display: none; width: 100vw; height: 100vh; }
+.view { display: none; width: 100vw; min-height: 100vh; position: relative; z-index: 2; }
 .view.active { display: flex; }
 
 /* ============ BRACKET VIEW ============ */
 .bracket-view {
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
+    padding-top: 80px;
     background: transparent;
     position: relative;
-    overflow: hidden;
+    overflow: auto;
 }
 .bracket-title {
     position: absolute;
@@ -1404,9 +1406,8 @@ body.screen-shake {
 
 /* ============ MOBILE RESPONSIVE ============ */
 @media (max-width: 768px) {
-    body { overflow: auto; height: auto; min-height: 100vh; -webkit-overflow-scrolling: touch; }
-    body::before { position: fixed; background-attachment: scroll; }
-    .view { height: auto; min-height: 100vh; }
+    body::before { background-attachment: scroll; }
+    .view { min-height: 100vh; }
     .admin-sidebar { width: 100%; }
     .admin-toggle { top: 8px; left: 8px; width: 40px; height: 40px; font-size: 16px; }
     .fullscreen-btn { top: 8px; left: 56px; width: 40px; height: 40px; font-size: 16px; }

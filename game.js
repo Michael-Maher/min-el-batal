@@ -594,12 +594,54 @@ function loadFromCloud(phone) {
         .then(doc => {
             if (doc.exists) {
                 const data = doc.data();
+                // Load localStorage first to get any unsaved local data
+                var localBackup = {};
+                try {
+                    var saved = localStorage.getItem('minElBatal_gameState');
+                    if (saved) localBackup = JSON.parse(saved);
+                } catch(e) {}
+
                 Object.keys(data).forEach(key => {
                     if (key in GameState && key !== 'lastUpdated') {
-                        GameState[key] = data[key];
+                        // For score objects, merge keeping max values
+                        if (key === 'stationScores' || key === 'miniGameScores') {
+                            var cloudObj = data[key] || {};
+                            var localObj = localBackup[key] || GameState[key] || {};
+                            var merged = {};
+                            // Merge all keys from both sources
+                            var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
+                            allKeys.forEach(function(k) {
+                                if (key === 'stationScores') {
+                                    var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
+                                    var l = localObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
+                                    merged[k] = {
+                                        sermon: Math.max(c.sermon || 0, l.sermon || 0),
+                                        summary: Math.max(c.summary || 0, l.summary || 0),
+                                        games: Math.max(c.games || 0, l.games || 0),
+                                        total: 0
+                                    };
+                                    merged[k].total = Math.min(merged[k].sermon + merged[k].summary + merged[k].games, 80);
+                                } else {
+                                    merged[k] = Math.max(cloudObj[k] || 0, localObj[k] || 0);
+                                }
+                            });
+                            GameState[key] = merged;
+                        } else if (key === 'stars' || key === 'gems' || key === 'totalCorrect' || key === 'totalAnswered' || key === 'bestStreak' || key === 'gamesPlayed') {
+                            // For numeric scores, take max of cloud and local
+                            GameState[key] = Math.max(data[key] || 0, localBackup[key] || GameState[key] || 0);
+                        } else if (key === 'lessonSummaries' || key === 'watchedVideos') {
+                            // For object maps, merge (keep all entries from both)
+                            var cloudMap = data[key] || {};
+                            var localMap = localBackup[key] || GameState[key] || {};
+                            GameState[key] = Object.assign({}, localMap, cloudMap);
+                        } else {
+                            GameState[key] = data[key];
+                        }
                     }
                 });
                 console.log('Game loaded from cloud for', phone);
+                // Re-save merged data
+                saveToLocalStorage();
                 return data;
             } else {
                 console.log('No cloud save found for', phone);
@@ -682,7 +724,8 @@ const CHARACTERS = {
         image: 'images/david-opt.jpg',
         role: 'المرنم الشجاع صاحب المقلاع',
         ability: 'ضربة المقلاع - قوة مضاعفة',
-        unlocked: true
+        unlocked: true,
+        power: { id: 'sling', name: 'ضربة المقلاع 🪨', desc: 'نقاط مضاعفة للسؤال الجاي', costType: 'stars', cost: 15, icon: '🪨' }
     },
     philomena: {
         name: 'فيلومينا الأمينة',
@@ -691,7 +734,8 @@ const CHARACTERS = {
         image: 'images/philomena-opt.jpg',
         role: 'القديسة الأمينة حتى الموت',
         ability: 'إيمان ثابت - حماية من الخطأ',
-        unlocked: true
+        unlocked: true,
+        power: { id: 'shield', name: 'درع الإيمان 🛡️', desc: 'حماية من إجابة غلط واحدة', costType: 'stars', cost: 20, icon: '🛡️' }
     },
     paul: {
         name: 'بولس الرسول',
@@ -701,7 +745,8 @@ const CHARACTERS = {
         role: 'رسول الأمم وكاتب الرسائل',
         ability: 'سيف الروح - كشف الإجابة',
         cost: 30,
-        unlocked: false
+        unlocked: false,
+        power: { id: 'sword', name: 'سيف الروح ⚔️', desc: 'شيل إجابتين غلط', costType: 'gems', cost: 5, icon: '⚔️' }
     },
     george: {
         name: 'مارجرجس الروماني',
@@ -711,9 +756,97 @@ const CHARACTERS = {
         role: 'الشهيد الشجاع قاتل التنين',
         ability: 'رمح النصر - نقاط إضافية',
         cost: 50,
-        unlocked: false
+        unlocked: false,
+        power: { id: 'spear', name: 'رمح النصر 🗡️', desc: '+5 نقاط إضافية فوري', costType: 'gems', cost: 8, icon: '🗡️' }
     }
 };
+
+// --- Character Power System ---
+var activePowers = { doublePoints: false, shield: false };
+
+function useCharacterPower() {
+    var ch = CHARACTERS[GameState.character];
+    if (!ch || !ch.power) { showToast('اختار شخصية الأول!', 'error'); return; }
+    var power = ch.power;
+
+    // Check cost
+    if (power.costType === 'stars') {
+        if (GameState.stars < power.cost) {
+            showToast('محتاج ' + power.cost + ' ⭐ لتشغيل ' + power.name, 'error');
+            return;
+        }
+        GameState.stars -= power.cost;
+    } else {
+        if ((GameState.gems || 0) < power.cost) {
+            showToast('محتاج ' + power.cost + ' 💎 لتشغيل ' + power.name, 'error');
+            return;
+        }
+        GameState.gems -= power.cost;
+    }
+
+    // Activate power based on type
+    if (power.id === 'sling') {
+        activePowers.doublePoints = true;
+        showAchievement('🪨', 'ضربة المقلاع!', 'النقاط مضاعفة للسؤال الجاي!');
+    } else if (power.id === 'shield') {
+        activePowers.shield = true;
+        showAchievement('🛡️', 'درع الإيمان!', 'محمي من إجابة غلط واحدة!');
+    } else if (power.id === 'sword') {
+        // Eliminate 2 wrong options
+        activateSwordOfSpirit();
+        showAchievement('⚔️', 'سيف الروح!', 'تم شيل إجابتين غلط!');
+    } else if (power.id === 'spear') {
+        miniGameState.score = (miniGameState.score || 0) + 5;
+        var scoreEl = document.getElementById('mg-score');
+        if (scoreEl) scoreEl.textContent = miniGameState.score;
+        showAchievement('🗡️', 'رمح النصر!', '+5 نقاط إضافية!');
+    }
+
+    saveToLocalStorage();
+    updatePowerButton();
+}
+
+function activateSwordOfSpirit() {
+    // Remove 2 wrong options from current question
+    var options = document.querySelectorAll('.mg-fb-option, .option-btn, .mg-tf-btn');
+    var removed = 0;
+    options.forEach(function(btn) {
+        if (removed >= 2) return;
+        // Check if this is a wrong answer by checking its onclick
+        var text = btn.textContent.trim();
+        var isWrong = !btn.classList.contains('correct') && !btn.dataset.correct;
+        if (isWrong && removed < 2) {
+            btn.style.opacity = '0.2';
+            btn.style.pointerEvents = 'none';
+            btn.style.textDecoration = 'line-through';
+            removed++;
+        }
+    });
+}
+
+function updatePowerButton() {
+    var btn = document.getElementById('char-power-btn');
+    if (!btn) return;
+    var ch = CHARACTERS[GameState.character];
+    if (!ch || !ch.power) return;
+    var power = ch.power;
+    var canAfford = power.costType === 'stars' ? GameState.stars >= power.cost : (GameState.gems || 0) >= power.cost;
+    btn.disabled = !canAfford;
+    btn.className = 'char-power-btn' + (canAfford ? '' : ' disabled');
+    btn.innerHTML = '<span class="cpb-icon">' + power.icon + '</span><span class="cpb-name">' + power.name + '</span><span class="cpb-cost">' + power.cost + ' ' + (power.costType === 'stars' ? '⭐' : '💎') + '</span>';
+}
+
+function getCharPowerButtonHTML() {
+    var ch = CHARACTERS[GameState.character];
+    if (!ch || !ch.power) return '';
+    var power = ch.power;
+    var canAfford = power.costType === 'stars' ? GameState.stars >= power.cost : (GameState.gems || 0) >= power.cost;
+    return '<button class="char-power-btn' + (canAfford ? '' : ' disabled') + '" id="char-power-btn" onclick="useCharacterPower()" title="' + power.desc + '">' +
+        '<span class="cpb-icon">' + power.icon + '</span>' +
+        '<span class="cpb-name">' + power.name + '</span>' +
+        '<span class="cpb-cost">' + power.cost + ' ' + (power.costType === 'stars' ? '⭐' : '💎') + '</span>' +
+        '</button>';
+}
 
 // Preload character images
 var charImages = {};
@@ -1726,6 +1859,9 @@ function renderCharacters() {
         inner += '<h3>' + ch.name + '</h3>';
         inner += '<p class="char-role">' + ch.role + '</p>';
         inner += '<p class="char-ability"><i class="fas fa-star"></i> ' + ch.ability + '</p>';
+        if (ch.power) {
+            inner += '<div class="char-power-info"><span class="char-power-icon">' + ch.power.icon + '</span> ' + ch.power.name + ' <span class="char-power-cost">(' + ch.power.cost + ' ' + (ch.power.costType === 'stars' ? '⭐' : '💎') + ')</span></div>';
+        }
         if (!ch.unlocked) inner += '<div class="char-lock"><i class="fas fa-lock"></i> ' + (ch.cost||0) + ' ⭐</div>';
         card.innerHTML = inner;
         (function(k, c, el) {
@@ -6882,6 +7018,9 @@ function renderLevel2Learn(container, lesson, subject) {
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
+    // Global station progress
+    html += getStationProgressHTML();
+
     html += '<div class="l2-learn-content">';
     html += '<div class="l2-learn-header">';
     html += '<div class="l2-learn-icon">' + subject.icon + '</div>';
@@ -6935,20 +7074,6 @@ function renderLevel2Learn(container, lesson, subject) {
 
     html += '<div class="l2-learn-verse"><i class="fas fa-book-bible"></i> ' + lesson.verse + '</div>';
 
-    // Show station score progress
-    var stationKey = subKey + '_' + lessonIdx;
-    var stScore = getStationScore(stationKey);
-    if (stScore.total > 0) {
-        html += '<div class="l2-learn-prev-score" style="padding:12px;background:rgba(108,92,231,0.1);border-radius:12px;text-align:center">';
-        html += '<div style="font-size:13px;color:var(--text-muted)">نتيجة المحطة</div>';
-        html += '<div style="font-size:22px;font-weight:800;color:' + (stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : 'var(--gold)') + '">' + stScore.total + ' / ' + STATION_MAX_SCORE + '</div>';
-        html += '<div style="display:flex;justify-content:space-around;margin-top:6px;font-size:12px;color:var(--text-muted)">';
-        html += '<span>🎬 وعظة ' + stScore.sermon + '/10</span>';
-        html += '<span>📝 تلخيص ' + stScore.summary + '/10</span>';
-        html += '<span>🎮 ألعاب ' + stScore.games + '/60</span>';
-        html += '</div></div>';
-    }
-
     html += '</div>';
 
     // Summary section - always visible
@@ -6998,18 +7123,8 @@ function renderLevel2Games(container, lesson, subject) {
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
-    // Station score bar at top
-    var stationKey = subKey + '_' + lessonIdx;
-    var stScore = getStationScore(stationKey);
-    html += '<div style="padding:10px 16px;background:rgba(108,92,231,0.12);border-radius:12px;margin-bottom:12px;text-align:center">';
-    html += '<div style="display:flex;align-items:center;justify-content:space-between">';
-    html += '<span style="font-size:12px;color:var(--text-muted)">نتيجة المحطة</span>';
-    html += '<span style="font-size:18px;font-weight:800;color:' + (stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : 'var(--gold)') + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>';
-    html += '</div>';
-    html += '<div style="height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-top:6px;overflow:hidden">';
-    html += '<div style="height:100%;width:' + Math.min(stScore.total / STATION_MAX_SCORE * 100, 100) + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:3px"></div>';
-    html += '</div>';
-    html += '</div>';
+    // Global station progress
+    html += getStationProgressHTML();
 
     // Mini-games section
     html += renderMiniGamesSection();
@@ -7574,6 +7689,7 @@ function renderMixedRound() {
         }, 100);
 
     } else if (round.type === 'fillBlank') {
+        html += '<div class="mg-timer-bar"><div class="mg-timer-fill" id="mg-timer-fill" style="width:100%"></div></div>';
         var displayText = round.data.text.replace('___', '<span class="mg-fb-blank">؟</span>');
         var opts = round.data.options.slice();
         shuffleArray(opts);
@@ -7584,6 +7700,18 @@ function renderMixedRound() {
         });
         html += '</div>';
         renderMiniGameUI('التحدي المتنوع 🔥', 'fire', html);
+        // 20 sec timer
+        miniGameState.timeLeft = 20;
+        if (miniGameState.timer) clearInterval(miniGameState.timer);
+        miniGameState.timer = setInterval(function() {
+            miniGameState.timeLeft -= 0.1;
+            var fill = document.getElementById('mg-timer-fill');
+            if (fill) fill.style.width = Math.max(0, (miniGameState.timeLeft / 20) * 100) + '%';
+            if (miniGameState.timeLeft <= 0) {
+                clearInterval(miniGameState.timer);
+                answerMixedFB(null);
+            }
+        }, 100);
 
     } else if (round.type === 'whoAmI') {
         miniGameState.clueIndex = 0;
@@ -7607,6 +7735,7 @@ function renderMixedRound() {
 
     } else if (round.type === 'mcq') {
         var q = round.data;
+        html += '<div class="mg-timer-bar"><div class="mg-timer-fill" id="mg-timer-fill" style="width:100%"></div></div>';
         html += '<div class="mg-tf-statement">' + q.q + '</div>';
         html += '<div class="mg-mcq-options">';
         q.options.forEach(function(opt, idx) {
@@ -7614,6 +7743,18 @@ function renderMixedRound() {
         });
         html += '</div>';
         renderMiniGameUI('التحدي المتنوع 🔥', 'fire', html);
+        // 20 sec timer
+        miniGameState.timeLeft = 20;
+        if (miniGameState.timer) clearInterval(miniGameState.timer);
+        miniGameState.timer = setInterval(function() {
+            miniGameState.timeLeft -= 0.1;
+            var fill = document.getElementById('mg-timer-fill');
+            if (fill) fill.style.width = Math.max(0, (miniGameState.timeLeft / 20) * 100) + '%';
+            if (miniGameState.timeLeft <= 0) {
+                clearInterval(miniGameState.timer);
+                answerMixedMCQ(-1);
+            }
+        }, 100);
     }
 }
 
@@ -7621,8 +7762,18 @@ function answerMixedTF(answer) {
     if (miniGameState.timer) clearInterval(miniGameState.timer);
     var round = miniGameState.data[miniGameState.index];
     var correct = answer === round.data.answer;
+    // Character power: shield
+    if (!correct && activePowers.shield) {
+        activePowers.shield = false;
+        correct = true; // Shield absorbs the wrong answer
+        showToast('🛡️ درع الإيمان حماك!', 'success');
+    }
     showAnswerFeedback(correct);
-    if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
+    if (correct) {
+        var pts = activePowers.doublePoints ? 4 : 2;
+        if (activePowers.doublePoints) { activePowers.doublePoints = false; showToast('🪨 نقاط مضاعفة!', 'success'); }
+        miniGameState.score += pts; playCorrectSound(); vibrate(50);
+    }
     else { playWrongSound(); vibrate([50, 30, 50]); }
     var stmt = document.getElementById('mg-tf-statement');
     if (stmt) {
@@ -7636,10 +7787,16 @@ function answerMixedTF(answer) {
 }
 
 function answerMixedFB(answer) {
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
     var round = miniGameState.data[miniGameState.index];
     var correct = answer === round.data.blank;
+    if (!correct && activePowers.shield) { activePowers.shield = false; correct = true; showToast('🛡️ درع الإيمان حماك!', 'success'); }
     showAnswerFeedback(correct);
-    if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
+    if (correct) {
+        var pts = activePowers.doublePoints ? 4 : 2;
+        if (activePowers.doublePoints) { activePowers.doublePoints = false; showToast('🪨 نقاط مضاعفة!', 'success'); }
+        miniGameState.score += pts; playCorrectSound(); vibrate(50);
+    }
     else { playWrongSound(); vibrate([50, 30, 50]); showToast('الكلمة الصح: ' + round.data.blank, 'error'); }
     var blank = document.querySelector('.mg-fb-blank');
     if (blank) {
@@ -7654,10 +7811,16 @@ function answerMixedFB(answer) {
 }
 
 function answerMixedMCQ(idx) {
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
     var round = miniGameState.data[miniGameState.index];
     var correct = idx === round.data.correct;
+    if (!correct && activePowers.shield) { activePowers.shield = false; correct = true; showToast('🛡️ درع الإيمان حماك!', 'success'); }
     showAnswerFeedback(correct);
-    if (correct) { miniGameState.score += 2; playCorrectSound(); vibrate(50); }
+    if (correct) {
+        var pts = activePowers.doublePoints ? 4 : 2;
+        if (activePowers.doublePoints) { activePowers.doublePoints = false; showToast('🪨 نقاط مضاعفة!', 'success'); }
+        miniGameState.score += pts; playCorrectSound(); vibrate(50);
+    }
     else { playWrongSound(); vibrate([50, 30, 50]); showToast('الإجابة: ' + round.data.options[round.data.correct], 'error'); }
     var scoreEl = document.getElementById('mg-score');
     if (scoreEl) scoreEl.textContent = miniGameState.score;
@@ -7745,6 +7908,27 @@ var STATION_SERMON_SCORE = 10;
 var STATION_SUMMARY_SCORE = 10;
 var STATION_UNLOCK_THRESHOLD = 70; // 70-80 to unlock next station
 
+// Global station progress bar - appears below tabs in ALL stages
+function getStationProgressHTML() {
+    var stationKey = level2State.currentSubject + '_' + level2State.currentLesson;
+    var stScore = getStationScore(stationKey);
+    var pct = Math.min(stScore.total / STATION_MAX_SCORE * 100, 100);
+    var scoreColor = stScore.total >= STATION_UNLOCK_THRESHOLD ? '#00B894' : 'var(--gold)';
+    var html = '<div class="station-progress-global">';
+    html += '<div class="station-progress-row">';
+    html += '<span class="station-progress-label">نتيجة المحطة</span>';
+    html += '<span class="station-progress-badges">';
+    html += '<span class="sp-badge ' + (stScore.sermon > 0 ? 'done' : '') + '">🎬 ' + stScore.sermon + '</span>';
+    html += '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + stScore.summary + '</span>';
+    html += '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + stScore.games + '</span>';
+    html += '</span>';
+    html += '<span class="station-progress-score" style="color:' + scoreColor + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>';
+    html += '</div>';
+    html += '<div class="station-progress-bar"><div class="station-progress-fill" style="width:' + pct + '%"></div></div>';
+    html += '</div>';
+    return html;
+}
+
 function getStationKey() {
     return level2State.currentSubject + '_' + level2State.currentLesson;
 }
@@ -7808,8 +7992,10 @@ function saveMiniGameScore(type, score) {
         GameState.gems = (GameState.gems || 0) + gemsEarned;
     }
 
-    saveToLocalStorage();
-    if (typeof saveToCloud === 'function') saveToCloud();
+    console.log('saveMiniGameScore:', type, score, 'stationKey:', stationKey, 'stScore:', JSON.stringify(stScore));
+    // Save immediately to both local and cloud
+    try { localStorage.setItem('minElBatal_gameState', JSON.stringify(GameState)); } catch(e) {}
+    saveToCloud();
 }
 
 // ========== START MINI GAME ==========
@@ -7907,6 +8093,8 @@ function renderMiniGameUI(title, icon, bodyHtml) {
     html += '<div class="mg-title"><i class="fas fa-' + icon + '"></i> ' + title + '</div>';
     html += '<div class="mg-score-bar">النقاط: <strong id="mg-score">' + miniGameState.score + '</strong></div>';
     html += '</div>';
+    // Character power button
+    html += getCharPowerButtonHTML();
     html += '<div class="mg-body" id="mg-body">' + bodyHtml + '</div>';
     html += '</div>';
     container.innerHTML = html;
@@ -8479,6 +8667,9 @@ function showLessonSummaryTab() {
         '<button class="l2-stage-tab"><i class="fas fa-gamepad"></i> ألعاب</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
+
+    // Global station progress
+    html += getStationProgressHTML();
 
     html += '<div class="l2-summary-section">';
     html += '<h3><i class="fas fa-pen-fancy"></i> تلخيص درس: ' + lesson.name + '</h3>';

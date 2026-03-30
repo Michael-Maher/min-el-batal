@@ -236,6 +236,9 @@ body {
 .char-card h3 { font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px; }
 .char-role { font-size: 11px; color: var(--secondary); font-weight: 600; margin-bottom: 6px; }
 .char-ability { font-size: 11px; color: var(--text-muted); background: var(--bg-dark); padding: 6px 10px; border-radius: var(--radius-full); display: inline-block; margin-bottom: 6px; }
+.char-power-info { font-size: 10px; color: var(--primary); background: rgba(108,92,231,0.12); border: 1px solid rgba(108,92,231,0.2); padding: 4px 8px; border-radius: 8px; margin-bottom: 6px; display: inline-block; }
+.char-power-icon { font-size: 13px; }
+.char-power-cost { font-size: 9px; color: var(--gold); }
 .char-lock { font-size: 12px; font-weight: 700; color: var(--gold); margin-top: 6px; }
 
 /* ============ AVATAR ============ */
@@ -2452,10 +2455,105 @@ body {
 }
 
 /* Stage tabs */
+/* Global station progress bar */
+.station-progress-global {
+    padding: 8px 14px;
+    background: rgba(108,92,231,0.1);
+    border: 1px solid rgba(108,92,231,0.2);
+    border-radius: 12px;
+    margin-bottom: 14px;
+}
+.station-progress-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+.station-progress-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+.station-progress-badges {
+    display: flex;
+    gap: 6px;
+    flex: 1;
+    justify-content: center;
+}
+.sp-badge {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.05);
+    color: var(--text-muted);
+    opacity: 0.5;
+}
+.sp-badge.done {
+    opacity: 1;
+    background: rgba(0,184,148,0.15);
+    color: #00B894;
+}
+.station-progress-score {
+    font-size: 16px;
+    font-weight: 900;
+}
+.station-progress-bar {
+    height: 5px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 3px;
+    margin-top: 6px;
+    overflow: hidden;
+}
+.station-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6C5CE7, #00CEC9);
+    border-radius: 3px;
+    transition: width 0.8s ease;
+}
+
+/* Character Power Button */
+.char-power-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.2), rgba(0,206,201,0.2));
+    border: 2px solid rgba(108,92,231,0.4);
+    border-radius: 14px;
+    color: #fff;
+    font-family: 'Cairo', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin: 8px auto;
+    animation: powerGlow 2s ease-in-out infinite;
+}
+@keyframes powerGlow {
+    0%, 100% { box-shadow: 0 0 8px rgba(108,92,231,0.3); }
+    50% { box-shadow: 0 0 20px rgba(108,92,231,0.5); }
+}
+.char-power-btn:hover { transform: scale(1.05); border-color: var(--primary); }
+.char-power-btn:active { transform: scale(0.95); }
+.char-power-btn.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    animation: none;
+    filter: grayscale(0.5);
+}
+.cpb-icon { font-size: 18px; }
+.cpb-name { font-size: 11px; }
+.cpb-cost {
+    font-size: 10px;
+    background: rgba(0,0,0,0.3);
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+
 .l2-stage-tabs {
     display: flex;
     gap: 8px;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     background: var(--bg-card);
     border-radius: 14px;
     padding: 6px;
@@ -7565,33 +7663,35 @@ body {
 .hub-team-badge {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 6px;
     cursor: pointer;
-    padding: 2px 8px;
+    padding: 5px 12px;
     background: rgba(108, 92, 231, 0.15);
-    border: 1px solid rgba(108, 92, 231, 0.3);
-    border-radius: 12px;
-    margin-top: 4px;
+    border: 2px solid rgba(108, 92, 231, 0.3);
+    border-radius: 14px;
+    margin-top: 6px;
     transition: all 0.2s;
     max-width: fit-content;
+    min-height: 28px;
 }
 .hub-team-badge:active { transform: scale(0.95); }
-.hub-team-logo { font-size: 12px; }
-.hub-team-name { font-size: 10px; font-weight: 700; color: var(--primary); }
-.hub-team-empty { font-size: 10px; color: var(--text-muted); }
-.hub-team-empty i { margin-left: 3px; font-size: 9px; }
+.hub-team-logo { font-size: 16px; }
+.hub-team-name { font-size: 13px; font-weight: 800; color: var(--primary); }
+.hub-team-empty { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.hub-team-empty i { margin-left: 4px; font-size: 11px; }
 .hub-team-leave {
-    background: none;
+    background: rgba(255,107,107,0.15);
     border: none;
     color: #FF6B6B;
-    font-size: 10px;
+    font-size: 11px;
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 3px 6px;
+    border-radius: 6px;
     margin-right: -4px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
+    opacity: 0.8;
+    transition: all 0.2s;
 }
-.hub-team-leave:hover { opacity: 1; }
+.hub-team-leave:hover { opacity: 1; background: rgba(255,107,107,0.3); }
 
 /* ============ TEAMS SCREEN ============ */
 .my-team-card {

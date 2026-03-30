@@ -49,7 +49,7 @@ body::after {
     content: '';
     position: fixed;
     inset: 0;
-    background: rgba(10, 14, 39, 0.55);
+    background: rgba(10, 14, 39, 0.35);
     z-index: 0;
     pointer-events: none;
 }
@@ -1490,6 +1490,10 @@ body.screen-shake {
 
     <div class="admin-section">
         <h3><i class="fas fa-users"></i> الفرق</h3>
+        <button class="admin-btn" onclick="loadFirestoreTeams()" id="loadFirestoreBtn" style="margin-bottom:8px;background:rgba(108,92,231,0.3);border:1px solid rgba(108,92,231,0.5)">
+            <i class="fas fa-cloud-download-alt"></i> تحميل الفرق من قاعدة البيانات
+        </button>
+        <div id="firestoreTeamsList" style="display:none;margin-bottom:10px"></div>
         <div id="teamsList"></div>
         <div style="display:flex;gap:6px;">
             <input class="admin-input" id="newTeamName" placeholder="اسم الفريق" style="flex:1">
@@ -1635,6 +1639,24 @@ body.screen-shake {
     <div class="key-hint"><kbd>P</kbd> إيقاف مؤقت</div>
     <div class="key-hint"><kbd>1-4</kbd> اختيار الإجابة</div>
 </div>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+var firebaseApp = null, firebaseDb = null;
+try {
+    firebaseApp = firebase.initializeApp({
+        apiKey: "AIzaSyDZXv7nmtJ5tqSLmvrxQ1F4WuoHmBxttuY",
+        authDomain: "min-el-batal.firebaseapp.com",
+        projectId: "min-el-batal",
+        storageBucket: "min-el-batal.firebasestorage.app",
+        messagingSenderId: "743794480493",
+        appId: "1:743794480493:web:74c8ef6a444e29f7a4b664"
+    });
+    firebaseDb = firebase.firestore();
+} catch(e) { console.warn('Firebase init error:', e); }
+</script>
 
 <!-- Background particles -->
 <script>
@@ -1973,6 +1995,76 @@ function toggleFullscreen() {
     }
 }
 
+function loadFirestoreTeams() {
+    if (!firebaseDb) { alert('Firebase غير متصل'); return; }
+    var btn = document.getElementById('loadFirestoreBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
+    btn.disabled = true;
+    firebaseDb.collection('teams').orderBy('createdAt', 'desc').limit(30).get().then(function(snapshot) {
+        var container = document.getElementById('firestoreTeamsList');
+        if (snapshot.empty) {
+            container.innerHTML = '<div style="text-align:center;color:var(--muted);padding:10px;font-size:12px">لا يوجد فرق في قاعدة البيانات</div>';
+            container.style.display = 'block';
+            btn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> تحميل الفرق من قاعدة البيانات';
+            btn.disabled = false;
+            return;
+        }
+        var html = '<div style="font-size:11px;color:var(--gold);margin-bottom:6px"><i class="fas fa-database"></i> فرق من قاعدة البيانات — اضغط لإضافة:</div>';
+        var existingNames = tournament.teams.map(function(t) { return t.name; });
+        snapshot.forEach(function(doc) {
+            var t = doc.data();
+            var alreadyAdded = existingNames.indexOf(t.name) >= 0;
+            var memberCount = (t.members || []).length;
+            var memberNames = (t.memberNames || []).join(' · ');
+            html += '<div class="admin-team-item" style="' + (alreadyAdded ? 'opacity:0.4;pointer-events:none' : 'cursor:pointer') + '" onclick="addFirestoreTeam(\'' + doc.id.replace(/'/g, "\\'") + '\')">';
+            html += '<div style="width:32px;height:32px;border-radius:50%;background:' + (t.color || '#6C5CE7') + ';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">' + (t.logo || '⚔️') + '</div>';
+            html += '<div style="flex:1;min-width:0">';
+            html += '<span class="team-name">' + (t.name || doc.id) + '</span>';
+            if (memberNames) {
+                html += '<div style="font-size:10px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">';
+                html += '<i class="fas fa-user" style="margin-left:2px"></i> ' + memberCount + ' — ' + memberNames;
+                html += '</div>';
+            }
+            html += '</div>';
+            html += alreadyAdded ? '<span style="font-size:10px;color:var(--muted)">مضاف</span>' : '<i class="fas fa-plus" style="color:var(--gold)"></i>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
+        container.style.display = 'block';
+        btn.innerHTML = '<i class="fas fa-sync"></i> تحديث الفرق';
+        btn.disabled = false;
+        // Store snapshot data for use in addFirestoreTeam
+        window._firestoreTeamsData = {};
+        snapshot.forEach(function(doc) { window._firestoreTeamsData[doc.id] = doc.data(); });
+    }).catch(function(err) {
+        console.error('Error loading Firestore teams:', err);
+        alert('خطأ في تحميل الفرق: ' + err.message);
+        btn.innerHTML = '<i class="fas fa-cloud-download-alt"></i> تحميل الفرق من قاعدة البيانات';
+        btn.disabled = false;
+    });
+}
+
+function addFirestoreTeam(docId) {
+    var data = window._firestoreTeamsData && window._firestoreTeamsData[docId];
+    if (!data) return;
+    // Check if already added
+    var exists = tournament.teams.some(function(t) { return t.name === data.name; });
+    if (exists) return;
+    tournament.teams.push({
+        name: data.name || docId,
+        image: data.image || '',
+        members: data.memberNames || [],
+        id: Date.now(),
+        color: data.color || '#6C5CE7',
+        logo: data.logo || '⚔️',
+        firestoreId: docId
+    });
+    renderTeamsList();
+    saveTournament();
+    // Refresh the Firestore list to show "added" state
+    loadFirestoreTeams();
+}
+
 function addTeam() {
     var name = document.getElementById('newTeamName').value.trim();
     if (!name) return;
@@ -2033,7 +2125,13 @@ function renderTeamsList() {
     var html = '';
     tournament.teams.forEach(function(team) {
         html += '<div class="admin-team-item">';
-        html += '<img src="' + team.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+        if (team.image) {
+            html += '<img src="' + team.image + '" onerror="this.src=\'' + DEFAULT_AVATARS[0] + '\'">';
+        } else if (team.logo) {
+            html += '<div style="width:32px;height:32px;border-radius:50%;background:' + (team.color || '#6C5CE7') + ';display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0">' + team.logo + '</div>';
+        } else {
+            html += '<img src="' + DEFAULT_AVATARS[tournament.teams.indexOf(team) % DEFAULT_AVATARS.length] + '">';
+        }
         html += '<div style="flex:1;min-width:0">';
         html += '<span class="team-name">' + team.name + '</span>';
         if (team.members && team.members.length > 0) {

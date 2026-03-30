@@ -639,9 +639,9 @@ function loadFromCloud(phone) {
                         }
                     }
                 });
-                console.log('Game loaded from cloud for', phone);
-                // Re-save merged data
-                saveToLocalStorage();
+                console.log('Game loaded from cloud for', phone, 'stationScores:', JSON.stringify(GameState.stationScores));
+                // Re-save merged data locally (don't trigger cloud save back)
+                saveToLocalStorage(true);
                 return data;
             } else {
                 console.log('No cloud save found for', phone);
@@ -4429,9 +4429,9 @@ function renderTeamsScreen() {
 
     if (GameState.team) {
         // Show my team card
-        html += '<div class="my-team-card">';
+        html += '<div class="my-team-card" style="border-top:3px solid ' + (GameState.teamColor || '#6C5CE7') + '">';
         html += '<div class="my-team-header">';
-        html += '<div class="my-team-logo">' + (GameState.teamLogo || '⚔️') + '</div>';
+        html += '<div class="my-team-logo" style="background:' + (GameState.teamColor || '#6C5CE7') + '">' + (GameState.teamLogo || '⚔️') + '</div>';
         html += '<div class="my-team-info"><h3>' + GameState.team + '</h3><p>فريقك الحالي</p></div>';
         html += '</div>';
         html += '<div id="my-team-members" class="my-team-members"><p style="text-align:center;color:var(--text-muted)">جاري التحميل...</p></div>';
@@ -4589,9 +4589,12 @@ function loadOpenTeams() {
                 html += '</div>';
             }
             html += '</div>';
+            var hasPendingRequest = (t.joinRequests || []).some(function(r) { return r.phone === GameState.playerPhone; });
             html += '<div class="open-team-action">';
             if (isMyTeam || isMember) {
                 html += '<span class="open-team-status">✅ فريقك</span>';
+            } else if (hasPendingRequest) {
+                html += '<span class="open-team-status" style="color:var(--gold)">⏳ في الانتظار</span>';
             } else if (isFull) {
                 html += '<span class="open-team-status full">ممتلئ</span>';
             } else {
@@ -4608,19 +4611,203 @@ function loadOpenTeams() {
 
 function loadMyTeamMembers() {
     if (!firebaseDb || !GameState.team) return;
-    firebaseDb.collection('teams').doc(GameState.team).get().then(function(doc) {
+    var docId = GameState.team.replace(/[\/\\\.#\[\]\*]/g, '_');
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
         var el = document.getElementById('my-team-members');
         if (!el || !doc.exists) return;
         var t = doc.data();
         var names = t.memberNames || [];
+        var members = t.members || [];
+        var admins = t.admins || [];
+        // Auto-set first 2 members as admins if admins field is empty
+        if (admins.length === 0 && members.length > 0) {
+            admins = members.slice(0, 2);
+            firebaseDb.collection('teams').doc(docId).update({ admins: admins }).catch(function(){});
+        }
+        var isAdmin = admins.indexOf(GameState.playerPhone) >= 0;
         var html = '<div class="my-team-members-list">';
         names.forEach(function(name, idx) {
-            html += '<div class="my-team-member"><span class="member-num">' + (idx + 1) + '</span><span>' + name + '</span></div>';
+            var memberPhone = members[idx] || '';
+            var memberIsAdmin = admins.indexOf(memberPhone) >= 0;
+            html += '<div class="my-team-member" style="display:flex;align-items:center;gap:6px">';
+            html += '<span class="member-num">' + (idx + 1) + '</span>';
+            html += '<span style="flex:1">' + name + (memberIsAdmin ? ' <i class="fas fa-shield-alt" style="color:var(--gold);font-size:10px" title="أدمن"></i>' : '') + '</span>';
+            if (isAdmin && !memberIsAdmin && memberPhone !== GameState.playerPhone) {
+                html += '<button class="btn-icon-sm" onclick="removeTeamMember(\'' + docId + '\',\'' + memberPhone + '\')" title="إزالة العضو" style="background:rgba(231,76,60,0.2);border:1px solid rgba(231,76,60,0.4);color:#e74c3c;width:24px;height:24px;border-radius:50%;font-size:10px;cursor:pointer"><i class="fas fa-times"></i></button>';
+            }
+            html += '</div>';
         });
         html += '</div>';
         html += '<p class="my-team-count">' + names.length + '/6 أعضاء</p>';
+
+        // Admin: show join requests
+        var joinRequests = t.joinRequests || [];
+        if (isAdmin && joinRequests.length > 0) {
+            html += '<div class="team-join-requests" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">';
+            html += '<h4 style="font-size:13px;color:var(--gold);margin-bottom:8px"><i class="fas fa-user-clock"></i> طلبات الانضمام (' + joinRequests.length + ')</h4>';
+            joinRequests.forEach(function(req) {
+                html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">';
+                html += '<span style="flex:1;font-size:13px">' + req.name + '</span>';
+                html += '<button onclick="approveJoinRequest(\'' + docId + '\',\'' + req.phone + '\',\'' + req.name.replace(/'/g, "\\'") + '\')" style="background:rgba(46,204,113,0.2);border:1px solid rgba(46,204,113,0.4);color:#2ecc71;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:Cairo"><i class="fas fa-check"></i> قبول</button>';
+                html += '<button onclick="rejectJoinRequest(\'' + docId + '\',\'' + req.phone + '\')" style="background:rgba(231,76,60,0.2);border:1px solid rgba(231,76,60,0.4);color:#e74c3c;padding:4px 10px;border-radius:8px;font-size:11px;cursor:pointer;font-family:Cairo"><i class="fas fa-times"></i> رفض</button>';
+                html += '</div>';
+            });
+            html += '</div>';
+        }
+
+        // Admin: edit team button
+        if (isAdmin) {
+            html += '<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">';
+            html += '<button class="btn btn-secondary btn-sm" onclick="showEditTeamDialog(\'' + docId + '\')" style="width:100%"><span><i class="fas fa-edit"></i> تعديل بيانات الفريق</span></button>';
+            html += '</div>';
+        }
+
         el.innerHTML = html;
     });
+}
+
+function approveJoinRequest(docId, phone, name) {
+    if (!firebaseDb) return;
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        if (!doc.exists) return;
+        var t = doc.data();
+        var members = t.members || [];
+        if (members.length >= 6) { showToast('الفريق ممتلئ!', 'error'); return; }
+        if (members.indexOf(phone) >= 0) { showToast('العضو موجود بالفعل', 'info'); return; }
+        members.push(phone);
+        var joinRequests = (t.joinRequests || []).filter(function(r) { return r.phone !== phone; });
+        // Auto-set first 2 members as admins
+        var admins = t.admins || [];
+        if (admins.length < 2 && members.length <= 2) {
+            admins = members.slice(0, 2);
+        }
+        return firebaseDb.collection('teams').doc(docId).update({
+            members: members,
+            memberNames: firebase.firestore.FieldValue.arrayUnion(name),
+            joinRequests: joinRequests,
+            admins: admins
+        }).then(function() {
+            showToast('تم قبول ' + name + ' في الفريق! ✅', 'success');
+            loadMyTeamMembers();
+        });
+    }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
+}
+
+function rejectJoinRequest(docId, phone) {
+    if (!firebaseDb) return;
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        if (!doc.exists) return;
+        var t = doc.data();
+        var joinRequests = (t.joinRequests || []).filter(function(r) { return r.phone !== phone; });
+        return firebaseDb.collection('teams').doc(docId).update({ joinRequests: joinRequests });
+    }).then(function() {
+        showToast('تم رفض الطلب', 'info');
+        loadMyTeamMembers();
+    }).catch(function(e) { console.error(e); });
+}
+
+function removeTeamMember(docId, phone) {
+    if (!confirm('متأكد إنك عايز تشيل العضو ده من الفريق؟')) return;
+    if (!firebaseDb) return;
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        if (!doc.exists) return;
+        var t = doc.data();
+        var idx = (t.members || []).indexOf(phone);
+        var members = (t.members || []).filter(function(m) { return m !== phone; });
+        var memberNames = t.memberNames || [];
+        if (idx >= 0 && idx < memberNames.length) {
+            memberNames.splice(idx, 1);
+        }
+        return firebaseDb.collection('teams').doc(docId).update({
+            members: members,
+            memberNames: memberNames
+        });
+    }).then(function() {
+        showToast('تم إزالة العضو من الفريق', 'success');
+        loadMyTeamMembers();
+    }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
+}
+
+function showEditTeamDialog(docId) {
+    if (!firebaseDb) return;
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        if (!doc.exists) return;
+        var t = doc.data();
+        var overlay = document.createElement('div');
+        overlay.id = 'edit-team-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+        var card = '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:400px;width:100%;direction:rtl;font-family:Cairo">';
+        card += '<h3 style="color:var(--gold);margin-bottom:16px;text-align:center"><i class="fas fa-edit"></i> تعديل الفريق</h3>';
+        card += '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">اسم الفريق:</label>';
+        card += '<input type="text" id="edit-team-name" value="' + (t.name || '') + '" class="input-field" style="margin-bottom:12px;width:100%;box-sizing:border-box">';
+        card += '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">شعار:</label>';
+        card += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+        TEAM_LOGOS.forEach(function(logo) {
+            card += '<div class="team-logo-option' + (logo === t.logo ? ' selected' : '') + '" onclick="document.getElementById(\'edit-team-logo-val\').value=this.textContent;document.querySelectorAll(\'#edit-team-overlay .team-logo-option\').forEach(function(o){o.classList.remove(\'selected\')});this.classList.add(\'selected\')" style="cursor:pointer;font-size:20px;padding:6px;border:2px solid ' + (logo === t.logo ? 'var(--gold)' : 'transparent') + ';border-radius:8px">' + logo + '</div>';
+        });
+        card += '</div><input type="hidden" id="edit-team-logo-val" value="' + (t.logo || '⚔️') + '">';
+        card += '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">لون الفريق:</label>';
+        card += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">';
+        TEAM_COLORS.forEach(function(color) {
+            card += '<div onclick="document.getElementById(\'edit-team-color-val\').value=\'' + color + '\';document.querySelectorAll(\'#edit-team-overlay .team-color-swatch\').forEach(function(o){o.style.border=\'2px solid transparent\'});this.style.border=\'2px solid white\'" class="team-color-swatch" style="width:28px;height:28px;border-radius:50%;background:' + color + ';cursor:pointer;border:2px solid ' + (color === t.color ? 'white' : 'transparent') + '"></div>';
+        });
+        card += '</div><input type="hidden" id="edit-team-color-val" value="' + (t.color || '#6C5CE7') + '">';
+        card += '<label style="font-size:12px;color:var(--text-muted);display:block;margin-bottom:4px">صورة الفريق:</label>';
+        card += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:16px">';
+        card += '<label class="btn btn-secondary btn-sm" style="cursor:pointer"><span><i class="fas fa-camera"></i> اختار صورة</span><input type="file" accept="image/*" onchange="handleEditTeamImage(event)" style="display:none"></label>';
+        card += '<div id="edit-team-img-preview">' + (t.image ? '<img src="' + t.image + '" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)">' : '') + '</div>';
+        card += '</div>';
+        card += '<div style="display:flex;gap:10px">';
+        card += '<button class="btn btn-primary" style="flex:1" onclick="saveEditTeam(\'' + docId + '\')"><span><i class="fas fa-save"></i> حفظ</span></button>';
+        card += '<button class="btn btn-secondary" style="flex:1" onclick="document.getElementById(\'edit-team-overlay\').remove()"><span>إلغاء</span></button>';
+        card += '</div></div>';
+        overlay.innerHTML = card;
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.body.appendChild(overlay);
+    });
+}
+
+var _editTeamImageData = '';
+function handleEditTeamImage(event) {
+    var file = event.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) { showToast('الصورة كبيرة أوي!', 'error'); return; }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+        compressImage(e.target.result, 200, 0.6, function(compressed) {
+            _editTeamImageData = compressed;
+            var preview = document.getElementById('edit-team-img-preview');
+            if (preview) preview.innerHTML = '<img src="' + compressed + '" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)">';
+        });
+    };
+    reader.readAsDataURL(file);
+}
+
+function saveEditTeam(docId) {
+    if (!firebaseDb) return;
+    var nameEl = document.getElementById('edit-team-name');
+    var logoEl = document.getElementById('edit-team-logo-val');
+    var colorEl = document.getElementById('edit-team-color-val');
+    var newName = nameEl ? nameEl.value.trim() : '';
+    if (!newName || newName.length < 2) { showToast('اسم الفريق لازم يكون حرفين على الأقل', 'error'); return; }
+    var updates = {
+        name: newName,
+        logo: logoEl ? logoEl.value : '⚔️',
+        color: colorEl ? colorEl.value : '#6C5CE7'
+    };
+    if (_editTeamImageData) updates.image = _editTeamImageData;
+    firebaseDb.collection('teams').doc(docId).update(updates).then(function() {
+        GameState.team = newName;
+        GameState.teamLogo = updates.logo;
+        GameState.teamColor = updates.color;
+        _editTeamImageData = '';
+        saveToLocalStorage();
+        showToast('تم تحديث بيانات الفريق! ✅', 'success');
+        var overlay = document.getElementById('edit-team-overlay');
+        if (overlay) overlay.remove();
+        renderTeamsScreen();
+        updateHubTeamBadge();
+    }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
 }
 
 function requestJoinTeam(docId) {
@@ -4639,19 +4826,18 @@ function joinTeamByDocId(docId) {
         var members = teamData.members || [];
         if (members.length >= 6) { showToast('الفريق ممتلئ!', 'error'); return; }
         if (members.indexOf(GameState.playerPhone) >= 0) { showToast('أنت موجود بالفعل!', 'error'); return; }
-        members.push(GameState.playerPhone);
+        var joinRequests = teamData.joinRequests || [];
+        if (joinRequests.some(function(r) { return r.phone === GameState.playerPhone; })) {
+            showToast('طلبك مسجل بالفعل - استنى موافقة الأدمن', 'info');
+            return;
+        }
+        // Submit join request instead of joining directly
+        joinRequests.push({ phone: GameState.playerPhone, name: GameState.playerName, date: new Date().toISOString() });
         return firebaseDb.collection('teams').doc(docId).update({
-            members: members,
-            memberNames: firebase.firestore.FieldValue.arrayUnion(GameState.playerName)
+            joinRequests: joinRequests
         }).then(function() {
-            GameState.team = teamData.name;
-            GameState.teamLogo = teamData.logo || '⚔️';
-            GameState.teamColor = teamData.color || '#6C5CE7';
-            saveToCloud();
-            syncLeaderboard();
-            showToast('انضممت لفريق ' + teamData.name + '! 🎉', 'success');
+            showToast('تم إرسال طلب الانضمام لفريق ' + teamData.name + '! استنى موافقة الأدمن', 'success');
             renderTeamsScreen();
-            updateHubTeamBadge();
         });
     }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
 }
@@ -4679,7 +4865,8 @@ function joinTeamByName(teamName) {
         return;
     }
 
-    firebaseDb.collection('teams').doc(teamName).get().then(function(doc) {
+    var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
         if (!doc.exists) {
             showToast('الفريق ده مش موجود', 'error');
             return;
@@ -4694,18 +4881,17 @@ function joinTeamByName(teamName) {
             showToast('أنت موجود في الفريق ده بالفعل!', 'error');
             return;
         }
-        members.push(GameState.playerPhone);
-        return firebaseDb.collection('teams').doc(teamName).update({
-            members: members,
-            memberNames: firebase.firestore.FieldValue.arrayUnion(GameState.playerName)
+        var joinRequests = teamData.joinRequests || [];
+        if (joinRequests.some(function(r) { return r.phone === GameState.playerPhone; })) {
+            showToast('طلبك مسجل بالفعل - استنى موافقة الأدمن', 'info');
+            return;
+        }
+        joinRequests.push({ phone: GameState.playerPhone, name: GameState.playerName, date: new Date().toISOString() });
+        return firebaseDb.collection('teams').doc(docId).update({
+            joinRequests: joinRequests
         }).then(function() {
-            GameState.team = teamName;
-            GameState.teamLogo = teamData.logo || '⚔️';
-            saveToCloud();
-            syncLeaderboard();
-            showToast('انضممت لفريق ' + teamName + '! 🎉', 'success');
+            showToast('تم إرسال طلب الانضمام! استنى موافقة الأدمن', 'success');
             renderTeamsScreen();
-            updateHubTeamBadge();
         });
     }).catch(function(e) {
         console.error('Join team error:', e);
@@ -4750,6 +4936,8 @@ function createTeam() {
             image: _teamImageData || '',
             members: [GameState.playerPhone],
             memberNames: [GameState.playerName],
+            admins: [GameState.playerPhone],
+            joinRequests: [],
             createdBy: GameState.playerPhone,
             createdAt: new Date().toISOString()
         }).then(function() {
@@ -4784,9 +4972,17 @@ function leaveTeam() {
                 if (members.length === 0) {
                     return firebaseDb.collection('teams').doc(docId).delete();
                 } else {
+                    // Reassign admins if leaving member was an admin
+                    var admins = (teamData.admins || []).filter(function(a) { return a !== GameState.playerPhone; });
+                    if (admins.length < 2 && members.length >= 2) {
+                        admins = members.slice(0, 2);
+                    } else if (admins.length === 0 && members.length > 0) {
+                        admins = [members[0]];
+                    }
                     return firebaseDb.collection('teams').doc(docId).update({
                         members: members,
-                        memberNames: memberNames
+                        memberNames: memberNames,
+                        admins: admins
                     });
                 }
             }
@@ -6627,12 +6823,12 @@ function usePowerUp(type) {
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
 var FAITH_MAP_POSITIONS = [
-    { left: 7.5,  top: 32 },  // 1. الثالوث القدوس (top-left circle)
-    { left: 19,   top: 53 },  // 2. التجسد (left-center circle)
-    { left: 37.5, top: 67 },  // 3. الفداء (center-bottom, cross area)
-    { left: 54,   top: 42 },  // 4. المجيء الثاني (moved down)
-    { left: 72,   top: 76 },  // 5. التوبة والاعتراف (moved down)
-    { left: 88,   top: 68 }   // 6. المعمودية والميرون (moved more down)
+    { left: 10,   top: 28 },  // 1. الثالوث القدوس - under title text
+    { left: 18,   top: 50 },  // 2. التجسد - under title text
+    { left: 38,   top: 62 },  // 3. الفداء - under title text
+    { left: 55,   top: 35 },  // 4. المجئ الثاني - under title text
+    { left: 73,   top: 65 },  // 5. التوبة والاعتراف - under title text
+    { left: 88,   top: 65 }   // 6. المعمودية والميرون - under title text
 ];
 
 function renderLevel2Map() {
@@ -7952,7 +8148,7 @@ function updateStationScore(stationKey, field, newScore) {
 
     current.total = Math.min(current.sermon + current.summary + current.games, STATION_MAX_SCORE);
     GameState.stationScores[stationKey] = current;
-    saveToLocalStorage();
+    saveToLocalStorage(true); // Save locally but skip cloud (callers handle cloud save)
     return current;
 }
 
@@ -7992,10 +8188,9 @@ function saveMiniGameScore(type, score) {
         GameState.gems = (GameState.gems || 0) + gemsEarned;
     }
 
-    console.log('saveMiniGameScore:', type, score, 'stationKey:', stationKey, 'stScore:', JSON.stringify(stScore));
-    // Save immediately to both local and cloud
-    try { localStorage.setItem('minElBatal_gameState', JSON.stringify(GameState)); } catch(e) {}
-    saveToCloud();
+    console.log('saveMiniGameScore:', type, score, 'stationKey:', stationKey, 'totalGames:', totalGamesScore, 'stScore:', JSON.stringify(stScore), 'allMiniScores:', JSON.stringify(GameState.miniGameScores));
+    // Save to both local and cloud
+    saveToLocalStorage(); // This triggers saveToCloud() as well
 }
 
 // ========== START MINI GAME ==========
@@ -8835,8 +9030,7 @@ function submitLessonSummary() {
     window._lessonSummaryImage = null;
     window._lessonSummaryAudio = null;
 
-    saveToCloud();
-    saveToLocalStorage();
+    saveToLocalStorage(); // This will also trigger saveToCloud()
 
     // Re-render learn stage
     level2State.currentStage = 'learn';
@@ -8854,7 +9048,7 @@ function markVideoWatched(videoKey) {
     updateStationScore(stationKey, 'sermon', STATION_SERMON_SCORE);
 
     GameState.gems = (GameState.gems || 0) + 5;
-    saveToCloud();
+    saveToLocalStorage(); // Save to local + cloud
     showAchievement('🎬', 'شاهدت الوعظة!', 'كسبت 10 نقاط للمحطة + 5 جواهر 💎');
     // Re-render to show watched badge
     setTimeout(function() { renderLevel2Lesson(); }, 2000);
@@ -10924,12 +11118,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         loadFromCloud(rememberedPhone).then(function(data) {
             if (data && data.playerName) {
-                // Restore username/email from cloud
+                // Restore username/email from cloud (non-score fields only)
                 GameState.username = data.username || '';
                 GameState.email = data.email || '';
-                // Restore missing fields from cloud
-                if (data.miniGameScores) GameState.miniGameScores = data.miniGameScores;
-                if (data.stationScores) GameState.stationScores = data.stationScores;
+                // NOTE: Do NOT overwrite miniGameScores/stationScores here!
+                // loadFromCloud() already merged cloud+local keeping max values.
                 showToast('أهلاً بيك يا ' + GameState.playerName.split(' ')[0] + '!', 'success');
                 showScreen('home-hub-screen');
                 // Force team badge update after cloud data is loaded
@@ -10970,14 +11163,16 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // --- Local Storage Backup ---
-function saveToLocalStorage() {
+function saveToLocalStorage(skipCloud) {
     try {
         localStorage.setItem('minElBatal_gameState', JSON.stringify(GameState));
     } catch(e) {
         console.warn('localStorage save failed:', e);
     }
-    // Always sync to cloud as well
-    saveToCloud();
+    // Only sync to cloud if explicitly requested (avoid recursive double-saves)
+    if (!skipCloud && GameState.playerPhone) {
+        saveToCloud();
+    }
 }
 
 function loadFromLocalStorage() {

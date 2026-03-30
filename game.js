@@ -6882,12 +6882,12 @@ function usePowerUp(type) {
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
 var FAITH_MAP_POSITIONS = [
-    { left: 7,    top: 64 },  // 1. الثالوث القدوس - below Arabic text
-    { left: 16,   top: 77 },  // 2. التجسد - below Arabic text
-    { left: 33,   top: 85 },  // 3. الفداء - below Arabic text
-    { left: 49,   top: 77 },  // 4. المجئ الثاني - below Arabic text
-    { left: 63,   top: 88 },  // 5. المعمودية والميرون - on numbered circle (text at bottom edge)
-    { left: 82,   top: 86 }   // 6. التوبة والاعتراف - on numbered circle (text at bottom edge)
+    { left: 7,    top: 64 },  // 1. الثالوث القدوس
+    { left: 16,   top: 72 },  // 2. التجسد - moved up from 77
+    { left: 37,   top: 82 },  // 3. الفداء - moved right from 33, up from 85
+    { left: 53,   top: 74 },  // 4. المجئ الثاني - moved right from 49, up from 77
+    { left: 67,   top: 85 },  // 5. المعمودية والميرون - moved right from 63, up from 88
+    { left: 86,   top: 83 }   // 6. التوبة والاعتراف - moved right from 82, up from 86
 ];
 
 function renderLevel2Map() {
@@ -6986,13 +6986,8 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         var hasQuizScore = stScore.games > 0;
         var isCompleted = stScore.total >= STATION_UNLOCK_THRESHOLD;
 
-        // First station always available; next station requires previous station score >= 70
+        // Only station 1 is available for now; all others are locked
         var isAvailable = (i === 0);
-        if (i > 0) {
-            var prevStationKey = level2State.currentSubject + '_' + (i - 1);
-            var prevScore = getStationScore(prevStationKey);
-            isAvailable = prevScore.total >= STATION_UNLOCK_THRESHOLD;
-        }
 
         var stateClass = isCompleted ? 'l2-imgmap-node-completed' : (isAvailable ? 'l2-imgmap-node-available' : 'l2-imgmap-node-locked');
         var hasExam = GameState.level2Data && GameState.level2Data[level2State.currentSubject] &&
@@ -10621,12 +10616,10 @@ var MARK_CHAPTERS = [
 
 // --- Daily Exercises ---
 var DAILY_EXERCISES = [
-    { id: 'pray_morning', text: 'صليت صلاة باكر', icon: '🌅', points: 5 },
     { id: 'read_bible', text: 'قرأت أصحاح من الكتاب المقدس', icon: '📖', points: 5 },
     { id: 'memorize_verse', text: 'حفظت آية جديدة', icon: '💡', points: 3 },
     { id: 'help_someone', text: 'ساعدت حد النهاردة', icon: '🤝', points: 3 },
-    { id: 'no_bad_words', text: 'ما قلتش كلام وحش النهاردة', icon: '🤐', points: 2 },
-    { id: 'pray_night', text: 'صليت صلاة النوم', icon: '🌙', points: 5 }
+    { id: 'no_bad_words', text: 'ما قلتش كلام وحش النهاردة', icon: '🤐', points: 2 }
 ];
 
 var WEEKLY_EXERCISES = [
@@ -11150,6 +11143,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.documentElement.setAttribute('data-theme', savedTheme);
     document.body.setAttribute('data-theme', savedTheme);
     GameState.theme = savedTheme;
+
+    // Load saved state from localStorage FIRST before any cloud calls
+    loadFromLocalStorage();
 
     createParticles();
     preloadCharImages();

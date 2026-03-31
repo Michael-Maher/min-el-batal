@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v3';
+var CACHE_NAME = 'min-el-batal-v4';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -154,7 +154,31 @@ self.addEventListener('fetch', function(event) {
         return;
     }
 
-    // App shell & images: cache-first, network fallback
+    // JS/CSS files: network-first (always get latest code)
+    if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.html') || url.pathname === '/') {
+        event.respondWith(
+            fetch(event.request).then(function(networkResponse) {
+                if (networkResponse && networkResponse.ok) {
+                    var responseClone = networkResponse.clone();
+                    caches.open(CACHE_NAME).then(function(cache) {
+                        cache.put(event.request, responseClone);
+                    });
+                }
+                return networkResponse;
+            }).catch(function() {
+                // Offline: fall back to cache
+                return caches.match(event.request).then(function(cachedResponse) {
+                    if (cachedResponse) return cachedResponse;
+                    if (event.request.mode === 'navigate') {
+                        return caches.match('/index.html');
+                    }
+                });
+            })
+        );
+        return;
+    }
+
+    // Images & other assets: cache-first, network fallback
     event.respondWith(
         caches.match(event.request).then(function(cachedResponse) {
             if (cachedResponse) {

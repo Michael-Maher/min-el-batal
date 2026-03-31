@@ -7205,8 +7205,13 @@ function renderLevel2Lesson() {
         if (level2State.timerInterval) clearInterval(level2State.timerInterval);
         // Stop any mini-game timer
         if (miniGameState.timer) { clearInterval(miniGameState.timer); miniGameState.timer = null; }
-        // If in a mini-game, go back to games tab
+        // If in a mini-game, save partial score then go back to games tab
         if (miniGameState.type) {
+            // Save whatever score the user earned so far (even if they didn't finish)
+            if (miniGameState.score > 0) {
+                saveMiniGameScore(miniGameState.type, miniGameState.score);
+                showToast('تم حفظ ' + miniGameState.score + ' نقطة! 💾', 'success');
+            }
             miniGameState.type = null;
             level2State.currentStage = 'games';
             renderLevel2Lesson();

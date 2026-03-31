@@ -6882,12 +6882,12 @@ function usePowerUp(type) {
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
 var FAITH_MAP_POSITIONS = [
-    { left: 7,    top: 64 },  // 1. الثالوث القدوس
-    { left: 16,   top: 72 },  // 2. التجسد - moved up from 77
-    { left: 37,   top: 82 },  // 3. الفداء - moved right from 33, up from 85
-    { left: 53,   top: 74 },  // 4. المجئ الثاني - moved right from 49, up from 77
-    { left: 67,   top: 85 },  // 5. المعمودية والميرون - moved right from 63, up from 88
-    { left: 86,   top: 83 }   // 6. التوبة والاعتراف - moved right from 82, up from 86
+    { left: 13, top: 23 },  // 1. الثالوث القدوس - right+3, up-5 from original
+    { left: 21, top: 45 },  // 2. التجسد - right+3, up-5 from original
+    { left: 40, top: 57 },  // 3. الفداء - right+2, up-5 from original
+    { left: 57, top: 30 },  // 4. المجئ الثاني - right+2, up-5 from original
+    { left: 73, top: 65 },  // 5. المعمودية والميرون
+    { left: 88, top: 65 }   // 6. التوبة والاعتراف
 ];
 
 function renderLevel2Map() {

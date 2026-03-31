@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v4';
+var CACHE_NAME = 'min-el-batal-v5';
 var STATIC_ASSETS = [
     '/',
     '/index.html',

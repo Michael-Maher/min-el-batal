@@ -75,7 +75,12 @@ const GameState = {
     dailyLoginDate: '',       // last daily login XP date 'YYYY-MM-DD'
     miniGameScores: {},       // { 'faith_0_mg_trueFalse': 15, ... }
     stationScores: {},        // { 'faith_0': { sermon: 10, summary: 10, games: 45, total: 65 } }
-    teamLastAction: 0         // timestamp of last team join/leave action
+    teamLastAction: 0,        // timestamp of last team join/leave action
+    dailySpinDate: '',
+    dailyBonusSpin: false,
+    blitzWeeklyScore: 0,
+    blitzWeeklyKey: '',
+    bossFoughtDate: ''
 };
 
 // --- Firebase Initialization ---
@@ -611,6 +616,11 @@ function saveToCloud() {
         miniGameScores: GameState.miniGameScores || {},
         stationScores: GameState.stationScores || {},
         teamLastAction: GameState.teamLastAction || 0,
+        dailySpinDate: GameState.dailySpinDate || '',
+        dailyBonusSpin: GameState.dailyBonusSpin || false,
+        blitzWeeklyScore: GameState.blitzWeeklyScore || 0,
+        blitzWeeklyKey: GameState.blitzWeeklyKey || '',
+        bossFoughtDate: GameState.bossFoughtDate || '',
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -9762,6 +9772,20 @@ function renderCompeteHub() {
     html += '<div class="compete-mode-badge">10 أسئلة · فريقين</div>';
     html += '</div>';
 
+    html += '<div class="compete-mode-card compete-mode-blitz" onclick="startBlitz()">';
+    html += '<div class="compete-mode-icon" style="font-size:28px">⚡</div>';
+    html += '<h5>تحدي الـ 30 ثانية</h5>';
+    html += '<p>أجوب أكتر ما تقدر في 30 ثانية!</p>';
+    html += '<div class="compete-mode-badge">أسبوعي</div>';
+    html += '</div>';
+
+    html += '<div class="compete-mode-card compete-mode-duel" onclick="openDuelHub()">';
+    html += '<div class="compete-mode-icon" style="font-size:28px">⚔️</div>';
+    html += '<h5>مبارزة 1v1</h5>';
+    html += '<p>تحدى صاحبك مباشرة!</p>';
+    html += '<div class="compete-mode-badge">جديد</div>';
+    html += '</div>';
+
     html += '</div>';
 
     // Tournament Cup Card
@@ -11140,6 +11164,809 @@ function updateSpiritualBadges() {
 
 // --- Hook screen rendering ---
 var _origShowScreen = typeof showScreen === 'function' ? showScreen : null;
+
+// ============================================================
+// DAILY SPIN WHEEL
+// ============================================================
+
+var SPIN_PRIZES = [
+    { label: '50 ⭐', type: 'stars', value: 50, color: '#FDCB6E' },
+    { label: '5 💎', type: 'gems', value: 5, color: '#00CEC9' },
+    { label: '100 ⭐', type: 'stars', value: 100, color: '#6C5CE7' },
+    { label: '10 💎', type: 'gems', value: 10, color: '#FD79A8' },
+    { label: '200 ⭐', type: 'stars', value: 200, color: '#E17055' },
+    { label: '20 💎', type: 'gems', value: 20, color: '#00B894' },
+    { label: 'تخطي ❓', type: 'skipQ', value: 1, color: '#a29bfe' },
+    { label: 'صندوق 🎁', type: 'mystery', value: 0, color: '#fd6b6b' }
+];
+
+function openSpinWheel() {
+    var existing = document.getElementById('spin-wheel-overlay');
+    if (existing) existing.remove();
+
+    var today = getTodayKey();
+    var hasFreeSpin = GameState.dailySpinDate !== today;
+
+    // Check if bonus spin should be awarded (all daily exercises done today)
+    var exLog = (GameState.exerciseLog || {})[today] || {};
+    var exDoneCount = (exLog.daily || []).length;
+    var allExDone = DAILY_EXERCISES.length > 0 && exDoneCount >= DAILY_EXERCISES.length;
+    if (allExDone && !GameState.dailyBonusSpin && !hasFreeSpin) {
+        GameState.dailyBonusSpin = true;
+        saveToLocalStorage();
+    }
+
+    var hasSpin = hasFreeSpin || GameState.dailyBonusSpin;
+
+    var overlay = document.createElement('div');
+    overlay.id = 'spin-wheel-overlay';
+    overlay.className = 'spin-overlay';
+    overlay.innerHTML = '<div class="spin-modal">' +
+        '<div class="spin-modal-header">' +
+        '<h3>🎰 عجلة الحظ</h3>' +
+        (allExDone && GameState.dailyBonusSpin ? '<div class="spin-bonus-badge">🎉 لفة مكافأة - أكملت تداريبك!</div>' : '') +
+        '</div>' +
+        '<div class="spin-wheel-container">' +
+        '<div class="spin-pointer-top">▼</div>' +
+        '<canvas id="spin-canvas" width="260" height="260"></canvas>' +
+        '</div>' +
+        '<div id="spin-result-area"></div>' +
+        '<div class="spin-actions">' +
+        '<button class="btn btn-primary spin-go-btn" id="btn-spin-go" onclick="executeSpin()" ' + (hasSpin ? '' : 'disabled') + '>' +
+        '<span>' + (hasSpin ? '🎰 العب!' : '⏰ اجيت النهارده') + '</span></button>' +
+        '<button class="btn btn-secondary" onclick="closeSpinWheel()"><span>إغلاق</span></button>' +
+        '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('visible'); }, 10);
+    drawSpinCanvas(null);
+}
+
+function drawSpinCanvas(highlightIdx) {
+    var canvas = document.getElementById('spin-canvas');
+    if (!canvas) return;
+    var ctx = canvas.getContext('2d');
+    var n = SPIN_PRIZES.length;
+    var arc = (2 * Math.PI) / n;
+    var cx = 130, cy = 130, r = 125;
+    ctx.clearRect(0, 0, 260, 260);
+    SPIN_PRIZES.forEach(function(p, i) {
+        var start = i * arc - Math.PI / 2;
+        var end = start + arc;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, end);
+        ctx.closePath();
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        // Text
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.rotate(start + arc / 2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.font = 'bold 12px Cairo, sans-serif';
+        ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        ctx.shadowBlur = 3;
+        ctx.fillText(p.label, r - 8, 5);
+        ctx.restore();
+    });
+    // Highlight border
+    if (highlightIdx !== null && highlightIdx !== undefined) {
+        var hs = highlightIdx * arc - Math.PI / 2;
+        var he = hs + arc;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, hs, he);
+        ctx.closePath();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+    }
+    // Center
+    ctx.beginPath();
+    ctx.arc(cx, cy, 20, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1a1a2e';
+    ctx.fill();
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+}
+
+var _spinAngle = 0;
+var _spinAnimFrame = null;
+
+function executeSpin() {
+    var today = getTodayKey();
+    var hasFreeSpin = GameState.dailySpinDate !== today;
+    var isBonus = !hasFreeSpin && GameState.dailyBonusSpin;
+    if (!hasFreeSpin && !isBonus) { showToast('استخدمت العجلة النهاردة!', 'warning'); return; }
+
+    var spinBtn = document.getElementById('btn-spin-go');
+    if (spinBtn) spinBtn.disabled = true;
+
+    // Consume the spin
+    if (hasFreeSpin) { GameState.dailySpinDate = today; GameState.dailyBonusSpin = false; }
+    else { GameState.dailyBonusSpin = false; }
+    saveToLocalStorage();
+
+    var winIdx = Math.floor(Math.random() * SPIN_PRIZES.length);
+    var n = SPIN_PRIZES.length;
+    var arcDeg = 360 / n;
+    // Calculate final angle so that pointer (top) lands on winIdx segment center
+    var targetDeg = 360 * 6 + (270 - winIdx * arcDeg - arcDeg / 2);
+    var startDeg = _spinAngle % 360;
+    var totalDeg = targetDeg - startDeg;
+    if (totalDeg < 360) totalDeg += 360;
+
+    var startTime = null;
+    var duration = 4000;
+
+    function animate(ts) {
+        if (!startTime) startTime = ts;
+        var elapsed = ts - startTime;
+        var t = Math.min(elapsed / duration, 1);
+        // ease-out cubic
+        var eased = 1 - Math.pow(1 - t, 3);
+        var currentDeg = startDeg + totalDeg * eased;
+        _spinAngle = currentDeg;
+
+        // Redraw canvas rotated
+        var canvas = document.getElementById('spin-canvas');
+        if (!canvas) return;
+        var ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, 260, 260);
+        ctx.save();
+        ctx.translate(130, 130);
+        ctx.rotate((currentDeg * Math.PI) / 180);
+        ctx.translate(-130, -130);
+        drawSpinCanvas(null);
+        ctx.restore();
+
+        if (t < 1) {
+            _spinAnimFrame = requestAnimationFrame(animate);
+        } else {
+            _spinAnimFrame = null;
+            onSpinComplete(winIdx);
+        }
+    }
+
+    _spinAnimFrame = requestAnimationFrame(animate);
+}
+
+function onSpinComplete(winIdx) {
+    var prize = SPIN_PRIZES[winIdx];
+    var resultHTML = '';
+
+    if (prize.type === 'stars') {
+        GameState.stars = (GameState.stars || 0) + prize.value;
+        resultHTML = '<div class="spin-prize-result"><span class="spin-prize-icon">⭐</span><div>كسبت <strong>' + prize.value + '</strong> نجمة!</div></div>';
+        launchConfetti(1500);
+    } else if (prize.type === 'gems') {
+        GameState.gems = (GameState.gems || 0) + prize.value;
+        resultHTML = '<div class="spin-prize-result"><span class="spin-prize-icon">💎</span><div>كسبت <strong>' + prize.value + '</strong> جوهرة!</div></div>';
+        launchConfetti(1500);
+    } else if (prize.type === 'skipQ') {
+        if (!GameState.powerUps) GameState.powerUps = {};
+        GameState.powerUps.skipQ = (GameState.powerUps.skipQ || 0) + 1;
+        resultHTML = '<div class="spin-prize-result"><span class="spin-prize-icon">⏭️</span><div>كسبت <strong>تخطي سؤال</strong>!</div></div>';
+    } else if (prize.type === 'mystery') {
+        var mysterys = [{type:'stars',value:30},{type:'stars',value:150},{type:'gems',value:3},{type:'gems',value:8}];
+        var m = mysterys[Math.floor(Math.random()*mysterys.length)];
+        if (m.type === 'stars') { GameState.stars = (GameState.stars||0)+m.value; resultHTML = '<div class="spin-prize-result"><span class="spin-prize-icon">🎁</span><div>صندوق المفاجآت: <strong>' + m.value + ' ⭐</strong>!</div></div>'; }
+        else { GameState.gems = (GameState.gems||0)+m.value; resultHTML = '<div class="spin-prize-result"><span class="spin-prize-icon">🎁</span><div>صندوق المفاجآت: <strong>' + m.value + ' 💎</strong>!</div></div>'; }
+        launchConfetti(1500);
+    }
+
+    saveToLocalStorage();
+    var area = document.getElementById('spin-result-area');
+    if (area) area.innerHTML = resultHTML;
+
+    // Update button to "done"
+    var btn = document.getElementById('btn-spin-go');
+    if (btn) { btn.innerHTML = '<span>✅ تم!</span>'; btn.disabled = true; }
+}
+
+function closeSpinWheel() {
+    var overlay = document.getElementById('spin-wheel-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('visible');
+    setTimeout(function() { overlay.remove(); renderHomeHub(); }, 300);
+}
+
+// ============================================================
+// 30-SECOND BLITZ
+// ============================================================
+
+function getBlitzQuestions() {
+    var pool = [];
+    Object.keys(LEVEL2_SUBJECTS).forEach(function(subKey) {
+        var sub = LEVEL2_SUBJECTS[subKey];
+        (sub.lessons || []).forEach(function(lesson) {
+            (lesson.questions || []).forEach(function(q) {
+                pool.push({ q: q.q, options: q.options, correct: q.correct, subject: sub.name });
+            });
+        });
+    });
+    // Shuffle
+    for (var i = pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool;
+}
+
+var blitzState = { questions: [], index: 0, score: 0, timer: null, timeLeft: 30 };
+
+function startBlitz() {
+    blitzState.questions = getBlitzQuestions();
+    blitzState.index = 0;
+    blitzState.score = 0;
+    blitzState.timeLeft = 30;
+
+    var existing = document.getElementById('blitz-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'blitz-overlay';
+    overlay.className = 'blitz-overlay';
+    overlay.innerHTML = '<div class="blitz-modal">' +
+        '<div class="blitz-header">' +
+        '<span class="blitz-title">⚡ تحدي الـ 30 ثانية</span>' +
+        '<span class="blitz-timer" id="blitz-timer">30</span>' +
+        '</div>' +
+        '<div class="blitz-progress-bar"><div id="blitz-progress-fill" style="width:100%"></div></div>' +
+        '<div id="blitz-body"></div>' +
+        '<div class="blitz-score-row"><span>النقاط: </span><span id="blitz-score">0</span></div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('visible'); }, 10);
+
+    renderBlitzQuestion();
+
+    blitzState.timer = setInterval(function() {
+        blitzState.timeLeft--;
+        var timerEl = document.getElementById('blitz-timer');
+        var fillEl = document.getElementById('blitz-progress-fill');
+        if (timerEl) timerEl.textContent = blitzState.timeLeft;
+        if (fillEl) fillEl.style.width = (blitzState.timeLeft / 30 * 100) + '%';
+        if (blitzState.timeLeft <= 0) {
+            clearInterval(blitzState.timer);
+            showBlitzResult();
+        }
+    }, 1000);
+}
+
+function renderBlitzQuestion() {
+    var body = document.getElementById('blitz-body');
+    if (!body) return;
+    if (blitzState.index >= blitzState.questions.length) {
+        showBlitzResult(); return;
+    }
+    var q = blitzState.questions[blitzState.index];
+    var html = '<div class="blitz-question">' + q.q + '</div>';
+    html += '<div class="blitz-options">';
+    q.options.forEach(function(opt, i) {
+        html += '<button class="blitz-opt" onclick="answerBlitz(' + i + ',' + q.correct + ')">' + opt + '</button>';
+    });
+    html += '</div>';
+    html += '<button class="blitz-skip-btn" onclick="skipBlitz()">تخطي ⏭</button>';
+    body.innerHTML = html;
+}
+
+function answerBlitz(chosen, correct) {
+    if (chosen === correct) {
+        blitzState.score += 2;
+        var sc = document.getElementById('blitz-score');
+        if (sc) sc.textContent = blitzState.score;
+        playCorrectSound();
+        vibrate(30);
+    } else {
+        playWrongSound();
+    }
+    blitzState.index++;
+    renderBlitzQuestion();
+}
+
+function skipBlitz() {
+    blitzState.index++;
+    renderBlitzQuestion();
+}
+
+function showBlitzResult() {
+    if (blitzState.timer) { clearInterval(blitzState.timer); blitzState.timer = null; }
+
+    var score = blitzState.score;
+    // Update weekly best
+    var weekKey = getWeekKey();
+    if (weekKey !== GameState.blitzWeeklyKey) {
+        GameState.blitzWeeklyKey = weekKey;
+        GameState.blitzWeeklyScore = 0;
+    }
+    var isNewBest = score > (GameState.blitzWeeklyScore || 0);
+    if (isNewBest) { GameState.blitzWeeklyScore = score; }
+
+    // Give stars reward
+    var reward = Math.floor(score / 2);
+    if (reward > 0) GameState.stars = (GameState.stars || 0) + reward;
+    saveToLocalStorage();
+
+    // Save to Firestore blitzLeaderboard
+    if (firebaseDb && GameState.playerPhone && isNewBest) {
+        firebaseDb.collection('blitzLeaderboard').doc(GameState.playerPhone).set({
+            playerName: GameState.playerName,
+            playerPhone: GameState.playerPhone,
+            score: score,
+            weekKey: weekKey,
+            character: GameState.character || 'david',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(function(e) { console.warn('blitz save err', e); });
+    }
+
+    var overlay = document.getElementById('blitz-overlay');
+    if (!overlay) return;
+    var emoji = score >= 30 ? '🏆' : score >= 20 ? '🌟' : score >= 10 ? '👏' : '💪';
+    overlay.querySelector('.blitz-modal').innerHTML =
+        '<div class="blitz-result">' +
+        '<div class="blitz-result-emoji">' + emoji + '</div>' +
+        '<h3>انتهى الوقت!</h3>' +
+        '<div class="blitz-result-score">' + score + ' نقطة</div>' +
+        (isNewBest ? '<div style="color:#00B894;font-size:13px;margin:4px 0">🔥 أحسن نتيجة هذا الأسبوع!</div>' : '') +
+        '<div class="blitz-result-reward">+' + reward + ' ⭐ مكافأة</div>' +
+        '<div class="blitz-result-btns">' +
+        '<button class="btn btn-primary" onclick="document.getElementById(\'blitz-overlay\').remove(); startBlitz();"><span>🔁 تاني</span></button>' +
+        '<button class="btn btn-secondary" onclick="document.getElementById(\'blitz-overlay\').remove();"><span>رجوع</span></button>' +
+        '</div></div>';
+    if (score >= 20) launchConfetti(2000);
+}
+
+// ============================================================
+// 1v1 DUEL
+// ============================================================
+
+var duelState = { code: null, role: null, unsubscribe: null, questions: [], index: 0, score: 0, opponentScore: 0, done: false };
+
+function openDuelHub() {
+    var existing = document.getElementById('duel-overlay');
+    if (existing) existing.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'duel-overlay';
+    overlay.className = 'duel-overlay';
+    overlay.innerHTML = '<div class="duel-modal">' +
+        '<h3>⚔️ مبارزة 1v1</h3>' +
+        '<div class="duel-options">' +
+        '<button class="btn btn-primary duel-big-btn" onclick="createDuel()"><span>➕ إنشاء مبارزة</span></button>' +
+        '<div class="duel-divider">أو</div>' +
+        '<div class="duel-join-row">' +
+        '<input type="text" id="duel-code-input" class="duel-input" placeholder="أدخل كود المبارزة" maxlength="6" style="text-transform:uppercase">' +
+        '<button class="btn btn-secondary" onclick="joinDuel()"><span>انضم</span></button>' +
+        '</div>' +
+        '</div>' +
+        '<button class="btn btn-secondary" onclick="document.getElementById(\'duel-overlay\').remove()" style="margin-top:12px;width:100%"><span>إغلاق</span></button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('visible'); }, 10);
+}
+
+function getDuelQuestions() {
+    var pool = [];
+    Object.keys(LEVEL2_SUBJECTS).forEach(function(subKey) {
+        LEVEL2_SUBJECTS[subKey].lessons.forEach(function(lesson) {
+            (lesson.questions || []).forEach(function(q) { pool.push(q); });
+        });
+    });
+    for (var i = pool.length - 1; i > 0; i--) {
+        var j = Math.floor(Math.random() * (i + 1));
+        var t = pool[i]; pool[i] = pool[j]; pool[j] = t;
+    }
+    return pool.slice(0, 10);
+}
+
+function createDuel() {
+    if (!GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'error'); return; }
+    if (!firebaseDb) { showToast('تحتاج إنترنت للمبارزة', 'error'); return; }
+    var code = Math.random().toString(36).substr(2, 6).toUpperCase();
+    var questions = getDuelQuestions();
+    var duelData = {
+        code: code,
+        player1: GameState.playerPhone,
+        player1Name: GameState.playerName,
+        player2: null,
+        player2Name: null,
+        questions: JSON.stringify(questions),
+        player1Score: 0,
+        player2Score: 0,
+        player1Done: false,
+        player2Done: false,
+        status: 'waiting',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    firebaseDb.collection('duels').doc(code).set(duelData).then(function() {
+        duelState.code = code;
+        duelState.role = 'player1';
+        duelState.questions = questions;
+        duelState.index = 0; duelState.score = 0; duelState.opponentScore = 0; duelState.done = false;
+        showDuelWaiting(code);
+        listenDuel(code, 'player1');
+    }).catch(function(e) { showToast('حصل خطأ: ' + e.message, 'error'); });
+}
+
+function joinDuel() {
+    if (!GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'error'); return; }
+    if (!firebaseDb) { showToast('تحتاج إنترنت للمبارزة', 'error'); return; }
+    var code = (document.getElementById('duel-code-input').value || '').trim().toUpperCase();
+    if (!code || code.length !== 6) { showToast('أدخل كود صحيح من 6 خانات', 'error'); return; }
+    firebaseDb.collection('duels').doc(code).get().then(function(doc) {
+        if (!doc.exists) { showToast('المبارزة مش موجودة', 'error'); return; }
+        var data = doc.data();
+        if (data.status !== 'waiting') { showToast('المبارزة اتلغت أو خلصت', 'error'); return; }
+        if (data.player1 === GameState.playerPhone) { showToast('مش ممكن تبارز نفسك 😅', 'warning'); return; }
+        firebaseDb.collection('duels').doc(code).update({
+            player2: GameState.playerPhone,
+            player2Name: GameState.playerName,
+            status: 'active'
+        }).then(function() {
+            duelState.code = code;
+            duelState.role = 'player2';
+            duelState.questions = JSON.parse(data.questions);
+            duelState.index = 0; duelState.score = 0; duelState.opponentScore = 0; duelState.done = false;
+            var overlay = document.getElementById('duel-overlay');
+            if (overlay) overlay.remove();
+            startDuelGame();
+            listenDuel(code, 'player2');
+        });
+    }).catch(function(e) { showToast('حصل خطأ: ' + e.message, 'error'); });
+}
+
+function showDuelWaiting(code) {
+    var overlay = document.getElementById('duel-overlay');
+    if (!overlay) return;
+    overlay.querySelector('.duel-modal').innerHTML =
+        '<h3>⚔️ مبارزة جاهزة!</h3>' +
+        '<p style="color:var(--text-muted)">شارك الكود مع منافسك:</p>' +
+        '<div class="duel-code-display">' + code + '</div>' +
+        '<div class="duel-waiting-msg" id="duel-wait-msg"><i class="fas fa-spinner fa-spin"></i> بنستنى منافسك...</div>' +
+        '<button class="btn btn-secondary" onclick="cancelDuel()" style="margin-top:12px;width:100%"><span>إلغاء</span></button>';
+}
+
+function listenDuel(code, role) {
+    if (duelState.unsubscribe) duelState.unsubscribe();
+    duelState.unsubscribe = firebaseDb.collection('duels').doc(code).onSnapshot(function(doc) {
+        if (!doc.exists) return;
+        var data = doc.data();
+        var oppScore = role === 'player1' ? data.player2Score : data.player1Score;
+        duelState.opponentScore = oppScore || 0;
+        var oppScoreEl = document.getElementById('duel-opp-score');
+        if (oppScoreEl) oppScoreEl.textContent = duelState.opponentScore;
+
+        // If player1 and status just became active, start game
+        if (role === 'player1' && data.status === 'active' && !duelState.done && duelState.index === 0) {
+            var overlay = document.getElementById('duel-overlay');
+            if (overlay) overlay.remove();
+            startDuelGame();
+        }
+        // If both done, show result
+        if (data.player1Done && data.player2Done && !duelState.done) {
+            duelState.done = true;
+            var myScore = role === 'player1' ? data.player1Score : data.player2Score;
+            var theirScore = role === 'player1' ? data.player2Score : data.player1Score;
+            var theirName = role === 'player1' ? data.player2Name : data.player1Name;
+            showDuelResult(myScore, theirScore, theirName || 'المنافس');
+        }
+    });
+}
+
+function cancelDuel() {
+    if (duelState.code && firebaseDb) {
+        firebaseDb.collection('duels').doc(duelState.code).update({ status: 'cancelled' }).catch(function(){});
+    }
+    if (duelState.unsubscribe) { duelState.unsubscribe(); duelState.unsubscribe = null; }
+    var overlay = document.getElementById('duel-overlay');
+    if (overlay) overlay.remove();
+}
+
+function startDuelGame() {
+    var overlay = document.createElement('div');
+    overlay.id = 'duel-game-overlay';
+    overlay.className = 'duel-overlay';
+    overlay.innerHTML = '<div class="duel-modal">' +
+        '<div class="duel-game-header">' +
+        '<div class="duel-player-score"><div class="duel-score-label">أنت</div><div class="duel-score-val" id="duel-my-score">0</div></div>' +
+        '<div class="duel-vs">⚔️</div>' +
+        '<div class="duel-player-score"><div class="duel-score-label">المنافس</div><div class="duel-score-val" id="duel-opp-score">0</div></div>' +
+        '</div>' +
+        '<div class="duel-progress">س <span id="duel-q-num">1</span> من 10</div>' +
+        '<div id="duel-game-body"></div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('visible'); }, 10);
+    renderDuelQuestion();
+}
+
+function renderDuelQuestion() {
+    var body = document.getElementById('duel-game-body');
+    if (!body) return;
+    if (duelState.index >= duelState.questions.length) {
+        finishDuel(); return;
+    }
+    var qNum = document.getElementById('duel-q-num');
+    if (qNum) qNum.textContent = duelState.index + 1;
+    var q = duelState.questions[duelState.index];
+    var html = '<div class="duel-question">' + q.q + '</div><div class="duel-options">';
+    q.options.forEach(function(opt, i) {
+        html += '<button class="duel-opt" onclick="answerDuel(' + i + ',' + q.correct + ')">' + opt + '</button>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+}
+
+function answerDuel(chosen, correct) {
+    var btns = document.querySelectorAll('.duel-opt');
+    btns.forEach(function(b) { b.disabled = true; });
+    if (chosen === correct) {
+        duelState.score += 2;
+        var sc = document.getElementById('duel-my-score');
+        if (sc) sc.textContent = duelState.score;
+        if (btns[chosen]) btns[chosen].style.background = '#00B894';
+        playCorrectSound();
+    } else {
+        if (btns[chosen]) btns[chosen].style.background = '#e17055';
+        if (btns[correct]) btns[correct].style.background = '#00B894';
+        playWrongSound();
+    }
+    // Update Firestore with my score
+    if (firebaseDb && duelState.code) {
+        var updateObj = {};
+        updateObj[duelState.role + 'Score'] = duelState.score;
+        firebaseDb.collection('duels').doc(duelState.code).update(updateObj).catch(function(){});
+    }
+    duelState.index++;
+    setTimeout(renderDuelQuestion, 900);
+}
+
+function finishDuel() {
+    if (!firebaseDb || !duelState.code) return;
+    // Mark as done in Firestore
+    var updateObj = {};
+    updateObj[duelState.role + 'Done'] = true;
+    updateObj[duelState.role + 'Score'] = duelState.score;
+    firebaseDb.collection('duels').doc(duelState.code).update(updateObj).catch(function(){});
+
+    var body = document.getElementById('duel-game-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> بنستنى المنافس يخلص...</div>';
+}
+
+function showDuelResult(myScore, theirScore, theirName) {
+    if (duelState.unsubscribe) { duelState.unsubscribe(); duelState.unsubscribe = null; }
+    var gameOverlay = document.getElementById('duel-game-overlay');
+    if (gameOverlay) gameOverlay.remove();
+
+    var won = myScore > theirScore;
+    var tied = myScore === theirScore;
+    var gemsReward = won ? 15 : tied ? 8 : 5;
+    GameState.gems = (GameState.gems || 0) + gemsReward;
+    saveToLocalStorage();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'duel-result-overlay';
+    overlay.className = 'duel-overlay visible';
+    overlay.innerHTML = '<div class="duel-modal">' +
+        '<div class="duel-result-icon">' + (won ? '🏆' : tied ? '🤝' : '😔') + '</div>' +
+        '<h3>' + (won ? 'انتصرت!' : tied ? 'تعادل!' : 'خسرت!') + '</h3>' +
+        '<div class="duel-result-scores">' +
+        '<div><div>أنت</div><div class="duel-final-score">' + myScore + '</div></div>' +
+        '<div style="align-self:center;font-size:20px">⚔️</div>' +
+        '<div><div>' + theirName + '</div><div class="duel-final-score">' + theirScore + '</div></div>' +
+        '</div>' +
+        '<div class="duel-gems-reward">+' + gemsReward + ' 💎 مكافأة</div>' +
+        '<button class="btn btn-primary" onclick="document.getElementById(\'duel-result-overlay\').remove();openDuelHub();" style="width:100%;margin-top:12px"><span>مبارزة جديدة</span></button>' +
+        '<button class="btn btn-secondary" onclick="document.getElementById(\'duel-result-overlay\').remove();" style="width:100%;margin-top:8px"><span>إغلاق</span></button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    if (won) launchConfetti(3000);
+}
+
+// ============================================================
+// BOSS BATTLE
+// ============================================================
+
+var DEFAULT_BOSS = {
+    bossName: 'أريوس الهرطوقي',
+    bossEmoji: '👿',
+    bossHP: 500,
+    weekKey: '',
+    description: 'أريوس ينشر هرطقة إنكار ألوهية المسيح — هاجمه بالإجابات الصحيحة!',
+    questions: []
+};
+
+function getBossQuestions() {
+    var pool = [];
+    Object.keys(LEVEL2_SUBJECTS).forEach(function(subKey) {
+        LEVEL2_SUBJECTS[subKey].lessons.forEach(function(lesson) {
+            (lesson.questions || []).forEach(function(q) { pool.push(q); });
+        });
+    });
+    for (var i = pool.length-1; i > 0; i--) {
+        var j = Math.floor(Math.random()*(i+1)); var t=pool[i]; pool[i]=pool[j]; pool[j]=t;
+    }
+    return pool.slice(0, 10);
+}
+
+function openBossBattle() {
+    if (!firebaseDb) { showToast('تحتاج إنترنت لمعارك الإيمان', 'error'); return; }
+    var weekKey = getWeekKey();
+    // Load current boss from Firestore
+    firebaseDb.collection('bossBattle').doc('current').get().then(function(doc) {
+        var boss;
+        if (doc.exists) {
+            boss = doc.data();
+            if (boss.weekKey !== weekKey) {
+                // New week - reset boss
+                boss = Object.assign({}, DEFAULT_BOSS, { weekKey: weekKey, totalDamage: 0, contributors: {}, status: 'active', questions: JSON.stringify(getBossQuestions()) });
+                firebaseDb.collection('bossBattle').doc('current').set(boss);
+            }
+        } else {
+            boss = Object.assign({}, DEFAULT_BOSS, { weekKey: weekKey, totalDamage: 0, contributors: {}, status: 'active', questions: JSON.stringify(getBossQuestions()) });
+            firebaseDb.collection('bossBattle').doc('current').set(boss);
+        }
+        showBossScreen(boss);
+    }).catch(function(e) {
+        showToast('حصل خطأ في تحميل المعركة', 'error');
+    });
+}
+
+function showBossScreen(boss) {
+    var today = getTodayKey();
+    var alreadyFought = GameState.bossFoughtDate === today;
+    var hp = boss.bossHP || 500;
+    var damage = boss.totalDamage || 0;
+    var pct = Math.min(damage / hp * 100, 100);
+    var defeated = boss.status === 'defeated' || damage >= hp;
+
+    var existing = document.getElementById('boss-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'boss-overlay';
+    overlay.className = 'boss-overlay';
+
+    var myContrib = (boss.contributors || {})[GameState.playerPhone] || 0;
+
+    overlay.innerHTML = '<div class="boss-modal">' +
+        '<div class="boss-header">' +
+        '<div class="boss-emoji">' + (boss.bossEmoji || '👿') + '</div>' +
+        '<div class="boss-info">' +
+        '<div class="boss-name">' + (boss.bossName || 'العدو') + '</div>' +
+        '<div class="boss-desc">' + (boss.description || '') + '</div>' +
+        '</div>' +
+        '</div>' +
+        '<div class="boss-hp-section">' +
+        '<div class="boss-hp-label"><span>نقاط الحياة</span><span>' + Math.max(0,hp-damage) + '/' + hp + '</span></div>' +
+        '<div class="boss-hp-bar"><div class="boss-hp-fill" style="width:' + (100-pct) + '%"></div></div>' +
+        '</div>' +
+        (myContrib > 0 ? '<div class="boss-my-contrib">مساهمتك: <strong>' + myContrib + '</strong> ضربة 🗡️</div>' : '') +
+        (defeated ?
+            '<div class="boss-defeated-msg">🎉 تم هزيمته هذا الأسبوع! شكراً لمساهمتك</div>' :
+            alreadyFought ?
+            '<div class="boss-already-msg">✅ قاتلت اليوم! عد غداً للمزيد</div>' :
+            '<button class="btn btn-primary boss-fight-btn" onclick="startBossFight()"><span>⚔️ هاجم الآن!</span></button>'
+        ) +
+        '<button class="btn btn-secondary" onclick="document.getElementById(\'boss-overlay\').remove()" style="margin-top:10px;width:100%"><span>إغلاق</span></button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('visible'); }, 10);
+}
+
+var bossFightState = { questions: [], index: 0, damage: 0 };
+
+function startBossFight() {
+    firebaseDb.collection('bossBattle').doc('current').get().then(function(doc) {
+        if (!doc.exists) return;
+        var boss = doc.data();
+        var qs = [];
+        try { qs = JSON.parse(boss.questions || '[]'); } catch(e) {}
+        if (!qs.length) qs = getBossQuestions();
+        bossFightState.questions = qs;
+        bossFightState.index = 0;
+        bossFightState.damage = 0;
+
+        var overlay = document.getElementById('boss-overlay');
+        if (!overlay) return;
+        overlay.querySelector('.boss-modal').innerHTML =
+            '<div class="boss-fight-header">' +
+            '<div class="boss-fight-emoji">' + (boss.bossEmoji||'👿') + '</div>' +
+            '<div class="boss-fight-name">' + (boss.bossName||'العدو') + '</div>' +
+            '</div>' +
+            '<div class="boss-fight-progress">س <span id="boss-q-num">1</span> من ' + qs.length + '</div>' +
+            '<div class="boss-fight-damage">ضرباتك: <span id="boss-dmg">0</span> 🗡️</div>' +
+            '<div id="boss-fight-body"></div>';
+        renderBossFightQuestion();
+    });
+}
+
+function renderBossFightQuestion() {
+    var body = document.getElementById('boss-fight-body');
+    if (!body) return;
+    if (bossFightState.index >= bossFightState.questions.length) {
+        finishBossFight(); return;
+    }
+    var qNum = document.getElementById('boss-q-num');
+    if (qNum) qNum.textContent = bossFightState.index + 1;
+    var q = bossFightState.questions[bossFightState.index];
+    var html = '<div class="boss-question">' + q.q + '</div><div class="boss-options">';
+    q.options.forEach(function(opt, i) {
+        html += '<button class="boss-opt" onclick="answerBoss(' + i + ',' + q.correct + ')">' + opt + '</button>';
+    });
+    html += '</div>';
+    body.innerHTML = html;
+}
+
+function answerBoss(chosen, correct) {
+    var btns = document.querySelectorAll('.boss-opt');
+    btns.forEach(function(b) { b.disabled = true; });
+    if (chosen === correct) {
+        bossFightState.damage += 10;
+        var dmgEl = document.getElementById('boss-dmg');
+        if (dmgEl) dmgEl.textContent = bossFightState.damage;
+        if (btns[chosen]) btns[chosen].style.background = '#00B894';
+        playCorrectSound();
+        vibrate(50);
+        // Flash boss emoji
+        var emojiEl = document.querySelector('.boss-fight-emoji');
+        if (emojiEl) { emojiEl.style.transform = 'scale(1.3)'; setTimeout(function(){emojiEl.style.transform='';},200); }
+    } else {
+        if (btns[chosen]) btns[chosen].style.background = '#e17055';
+        if (btns[correct]) btns[correct].style.background = '#00B894';
+        playWrongSound();
+    }
+    bossFightState.index++;
+    setTimeout(renderBossFightQuestion, 900);
+}
+
+function finishBossFight() {
+    var today = getTodayKey();
+    GameState.bossFoughtDate = today;
+    var damage = bossFightState.damage;
+
+    // Update Firestore boss document
+    firebaseDb.collection('bossBattle').doc('current').get().then(function(doc) {
+        if (!doc.exists) return;
+        var boss = doc.data();
+        var newTotal = (boss.totalDamage || 0) + damage;
+        var contributors = boss.contributors || {};
+        contributors[GameState.playerPhone] = (contributors[GameState.playerPhone]||0) + damage;
+        var defeated = newTotal >= (boss.bossHP || 500);
+
+        firebaseDb.collection('bossBattle').doc('current').update({
+            totalDamage: newTotal,
+            contributors: contributors,
+            status: defeated ? 'defeated' : 'active'
+        }).catch(function(){});
+
+        // Reward player
+        var gemsReward = Math.floor(damage / 10);
+        if (defeated) { gemsReward += 20; }
+        if (gemsReward > 0) { GameState.gems = (GameState.gems||0) + gemsReward; }
+        saveToLocalStorage();
+
+        // Show result
+        var overlay = document.getElementById('boss-overlay');
+        if (!overlay) return;
+        overlay.querySelector('.boss-modal').innerHTML =
+            '<div class="boss-result">' +
+            '<div class="boss-result-emoji">' + (damage >= 80 ? '🏆' : damage >= 50 ? '⚔️' : '💪') + '</div>' +
+            '<h3>' + (defeated ? '🎉 هُزم العدو!' : 'معركة شرسة!') + '</h3>' +
+            '<div class="boss-result-damage">ألحقت <strong>' + damage + '</strong> ضربة بالعدو 🗡️</div>' +
+            '<div class="boss-result-reward">+' + gemsReward + ' 💎 مكافأة</div>' +
+            (defeated ? '<div style="color:#00B894;font-size:13px;margin:8px 0">أنت ساعدت في هزيمة العدو!</div>' : '') +
+            '<button class="btn btn-secondary" onclick="document.getElementById(\'boss-overlay\').remove()" style="margin-top:12px;width:100%"><span>إغلاق</span></button>' +
+            '</div>';
+        if (defeated) launchConfetti(3000);
+    });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
     // Apply saved theme immediately (both html and body for consistency)

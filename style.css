@@ -7912,3 +7912,105 @@ body {
     .rewards-balance { gap: 12px; padding: 12px; }
     .rewards-balance-item { font-size: 15px; }
 }
+
+/* ===================== SPIN WHEEL ===================== */
+.spin-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
+.spin-overlay.visible { opacity:1; }
+.spin-modal { background:var(--card-bg,#1a1a2e);border-radius:20px;padding:24px;max-width:340px;width:90%;text-align:center;animation:slideUp 0.3s ease; }
+.spin-modal h3 { font-size:20px;font-weight:800;margin-bottom:12px;color:var(--gold,#FDCB6E); }
+.spin-modal-header { margin-bottom:4px; }
+.spin-bonus-badge { background:rgba(0,184,148,0.15);color:#00B894;border-radius:8px;padding:6px 12px;font-size:12px;margin-bottom:10px;display:inline-block; }
+.spin-wheel-container { position:relative;width:260px;height:260px;margin:0 auto 12px; }
+.spin-pointer-top { position:absolute;top:-12px;left:50%;transform:translateX(-50%);font-size:24px;color:#fff;z-index:2;filter:drop-shadow(0 2px 4px rgba(0,0,0,0.5)); }
+#spin-canvas { border-radius:50%;box-shadow:0 4px 20px rgba(0,0,0,0.4); }
+.spin-result-area { min-height:50px;display:flex;align-items:center;justify-content:center; }
+.spin-prize-result { display:flex;align-items:center;gap:12px;background:rgba(108,92,231,0.15);border-radius:12px;padding:12px 16px; }
+.spin-prize-icon { font-size:32px; }
+.spin-prize-result div { font-size:16px;font-weight:700;color:#fff; }
+.spin-actions { display:flex;gap:10px;margin-top:12px; }
+.spin-actions .btn { flex:1; }
+
+/* ===================== BLITZ ===================== */
+.blitz-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
+.blitz-overlay.visible { opacity:1; }
+.blitz-modal { background:var(--card-bg,#1a1a2e);border-radius:20px;padding:20px;max-width:360px;width:92%;animation:slideUp 0.3s ease; }
+.blitz-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:8px; }
+.blitz-title { font-size:16px;font-weight:800;color:var(--gold,#FDCB6E); }
+.blitz-timer { font-size:28px;font-weight:900;color:#e17055;min-width:40px;text-align:center; }
+.blitz-progress-bar { height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-bottom:14px;overflow:hidden; }
+#blitz-progress-fill { height:100%;background:linear-gradient(90deg,#6C5CE7,#e17055);border-radius:3px;transition:width 1s linear; }
+.blitz-question { font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;line-height:1.5;text-align:right; }
+.blitz-options { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px; }
+.blitz-opt { background:rgba(108,92,231,0.2);border:1px solid rgba(108,92,231,0.4);border-radius:10px;padding:10px 8px;color:#fff;font-family:Cairo,sans-serif;font-size:13px;cursor:pointer;transition:all 0.15s;text-align:center; }
+.blitz-opt:hover { background:rgba(108,92,231,0.5); }
+.blitz-skip-btn { background:transparent;border:none;color:var(--text-muted,#6C6C8A);font-family:Cairo,sans-serif;font-size:12px;cursor:pointer;padding:4px; }
+.blitz-score-row { text-align:center;font-size:14px;color:var(--text-muted,#6C6C8A);margin-top:6px; }
+#blitz-score { font-weight:800;color:var(--gold,#FDCB6E); }
+.blitz-result { text-align:center;padding:12px 0; }
+.blitz-result-emoji { font-size:56px;margin-bottom:8px; }
+.blitz-result h3 { font-size:20px;font-weight:800;margin-bottom:6px; }
+.blitz-result-score { font-size:36px;font-weight:900;color:var(--gold,#FDCB6E);margin-bottom:4px; }
+.blitz-result-reward { font-size:14px;color:#00B894;margin:6px 0; }
+.blitz-result-btns { display:flex;gap:8px;margin-top:14px; }
+.blitz-result-btns .btn { flex:1; }
+
+/* ===================== DUEL ===================== */
+.duel-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
+.duel-overlay.visible { opacity:1; }
+.duel-modal { background:var(--card-bg,#1a1a2e);border-radius:20px;padding:22px;max-width:360px;width:92%;text-align:center;animation:slideUp 0.3s ease; }
+.duel-modal h3 { font-size:20px;font-weight:800;margin-bottom:16px;color:#e17055; }
+.duel-big-btn { width:100%;margin-bottom:8px; }
+.duel-divider { color:var(--text-muted,#6C6C8A);font-size:13px;margin:10px 0; }
+.duel-join-row { display:flex;gap:8px; }
+.duel-input { flex:1;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:10px 12px;color:#fff;font-family:Cairo,sans-serif;font-size:14px;text-align:center;letter-spacing:3px; }
+.duel-code-display { font-size:36px;font-weight:900;letter-spacing:6px;color:var(--gold,#FDCB6E);background:rgba(108,92,231,0.15);border-radius:12px;padding:16px;margin:12px 0; }
+.duel-waiting-msg { color:var(--text-muted,#6C6C8A);font-size:14px;margin-top:8px; }
+.duel-game-header { display:flex;justify-content:space-around;align-items:center;margin-bottom:12px;background:rgba(108,92,231,0.1);border-radius:12px;padding:12px; }
+.duel-player-score { text-align:center; }
+.duel-score-label { font-size:12px;color:var(--text-muted,#6C6C8A); }
+.duel-score-val { font-size:28px;font-weight:900;color:var(--gold,#FDCB6E); }
+.duel-vs { font-size:20px; }
+.duel-progress { font-size:12px;color:var(--text-muted,#6C6C8A);margin-bottom:10px; }
+.duel-question { font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;line-height:1.5;text-align:right; }
+.duel-options { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.duel-opt { background:rgba(108,92,231,0.2);border:1px solid rgba(108,92,231,0.4);border-radius:10px;padding:10px 8px;color:#fff;font-family:Cairo,sans-serif;font-size:13px;cursor:pointer;transition:background 0.15s; }
+.duel-opt:hover:not(:disabled) { background:rgba(108,92,231,0.5); }
+.duel-result-icon { font-size:64px;margin-bottom:8px; }
+.duel-result-scores { display:flex;justify-content:space-around;align-items:center;background:rgba(108,92,231,0.1);border-radius:12px;padding:16px;margin:12px 0; }
+.duel-final-score { font-size:32px;font-weight:900;color:var(--gold,#FDCB6E); }
+.duel-gems-reward { font-size:16px;color:#00B894;font-weight:700; }
+
+/* ===================== BOSS BATTLE ===================== */
+.boss-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
+.boss-overlay.visible { opacity:1; }
+.boss-modal { background:var(--card-bg,#1a1a2e);border-radius:20px;padding:22px;max-width:360px;width:92%;animation:slideUp 0.3s ease; }
+.boss-header { display:flex;gap:14px;align-items:flex-start;margin-bottom:16px; }
+.boss-emoji { font-size:48px;line-height:1; }
+.boss-info { flex:1; }
+.boss-name { font-size:18px;font-weight:800;color:#e17055; }
+.boss-desc { font-size:12px;color:var(--text-muted,#6C6C8A);margin-top:4px;line-height:1.4; }
+.boss-hp-section { margin-bottom:14px; }
+.boss-hp-label { display:flex;justify-content:space-between;font-size:12px;color:var(--text-muted,#6C6C8A);margin-bottom:6px; }
+.boss-hp-bar { height:14px;background:rgba(255,255,255,0.1);border-radius:7px;overflow:hidden; }
+.boss-hp-fill { height:100%;background:linear-gradient(90deg,#e17055,#fd79a8);border-radius:7px;transition:width 0.5s; }
+.boss-my-contrib { text-align:center;font-size:13px;color:#6C5CE7;margin-bottom:10px; }
+.boss-fight-btn { width:100%;margin-bottom:8px; }
+.boss-defeated-msg { text-align:center;color:#00B894;font-size:14px;padding:12px;background:rgba(0,184,148,0.1);border-radius:10px;margin-bottom:10px; }
+.boss-already-msg { text-align:center;color:var(--text-muted,#6C6C8A);font-size:13px;padding:10px;background:rgba(255,255,255,0.05);border-radius:10px;margin-bottom:10px; }
+.boss-fight-header { text-align:center;margin-bottom:12px; }
+.boss-fight-emoji { font-size:52px;transition:transform 0.2s;display:block; }
+.boss-fight-name { font-size:16px;font-weight:800;color:#e17055; }
+.boss-fight-progress { text-align:center;font-size:12px;color:var(--text-muted,#6C6C8A);margin-bottom:6px; }
+.boss-fight-damage { text-align:center;font-size:14px;color:var(--gold,#FDCB6E);margin-bottom:12px;font-weight:700; }
+.boss-question { font-size:15px;font-weight:700;color:#fff;margin-bottom:12px;line-height:1.5;text-align:right; }
+.boss-options { display:grid;grid-template-columns:1fr 1fr;gap:8px; }
+.boss-opt { background:rgba(225,112,85,0.15);border:1px solid rgba(225,112,85,0.3);border-radius:10px;padding:10px 8px;color:#fff;font-family:Cairo,sans-serif;font-size:13px;cursor:pointer;transition:background 0.15s; }
+.boss-opt:hover:not(:disabled) { background:rgba(225,112,85,0.4); }
+.boss-result { text-align:center;padding:8px 0; }
+.boss-result-emoji { font-size:56px;margin-bottom:8px; }
+.boss-result-damage { font-size:15px;color:#fff;margin:8px 0; }
+.boss-result-reward { font-size:16px;color:#00B894;font-weight:700; }
+
+/* compete mode cards for blitz/duel */
+.compete-mode-blitz { background: linear-gradient(135deg, #1a1a3e 0%, #2d2d5a 100%); border-color: rgba(108,92,231,0.4); }
+.compete-mode-duel { background: linear-gradient(135deg, #2d0a0a 0%, #5a1a1a 100%); border-color: rgba(225,112,85,0.4); }

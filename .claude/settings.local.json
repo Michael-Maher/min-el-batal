@@ -38,7 +38,27 @@
       "Bash(sips -g pixelWidth -g pixelHeight /Users/mmichaelmaher/Documents/min-el-batal/images/level2-map-new.png)",
       "Bash(sips -Z 2000 /Users/mmichaelmaher/Documents/min-el-batal/images/level2-map-new.png --out /Users/mmichaelmaher/Documents/min-el-batal/images/level2-map-new-opt.jpg -s format jpeg -s formatOptions 75)",
       "Bash(node -e \"try { require\\(''fs''\\).readFileSync\\(''game.js'',''utf8''\\); console.log\\(''game.js: OK''\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")",
-      "Bash(node -e \"try { var c = require\\(''fs''\\).readFileSync\\(''game.js'',''utf8''\\); var lines = c.split\\(''\\\\n''\\); console.log\\(''Total lines:'', lines.length\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")"
+      "Bash(node -e \"try { var c = require\\(''fs''\\).readFileSync\\(''game.js'',''utf8''\\); var lines = c.split\\(''\\\\n''\\); console.log\\(''Total lines:'', lines.length\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")",
+      "Bash(grep -E \"\\\\.js$|\\\\.css$|\\\\.html$|^d\")",
+      "Bash(node -e \":*)",
+      "Bash(ls -la images/tourment-bg* images/tournament-bg*)",
+      "Bash(sips -g all images/tourment-bg.png)",
+      "Bash(sips -s format jpeg -s formatOptions 70 -Z 1920 images/tourment-bg.png --out images/tourment-bg-opt.jpg)",
+      "Bash(grep -rn \"6\\\\|pin\" /Users/mmichaelmaher/Documents/min-el-batal/*.js)",
+      "Bash(ls -la /Users/mmichaelmaher/Documents/min-el-batal/*.js)",
+      "Bash(ls -la /Users/mmichaelmaher/Documents/min-el-batal/images/tourment-bg*)",
+      "Bash(for line:*)",
+      "Bash(do echo:*)",
+      "Bash(node -e \"try { require\\(''fs''\\).readFileSync\\(''game.js'', ''utf8''\\); console.log\\(''game.js syntax OK''\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")",
+      "Bash(node -e \"try { var c = require\\(''fs''\\).readFileSync\\(''game.js'', ''utf8''\\); var idx = c.indexOf\\(''LESSON_MINI_GAMES''\\); console.log\\(''MINI_GAMES found at char:'', idx\\); var idx2 = c.indexOf\\(''characters:''\\); console.log\\(''characters found at char:'', idx2\\); } catch\\(e\\) { console.log\\(''Error:'', e.message\\); }\")",
+      "Bash(node -e \"try { var c = require\\(''fs''\\).readFileSync\\(''game.js'', ''utf8''\\); new Function\\(c\\); console.log\\(''game.js: OK''\\); } catch\\(e\\) { console.log\\(''ERROR:'', e.message.substring\\(0,200\\)\\); }\")",
+      "Bash(node -e \"try { var c = require\\(''fs''\\).readFileSync\\(''game.js'', ''utf8''\\); new Function\\(c\\); console.log\\(''game.js: OK''\\); } catch\\(e\\) { console.log\\(''ERROR:'', e.message.substring\\(0,300\\)\\); }\")",
+      "Bash(xxd /Users/mmichaelmaher/Documents/min-el-batal/game.js)",
+      "Bash(node -c /Users/mmichaelmaher/Documents/min-el-batal/game.js)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0][''''text'''']\\)\")",
+      "Bash(node --check /Users/mmichaelmaher/Documents/min-el-batal/game.js)",
+      "Bash(/Users/mmichaelmaher/Documents/min-el-batal/style.css:*)",
+      "Bash(grep -rn \"الشاهد\\\\|الشاهِد\" /Users/mmichaelmaher/Documents/min-el-batal/ --include=*.html --include=*.js --include=*.css)"
     ]
   }
 }

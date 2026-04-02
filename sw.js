@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v5';
+var CACHE_NAME = 'min-el-batal-v14';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -26,7 +26,8 @@ var STATIC_ASSETS = [
     '/images/off_lamp-opt.png',
     '/images/map1.jpg',
     '/images/map2-opt.jpg',
-    '/images/Logo-favicon.png'
+    '/images/Logo-favicon.png',
+    '/images/athanasius.png'
 ];
 
 var CDN_ASSETS = [

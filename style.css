@@ -237,6 +237,7 @@ body {
 .card-center { text-align: center; }
 .card h2 { font-size: 28px; margin-bottom: 8px; }
 .card-subtitle { color: var(--text-secondary); font-size: 14px; margin-bottom: 24px; }
+#verse-detail-ref { color: var(--gold); font-size: 17px; font-weight: 800; background: rgba(253,203,110,0.1); border: 1.5px solid var(--gold); border-radius: 20px; padding: 4px 20px; display: inline-block; }
 .input-field { width: 100%; padding: 14px 20px; background: var(--bg-dark); border: 2px solid var(--border); border-radius: var(--radius-sm); color: var(--text-primary); font-family: 'Cairo', sans-serif; font-size: 16px; font-weight: 600; text-align: center; outline: none; transition: var(--transition); margin-bottom: 16px; }
 .input-field:focus { border-color: var(--primary); box-shadow: 0 0 20px var(--glow-primary); }
 .input-field::placeholder { color: var(--text-muted); }
@@ -720,8 +721,8 @@ body {
 .dv-icon { font-size: 28px; color: var(--gold); flex-shrink: 0; margin-top: 4px; }
 .dv-content { flex: 1; }
 .dv-label { font-size: 11px; color: var(--secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
-.dv-text { font-size: 15px; line-height: 2; color: var(--text-primary); font-weight: 600; }
-.dv-ref { font-size: 12px; color: var(--secondary); font-weight: 700; margin-top: 6px; display: inline-block; background: var(--bg-dark); padding: 2px 12px; border-radius: var(--radius-full); }
+.dv-text { font-size: 19px; line-height: 2.2; color: var(--text-primary); font-weight: 700; }
+.dv-ref { font-size: 14px; color: var(--gold); font-weight: 800; margin-top: 8px; display: inline-block; background: var(--bg-dark); padding: 4px 16px; border-radius: var(--radius-full); border: 1.5px solid var(--gold); }
 
 /* ============ WEEKLY CHALLENGE ============ */
 .weekly-challenge-card { background: linear-gradient(135deg, rgba(253,203,110,0.08), rgba(255,107,53,0.06)); border: 1px solid var(--gold); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; position: relative; overflow: hidden; animation: slideUp 0.6s ease; }
@@ -741,7 +742,7 @@ body {
 @keyframes iconRingSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 .detail-icon-wrap.verse-icon { background: linear-gradient(135deg, var(--primary), var(--secondary)); box-shadow: 0 8px 32px rgba(108,92,231,0.3); }
 .detail-icon-wrap.challenge-icon { background: linear-gradient(135deg, var(--gold), #FF6B35); box-shadow: 0 8px 32px rgba(253,203,110,0.3); }
-.detail-verse-text { font-size: 18px; line-height: 2.2; color: var(--text-primary); font-weight: 700; text-align: center; padding: 24px 20px; background: linear-gradient(135deg, rgba(108,92,231,0.08), rgba(0,206,201,0.05)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 1px solid rgba(108,92,231,0.25); border-radius: var(--radius); margin-bottom: 20px; position: relative; overflow: hidden; animation: fadeSlideUp 0.5s ease 0.2s backwards; }
+.detail-verse-text { font-size: 22px; line-height: 2.4; color: var(--text-primary); font-weight: 700; text-align: center; padding: 28px 22px; background: linear-gradient(135deg, rgba(108,92,231,0.08), rgba(0,206,201,0.05)); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); border: 2px solid var(--gold); border-radius: var(--radius); margin-bottom: 20px; position: relative; overflow: hidden; animation: fadeSlideUp 0.5s ease 0.2s backwards; }
 .detail-verse-text::before { content: '\201C'; position: absolute; top: 8px; right: 16px; font-size: 60px; color: var(--primary); opacity: 0.1; font-family: serif; }
 .detail-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; animation: fadeSlideUp 0.5s ease 0.3s backwards; }
 @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
@@ -822,8 +823,8 @@ body {
     /* Detail screens responsive */
     .detail-icon-wrap { width: 64px; height: 64px; font-size: 28px; }
     .detail-header h2 { font-size: 20px; }
-    .detail-verse-text { font-size: 15px; padding: 16px 14px; line-height: 2; }
-    .detail-verse-text::before { font-size: 40px; top: 4px; right: 10px; }
+    .detail-verse-text { font-size: 19px; padding: 20px 16px; line-height: 2.2; }
+    .detail-verse-text::before { font-size: 48px; top: 4px; right: 10px; }
     .detail-card { padding: 16px; }
     .detail-textarea { font-size: 14px; padding: 12px 14px; }
     .media-buttons { gap: 8px; }
@@ -3776,7 +3777,7 @@ body {
 }
 .spiritual-cards-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     margin-bottom: 20px;
 }
@@ -4105,16 +4106,12 @@ body {
 /* Responsive spiritual cards */
 @media (max-width: 400px) {
     .spiritual-cards-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, 1fr);
     }
     .spiritual-card {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        text-align: right;
-        padding: 12px 14px;
+        padding: 12px 8px;
     }
-    .spiritual-card-icon { font-size: 28px; margin: 0; }
+    .spiritual-card-icon { font-size: 26px; }
 }
 
 /* ============================================================
@@ -4139,11 +4136,11 @@ body {
 }
 .bible-verse-line {
     position: relative;
-    font-size: 14px;
-    line-height: 2;
+    font-size: 18px;
+    line-height: 2.2;
     color: var(--text-secondary);
-    padding: 6px 28px 6px 36px;
-    margin: 2px 0;
+    padding: 8px 32px 8px 40px;
+    margin: 4px 0;
     border-radius: 8px;
     cursor: pointer;
     transition: background 0.2s;
@@ -4157,8 +4154,8 @@ body {
 .bible-verse-num {
     font-weight: 800;
     color: var(--primary);
-    font-size: 11px;
-    margin-left: 4px;
+    font-size: 14px;
+    margin-left: 6px;
 }
 .bible-share-btn {
     position: absolute;
@@ -8014,3 +8011,448 @@ body {
 /* compete mode cards for blitz/duel */
 .compete-mode-blitz { background: linear-gradient(135deg, #1a1a3e 0%, #2d2d5a 100%); border-color: rgba(108,92,231,0.4); }
 .compete-mode-duel { background: linear-gradient(135deg, #2d0a0a 0%, #5a1a1a 100%); border-color: rgba(225,112,85,0.4); }
+
+/* ============================================================
+   صوت يسوع — VERSE WHEEL & DAILY VERSE CARD
+   ============================================================ */
+
+/* Verse wheel modal */
+.verse-wheel-modal {
+    background: linear-gradient(180deg, #0a0a1e 0%, #1a1a3e 100%);
+}
+.verse-wheel-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.verse-wheel-cross {
+    font-size: 32px;
+    animation: glowPulse 2s ease-in-out infinite;
+}
+@keyframes glowPulse {
+    0%, 100% { text-shadow: 0 0 8px rgba(253,203,110,0.5); }
+    50% { text-shadow: 0 0 20px rgba(253,203,110,1), 0 0 40px rgba(253,203,110,0.4); }
+}
+.verse-wheel-modal h3 {
+    font-size: 18px;
+    color: #fff;
+    margin: 0;
+}
+.verse-wheel-subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.65);
+    font-size: 13px;
+    margin: 0 0 14px;
+}
+.verse-spin-btn {
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe) !important;
+}
+
+/* Verse result inside wheel modal */
+.verse-spin-result {
+    margin: 14px 0 4px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid;
+    border-radius: 14px;
+    padding: 14px 16px;
+    text-align: center;
+    animation: fadeSlideUp 0.5s ease;
+}
+.verse-spin-ref {
+    font-size: 17px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    display: inline-block;
+    border: 1.5px solid;
+    border-radius: 20px;
+    padding: 3px 16px;
+    background: rgba(0,0,0,0.2);
+}
+.verse-spin-text {
+    font-size: 17px;
+    line-height: 2.1;
+    color: rgba(255,255,255,0.95);
+    font-weight: 600;
+}
+
+/* Daily verse card on home hub */
+.today-verse-card {
+    background: rgba(4, 28, 50, 0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1.5px solid;
+    border-radius: 16px;
+    padding: 16px 18px;
+    text-align: center;
+    cursor: default;
+    animation: fadeSlideUp 0.5s ease;
+}
+.today-verse-pending {
+    cursor: pointer;
+    border-color: rgba(253,203,110,0.5) !important;
+    background: rgba(253,203,110,0.07) !important;
+    transition: background 0.3s;
+}
+.today-verse-pending:active { opacity: 0.8; }
+.today-verse-label {
+    font-size: 11px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.7);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+}
+.today-verse-ref {
+    font-size: 17px;
+    font-weight: 800;
+    margin-bottom: 10px;
+    display: inline-block;
+    background: rgba(0,0,0,0.25);
+    border: 1.5px solid var(--gold);
+    color: var(--gold) !important;
+    border-radius: 20px;
+    padding: 3px 16px;
+}
+.today-verse-text {
+    font-size: 18px;
+    line-height: 2.2;
+    color: rgba(255,255,255,0.95);
+    font-weight: 600;
+}
+.today-verse-spin-prompt {
+    font-size: 16px;
+    color: #FDCB6E;
+    font-weight: 700;
+    padding: 6px 0;
+}
+
+/* Verse spin badge on spiritual card */
+#verse-spin-badge {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 3px 8px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    display: inline-block;
+}
+
+/* ============================================================
+   DAILY VERSE CARD — BACKGROUND IMAGE
+   ============================================================ */
+.today-verse-card {
+    position: relative;
+    overflow: hidden;
+}
+.today-verse-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url('images/daily-jesus-sound.jpg');
+    background-size: cover;
+    background-position: center;
+    border-radius: 16px;
+    z-index: 0;
+    opacity: 0.35;
+    transition: opacity 0.4s;
+}
+.today-verse-card:hover::before { opacity: 0.45; }
+.today-verse-card .today-verse-label,
+.today-verse-card .today-verse-ref,
+.today-verse-card .today-verse-text,
+.today-verse-card .today-verse-spin-prompt {
+    position: relative;
+    z-index: 1;
+}
+
+/* ============================================================
+   CELEBRATION BANNER
+   ============================================================ */
+.celebration-banner {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(10, 10, 30, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 50px;
+    padding: 12px 24px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+    pointer-events: none;
+    transition: opacity 0.4s ease, transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+}
+.celebration-banner.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+.cel-icon {
+    font-size: 24px;
+    animation: celBounce 0.6s ease;
+}
+.cel-msg {
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'Cairo', sans-serif;
+}
+@keyframes celBounce {
+    0% { transform: scale(0.5); }
+    60% { transform: scale(1.3); }
+    100% { transform: scale(1); }
+}
+
+/* ============================================================
+   FLOATING REWARD
+   ============================================================ */
+.floating-reward {
+    position: fixed;
+    z-index: 99998;
+    transform: translateX(-50%) translateY(0);
+    opacity: 0;
+    font-size: 20px;
+    font-weight: 800;
+    color: #FDCB6E;
+    font-family: 'Cairo', sans-serif;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    pointer-events: none;
+    animation: floatUp 1.4s ease forwards;
+}
+@keyframes floatUp {
+    0%   { opacity: 0;   transform: translateX(-50%) translateY(0); }
+    20%  { opacity: 1;   transform: translateX(-50%) translateY(-10px); }
+    80%  { opacity: 1;   transform: translateX(-50%) translateY(-50px); }
+    100% { opacity: 0;   transform: translateX(-50%) translateY(-70px); }
+}
+.floating-reward.show { opacity: 1; }
+
+/* ============================================================
+   STATION PROGRESS — ANIMATED FILL
+   ============================================================ */
+.station-progress-fill {
+    transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ============================================================
+   VERSE WHEEL — ONCE-A-DAY LOCK
+   ============================================================ */
+.verse-locked-msg {
+    text-align: center;
+    font-size: 13px;
+    color: rgba(255,255,255,0.55);
+    margin: 10px 0 4px;
+    font-style: italic;
+}
+.verse-already-spun {
+    padding: 4px 0;
+}
+
+/* ============================================================
+   CHARACTER EVOLUTION TIERS
+   ============================================================ */
+.char-tier-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 12px;
+    z-index: 2;
+    animation: fadeSlideUp 0.3s ease;
+}
+.char-card.char-tier-silver .char-avatar-wrap {
+    border-color: #C0C0C0 !important;
+    box-shadow: 0 0 15px rgba(192,192,192,0.4);
+}
+.char-card.char-tier-gold .char-avatar-wrap {
+    border-color: #FFD700 !important;
+    box-shadow: 0 0 25px rgba(255,215,0,0.6);
+}
+.char-avatar-gold {
+    animation: goldGlow 2s ease-in-out infinite !important;
+}
+@keyframes goldGlow {
+    0%, 100% { box-shadow: 0 0 15px rgba(255,215,0,0.4); }
+    50% { box-shadow: 0 0 35px rgba(255,215,0,0.8), 0 0 60px rgba(255,215,0,0.3); }
+}
+.char-gold-title {
+    font-size: 11px;
+    font-weight: 800;
+    color: #FFD700;
+    margin: 2px 0 4px;
+    text-shadow: 0 0 8px rgba(255,215,0,0.5);
+    animation: goldShimmer 3s ease-in-out infinite;
+}
+@keyframes goldShimmer {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; text-shadow: 0 0 16px rgba(255,215,0,0.8); }
+}
+.char-upgrade-btn {
+    margin-top: 8px;
+    font-size: 11px !important;
+    padding: 6px 12px !important;
+    border-radius: 20px !important;
+    font-weight: 800 !important;
+    transition: all 0.3s;
+    animation: pulseScale 2s ease-in-out infinite;
+}
+@keyframes pulseScale {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+.char-max-tier {
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #FFD700;
+    text-shadow: 0 0 6px rgba(255,215,0,0.4);
+}
+.char-card.char-tier-gold {
+    background: linear-gradient(135deg, var(--bg-card), rgba(255,215,0,0.08));
+    border-color: rgba(255,215,0,0.3);
+}
+.char-card.char-tier-silver {
+    background: linear-gradient(135deg, var(--bg-card), rgba(192,192,192,0.06));
+    border-color: rgba(192,192,192,0.25);
+}
+
+/* ============================================================
+   SHOP TABS & COSMETIC ITEMS
+   ============================================================ */
+.shop-tabs {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 4px;
+}
+.shop-tab {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: 1.5px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+    font-family: 'Cairo', sans-serif;
+    cursor: pointer;
+    transition: all 0.3s;
+    white-space: nowrap;
+}
+.shop-tab.active {
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    color: #fff;
+    border-color: var(--primary);
+    box-shadow: 0 4px 15px var(--glow-primary);
+}
+.shop-grid-items {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 14px;
+}
+.shop-item-card {
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 14px;
+    text-align: center;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+    animation: fadeSlideUp 0.4s ease backwards;
+}
+.shop-item-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+.shop-item-card.owned { border-color: var(--success); }
+.shop-item-card.equipped { border-color: var(--gold); box-shadow: 0 0 20px var(--glow-gold); }
+.shop-item-card.earnable { border-color: var(--gold); animation: pulseScale 2s ease-in-out infinite; }
+.shop-item-card h3 { font-size: 14px; font-weight: 700; margin: 6px 0 4px; color: var(--text-primary); }
+.shop-item-locked-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 8px;
+    padding: 4px 8px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 8px;
+}
+
+/* Frame preview in shop */
+.shop-frame-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin: 8px auto;
+    overflow: hidden;
+    transition: all 0.3s;
+}
+.shop-frame-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Theme preview in shop */
+.shop-theme-preview {
+    width: 100%;
+    height: 80px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    transition: all 0.3s;
+}
+.shop-theme-card:hover .shop-theme-preview {
+    transform: scale(1.02);
+}
+
+/* Frame equipped on hub avatar */
+.hub-avatar-wrap.frame-equipped {
+    border-radius: 50%;
+    transition: all 0.3s;
+}
+.hub-avatar-wrap.char-avatar-gold {
+    animation: goldGlow 2s ease-in-out infinite;
+}
+
+/* ============================================================
+   VIDEO BADGES: SHORT vs DETAILED
+   ============================================================ */
+.l2-video-badge-short {
+    display: inline-block;
+    background: linear-gradient(135deg, #00CEC9, #00B894);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-right: 6px;
+    animation: pulseScale 2s ease-in-out infinite;
+}
+.l2-video-badge-detail {
+    display: inline-block;
+    background: linear-gradient(135deg, #6C5CE7, #a29bfe);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-right: 6px;
+}
+.l2-video-short {
+    border: 1.5px solid rgba(0,206,201,0.3);
+    border-radius: 16px;
+    padding: 14px;
+    background: rgba(0,206,201,0.05);
+    margin-bottom: 12px;
+}

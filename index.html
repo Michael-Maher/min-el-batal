@@ -197,7 +197,15 @@
                         <p>تداريب روحية يومية وأسبوعية</p>
                         <div class="spiritual-card-streak" id="exercise-streak-badge-top"></div>
                     </div>
+                    <div class="spiritual-card" onclick="openVerseWheel()">
+                        <div class="spiritual-card-icon">🕊️</div>
+                        <h4>صوت يسوع</h4>
+                        <p>آيتك لهذا اليوم</p>
+                        <div class="spiritual-card-streak" id="verse-spin-badge"></div>
+                    </div>
                 </div>
+                <!-- Daily Verse Display -->
+                <div id="today-verse-section" style="margin-top:12px;position:relative;z-index:2;"></div>
             </div>
 
             <h2 class="hub-title"><i class="fas fa-gamepad"></i> اختار مغامرتك</h2>
@@ -241,20 +249,6 @@
                             <h3>المنافسات الجماعية</h3>
                             <p>تحدّي أصحابك أونلاين</p>
                             <div class="hub-card-tag hub-tag-active"><i class="fas fa-bolt"></i> العب</div>
-                        </div>
-                        <div class="hub-card-shine"></div>
-                    </div>
-                </div>
-
-                <!-- Spin Wheel -->
-                <div class="hub-card hub-card-active" onclick="openSpinWheel()" style="position:relative">
-                    <div class="hub-card-bg" style="background: linear-gradient(135deg, #4a1942 0%, #6C5CE7 50%, #a29bfe 100%);">
-                        <div class="hub-card-overlay hub-card-overlay-light"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon" style="font-size:36px">🎰</div>
-                            <h3>عجلة الحظ</h3>
-                            <p>لفة مجانية كل يوم</p>
-                            <div class="hub-card-tag hub-tag-active" id="spin-hub-sub">يومي</div>
                         </div>
                         <div class="hub-card-shine"></div>
                     </div>

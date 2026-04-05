@@ -846,6 +846,17 @@ const CHARACTERS = {
         cost: 100,
         unlocked: false,
         power: { id: 'reveal', name: 'نور الحق 📖', desc: 'يكشف الإجابة الصحيحة للسؤال الحالي', costType: 'gems', cost: 10, icon: '📖' }
+    },
+    esther: {
+        name: 'استير الملكة',
+        emoji: '👑',
+        color: '#8B3A8C',
+        image: 'images/ester-queen.png',
+        role: 'رمز الحكمة والنعمة الإلهية',
+        ability: 'نعمة الملكة - تمنح وقتاً إضافياً',
+        cost: 120,
+        unlocked: false,
+        power: { id: 'grace', name: 'نعمة الملكة 👑', desc: '+15 ثانية إضافية في الوقت', costType: 'gems', cost: 9, icon: '👑' }
     }
 };
 
@@ -891,6 +902,9 @@ function useCharacterPower() {
     } else if (power.id === 'reveal') {
         activateRevealTruth();
         showAchievement('📖', 'نور الحق!', 'الإجابة الصحيحة اتكشفت!');
+    } else if (power.id === 'grace') {
+        activateQueenGrace();
+        showAchievement('👑', 'نعمة الملكة!', '+15 ثانية إضافية!');
     }
 
     saveToLocalStorage();
@@ -967,6 +981,23 @@ function applyRevealGlow(el) {
     setTimeout(function() {
         el.setAttribute('style', origStyle);
     }, 2500);
+}
+
+function activateQueenGrace() {
+    // Add 15 seconds to the active quiz timer
+    if (quizState.timeLeft !== undefined && quizState.timer) {
+        quizState.timeLeft += 15;
+        var timerEl = document.getElementById('timer-value');
+        if (timerEl) {
+            timerEl.textContent = quizState.timeLeft;
+            timerEl.style.color = '#C39BD3';
+            timerEl.style.transform = 'scale(1.3)';
+            setTimeout(function() {
+                timerEl.style.color = '';
+                timerEl.style.transform = '';
+            }, 1000);
+        }
+    }
 }
 
 function updatePowerButton() {
@@ -1133,7 +1164,8 @@ var CHARACTER_GOLD_TITLES = {
     philomena: 'الشهيدة المجيدة 👑',
     paul: 'رسول الأمم العظيم 👑',
     george: 'الفارس المقدام 👑',
-    athanasius: 'بطريرك الإيمان الأعظم 👑'
+    athanasius: 'بطريرك الإيمان الأعظم 👑',
+    esther: 'ملكة الحكمة والنعمة 👑'
 };
 
 function getCharacterTier(charKey) {
@@ -1166,9 +1198,9 @@ function upgradeCharacterTier(charKey) {
 // COSMETIC ITEMS: FRAMES, TITLES, MAP THEMES
 // ============================================================
 var PROFILE_FRAMES = {
-    cross:  { name: 'إطار الصليب', icon: '✝️', desc: 'إطار مقدس بشكل صليب ذهبي', cost: 15, borderStyle: '3px solid #FFD700', shadow: '0 0 15px rgba(255,215,0,0.5)' },
-    dove:   { name: 'إطار الحمامة', icon: '🕊️', desc: 'إطار الروح القدس بجناحين', cost: 30, borderStyle: '3px solid #87CEEB', shadow: '0 0 15px rgba(135,206,235,0.5)' },
-    church: { name: 'إطار الكنيسة', icon: '⛪', desc: 'إطار كنيسة أرثوذكسية مزخرف', cost: 50, borderStyle: '3px solid #9B59B6', shadow: '0 0 15px rgba(155,89,182,0.5)' }
+    cross:  { name: 'إطار الصليب الذهبي', icon: '✝️', desc: 'إطار مقدس بزخارف ذهبية لامعة', cost: 15, accentColor: '#FFD700', frameClass: 'frame-cross', borderStyle: '4px solid #FFD700', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #FFD700, 0 0 28px rgba(255,215,0,0.8)' },
+    dove:   { name: 'إطار الحمامة السماوية', icon: '🕊️', desc: 'إطار ملهم من نعمة الروح القدس', cost: 30, accentColor: '#7EC8E3', frameClass: 'frame-dove', borderStyle: '4px solid #7EC8E3', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #87CEEB, 0 0 28px rgba(135,206,235,0.8)' },
+    church: { name: 'إطار الكنيسة المجيدة', icon: '⛪', desc: 'إطار مستوحى من الكنيسة الأرثوذكسية', cost: 50, accentColor: '#C39BD3', frameClass: 'frame-church', borderStyle: '4px solid #C39BD3', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #9B59B6, 0 0 28px rgba(155,89,182,0.8)' }
 };
 
 var PLAYER_TITLES = {
@@ -2150,6 +2182,7 @@ function confirmCharacter() {
 
 // --- Map ---
 function renderMap() {
+    applyMapTheme();
     document.getElementById('map-player-name').textContent = GameState.playerName;
     var rank = getRank();
     document.getElementById('map-rank').textContent = rank.emoji + ' ' + rank.title;
@@ -3409,12 +3442,16 @@ function renderShop() {
             var key = entry[0], frame = entry[1];
             var owned = (GameState.ownedFrames || []).indexOf(key) >= 0;
             var equipped = GameState.equippedFrame === key;
-            itemsHtml += '<div class="shop-item-card shop-frame-card' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '') + '">';
-            itemsHtml += '<div class="shop-item-icon">' + frame.icon + '</div>';
-            itemsHtml += '<div class="shop-frame-preview" style="border:' + frame.borderStyle + ';box-shadow:' + frame.shadow + '">';
+            itemsHtml += '<div class="shop-item-card shop-frame-card ' + (frame.frameClass || '') + (owned ? ' owned' : '') + (equipped ? ' equipped' : '') + '">';
+            // Decorated frame wrap with icon top + bottom ornament
+            itemsHtml += '<div class="shop-frame-wrap">';
+            itemsHtml += '<div class="frame-deco-icon" style="color:' + frame.accentColor + '">' + frame.icon + '</div>';
+            itemsHtml += '<div class="shop-frame-ring ' + (frame.frameClass || '') + '-ring">';
             itemsHtml += '<img src="' + (shopCh ? shopCh.image : '') + '" class="shop-frame-img">';
             itemsHtml += '</div>';
-            itemsHtml += '<h3>' + frame.name + '</h3>';
+            itemsHtml += '<div class="frame-deco-dots" style="color:' + frame.accentColor + '">✦ ✦ ✦</div>';
+            itemsHtml += '</div>';
+            itemsHtml += '<h3 style="color:' + frame.accentColor + '">' + frame.name + '</h3>';
             itemsHtml += '<p class="shop-item-desc">' + frame.desc + '</p>';
             if (owned && equipped) {
                 itemsHtml += '<span class="shop-badge equipped-badge">مُجهّز ✓</span>';
@@ -3565,6 +3602,7 @@ function buyMapTheme(key) {
     if (GameState.gems < theme.cost) { showToast('محتاج ' + theme.cost + ' جوهرة!', 'warning'); return; }
     GameState.gems -= theme.cost;
     GameState.mapTheme = key;
+    applyMapTheme();
     showToast('🗺️ تم تفعيل خريطة: ' + theme.name, 'success');
     launchConfetti(1500);
     showAchievement(theme.icon, theme.name, 'خريطة جديدة!');
@@ -3573,8 +3611,25 @@ function buyMapTheme(key) {
 
 function setMapTheme(key) {
     GameState.mapTheme = key;
+    applyMapTheme();
     showToast('تم تفعيل خريطة: ' + MAP_THEMES[key].name);
     renderShop(); saveGame();
+}
+
+function applyMapTheme() {
+    var key = GameState.mapTheme || 'default';
+    var theme = MAP_THEMES[key];
+    if (!theme) return;
+    var mapScreen = document.getElementById('map-screen');
+    if (!mapScreen) return;
+
+    // Reset theme classes
+    mapScreen.classList.remove('map-theme-default', 'map-theme-space', 'map-theme-underwater', 'map-theme-sky');
+    mapScreen.classList.add('map-theme-' + key);
+
+    // Apply accent color to CSS variable on the screen
+    mapScreen.style.setProperty('--map-accent', theme.accent);
+    mapScreen.style.setProperty('--map-bg', theme.bgColor);
 }
 
 // --- Mission System ---

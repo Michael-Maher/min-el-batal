@@ -4608,8 +4608,8 @@ function renderLeaderboardList() {
         podium.appendChild(item);
     });
 
-    // 4th+ as list items
-    allPlayers.slice(3, 20).forEach(function(p, i) {
+    // 4th+ as list items (show ALL remaining players)
+    allPlayers.slice(3).forEach(function(p, i) {
         var el = document.createElement('div');
         var isMe = p.phone === GameState.playerPhone;
         el.className = 'lb-item-modern' + (isMe ? ' me' : '');
@@ -7475,13 +7475,15 @@ function usePowerUp(type) {
 // --- Level 2 Map Render ---
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
+// Center coordinates (%) matching numbered markers in level2-map-new-opt.jpg
+// Using transform:translate(-50%,-50%) on nodes so these are exact centers
 var FAITH_MAP_POSITIONS = [
-    { left: 13, top: 23 },  // 1. الثالوث القدوس - right+3, up-5 from original
-    { left: 21, top: 45 },  // 2. التجسد - right+3, up-5 from original
-    { left: 40, top: 57 },  // 3. الفداء - right+2, up-5 from original
-    { left: 57, top: 30 },  // 4. المجئ الثاني - right+2, up-5 from original
-    { left: 73, top: 65 },  // 5. المعمودية والميرون
-    { left: 88, top: 65 }   // 6. التوبة والاعتراف
+    { left: 12, top: 42 },  // 1. الثالوث القدوس  — upper-left sun/trinity marker
+    { left: 16, top: 70 },  // 2. التجسد          — lower-left manger scene
+    { left: 38, top: 74 },  // 3. الفداء           — center-bottom cross
+    { left: 53, top: 22 },  // 4. المجيء الثاني    — upper-center clouds/Jesus
+    { left: 67, top: 63 },  // 5. المعمودية والميرون — right-center baptism
+    { left: 84, top: 52 }   // 6. التوبة والاعتراف  — far-right bishop scene
 ];
 
 function renderLevel2Map() {

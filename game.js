@@ -6114,7 +6114,7 @@ function submitLampMission() {
 // --- Level 2 Subjects & Lessons Data ---
 var LEVEL2_SUBJECTS = {
     faith: {
-        name: 'إيماننا الأرثوذوكسي',
+        name: 'عقيدة ولاهوت',
         desc: 'لاهوت وعقيدة',
         icon: '✝️',
         color: '#e74c3c',
@@ -6410,8 +6410,8 @@ var LEVEL2_SUBJECTS = {
         ]
     },
     bible: {
-        name: 'روح وحياة',
-        desc: 'كتاب مقدس',
+        name: 'كتاب مقدس',
+        desc: 'كل سفر وكل حكاية',
         icon: '📖',
         color: '#3498db',
         lessons: [
@@ -6496,7 +6496,7 @@ var LEVEL2_SUBJECTS = {
         ]
     },
     life: {
-        name: 'جيل يصنع التغيير',
+        name: 'مهارات الحياة والقياده',
         desc: 'مهارات الحياة والقيادة',
         icon: '🌟',
         color: '#f39c12',
@@ -6582,8 +6582,8 @@ var LEVEL2_SUBJECTS = {
         ]
     },
     ritual: {
-        name: 'حركة ومعنى',
-        desc: 'طقس',
+        name: 'طقس',
+        desc: 'طقوس الكنيسة الأرثوذكسية',
         icon: '⛪',
         color: '#9b59b6',
         lessons: [
@@ -7129,10 +7129,10 @@ function renderExamSubjectsGrid() {
 
     var weekKey = getWeekKey();
     var subjectNames = {
-        faith: { name: 'إيماننا الأرثوذوكسي', icon: '✝️' },
-        bible: { name: 'روح وحياة', icon: '📖' },
-        life: { name: 'جيل يصنع التغيير', icon: '🌟' },
-        ritual: { name: 'حركة ومعنى', icon: '⛪' }
+        faith: { name: 'عقيدة ولاهوت', icon: '✝️' },
+        bible: { name: 'كتاب مقدس', icon: '📖' },
+        life: { name: 'مهارات الحياة والقياده', icon: '🌟' },
+        ritual: { name: 'طقس', icon: '⛪' }
     };
 
     var html = '';
@@ -7175,10 +7175,10 @@ function renderExamSubjectsGrid() {
 function showExamRules(subKey) {
     pendingExamSubject = subKey;
     var subjectNames = {
-        faith: 'إيماننا الأرثوذوكسي ✝️',
-        bible: 'روح وحياة 📖',
-        life: 'جيل يصنع التغيير 🌟',
-        ritual: 'حركة ومعنى ⛪'
+        faith: 'عقيدة ولاهوت ✝️',
+        bible: 'كتاب مقدس 📖',
+        life: 'مهارات الحياة والقياده 🌟',
+        ritual: 'طقس ⛪'
     };
     var nameEl = document.getElementById('exam-rules-subject-name');
     if (nameEl) nameEl.textContent = 'مادة: ' + (subjectNames[subKey] || subKey);
@@ -10368,13 +10368,17 @@ var competeState = {
 // --- Global filter panel (renders HTML, wired after insertion) ---
 function renderCompeteFilterPanel() {
     var subjectList = [
-        { key: 'faith',  label: '✝️ إيماننا',  color: '#e74c3c' },
-        { key: 'bible',  label: '📖 الكتاب',   color: '#4169E1' },
-        { key: 'life',   label: '💎 الحياة',   color: '#9B59B6' },
-        { key: 'ritual', label: '⛪ الطقس',    color: '#E67E22' }
+        { key: 'faith',  label: '✝️ عقيدة ولاهوت',          color: '#e74c3c' },
+        { key: 'bible',  label: '📖 كتاب مقدس',             color: '#3498db' },
+        { key: 'life',   label: '🌟 مهارات الحياة والقياده', color: '#f39c12' },
+        { key: 'ritual', label: '⛪ طقس',                   color: '#9b59b6' }
     ];
     var f = globalCompeteFilter;
-    var topicPills = subjectList.map(function(s) {
+    var allSelected = f.subjects.length === 0;
+    // "كل المواد" pill + individual topic pills
+    var topicPills = '<button class="filter-pill' + (allSelected ? ' active' : '') +
+        '" onclick="clearCompeteFilter()" style="--pill-color:#6C5CE7">🎲 كل المواد</button>';
+    topicPills += subjectList.map(function(s) {
         var active = f.subjects.indexOf(s.key) >= 0;
         return '<button class="filter-pill' + (active ? ' active' : '') +
             '" onclick="toggleCompeteSubject(\'' + s.key + '\')" style="--pill-color:' + s.color + '">' + s.label + '</button>';
@@ -10422,7 +10426,7 @@ function renderCompeteFilterPanel() {
 
 function buildCompeteFilterSummary() {
     var f = globalCompeteFilter;
-    var subjectDisplayNames = { faith: 'إيماننا الأرثوذكسي ✝️', bible: 'الكتاب المقدس 📖', life: 'حياتنا الروحية 💎', ritual: 'الطقس الكنسي ⛪' };
+    var subjectDisplayNames = { faith: 'عقيدة ولاهوت ✝️', bible: 'كتاب مقدس 📖', life: 'مهارات الحياة والقياده 🌟', ritual: 'طقس ⛪' };
     if (!f.subjects || f.subjects.length === 0) return '🎲 عشوائي من كل المواد';
     return f.subjects.map(function(subKey) {
         var part = subjectDisplayNames[subKey] || subKey;
@@ -10684,7 +10688,7 @@ function createCompeteRoom(mode, filter) {
     var timePerQ = mode === 'speed' ? 8 : (mode === 'sparkle' ? 10 : 15);
 
     // Build human-readable filter label for lobby display
-    var subjectDisplayNames = { faith: 'إيماننا الأرثوذكسي ✝️', bible: 'الكتاب المقدس 📖', life: 'حياتنا الروحية 💎', ritual: 'الطقس الكنسي ⛪' };
+    var subjectDisplayNames = { faith: 'عقيدة ولاهوت ✝️', bible: 'كتاب مقدس 📖', life: 'مهارات الحياة والقياده 🌟', ritual: 'طقس ⛪' };
     var filterLabel;
     if (!filter.subjects || filter.subjects.length === 0) {
         filterLabel = '🎲 عشوائي من كل المواد';

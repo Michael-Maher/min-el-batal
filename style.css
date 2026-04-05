@@ -5737,6 +5737,7 @@ body {
 .compete-filter-label {
     font-size: 12px;
     font-weight: 700;
+    font-family: 'Cairo', sans-serif;
     color: var(--text-secondary, #aaa);
     margin-bottom: 8px;
     text-align: right;
@@ -5749,27 +5750,30 @@ body {
     justify-content: flex-start;
 }
 .filter-pill {
-    padding: 6px 14px;
+    padding: 7px 16px;
     border-radius: 20px;
     border: 1.5px solid rgba(255,255,255,0.15);
     background: rgba(255,255,255,0.05);
     color: var(--text-secondary, #aaa);
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
+    font-family: 'Cairo', sans-serif;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
+    line-height: 1.4;
 }
 .filter-pill:hover {
     border-color: var(--pill-color, #6C5CE7);
     color: var(--pill-color, #6C5CE7);
     background: rgba(108,92,231,0.08);
+    transform: translateY(-1px);
 }
 .filter-pill.active {
     background: var(--pill-color, #6C5CE7);
     border-color: var(--pill-color, #6C5CE7);
     color: #fff;
-    box-shadow: 0 2px 10px rgba(108,92,231,0.35);
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--pill-color, #6C5CE7) 40%, transparent);
 }
 .compete-filter-summary {
     background: rgba(108, 92, 231, 0.1);
@@ -5778,20 +5782,23 @@ body {
     padding: 10px 14px;
     font-size: 13px;
     font-weight: 700;
+    font-family: 'Cairo', sans-serif;
     color: #a29bfe;
     margin: 12px 0 6px;
     text-align: center;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 /* Lesson sub-group inside filter section */
 .compete-filter-sub-group {
     margin-top: 10px;
 }
 .compete-filter-sub-label {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 800;
-    margin-bottom: 6px;
-    opacity: 0.85;
+    font-family: 'Cairo', sans-serif;
+    margin-bottom: 7px;
+    margin-top: 4px;
+    opacity: 0.9;
     display: flex;
     align-items: center;
     gap: 5px;
@@ -5807,61 +5814,66 @@ body {
 
 /* Global filter panel in compete hub */
 .compete-filter-panel {
-    background: rgba(255,255,255,0.04);
-    border: 1.5px solid rgba(255,255,255,0.08);
-    border-radius: 16px;
-    padding: 16px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.07) 0%, rgba(255,255,255,0.03) 100%);
+    border: 1.5px solid rgba(108,92,231,0.2);
+    border-radius: 18px;
+    padding: 18px 16px;
     margin-bottom: 20px;
+    font-family: 'Cairo', sans-serif;
 }
 .compete-filter-panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     gap: 8px;
 }
 .compete-filter-panel-title {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 800;
+    font-family: 'Cairo', sans-serif;
     color: var(--text-primary);
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
+}
+.compete-filter-panel-title i {
+    color: #a29bfe;
+    font-size: 14px;
 }
 .compete-filter-clear-btn {
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
+    font-family: 'Cairo', sans-serif;
     color: #a29bfe;
-    background: none;
-    border: none;
+    background: rgba(162,155,254,0.08);
+    border: 1px solid rgba(162,155,254,0.25);
     cursor: pointer;
-    padding: 3px 10px;
+    padding: 4px 12px;
     border-radius: 20px;
-    border: 1px solid rgba(162,155,254,0.3);
     transition: all 0.2s;
 }
 .compete-filter-clear-btn:hover {
-    background: rgba(162,155,254,0.1);
+    background: rgba(162,155,254,0.18);
+    border-color: rgba(162,155,254,0.5);
 }
 .compete-active-filter-summary {
-    margin-top: 10px;
-    padding: 8px 12px;
+    margin-top: 12px;
+    padding: 10px 14px;
     background: rgba(108,92,231,0.12);
-    border: 1.5px solid rgba(108,92,231,0.25);
-    border-radius: 10px;
-    font-size: 12px;
+    border: 1.5px solid rgba(108,92,231,0.3);
+    border-radius: 12px;
+    font-size: 13px;
     font-weight: 700;
+    font-family: 'Cairo', sans-serif;
     color: #a29bfe;
     text-align: center;
-    line-height: 1.5;
+    line-height: 1.6;
 }
 .compete-filter-panel .compete-filter-label {
-    font-size: 11px;
-    margin-bottom: 7px;
-}
-.compete-filter-panel .filter-pill {
-    font-size: 11px;
-    padding: 5px 11px;
+    font-size: 12px;
+    font-family: 'Cairo', sans-serif;
+    margin-bottom: 9px;
 }
 
 /* Lobby filter badge — visible to all players */

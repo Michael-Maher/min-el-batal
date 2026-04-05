@@ -10347,6 +10347,9 @@ function showResultCelebration(stars) {
 // COMPETITIONS / MULTIPLAYER SYSTEM
 // ============================================================
 
+// Global competition filter — persists while the user is on the compete screen
+var globalCompeteFilter = { subjects: [], lessons: {} };
+
 var competeState = {
     roomId: null,
     isHost: false,
@@ -10361,6 +10364,107 @@ var competeState = {
     timeLeft: 0,
     streak: 0
 };
+
+// --- Global filter panel (renders HTML, wired after insertion) ---
+function renderCompeteFilterPanel() {
+    var subjectList = [
+        { key: 'faith',  label: '✝️ إيماننا',  color: '#e74c3c' },
+        { key: 'bible',  label: '📖 الكتاب',   color: '#4169E1' },
+        { key: 'life',   label: '💎 الحياة',   color: '#9B59B6' },
+        { key: 'ritual', label: '⛪ الطقس',    color: '#E67E22' }
+    ];
+    var f = globalCompeteFilter;
+    var topicPills = subjectList.map(function(s) {
+        var active = f.subjects.indexOf(s.key) >= 0;
+        return '<button class="filter-pill' + (active ? ' active' : '') +
+            '" onclick="toggleCompeteSubject(\'' + s.key + '\')" style="--pill-color:' + s.color + '">' + s.label + '</button>';
+    }).join('');
+
+    // Build lesson pills for selected subjects
+    var lessonGroups = '';
+    if (f.subjects.length > 0) {
+        lessonGroups = '<div class="compete-filter-label" style="margin-top:12px">📝 الدروس <span style="font-weight:400;opacity:.6">(اختياري)</span></div>';
+        f.subjects.forEach(function(subKey) {
+            var sub = LEVEL2_SUBJECTS[subKey];
+            var sObj = subjectList.find(function(s) { return s.key === subKey; });
+            if (!sub || !sub.lessons || !sObj) return;
+            var selL = f.lessons[subKey] || [];
+            lessonGroups += '<div class="compete-filter-sub-group">';
+            lessonGroups += '<div class="compete-filter-sub-label" style="color:' + sObj.color + '">' + sObj.label + '</div>';
+            lessonGroups += '<div class="compete-filter-pills">';
+            sub.lessons.forEach(function(lesson, i) {
+                var active = selL.indexOf(i) >= 0;
+                lessonGroups += '<button class="filter-pill' + (active ? ' active' : '') +
+                    '" onclick="toggleCompeteLesson(\'' + subKey + '\',' + i + ')" style="--pill-color:' + sObj.color + '">' +
+                    (i + 1) + '. ' + lesson.name + '</button>';
+            });
+            lessonGroups += '</div></div>';
+        });
+    }
+
+    // Active summary
+    var summaryText = buildCompeteFilterSummary();
+    var summaryHtml = summaryText !== '🎲 عشوائي من كل المواد'
+        ? '<div class="compete-active-filter-summary">' + summaryText + '</div>'
+        : '';
+
+    return '<div class="compete-filter-panel">' +
+        '<div class="compete-filter-panel-header">' +
+            '<div class="compete-filter-panel-title"><i class="fas fa-filter"></i> فلتر الأسئلة</div>' +
+            '<button class="compete-filter-clear-btn" onclick="clearCompeteFilter()">مسح الكل</button>' +
+        '</div>' +
+        '<div class="compete-filter-label">📚 المواد <span style="font-weight:400;opacity:.6">(اضغط أكتر من واحدة)</span></div>' +
+        '<div class="compete-filter-pills">' + topicPills + '</div>' +
+        lessonGroups +
+        summaryHtml +
+    '</div>';
+}
+
+function buildCompeteFilterSummary() {
+    var f = globalCompeteFilter;
+    var subjectDisplayNames = { faith: 'إيماننا الأرثوذكسي ✝️', bible: 'الكتاب المقدس 📖', life: 'حياتنا الروحية 💎', ritual: 'الطقس الكنسي ⛪' };
+    if (!f.subjects || f.subjects.length === 0) return '🎲 عشوائي من كل المواد';
+    return f.subjects.map(function(subKey) {
+        var part = subjectDisplayNames[subKey] || subKey;
+        var selL = f.lessons && f.lessons[subKey] && f.lessons[subKey].length > 0 ? f.lessons[subKey] : [];
+        if (selL.length > 0) {
+            var sub = LEVEL2_SUBJECTS[subKey];
+            var lessonNames = selL.map(function(idx) {
+                return sub && sub.lessons[idx] ? sub.lessons[idx].name : 'درس ' + (idx + 1);
+            });
+            part += ' (' + lessonNames.join('، ') + ')';
+        }
+        return part;
+    }).join('  +  ');
+}
+
+function toggleCompeteSubject(subKey) {
+    var f = globalCompeteFilter;
+    var idx = f.subjects.indexOf(subKey);
+    if (idx >= 0) {
+        f.subjects.splice(idx, 1);
+        delete f.lessons[subKey];
+    } else {
+        f.subjects.push(subKey);
+        if (!f.lessons[subKey]) f.lessons[subKey] = [];
+    }
+    renderCompeteHub();
+}
+
+function toggleCompeteLesson(subKey, lessonIdx) {
+    var f = globalCompeteFilter;
+    if (!f.lessons[subKey]) f.lessons[subKey] = [];
+    var arr = f.lessons[subKey];
+    var pos = arr.indexOf(lessonIdx);
+    if (pos >= 0) arr.splice(pos, 1);
+    else arr.push(lessonIdx);
+    renderCompeteHub();
+}
+
+function clearCompeteFilter() {
+    globalCompeteFilter = { subjects: [], lessons: {} };
+    renderCompeteHub();
+}
 
 // --- Competition Hub ---
 function renderCompeteHub() {
@@ -10403,6 +10507,9 @@ function renderCompeteHub() {
     html += '<button class="btn btn-primary" onclick="joinCompeteRoom()"><span><i class="fas fa-arrow-left"></i> دخول</span></button>';
     html += '</div>';
     html += '</div>';
+
+    // Global filter panel
+    html += renderCompeteFilterPanel();
 
     // Game modes
     html += '<h4 class="compete-section-title"><i class="fas fa-gamepad"></i> أنواع المسابقات</h4>';
@@ -10507,57 +10614,16 @@ function selectCompeteMode(mode) {
         team: 'اتقسموا فريقين وتنافسوا! 10 أسئلة'
     };
 
-    var roomFilter = { subject: 'all', lessonIdx: -1 };
-
-    var subjectList = [
-        { key: 'all',    label: '🎲 كل المواد',           color: '#6C5CE7' },
-        { key: 'faith',  label: '✝️ إيماننا الأرثوذكسي',  color: '#e74c3c' },
-        { key: 'bible',  label: '📖 الكتاب المقدس',       color: '#4169E1' },
-        { key: 'life',   label: '💎 حياتنا الروحية',      color: '#9B59B6' },
-        { key: 'ritual', label: '⛪ الطقس الكنسي',        color: '#E67E22' }
-    ];
-
-    function buildSummary(f) {
-        if (f.subject === 'all') return '🎲 أسئلة عشوائية من كل المواد';
-        var sObj = subjectList.find(function(s) { return s.key === f.subject; });
-        var label = sObj ? sObj.label : f.subject;
-        if (f.lessonIdx >= 0 && LEVEL2_SUBJECTS[f.subject] && LEVEL2_SUBJECTS[f.subject].lessons[f.lessonIdx]) {
-            label += ' · درس: ' + LEVEL2_SUBJECTS[f.subject].lessons[f.lessonIdx].name;
-        } else if (f.lessonIdx === -1 && f.subject !== 'all') {
-            label += ' · كل الدروس';
-        }
-        return label;
-    }
-
-    function buildLessonPillsHtml(subKey, activeLessonIdx) {
-        var sub = LEVEL2_SUBJECTS[subKey];
-        if (!sub || !sub.lessons) return '';
-        var h = '<div class="compete-filter-label" style="margin-top:14px">📝 اختار الدرس</div><div class="compete-filter-pills" id="filter-lesson-pills">';
-        h += '<button class="filter-pill' + (activeLessonIdx === -1 ? ' active' : '') + '" data-lesson="-1">📚 كل الدروس</button>';
-        sub.lessons.forEach(function(lesson, i) {
-            h += '<button class="filter-pill' + (activeLessonIdx === i ? ' active' : '') + '" data-lesson="' + i + '">' + (i + 1) + '. ' + lesson.name + '</button>';
-        });
-        h += '</div>';
-        return h;
-    }
-
-    var topicPillsHtml = subjectList.map(function(s) {
-        return '<button class="filter-pill' + (s.key === 'all' ? ' active' : '') + '" data-subject="' + s.key + '" style="--pill-color:' + s.color + '">' + s.label + '</button>';
-    }).join('');
+    var filterSummary = buildCompeteFilterSummary();
 
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML =
-        '<div class="modal-card compete-mode-confirm compete-setup-modal">' +
+        '<div class="modal-card compete-mode-confirm">' +
             '<div class="compete-confirm-icon"><i class="fas fa-gamepad"></i></div>' +
             '<h3>' + (modeNames[mode] || mode) + '</h3>' +
             '<p class="compete-confirm-desc">' + (modeDescs[mode] || '') + '</p>' +
-            '<div class="compete-filter-section">' +
-                '<div class="compete-filter-label">📚 اختار المادة</div>' +
-                '<div class="compete-filter-pills" id="filter-topic-pills">' + topicPillsHtml + '</div>' +
-                '<div id="filter-lessons-wrap"></div>' +
-            '</div>' +
-            '<div class="compete-filter-summary" id="filter-summary">🎲 أسئلة عشوائية من كل المواد</div>' +
+            '<div class="compete-filter-summary" style="margin:12px 0 4px">' + filterSummary + '</div>' +
             '<div class="compete-confirm-actions">' +
                 '<button class="btn btn-primary" id="confirm-create-room"><span><i class="fas fa-plus-circle"></i> إنشاء الغرفة</span></button>' +
                 '<button class="btn btn-secondary" id="cancel-mode-select"><span><i class="fas fa-arrow-right"></i></span></button>' +
@@ -10566,38 +10632,10 @@ function selectCompeteMode(mode) {
     document.body.appendChild(overlay);
     setTimeout(function() { overlay.classList.add('active'); }, 10);
 
-    function refreshSummary() {
-        var s = overlay.querySelector('#filter-summary');
-        if (s) s.textContent = buildSummary(roomFilter);
-    }
-
-    // Topic pill clicks
-    overlay.querySelector('#filter-topic-pills').addEventListener('click', function(e) {
-        var pill = e.target.closest('[data-subject]');
-        if (!pill) return;
-        roomFilter.subject = pill.getAttribute('data-subject');
-        roomFilter.lessonIdx = -1;
-        overlay.querySelectorAll('#filter-topic-pills .filter-pill').forEach(function(p) { p.classList.remove('active'); });
-        pill.classList.add('active');
-        var wrap = overlay.querySelector('#filter-lessons-wrap');
-        wrap.innerHTML = (roomFilter.subject !== 'all') ? buildLessonPillsHtml(roomFilter.subject, -1) : '';
-        if (roomFilter.subject !== 'all') {
-            wrap.querySelector('#filter-lesson-pills').addEventListener('click', function(e2) {
-                var lp = e2.target.closest('[data-lesson]');
-                if (!lp) return;
-                roomFilter.lessonIdx = parseInt(lp.getAttribute('data-lesson'), 10);
-                wrap.querySelectorAll('.filter-pill').forEach(function(p) { p.classList.remove('active'); });
-                lp.classList.add('active');
-                refreshSummary();
-            });
-        }
-        refreshSummary();
-    });
-
     overlay.querySelector('#confirm-create-room').onclick = function() {
         overlay.classList.remove('active');
         setTimeout(function() { overlay.remove(); }, 300);
-        createCompeteRoom(mode, roomFilter);
+        createCompeteRoom(mode, globalCompeteFilter);
     };
     overlay.querySelector('#cancel-mode-select').onclick = function() {
         overlay.classList.remove('active');
@@ -10613,19 +10651,21 @@ function createCompeteRoom(mode, filter) {
     }
 
     mode = mode || 'classic';
-    filter = filter || { subject: 'all', lessonIdx: -1 };
+    filter = filter || { subjects: [], lessons: {} };
     var roomCode = generateRoomCode();
 
-    // Build question pool based on filter
+    // Build question pool based on multi-select filter
     var allQs = [];
-    var subjectKeys = filter.subject === 'all' ? ['faith', 'bible', 'life', 'ritual'] : [filter.subject];
+    var subjectKeys = (filter.subjects && filter.subjects.length > 0)
+        ? filter.subjects
+        : ['faith', 'bible', 'life', 'ritual'];
     subjectKeys.forEach(function(subKey) {
         var subject = LEVEL2_SUBJECTS[subKey];
         if (!subject || !subject.lessons) return;
-        var lessons = (filter.lessonIdx >= 0 && subject.lessons[filter.lessonIdx])
-            ? [subject.lessons[filter.lessonIdx]]
+        var selLessons = (filter.lessons && filter.lessons[subKey] && filter.lessons[subKey].length > 0)
+            ? filter.lessons[subKey].map(function(idx) { return subject.lessons[idx]; }).filter(Boolean)
             : subject.lessons;
-        lessons.forEach(function(lesson) {
+        selLessons.forEach(function(lesson) {
             if (!lesson || !lesson.questions) return;
             lesson.questions.forEach(function(q) {
                 allQs.push({ q: q.q, options: q.options, correct: q.correct, subject: subKey });
@@ -10643,16 +10683,26 @@ function createCompeteRoom(mode, filter) {
     var selectedQs = allQs.slice(0, Math.min(numQs, allQs.length));
     var timePerQ = mode === 'speed' ? 8 : (mode === 'sparkle' ? 10 : 15);
 
-    // Build human-readable filter label (shown inside the lobby to all players)
+    // Build human-readable filter label for lobby display
     var subjectDisplayNames = { faith: 'إيماننا الأرثوذكسي ✝️', bible: 'الكتاب المقدس 📖', life: 'حياتنا الروحية 💎', ritual: 'الطقس الكنسي ⛪' };
-    var filterLabel = '🎲 عشوائي من كل المواد';
-    if (filter.subject !== 'all') {
-        filterLabel = subjectDisplayNames[filter.subject] || filter.subject;
-        if (filter.lessonIdx >= 0 && LEVEL2_SUBJECTS[filter.subject] && LEVEL2_SUBJECTS[filter.subject].lessons[filter.lessonIdx]) {
-            filterLabel += ' · ' + LEVEL2_SUBJECTS[filter.subject].lessons[filter.lessonIdx].name;
-        } else {
-            filterLabel += ' · كل الدروس';
-        }
+    var filterLabel;
+    if (!filter.subjects || filter.subjects.length === 0) {
+        filterLabel = '🎲 عشوائي من كل المواد';
+    } else {
+        var labelParts = filter.subjects.map(function(subKey) {
+            var part = subjectDisplayNames[subKey] || subKey;
+            var selL = filter.lessons && filter.lessons[subKey] && filter.lessons[subKey].length > 0
+                ? filter.lessons[subKey] : [];
+            if (selL.length > 0) {
+                var sub = LEVEL2_SUBJECTS[subKey];
+                var lessonNames = selL.map(function(idx) {
+                    return sub && sub.lessons[idx] ? sub.lessons[idx].name : 'درس ' + (idx + 1);
+                });
+                part += ' (' + lessonNames.join('، ') + ')';
+            }
+            return part;
+        });
+        filterLabel = labelParts.join(' + ');
     }
 
     var roomData = {

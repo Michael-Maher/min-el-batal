@@ -5783,6 +5783,87 @@ body {
     text-align: center;
     line-height: 1.4;
 }
+/* Lesson sub-group inside filter section */
+.compete-filter-sub-group {
+    margin-top: 10px;
+}
+.compete-filter-sub-label {
+    font-size: 11px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.compete-filter-sub-label::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 12px;
+    border-radius: 3px;
+    background: currentColor;
+}
+
+/* Global filter panel in compete hub */
+.compete-filter-panel {
+    background: rgba(255,255,255,0.04);
+    border: 1.5px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 20px;
+}
+.compete-filter-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    gap: 8px;
+}
+.compete-filter-panel-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.compete-filter-clear-btn {
+    font-size: 11px;
+    font-weight: 700;
+    color: #a29bfe;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(162,155,254,0.3);
+    transition: all 0.2s;
+}
+.compete-filter-clear-btn:hover {
+    background: rgba(162,155,254,0.1);
+}
+.compete-active-filter-summary {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background: rgba(108,92,231,0.12);
+    border: 1.5px solid rgba(108,92,231,0.25);
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #a29bfe;
+    text-align: center;
+    line-height: 1.5;
+}
+.compete-filter-panel .compete-filter-label {
+    font-size: 11px;
+    margin-bottom: 7px;
+}
+.compete-filter-panel .filter-pill {
+    font-size: 11px;
+    padding: 5px 11px;
+}
+
 /* Lobby filter badge — visible to all players */
 .lobby-filter-badge {
     display: flex;

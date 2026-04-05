@@ -8540,6 +8540,65 @@ body {
     50%       { box-shadow: 0 0 0 2px #0a0a1e, 0 0 0 7px #C39BD3, 0 0 32px rgba(155,89,182,0.9); }
 }
 
+/* Flame frame ring (streak reward) */
+.frame-flame-ring {
+    border: 5px solid #FF6B35;
+    box-shadow: 0 0 0 2px #0a0a1e, 0 0 0 5px #e84118, 0 0 22px rgba(255,107,53,0.7);
+    background: radial-gradient(circle, rgba(255,107,53,0.18) 0%, transparent 70%);
+    animation: flameRingPulse 2s ease-in-out infinite;
+}
+.shop-item-card.frame-flame {
+    background: linear-gradient(160deg, rgba(255,107,53,0.12) 0%, var(--bg-card) 55%);
+    border-color: rgba(255,107,53,0.45) !important;
+}
+.shop-item-card.frame-flame.equipped { border-color: #FF6B35 !important; box-shadow: 0 0 25px rgba(255,107,53,0.6) !important; }
+@keyframes flameRingPulse {
+    0%, 100% { box-shadow: 0 0 0 2px #0a0a1e, 0 0 0 5px #e84118, 0 0 16px rgba(255,107,53,0.4); }
+    50%       { box-shadow: 0 0 0 2px #0a0a1e, 0 0 0 8px #FF6B35, 0 0 36px rgba(255,107,53,0.95); }
+}
+
+/* ===================== STREAK REWARDS TAB ===================== */
+.streak-fire-num {
+    font-size: 44px;
+    font-weight: 900;
+    color: #FF6B35;
+    text-shadow: 0 0 18px rgba(255,107,53,0.7);
+    line-height: 1;
+}
+.streak-reward-card { position: relative; overflow: hidden; }
+.streak-reward-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,107,53,0.06) 0%, transparent 60%);
+    pointer-events: none;
+}
+.streak-reward-card.earnable {
+    border-color: #FF6B35 !important;
+    box-shadow: 0 0 18px rgba(255,107,53,0.4) !important;
+    animation: streakCardPulse 2s ease-in-out infinite;
+}
+@keyframes streakCardPulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(255,107,53,0.3); }
+    50%       { box-shadow: 0 0 28px rgba(255,107,53,0.7); }
+}
+.streak-reward-icon { font-size: 42px; margin-bottom: 6px; }
+.streak-progress-wrap {
+    width: 100%;
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 6px;
+    overflow: hidden;
+    margin: 10px 0 4px;
+}
+.streak-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #FF6B35, #FFD700);
+    border-radius: 6px;
+    transition: width 0.6s ease;
+}
+.streak-progress-label { font-size: 12px; color: #aaa; margin: 0 0 8px; }
+
 /* Theme preview in shop */
 .shop-theme-preview {
     width: 100%;

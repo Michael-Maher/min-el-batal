@@ -88,7 +88,9 @@ const GameState = {
     ownedFrames: [],
     equippedTitle: '',        // 'bookKeeper', 'gameChamp', etc.
     ownedTitles: [],
-    mapTheme: 'default'       // 'default', 'space', 'underwater', 'sky'
+    mapTheme: 'default',      // 'default', 'space', 'underwater', 'sky'
+    loginStreak: 0,           // consecutive daily login days
+    claimedStreakRewards: []  // ['streak7', 'streak14', 'streak30']
 };
 
 // --- Firebase Initialization ---
@@ -637,6 +639,8 @@ function saveToCloud() {
         equippedTitle: GameState.equippedTitle || '',
         ownedTitles: GameState.ownedTitles || [],
         mapTheme: GameState.mapTheme || 'default',
+        loginStreak: GameState.loginStreak || 0,
+        claimedStreakRewards: GameState.claimedStreakRewards || [],
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -857,6 +861,17 @@ const CHARACTERS = {
         cost: 120,
         unlocked: false,
         power: { id: 'grace', name: 'نعمة الملكة 👑', desc: '+15 ثانية إضافية في الوقت', costType: 'gems', cost: 9, icon: '👑' }
+    },
+    verina: {
+        name: 'القديسة فيرينا',
+        emoji: '💧',
+        color: '#2E86AB',
+        image: 'images/verina.png',
+        role: 'قديسة الشفاء والرحمة',
+        ability: 'نبع البركة - نجوم إضافية فورية',
+        cost: 90,
+        unlocked: false,
+        power: { id: 'blessing', name: 'نبع البركة 💧', desc: '+30 نجمة هدية فورية', costType: 'gems', cost: 8, icon: '💧' }
     }
 };
 
@@ -905,6 +920,9 @@ function useCharacterPower() {
     } else if (power.id === 'grace') {
         activateQueenGrace();
         showAchievement('👑', 'نعمة الملكة!', '+15 ثانية إضافية!');
+    } else if (power.id === 'blessing') {
+        activateDivineBlessing();
+        showAchievement('💧', 'نبع البركة!', '+30 نجمة هدية!');
     }
 
     saveToLocalStorage();
@@ -981,6 +999,17 @@ function applyRevealGlow(el) {
     setTimeout(function() {
         el.setAttribute('style', origStyle);
     }, 2500);
+}
+
+function activateDivineBlessing() {
+    GameState.stars = (GameState.stars || 0) + 30;
+    var starsEl = document.getElementById('mg-stars') || document.getElementById('hub-stars');
+    if (starsEl) {
+        starsEl.style.color = '#7EC8E3';
+        starsEl.style.transform = 'scale(1.3)';
+        setTimeout(function() { starsEl.style.color = ''; starsEl.style.transform = ''; }, 1000);
+    }
+    saveToLocalStorage();
 }
 
 function activateQueenGrace() {
@@ -1165,7 +1194,8 @@ var CHARACTER_GOLD_TITLES = {
     paul: 'رسول الأمم العظيم 👑',
     george: 'الفارس المقدام 👑',
     athanasius: 'بطريرك الإيمان الأعظم 👑',
-    esther: 'ملكة الحكمة والنعمة 👑'
+    esther: 'ملكة الحكمة والنعمة 👑',
+    verina: 'قديسة الشفاء والرحمة 👑'
 };
 
 function getCharacterTier(charKey) {
@@ -1198,19 +1228,27 @@ function upgradeCharacterTier(charKey) {
 // COSMETIC ITEMS: FRAMES, TITLES, MAP THEMES
 // ============================================================
 var PROFILE_FRAMES = {
-    cross:  { name: 'إطار الصليب الذهبي', icon: '✝️', desc: 'إطار مقدس بزخارف ذهبية لامعة', cost: 15, accentColor: '#FFD700', frameClass: 'frame-cross', borderStyle: '4px solid #FFD700', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #FFD700, 0 0 28px rgba(255,215,0,0.8)' },
-    dove:   { name: 'إطار الحمامة السماوية', icon: '🕊️', desc: 'إطار ملهم من نعمة الروح القدس', cost: 30, accentColor: '#7EC8E3', frameClass: 'frame-dove', borderStyle: '4px solid #7EC8E3', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #87CEEB, 0 0 28px rgba(135,206,235,0.8)' },
-    church: { name: 'إطار الكنيسة المجيدة', icon: '⛪', desc: 'إطار مستوحى من الكنيسة الأرثوذكسية', cost: 50, accentColor: '#C39BD3', frameClass: 'frame-church', borderStyle: '4px solid #C39BD3', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #9B59B6, 0 0 28px rgba(155,89,182,0.8)' }
+    cross:  { name: 'إطار الصليب الذهبي',      icon: '✝️', desc: 'إطار مقدس بزخارف ذهبية لامعة',         cost: 15, accentColor: '#FFD700', frameClass: 'frame-cross',  borderStyle: '4px solid #FFD700', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #FFD700, 0 0 28px rgba(255,215,0,0.8)' },
+    dove:   { name: 'إطار الحمامة السماوية',   icon: '🕊️', desc: 'إطار ملهم من نعمة الروح القدس',        cost: 30, accentColor: '#7EC8E3', frameClass: 'frame-dove',   borderStyle: '4px solid #7EC8E3', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #87CEEB, 0 0 28px rgba(135,206,235,0.8)' },
+    church: { name: 'إطار الكنيسة المجيدة',    icon: '⛪',  desc: 'إطار مستوحى من الكنيسة الأرثوذكسية',  cost: 50, accentColor: '#C39BD3', frameClass: 'frame-church', borderStyle: '4px solid #C39BD3', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #9B59B6, 0 0 28px rgba(155,89,182,0.8)' },
+    flame:  { name: 'إطار اللهيب المقدس',      icon: '🔥', desc: 'جائزة المداومة 7 أيام - مكسوب بالاستمرار', cost: 0, accentColor: '#FF6B35', frameClass: 'frame-flame',  borderStyle: '4px solid #FF6B35', shadow: '0 0 0 3px #0a0a1e, 0 0 0 7px #FF6B35, 0 0 28px rgba(255,107,53,0.8)' }
 };
 
 var PLAYER_TITLES = {
-    bookKeeper: { name: 'حافظ الكتاب 📖', desc: 'اقرأ 10 أصحاحات', icon: '📖', cost: 0, earned: function() { return (GameState.bibleChapter || 1) >= 10; } },
-    gameChamp:  { name: 'بطل الألعاب 🏆', desc: 'أكمل 20 لعبة', icon: '🏆', cost: 0, earned: function() { return (GameState.gamesPlayed || 0) >= 20; } },
-    faithful:   { name: 'خادم أمين 🙏', desc: '7 أيام streak متواصل', icon: '🙏', cost: 0, earned: function() { return (GameState.bestStreak || 0) >= 7; } },
-    warrior:    { name: 'محارب الإيمان ⚔️', desc: 'هاجم البوس 5 مرات', icon: '⚔️', cost: 25, earned: function() { return false; } },
-    scholar:    { name: 'عالم اللاهوت 🎓', desc: 'اشترِ بـ 25 جوهرة', icon: '🎓', cost: 25, earned: function() { return false; } },
-    star:       { name: 'نجم المنافسات ⭐', desc: 'اشترِ بـ 40 جوهرة', icon: '⭐', cost: 40, earned: function() { return false; } }
+    bookKeeper: { name: 'حافظ الكتاب 📖',    desc: 'اقرأ 10 أصحاحات',          icon: '📖', cost: 0,  earned: function() { return (GameState.bibleChapter || 1) >= 10; } },
+    gameChamp:  { name: 'بطل الألعاب 🏆',    desc: 'أكمل 20 لعبة',             icon: '🏆', cost: 0,  earned: function() { return (GameState.gamesPlayed || 0) >= 20; } },
+    faithful:   { name: 'خادم أمين 🙏',      desc: '7 أيام streak متواصل',     icon: '🙏', cost: 0,  earned: function() { return (GameState.bestStreak || 0) >= 7; } },
+    warrior:    { name: 'محارب الإيمان ⚔️',  desc: 'هاجم البوس 5 مرات',        icon: '⚔️', cost: 25, earned: function() { return false; } },
+    scholar:    { name: 'عالم اللاهوت 🎓',   desc: 'اشترِ بـ 25 جوهرة',        icon: '🎓', cost: 25, earned: function() { return false; } },
+    star:       { name: 'نجم المنافسات ⭐',  desc: 'اشترِ بـ 40 جوهرة',        icon: '⭐', cost: 40, earned: function() { return false; } },
+    steadfast:  { name: 'المثابر الأمين 🏆', desc: 'جائزة 30 يوم متواصل',       icon: '🏆', cost: 0,  earned: function() { return (GameState.claimedStreakRewards || []).indexOf('streak30') >= 0; } }
 };
+
+var STREAK_REWARDS = [
+    { id: 'streak7',  name: 'إطار اللهيب المقدس',   icon: '🔥', streakNeeded: 7,  type: 'frame', rewardKey: 'flame',     rewardLabel: 'إطار اللهيب المقدس',   desc: 'حافظ على 7 أيام دخول متواصلة' },
+    { id: 'streak14', name: 'زي المثابر الفضي',      icon: '⚡', streakNeeded: 14, type: 'skin',  rewardKey: 'silver_all', rewardLabel: 'رتبة فضية لكل الشخصيات', desc: 'حافظ على 14 يوماً متواصلاً' },
+    { id: 'streak30', name: 'لقب المثابر الأمين',    icon: '🏆', streakNeeded: 30, type: 'title', rewardKey: 'steadfast',  rewardLabel: 'لقب المثابر الأمين',   desc: 'حافظ على 30 يوماً متواصلاً' }
+];
 
 var MAP_THEMES = {
     'default': { name: 'الإيمان الكلاسيكي', icon: '⛪', desc: 'الشكل الافتراضي', cost: 0, bgColor: '#0a0a1e', accent: '#6C5CE7' },
@@ -3404,10 +3442,11 @@ function renderShop() {
 
     // Tabs
     var tabs = [
-        { id: 'armor', label: '🛡️ السلاح', icon: 'fa-shield-halved' },
-        { id: 'frames', label: '🖼️ إطارات', icon: 'fa-image' },
-        { id: 'titles', label: '🏅 ألقاب', icon: 'fa-medal' },
-        { id: 'themes', label: '🗺️ خرائط', icon: 'fa-map' }
+        { id: 'armor',  label: '🛡️ السلاح',   icon: 'fa-shield-halved' },
+        { id: 'frames', label: '🖼️ إطارات',   icon: 'fa-image' },
+        { id: 'titles', label: '🏅 ألقاب',    icon: 'fa-medal' },
+        { id: 'themes', label: '🗺️ خرائط',   icon: 'fa-map' },
+        { id: 'streak', label: '🔥 المداومة', icon: 'fa-fire' }
     ];
     var tabsHtml = '<div class="shop-tabs">';
     tabs.forEach(function(t) {
@@ -3485,6 +3524,36 @@ function renderShop() {
             }
             itemsHtml += '</div>';
         });
+    } else if (shopActiveTab === 'streak') {
+        var curStreak = GameState.loginStreak || 0;
+        var claimed   = GameState.claimedStreakRewards || [];
+        // Streak counter header
+        itemsHtml += '<div class="streak-header" style="grid-column:1/-1;text-align:center;padding:16px 0 8px">';
+        itemsHtml += '<div class="streak-fire-num">🔥 ' + curStreak + '</div>';
+        itemsHtml += '<p style="color:#aaa;font-size:13px;margin-top:4px">يوم متواصل من الدخول</p>';
+        itemsHtml += '</div>';
+        STREAK_REWARDS.forEach(function(reward) {
+            var isClaimed  = claimed.indexOf(reward.id) >= 0;
+            var canClaim   = !isClaimed && curStreak >= reward.streakNeeded;
+            var pct        = Math.min(100, Math.round((curStreak / reward.streakNeeded) * 100));
+            itemsHtml += '<div class="shop-item-card streak-reward-card' + (isClaimed ? ' owned' : '') + (canClaim ? ' earnable' : '') + '">';
+            itemsHtml += '<div class="streak-reward-icon">' + reward.icon + '</div>';
+            itemsHtml += '<h3>' + reward.name + '</h3>';
+            itemsHtml += '<p class="shop-item-desc">' + reward.desc + '</p>';
+            // Progress bar
+            itemsHtml += '<div class="streak-progress-wrap">';
+            itemsHtml += '<div class="streak-progress-bar" style="width:' + pct + '%"></div>';
+            itemsHtml += '</div>';
+            itemsHtml += '<p class="streak-progress-label">' + Math.min(curStreak, reward.streakNeeded) + ' / ' + reward.streakNeeded + ' يوم</p>';
+            if (isClaimed) {
+                itemsHtml += '<span class="shop-badge equipped-badge">تم الاستلام ✓</span>';
+            } else if (canClaim) {
+                itemsHtml += '<button class="btn btn-small btn-gold buy-btn" data-key="' + reward.id + '" data-action="claim-streak">🎉 استلم الجائزة!</button>';
+            } else {
+                itemsHtml += '<div class="shop-item-locked-hint"><i class="fas fa-lock"></i> ' + reward.streakNeeded + ' يوم متواصل</div>';
+            }
+            itemsHtml += '</div>';
+        });
     } else if (shopActiveTab === 'themes') {
         Object.entries(MAP_THEMES).forEach(function(entry) {
             var key = entry[0], theme = entry[1];
@@ -3529,6 +3598,35 @@ function handleShopClick(e) {
     else if (action === 'earn-title') earnTitle(key);
     else if (action === 'buy-theme') buyMapTheme(key);
     else if (action === 'set-theme') setMapTheme(key);
+    else if (action === 'claim-streak') claimStreakReward(key);
+}
+
+function claimStreakReward(id) {
+    var reward = null;
+    for (var i = 0; i < STREAK_REWARDS.length; i++) { if (STREAK_REWARDS[i].id === id) { reward = STREAK_REWARDS[i]; break; } }
+    if (!reward) return;
+    if (!GameState.claimedStreakRewards) GameState.claimedStreakRewards = [];
+    if (GameState.claimedStreakRewards.indexOf(id) >= 0) { showToast('استلمته قبل كده!', 'warning'); return; }
+    if ((GameState.loginStreak || 0) < reward.streakNeeded) { showToast('محتاج ' + reward.streakNeeded + ' يوم متواصل!', 'error'); return; }
+    GameState.claimedStreakRewards.push(id);
+    if (reward.type === 'frame') {
+        if (!GameState.ownedFrames) GameState.ownedFrames = [];
+        if (GameState.ownedFrames.indexOf(reward.rewardKey) < 0) GameState.ownedFrames.push(reward.rewardKey);
+        GameState.equippedFrame = reward.rewardKey;
+    } else if (reward.type === 'skin') {
+        if (!GameState.characterTiers) GameState.characterTiers = {};
+        Object.keys(CHARACTERS).forEach(function(k) {
+            if (!GameState.characterTiers[k] || GameState.characterTiers[k] === 'bronze') GameState.characterTiers[k] = 'silver';
+        });
+    } else if (reward.type === 'title') {
+        if (!GameState.ownedTitles) GameState.ownedTitles = [];
+        if (GameState.ownedTitles.indexOf(reward.rewardKey) < 0) GameState.ownedTitles.push(reward.rewardKey);
+        GameState.equippedTitle = reward.rewardKey;
+    }
+    showAchievement(reward.icon, reward.name, reward.rewardLabel + ' - تم الاستلام!');
+    launchConfetti(2500);
+    renderShop();
+    saveGame();
 }
 
 function buyArmor(key) {
@@ -4727,9 +4825,16 @@ function awardXP(amount, reason) {
 function checkDailyLoginXP() {
     var today = new Date().toISOString().split('T')[0];
     if (GameState.dailyLoginDate !== today) {
+        var yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        if (GameState.dailyLoginDate === yesterday) {
+            GameState.loginStreak = (GameState.loginStreak || 0) + 1;
+        } else {
+            GameState.loginStreak = 1;
+        }
         GameState.dailyLoginDate = today;
         GameState.gems = (GameState.gems || 0) + 5;
-        showToast('مرحباً! 💎 +5 جواهر يومية', 'success');
+        var streakMsg = GameState.loginStreak > 1 ? ' 🔥 ' + GameState.loginStreak + ' أيام متواصلة!' : '';
+        showToast('مرحباً! 💎 +5 جواهر يومية' + streakMsg, 'success');
         saveToCloud();
     }
 }

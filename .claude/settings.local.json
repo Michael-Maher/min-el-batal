@@ -58,7 +58,17 @@
       "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); print\\(data[0][''''text'''']\\)\")",
       "Bash(node --check /Users/mmichaelmaher/Documents/min-el-batal/game.js)",
       "Bash(/Users/mmichaelmaher/Documents/min-el-batal/style.css:*)",
-      "Bash(grep -rn \"الشاهد\\\\|الشاهِد\" /Users/mmichaelmaher/Documents/min-el-batal/ --include=*.html --include=*.js --include=*.css)"
+      "Bash(grep -rn \"الشاهد\\\\|الشاهِد\" /Users/mmichaelmaher/Documents/min-el-batal/ --include=*.html --include=*.js --include=*.css)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Bash(find /Users/mmichaelmaher/.claude -name *.json)",
+      "Bash(find /Users/mmichaelmaher/.claude/plugins -name *.json)",
+      "Bash(find /Users/mmichaelmaher/.claude/plugins/marketplaces/claude-plugins-official/plugins/hookify -name *.py)",
+      "Bash(find /Users/mmichaelmaher/Documents/min-el-batal/.claude -name hookify*.md)",
+      "Bash(find /Users/mmichaelmaher/.claude -name hookify*.md)",
+      "Bash(find /Users/mmichaelmaher/Documents/min-el-batal -name *.local.md)",
+      "Bash(find /Users/mmichaelmaher/.claude -name *.local.md)",
+      "Bash(python3:*)"
     ]
   }
 }

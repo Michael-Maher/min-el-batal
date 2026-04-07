@@ -9197,14 +9197,17 @@ function getMiniGameBadge(type) {
     return '<div class="mg-card-new">جديد!</div>';
 }
 
-// Station scoring: max 80 per station (10 sermon + 10 summary + 60 games)
-// Games: mixed challenge max 60, or 6 mini-games × 10 each = 60
-// Best score is always kept (max of old vs new)
-var STATION_MAX_SCORE = 80;
-var STATION_GAMES_MAX = 60;
+// Station scoring: max 100 per station (10 sermon + 10 summary + 80 games)
+// Games: ALL game types must be played to reach max
+//   - Old mini-games (trueFalse, whoAmI, sortVerse, fillBlank, matchPairs, characters) ~6-10 each
+//   - New interactive games (courtOfFaith, creedBuilder, councilJourney, detective, balance) ~8-10 each
+//   - mixedChallenge can fill up to 80 alone
+// Unlock threshold = 90% of max (must play most/all games well)
+var STATION_MAX_SCORE = 100;
+var STATION_GAMES_MAX = 80;
 var STATION_SERMON_SCORE = 10;
 var STATION_SUMMARY_SCORE = 10;
-var STATION_UNLOCK_THRESHOLD = 70; // 70-80 to unlock next station
+var STATION_UNLOCK_THRESHOLD = 90; // 90% of 100 — must play all games well
 
 // Global station progress bar - appears below tabs in ALL stages
 function getStationProgressHTML() {
@@ -16067,36 +16070,36 @@ function getMasteryBadgeHTML(subKey, lessonIdx) {
 // --- Collectible System ---
 var LESSON_COLLECTIBLES = {
     faith: [
-        { id: 'trinity_cross', name: 'صليب الثالوث', icon: '✝️', desc: 'رمز الآب والابن والروح القدس' },
-        { id: 'incarnation_star', name: 'نجمة التجسد', icon: '⭐', desc: 'النجم الذي أرشد المجوس' },
-        { id: 'redemption_crown', name: 'إكليل الفداء', icon: '👑', desc: 'إكليل الشوك صار إكليل مجد' },
-        { id: 'salvation_key', name: 'مفتاح الخلاص', icon: '🗝️', desc: 'المسيح فتح لنا باب الملكوت' },
-        { id: 'spirit_dove', name: 'حمامة الروح', icon: '🕊️', desc: 'الروح القدس حل كحمامة' },
-        { id: 'church_lamp', name: 'سراج الكنيسة', icon: '🏛️', desc: 'الكنيسة نور العالم' }
+        { id: 'trinity_cross', name: 'صليب الثالوث', icon: '✝️', fa: 'fa-cross', color: '#e74c3c', gradient: 'linear-gradient(135deg, #c0392b, #e74c3c, #f39c12)', desc: 'رمز الآب والابن والروح القدس', verse: 'مت ٢٨: ١٩' },
+        { id: 'incarnation_star', name: 'نجمة التجسد', icon: '⭐', fa: 'fa-star', color: '#f1c40f', gradient: 'linear-gradient(135deg, #f39c12, #f1c40f, #ffeaa7)', desc: 'الكلمة صار جسداً وحل بيننا', verse: 'يو ١: ١٤' },
+        { id: 'redemption_crown', name: 'إكليل الفداء', icon: '👑', fa: 'fa-crown', color: '#9b59b6', gradient: 'linear-gradient(135deg, #8e44ad, #9b59b6, #a29bfe)', desc: 'إكليل الشوك صار إكليل مجد', verse: 'يو ١٩: ٢' },
+        { id: 'salvation_key', name: 'مفتاح الخلاص', icon: '🗝️', fa: 'fa-key', color: '#2ecc71', gradient: 'linear-gradient(135deg, #27ae60, #2ecc71, #55efc4)', desc: 'المسيح فتح لنا باب الملكوت', verse: 'يو ١٠: ٩' },
+        { id: 'spirit_dove', name: 'حمامة الروح', icon: '🕊️', fa: 'fa-dove', color: '#74b9ff', gradient: 'linear-gradient(135deg, #0984e3, #74b9ff, #dfe6e9)', desc: 'الروح القدس حل كحمامة', verse: 'مت ٣: ١٦' },
+        { id: 'church_lamp', name: 'سراج الكنيسة', icon: '🏛️', fa: 'fa-church', color: '#fd79a8', gradient: 'linear-gradient(135deg, #e84393, #fd79a8, #fab1a0)', desc: 'الكنيسة جسد المسيح', verse: 'أف ١: ٢٢-٢٣' }
     ],
     bible: [
-        { id: 'scroll_mark', name: 'لفافة مرقس', icon: '📜', desc: 'إنجيل مار مرقس' },
-        { id: 'fish_symbol', name: 'رمز السمكة', icon: '🐟', desc: 'إخثيس - يسوع المسيح ابن الله المخلص' },
-        { id: 'bread_life', name: 'خبز الحياة', icon: '🍞', desc: 'أنا هو خبز الحياة' },
-        { id: 'vine_branch', name: 'الكرمة والأغصان', icon: '🍇', desc: 'أنا الكرمة وأنتم الأغصان' },
-        { id: 'mustard_seed', name: 'حبة الخردل', icon: '🌱', desc: 'إيمان صغير يصنع المعجزات' },
-        { id: 'light_world', name: 'نور العالم', icon: '💡', desc: 'أنا هو نور العالم' }
+        { id: 'scroll_mark', name: 'لفافة مرقس', icon: '📜', fa: 'fa-scroll', color: '#d35400', gradient: 'linear-gradient(135deg, #e67e22, #d35400, #ffeaa7)', desc: 'إنجيل مار مرقس الرسول', verse: 'مر ١: ١' },
+        { id: 'fish_symbol', name: 'رمز السمكة', icon: '🐟', fa: 'fa-fish', color: '#00cec9', gradient: 'linear-gradient(135deg, #0984e3, #00cec9, #81ecec)', desc: 'إخثيس — يسوع المسيح ابن الله المخلص', verse: '' },
+        { id: 'bread_life', name: 'خبز الحياة', icon: '🍞', fa: 'fa-bread-slice', color: '#fdcb6e', gradient: 'linear-gradient(135deg, #e17055, #fdcb6e, #ffeaa7)', desc: 'أنا هو خبز الحياة', verse: 'يو ٦: ٣٥' },
+        { id: 'vine_branch', name: 'الكرمة والأغصان', icon: '🍇', fa: 'fa-seedling', color: '#00b894', gradient: 'linear-gradient(135deg, #00b894, #55efc4, #b8e994)', desc: 'أنا الكرمة وأنتم الأغصان', verse: 'يو ١٥: ٥' },
+        { id: 'mustard_seed', name: 'حبة الخردل', icon: '🌱', fa: 'fa-leaf', color: '#6ab04c', gradient: 'linear-gradient(135deg, #27ae60, #6ab04c, #badc58)', desc: 'إيمان صغير يصنع المعجزات', verse: 'مت ١٧: ٢٠' },
+        { id: 'light_world', name: 'نور العالم', icon: '💡', fa: 'fa-lightbulb', color: '#f9ca24', gradient: 'linear-gradient(135deg, #f0932b, #f9ca24, #fff3b0)', desc: 'أنا هو نور العالم', verse: 'يو ٨: ١٢' }
     ],
     life: [
-        { id: 'leadership_shield', name: 'درع القيادة', icon: '🛡️', desc: 'القائد يحمي فريقه' },
-        { id: 'service_hands', name: 'يدا الخدمة', icon: '🤲', desc: 'خدمة الآخرين كخدمة المسيح' },
-        { id: 'wisdom_book', name: 'كتاب الحكمة', icon: '📕', desc: 'رأس الحكمة مخافة الرب' },
-        { id: 'teamwork_chain', name: 'سلسلة الوحدة', icon: '🔗', desc: 'الخيط المثلوث لا ينقطع' },
-        { id: 'courage_lion', name: 'أسد الشجاعة', icon: '🦁', desc: 'كن شجاعاً كالأسد' },
-        { id: 'prayer_candle', name: 'شمعة الصلاة', icon: '🕯️', desc: 'صلوا بلا انقطاع' }
+        { id: 'leadership_shield', name: 'درع القيادة', icon: '🛡️', fa: 'fa-shield-halved', color: '#6c5ce7', gradient: 'linear-gradient(135deg, #6c5ce7, #a29bfe, #dfe6e9)', desc: 'القائد يحمي فريقه', verse: 'أف ٦: ١٦' },
+        { id: 'service_hands', name: 'يدا الخدمة', icon: '🤲', fa: 'fa-hands-holding-heart', color: '#e84393', gradient: 'linear-gradient(135deg, #e84393, #fd79a8, #fab1a0)', desc: 'خدمة الآخرين كخدمة المسيح', verse: 'مت ٢٥: ٤٠' },
+        { id: 'wisdom_book', name: 'كتاب الحكمة', icon: '📕', fa: 'fa-book', color: '#d63031', gradient: 'linear-gradient(135deg, #d63031, #ff7675, #fab1a0)', desc: 'رأس الحكمة مخافة الرب', verse: 'أم ٩: ١٠' },
+        { id: 'teamwork_chain', name: 'سلسلة الوحدة', icon: '🔗', fa: 'fa-link', color: '#636e72', gradient: 'linear-gradient(135deg, #2d3436, #636e72, #b2bec3)', desc: 'الخيط المثلوث لا ينقطع', verse: 'جا ٤: ١٢' },
+        { id: 'courage_lion', name: 'أسد الشجاعة', icon: '🦁', fa: 'fa-paw', color: '#e17055', gradient: 'linear-gradient(135deg, #d63031, #e17055, #fdcb6e)', desc: 'كن شجاعاً كالأسد', verse: 'يش ١: ٩' },
+        { id: 'prayer_candle', name: 'شمعة الصلاة', icon: '🕯️', fa: 'fa-fire', color: '#fdcb6e', gradient: 'linear-gradient(135deg, #e17055, #fdcb6e, #ffeaa7)', desc: 'صلوا بلا انقطاع', verse: '١تس ٥: ١٧' }
     ],
     ritual: [
-        { id: 'altar_table', name: 'مذبح القداس', icon: '⛪', desc: 'المذبح قلب الكنيسة' },
-        { id: 'incense_cup', name: 'مجمرة البخور', icon: '🔥', desc: 'لتستقم صلاتي كالبخور' },
-        { id: 'water_baptism', name: 'ماء المعمودية', icon: '💧', desc: 'من آمن واعتمد خلص' },
-        { id: 'oil_myron', name: 'زيت الميرون', icon: '🫒', desc: 'مسحة الروح القدس' },
-        { id: 'bread_wine', name: 'الخبز والخمر', icon: '🍷', desc: 'هذا هو جسدي... هذا هو دمي' },
-        { id: 'icon_image', name: 'الأيقونة المقدسة', icon: '🖼️', desc: 'لاهوت بالألوان' }
+        { id: 'altar_table', name: 'مذبح القداس', icon: '⛪', fa: 'fa-church', color: '#9b59b6', gradient: 'linear-gradient(135deg, #6c5ce7, #9b59b6, #a29bfe)', desc: 'المذبح قلب الكنيسة', verse: '' },
+        { id: 'incense_cup', name: 'مجمرة البخور', icon: '🔥', fa: 'fa-fire-flame-curved', color: '#e67e22', gradient: 'linear-gradient(135deg, #d35400, #e67e22, #fdcb6e)', desc: 'لتستقم صلاتي كالبخور', verse: 'مز ١٤١: ٢' },
+        { id: 'water_baptism', name: 'ماء المعمودية', icon: '💧', fa: 'fa-droplet', color: '#0984e3', gradient: 'linear-gradient(135deg, #0984e3, #74b9ff, #dfe6e9)', desc: 'من آمن واعتمد خلص', verse: 'مر ١٦: ١٦' },
+        { id: 'oil_myron', name: 'زيت الميرون', icon: '🫒', fa: 'fa-bottle-droplet', color: '#00b894', gradient: 'linear-gradient(135deg, #00b894, #55efc4, #ffeaa7)', desc: 'مسحة الروح القدس', verse: '١يو ٢: ٢٧' },
+        { id: 'bread_wine', name: 'الخبز والخمر', icon: '🍷', fa: 'fa-wine-glass', color: '#d63031', gradient: 'linear-gradient(135deg, #d63031, #e74c3c, #fdcb6e)', desc: 'هذا هو جسدي... هذا هو دمي', verse: 'مت ٢٦: ٢٦' },
+        { id: 'icon_image', name: 'الأيقونة المقدسة', icon: '🖼️', fa: 'fa-image', color: '#fd79a8', gradient: 'linear-gradient(135deg, #e84393, #fd79a8, #a29bfe)', desc: 'لاهوت بالألوان', verse: '' }
     ]
 };
 
@@ -16165,10 +16168,13 @@ function showCollectiblePopup(collectible) {
     popup.innerHTML =
         '<div class="collectible-popup-inner">' +
             '<div class="collectible-glow"></div>' +
-            '<div class="collectible-icon">' + collectible.icon + '</div>' +
+            '<div class="collectible-popup-visual" style="background:' + (collectible.gradient || 'linear-gradient(135deg, #6C5CE7, #a29bfe)') + '">' +
+                '<i class="fas ' + (collectible.fa || 'fa-gem') + '" style="font-size:48px;color:#fff;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.3))"></i>' +
+            '</div>' +
             '<h3>كنز جديد!</h3>' +
             '<h4>' + collectible.name + '</h4>' +
             '<p>' + collectible.desc + '</p>' +
+            (collectible.verse ? '<p style="color:var(--gold);font-size:12px;margin-top:6px"><i class="fas fa-book-bible"></i> ' + collectible.verse + '</p>' : '') +
         '</div>';
     document.body.appendChild(popup);
 
@@ -16209,21 +16215,46 @@ function renderMuseum() {
     if (!container) return;
     initCollectibles();
 
+    // Count totals
+    var totalAll = 0, earnedAll = 0;
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(sk) {
+        var cl = LESSON_COLLECTIBLES[sk] || [];
+        totalAll += cl.length;
+        cl.forEach(function(c) { if (GameState.collectibles[c.id]) earnedAll++; });
+    });
+
     var html = '';
 
+    // Museum header with total count
+    html += '<div class="museum-header-card">';
+    html += '<div class="museum-header-icon">🏛️</div>';
+    html += '<div class="museum-header-info">';
+    html += '<h2>متحف كنوز الإيمان</h2>';
+    html += '<p>اجمع الكنوز من كل الدروس لفتح الكؤوس</p>';
+    html += '<div class="museum-total-bar"><div class="museum-total-fill" style="width:' + (totalAll > 0 ? Math.round(earnedAll / totalAll * 100) : 0) + '%"></div></div>';
+    html += '<div class="museum-total-text">' + earnedAll + ' / ' + totalAll + ' كنز</div>';
+    html += '</div></div>';
+
+    // Subject trophies
     html += '<div class="museum-trophies">';
-    html += '<h3><i class="fas fa-trophy"></i> الكؤوس</h3>';
+    html += '<h3><i class="fas fa-trophy" style="color:var(--gold)"></i> كؤوس المواد</h3>';
     html += '<div class="museum-trophy-grid">';
     ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
         var trophy = SUBJECT_TROPHIES[subKey];
+        var subData = LEVEL2_SUBJECTS[subKey];
         var earned = GameState.subjectTrophies && GameState.subjectTrophies.indexOf(subKey) !== -1;
-        html += '<div class="museum-trophy-card' + (earned ? ' earned' : ' locked') + '" style="--trophy-color:' + trophy.color + '">';
-        html += '<div class="museum-trophy-icon">' + (earned ? trophy.icon : '🔒') + '</div>';
+        var cl = LESSON_COLLECTIBLES[subKey] || [];
+        var ct = cl.filter(function(c) { return GameState.collectibles[c.id]; }).length;
+        html += '<div class="museum-trophy-card' + (earned ? ' earned' : '') + '" style="--trophy-color:' + trophy.color + '">';
+        html += '<div class="museum-trophy-glow" style="background:radial-gradient(circle,' + trophy.color + '33,transparent 70%)"></div>';
+        html += '<div class="museum-trophy-icon">' + (earned ? '🏆' : (subData ? subData.icon : '🔒')) + '</div>';
         html += '<div class="museum-trophy-name">' + trophy.name + '</div>';
+        html += '<div class="museum-trophy-progress">' + ct + '/' + cl.length + '</div>';
         html += '</div>';
     });
     html += '</div></div>';
 
+    // Collectibles per subject — rich card display
     ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
         var subData = LEVEL2_SUBJECTS[subKey];
         if (!subData) return;
@@ -16231,14 +16262,34 @@ function renderMuseum() {
         var collected = collectibles.filter(function(c) { return GameState.collectibles[c.id]; }).length;
 
         html += '<div class="museum-subject">';
-        html += '<h3>' + subData.icon + ' ' + subData.name + ' <span class="museum-count">' + collected + '/' + collectibles.length + '</span></h3>';
+        html += '<div class="museum-subject-header" style="--sub-color:' + (subData.color || '#6C5CE7') + '">';
+        html += '<span>' + subData.icon + ' ' + subData.name + '</span>';
+        html += '<span class="museum-count">' + collected + '/' + collectibles.length + '</span>';
+        html += '</div>';
         html += '<div class="museum-grid">';
-        collectibles.forEach(function(c) {
+        collectibles.forEach(function(c, idx) {
             var earned = GameState.collectibles[c.id] === true;
-            html += '<div class="museum-item' + (earned ? ' earned' : ' locked') + '">';
-            html += '<div class="museum-item-icon">' + (earned ? c.icon : '❓') + '</div>';
-            html += '<div class="museum-item-name">' + (earned ? c.name : '???') + '</div>';
-            if (earned) html += '<div class="museum-item-desc">' + c.desc + '</div>';
+            var lessonName = subData.lessons && subData.lessons[idx] ? subData.lessons[idx].name : 'درس ' + (idx + 1);
+            html += '<div class="museum-card' + (earned ? ' earned' : ' locked') + '" onclick="' + (earned ? 'showCollectibleDetail(\'' + c.id + '\',\'' + subKey + '\',' + idx + ')' : '') + '">';
+            // Card visual
+            html += '<div class="museum-card-visual" style="background:' + (earned ? c.gradient : 'linear-gradient(135deg, #2d3436, #636e72)') + '">';
+            html += '<div class="museum-card-glow"></div>';
+            if (earned) {
+                html += '<i class="fas ' + (c.fa || 'fa-gem') + ' museum-card-fa"></i>';
+            } else {
+                html += '<i class="fas fa-lock museum-card-fa" style="opacity:0.5"></i>';
+            }
+            html += '</div>';
+            // Card info
+            html += '<div class="museum-card-info">';
+            html += '<div class="museum-card-name">' + (earned ? c.name : '???') + '</div>';
+            if (earned) {
+                html += '<div class="museum-card-desc">' + c.desc + '</div>';
+                if (c.verse) html += '<div class="museum-card-verse"><i class="fas fa-book-bible"></i> ' + c.verse + '</div>';
+            } else {
+                html += '<div class="museum-card-hint">أكمل: ' + lessonName + '</div>';
+            }
+            html += '</div>';
             html += '</div>';
         });
         html += '</div></div>';
@@ -16247,8 +16298,44 @@ function renderMuseum() {
     container.innerHTML = html;
 }
 
+// Show detail popup for an earned collectible
+function showCollectibleDetail(collectibleId, subKey, lessonIdx) {
+    var collectibles = LESSON_COLLECTIBLES[subKey] || [];
+    var c = collectibles[lessonIdx];
+    if (!c || !GameState.collectibles[c.id]) return;
+
+    var subData = LEVEL2_SUBJECTS[subKey];
+    var lessonName = subData && subData.lessons && subData.lessons[lessonIdx] ? subData.lessons[lessonIdx].name : '';
+
+    var existing = document.querySelector('.collectible-detail-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.className = 'collectible-detail-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) { overlay.classList.remove('show'); setTimeout(function() { overlay.remove(); }, 400); } };
+    overlay.innerHTML =
+        '<div class="collectible-detail-card">' +
+            '<div class="collectible-detail-visual" style="background:' + c.gradient + '">' +
+                '<div class="collectible-detail-glow"></div>' +
+                '<i class="fas ' + (c.fa || 'fa-gem') + ' collectible-detail-fa"></i>' +
+            '</div>' +
+            '<div class="collectible-detail-body">' +
+                '<h2>' + c.name + '</h2>' +
+                '<p class="collectible-detail-desc">' + c.desc + '</p>' +
+                (c.verse ? '<p class="collectible-detail-verse"><i class="fas fa-book-bible"></i> ' + c.verse + '</p>' : '') +
+                '<div class="collectible-detail-meta">' +
+                    '<span>' + (subData ? subData.icon + ' ' + subData.name : '') + '</span>' +
+                    (lessonName ? '<span>📖 ' + lessonName + '</span>' : '') +
+                '</div>' +
+                '<button class="btn btn-secondary btn-sm" onclick="this.closest(\'.collectible-detail-overlay\').classList.remove(\'show\');setTimeout(function(){document.querySelector(\'.collectible-detail-overlay\')&&document.querySelector(\'.collectible-detail-overlay\').remove()},400)"><span>إغلاق</span></button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('show'); }, 30);
+}
+
 // --- Enhanced Streak Rewards ---
-var STREAK_REWARDS = [
+var ENHANCED_STREAK_MILESTONES = [
     { days: 3, stars: 50, title: null, frame: null, desc: '+50 نجمة' },
     { days: 7, stars: 100, title: 'مثابر', frame: 'streak7', desc: 'لقب مثابر + إطار جديد' },
     { days: 14, stars: 200, title: null, frame: null, characterSkin: true, desc: 'شكل شخصية حصري' },
@@ -16261,7 +16348,7 @@ function checkStreakRewards() {
     var streak = GameState.loginStreak || 0;
     if (!GameState.claimedStreakRewards) GameState.claimedStreakRewards = [];
 
-    STREAK_REWARDS.forEach(function(reward) {
+    ENHANCED_STREAK_MILESTONES.forEach(function(reward) {
         var rewardKey = 'streak' + reward.days;
         if (streak >= reward.days && GameState.claimedStreakRewards.indexOf(rewardKey) === -1) {
             GameState.claimedStreakRewards.push(rewardKey);
@@ -16415,7 +16502,7 @@ function renderProgressDashboard() {
     html += '<div class="pd-streaks">';
     html += '<h3><i class="fas fa-fire"></i> إنجازات الالتزام</h3>';
     html += '<div class="pd-streak-grid">';
-    STREAK_REWARDS.forEach(function(sr) {
+    ENHANCED_STREAK_MILESTONES.forEach(function(sr) {
         var claimed = GameState.claimedStreakRewards && GameState.claimedStreakRewards.indexOf('streak' + sr.days) !== -1;
         var reachable = streak >= sr.days;
         html += '<div class="pd-streak-item' + (claimed ? ' claimed' : (reachable ? ' reachable' : '')) + '">';

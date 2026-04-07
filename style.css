@@ -10192,6 +10192,249 @@ body {
     transition: none !important;
 }
 
+/* --- Enhanced Museum Cards --- */
+.museum-header-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 20px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.2), rgba(253,203,110,0.1));
+    border-radius: 20px;
+    border: 1px solid rgba(253,203,110,0.2);
+    margin-bottom: 20px;
+}
+.museum-header-icon { font-size: 48px; flex-shrink: 0; }
+.museum-header-info { flex: 1; }
+.museum-header-info h2 { font-size: 18px; color: var(--gold); margin: 0 0 4px; }
+.museum-header-info p { font-size: 13px; color: var(--text-muted); margin: 0 0 10px; }
+.museum-total-bar {
+    height: 8px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 4px;
+}
+.museum-total-fill {
+    height: 100%;
+    border-radius: 99px;
+    background: linear-gradient(90deg, var(--gold), #f39c12);
+    transition: width 1s ease;
+}
+.museum-total-text { font-size: 12px; color: var(--text-muted); }
+
+.museum-trophy-card {
+    position: relative;
+    overflow: hidden;
+}
+.museum-trophy-glow {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+.museum-trophy-card.earned .museum-trophy-glow { opacity: 1; }
+.museum-trophy-progress { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+
+.museum-subject-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: linear-gradient(135deg, rgba(108,92,231,0.08), transparent);
+    border-radius: 12px;
+    border-right: 4px solid var(--sub-color);
+    margin-bottom: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.museum-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.museum-card {
+    border-radius: 16px;
+    overflow: hidden;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    transition: var(--transition);
+    cursor: pointer;
+}
+.museum-card.earned {
+    border-color: rgba(255,215,0,0.3);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+}
+.museum-card.earned:active {
+    transform: scale(0.97);
+}
+.museum-card.locked {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.museum-card-visual {
+    height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.museum-card-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 80px; height: 80px;
+    background: radial-gradient(circle, rgba(255,255,255,0.25), transparent 70%);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+}
+.museum-card-fa {
+    font-size: 40px;
+    color: #fff;
+    filter: drop-shadow(0 4px 12px rgba(0,0,0,0.3));
+    position: relative;
+    z-index: 1;
+}
+.museum-card.earned .museum-card-fa {
+    animation: cardIconFloat 3s ease-in-out infinite;
+}
+@keyframes cardIconFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+.museum-card-info {
+    padding: 10px 12px 12px;
+}
+.museum-card-name {
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 3px;
+}
+.museum-card-desc {
+    font-size: 11px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+.museum-card-verse {
+    font-size: 10px;
+    color: var(--gold);
+    margin-top: 4px;
+}
+.museum-card-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Collectible popup visual */
+.collectible-popup-visual {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+    animation: collectVisualPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes collectVisualPop {
+    0% { transform: scale(0) rotate(-30deg); }
+    60% { transform: scale(1.15) rotate(5deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+
+/* Collectible detail overlay */
+.collectible-detail-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.75);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    padding: 20px;
+}
+.collectible-detail-overlay.show { opacity: 1; }
+
+.collectible-detail-card {
+    background: var(--bg-card);
+    border-radius: 24px;
+    max-width: 340px;
+    width: 100%;
+    overflow: hidden;
+    transform: scale(0.8) translateY(30px);
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid rgba(255,215,0,0.2);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+.collectible-detail-overlay.show .collectible-detail-card {
+    transform: scale(1) translateY(0);
+}
+.collectible-detail-visual {
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+.collectible-detail-glow {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 120px; height: 120px;
+    background: radial-gradient(circle, rgba(255,255,255,0.3), transparent 70%);
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    animation: collectGlow 2s ease-in-out infinite;
+}
+.collectible-detail-fa {
+    font-size: 64px;
+    color: #fff;
+    filter: drop-shadow(0 6px 20px rgba(0,0,0,0.4));
+    position: relative;
+    z-index: 1;
+    animation: cardIconFloat 3s ease-in-out infinite;
+}
+.collectible-detail-body {
+    padding: 20px;
+    text-align: center;
+}
+.collectible-detail-body h2 {
+    font-size: 20px;
+    color: var(--gold);
+    margin: 0 0 8px;
+}
+.collectible-detail-desc {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin: 0 0 8px;
+    line-height: 1.5;
+}
+.collectible-detail-verse {
+    font-size: 13px;
+    color: var(--gold);
+    margin: 0 0 12px;
+}
+.collectible-detail-meta {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+
 /* --- Responsive adjustments --- */
 @media (max-width: 400px) {
     .pd-stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -10201,4 +10444,7 @@ body {
     .xp-level-badge { width: 40px; height: 40px; font-size: 18px; }
     .pd-level-circle { width: 60px; height: 60px; }
     .pd-level-number { font-size: 24px; }
+    .museum-card-visual { height: 80px; }
+    .museum-card-fa { font-size: 32px; }
+    .museum-header-card { flex-direction: column; text-align: center; }
 }

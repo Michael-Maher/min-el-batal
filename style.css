@@ -2219,51 +2219,72 @@ body {
 /* Lesson nodes on image map */
 .l2-imgmap-node {
     position: absolute;
-    width: 44px;
-    height: 44px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 17px;
     font-weight: 900;
     cursor: pointer;
     transition: transform 0.3s, box-shadow 0.3s;
     z-index: 4;
     color: #fff;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
     transform: translate(-50%, -50%);
+    border: 3px solid rgba(255,255,255,0.9);
 }
 .l2-imgmap-node:hover {
-    transform: translate(-50%, -50%) scale(1.15);
+    transform: translate(-50%, -50%) scale(1.18);
 }
 .l2-imgmap-node:active {
-    transform: translate(-50%, -50%) scale(0.95);
+    transform: translate(-50%, -50%) scale(0.92);
 }
+
+/* Per-lesson dot colors */
+.l2-node-c1 { background: linear-gradient(135deg, #FDC830, #F37335); box-shadow: 0 4px 16px rgba(253,200,48,0.55), 0 0 0 4px rgba(253,200,48,0.2); }
+.l2-node-c2 { background: linear-gradient(135deg, #56CCF2, #2F80ED); box-shadow: 0 4px 16px rgba(86,204,242,0.55), 0 0 0 4px rgba(86,204,242,0.2); }
+.l2-node-c3 { background: linear-gradient(135deg, #FF416C, #FF4B2B); box-shadow: 0 4px 16px rgba(255,65,108,0.55), 0 0 0 4px rgba(255,65,108,0.2); }
+.l2-node-c4 { background: linear-gradient(135deg, #A855F7, #6C3FD1); box-shadow: 0 4px 16px rgba(168,85,247,0.55), 0 0 0 4px rgba(168,85,247,0.2); }
+.l2-node-c5 { background: linear-gradient(135deg, #11998E, #38EF7D); box-shadow: 0 4px 16px rgba(17,153,142,0.55), 0 0 0 4px rgba(17,153,142,0.2); }
+.l2-node-c6 { background: linear-gradient(135deg, #F7971E, #FFD200); box-shadow: 0 4px 16px rgba(247,151,30,0.55), 0 0 0 4px rgba(247,151,30,0.2); }
+
+/* Available state: pulsing glow using the node's own color */
 .l2-imgmap-node-available {
-    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-    border: 3px solid #fff;
-    box-shadow: 0 4px 16px var(--glow-primary), 0 0 0 4px rgba(108,92,231,0.2);
-    animation: l2NodeGlow 2s ease-in-out infinite;
+    animation: l2NodePulse 2s ease-in-out infinite;
+    border-color: #fff;
 }
-@keyframes l2NodeGlow {
-    0%, 100% { box-shadow: 0 4px 16px var(--glow-primary), 0 0 0 4px rgba(108,92,231,0.2); }
-    50% { box-shadow: 0 4px 24px var(--glow-primary), 0 0 0 8px rgba(108,92,231,0.3); }
+@keyframes l2NodePulse {
+    0%, 100% { filter: brightness(1);   transform: translate(-50%, -50%) scale(1); }
+    50%       { filter: brightness(1.2); transform: translate(-50%, -50%) scale(1.06); }
 }
+
+/* Completed state: green checkmark tint over color */
 .l2-imgmap-node-completed {
-    background: linear-gradient(135deg, var(--success), #00997a);
-    border: 3px solid #fff;
-    box-shadow: 0 4px 12px rgba(0,184,148,0.4);
+    filter: saturate(1.2) brightness(1.1);
+    border-color: #fff;
 }
+.l2-imgmap-node-completed::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(0,200,100,0.25);
+}
+
+/* Locked state */
 .l2-imgmap-node-locked {
-    background: rgba(50,50,80,0.7);
-    border: 3px solid rgba(255,255,255,0.3);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    background: rgba(40, 40, 65, 0.75) !important;
+    border-color: rgba(255,255,255,0.25) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4) !important;
     cursor: not-allowed;
-    opacity: 0.6;
+    filter: grayscale(0.6) brightness(0.7);
+    animation: none !important;
 }
 .l2-imgmap-node-locked:hover {
-    transform: none;
+    transform: translate(-50%, -50%);
+    filter: grayscale(0.6) brightness(0.7);
 }
 /* Node tooltip */
 .l2-imgmap-tooltip {

@@ -7916,7 +7916,7 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
             GameState.level2Data[level2State.currentSubject]['exam_' + i];
 
         var node = document.createElement('div');
-        node.className = 'l2-imgmap-node ' + stateClass;
+        node.className = 'l2-imgmap-node ' + stateClass + ' l2-node-c' + (i + 1);
         node.style.left = positions[i].left + '%';
         node.style.top = positions[i].top + '%';
 

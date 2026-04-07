@@ -9480,9 +9480,9 @@ function showMiniGameResult(title) {
     html += '<div style="height:100%;width:' + Math.min(stScore.total / STATION_MAX_SCORE * 100, 100) + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:4px;transition:width 1s"></div>';
     html += '</div>';
     html += '<div style="display:flex;justify-content:space-around;margin-top:8px;font-size:11px;color:var(--text-muted)">';
-    html += '<span>🎬 ' + stScore.sermon + '/10</span>';
-    html += '<span>📝 ' + stScore.summary + '/10</span>';
-    html += '<span>🎮 ' + stScore.games + '/60</span>';
+    html += '<span>🎬 ' + stScore.sermon + '/' + STATION_SERMON_SCORE + '</span>';
+    html += '<span>📝 ' + stScore.summary + '/' + STATION_SUMMARY_SCORE + '</span>';
+    html += '<span>🎮 ' + stScore.games + '/' + STATION_GAMES_MAX + '</span>';
     html += '</div>';
     if (stScore.total >= STATION_UNLOCK_THRESHOLD) {
         html += '<div style="color:#00B894;font-size:13px;margin-top:6px"><i class="fas fa-unlock"></i> المحطة الجاية مفتوحة!</div>';

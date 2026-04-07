@@ -15872,3 +15872,662 @@ function getInteractiveGamesForLesson() {
         }
     };
 })();
+
+// ============================================================
+// REWARD SYSTEM REDESIGN
+// ============================================================
+
+// --- XP Level System ---
+var XP_LEVELS = [];
+(function() {
+    var cumulative = 0;
+    for (var i = 1; i <= 50; i++) {
+        var xpNeeded;
+        if (i <= 5) xpNeeded = 100;
+        else if (i <= 15) xpNeeded = 250;
+        else if (i <= 30) xpNeeded = 500;
+        else xpNeeded = 1000;
+        cumulative += xpNeeded;
+        XP_LEVELS.push({ level: i, xpNeeded: xpNeeded, totalXp: cumulative });
+    }
+})();
+
+var LEVEL_PHASES = [
+    { max: 5, name: 'تعلّم', nameEn: 'Learning', color: '#74b9ff' },
+    { max: 15, name: 'نمو', nameEn: 'Growing', color: '#00b894' },
+    { max: 30, name: 'إتقان', nameEn: 'Mastering', color: '#fdcb6e' },
+    { max: 50, name: 'بطل', nameEn: 'Champion', color: '#e17055' }
+];
+
+function getPlayerLevel() {
+    var xp = GameState.xp || 0;
+    var level = 0;
+    for (var i = 0; i < XP_LEVELS.length; i++) {
+        if (xp >= XP_LEVELS[i].totalXp) {
+            level = XP_LEVELS[i].level;
+        } else {
+            break;
+        }
+    }
+    return Math.min(level, 50);
+}
+
+function getXpForNextLevel() {
+    var level = getPlayerLevel();
+    if (level >= 50) return { current: GameState.xp, needed: XP_LEVELS[49].totalXp, progress: 100, xpInLevel: 0, xpNeeded: 0 };
+    var prevTotal = level > 0 ? XP_LEVELS[level - 1].totalXp : 0;
+    var nextTotal = XP_LEVELS[level].totalXp;
+    var xpInLevel = (GameState.xp || 0) - prevTotal;
+    var xpNeeded = nextTotal - prevTotal;
+    return {
+        current: GameState.xp || 0,
+        needed: nextTotal,
+        progress: Math.min(Math.round((xpInLevel / xpNeeded) * 100), 100),
+        xpInLevel: xpInLevel,
+        xpNeeded: xpNeeded
+    };
+}
+
+function getLevelPhase() {
+    var level = getPlayerLevel();
+    for (var i = 0; i < LEVEL_PHASES.length; i++) {
+        if (level <= LEVEL_PHASES[i].max) return LEVEL_PHASES[i];
+    }
+    return LEVEL_PHASES[LEVEL_PHASES.length - 1];
+}
+
+function awardXP(amount, reason) {
+    if (!amount || amount <= 0) return;
+    var oldLevel = getPlayerLevel();
+    GameState.xp = (GameState.xp || 0) + amount;
+    var newLevel = getPlayerLevel();
+
+    showFloatingReward('+' + amount + ' XP');
+
+    if (newLevel > oldLevel) {
+        setTimeout(function() {
+            var phase = getLevelPhase();
+            showAchievement('🎉', 'مستوى ' + newLevel + '!', phase.name + ' — ' + (reason || ''));
+            vibrate([100, 50, 100, 50, 200]);
+            launchConfetti(3000);
+            try {
+                playTone(523, 0.15, 'sine');
+                setTimeout(function() { playTone(659, 0.15, 'sine'); }, 150);
+                setTimeout(function() { playTone(784, 0.15, 'sine'); }, 300);
+                setTimeout(function() { playTone(1047, 0.3, 'sine'); }, 450);
+            } catch(e) {}
+        }, 300);
+    }
+
+    renderXPBar();
+    saveToLocalStorage();
+}
+
+// --- XP Award Hooks ---
+var _origCheckDailyLoginXP = checkDailyLoginXP;
+checkDailyLoginXP = function() {
+    var wasBefore = GameState.dailyLoginDate;
+    _origCheckDailyLoginXP();
+    if (GameState.dailyLoginDate !== wasBefore) {
+        awardXP(15, 'تسجيل يومي');
+    }
+};
+
+var _origSaveMGScore = saveMiniGameScore;
+saveMiniGameScore = function(type, score) {
+    var stationKey = getStationKey();
+    var mgKey = stationKey + '_mg_' + type;
+    var isFirstTime = !(GameState.miniGameScores && GameState.miniGameScores[mgKey]);
+
+    _origSaveMGScore(type, score);
+
+    if (score > 0) {
+        awardXP(25, 'إكمال لعبة');
+    }
+    if (isFirstTime && score > 0) {
+        awardXP(50, 'نوع لعبة جديد');
+    }
+};
+
+// --- XP Bar Renderer ---
+function renderXPBar() {
+    var container = document.getElementById('hub-xp-bar-wrap');
+    if (!container) {
+        var hubHeader = document.querySelector('.hub-header');
+        if (!hubHeader) return;
+        container = document.createElement('div');
+        container.id = 'hub-xp-bar-wrap';
+        container.className = 'xp-bar-wrap';
+        hubHeader.appendChild(container);
+    }
+
+    var level = getPlayerLevel();
+    var info = getXpForNextLevel();
+    var phase = getLevelPhase();
+
+    container.innerHTML =
+        '<div class="xp-bar-header">' +
+            '<div class="xp-level-badge" style="background:' + phase.color + '"><span>' + level + '</span></div>' +
+            '<div class="xp-bar-info">' +
+                '<div class="xp-bar-label">المستوى ' + level + ' — ' + phase.name + '</div>' +
+                '<div class="xp-bar-track">' +
+                    '<div class="xp-bar-fill" style="width:' + info.progress + '%;background:' + phase.color + '"></div>' +
+                '</div>' +
+                '<div class="xp-bar-numbers">' + info.xpInLevel + ' / ' + info.xpNeeded + ' XP</div>' +
+            '</div>' +
+        '</div>';
+}
+
+// --- Mastery Badge System ---
+var MASTERY_TIERS = {
+    bronze: { name: 'تلميذ', icon: '🥉', color: '#cd7f32' },
+    silver: { name: 'دارس', icon: '🥈', color: '#c0c0c0' },
+    gold: { name: 'معلم', icon: '🥇', color: '#ffd700' }
+};
+
+function getLessonMasteryTier(subKey, lessonIdx) {
+    var data = GameState.level2Data && GameState.level2Data[subKey] && GameState.level2Data[subKey]['lesson_' + lessonIdx];
+    var stationKey = subKey + '_' + lessonIdx;
+    var stScore = getStationScore(stationKey);
+    var examData = GameState.level2Data && GameState.level2Data[subKey] && GameState.level2Data[subKey]['exam_' + lessonIdx];
+
+    if (!data && stScore.total === 0) return null;
+
+    var gameTypesPlayed = 0;
+    var allTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters',
+                    'courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
+    allTypes.forEach(function(gt) {
+        var k = stationKey + '_mg_' + gt;
+        if (GameState.miniGameScores && GameState.miniGameScores[k] > 0) gameTypesPlayed++;
+    });
+
+    var quizPct = 0;
+    if (data && data.quizTotal > 0) {
+        quizPct = (data.quizScore || 0) / data.quizTotal * 100;
+    } else if (data && data.stars > 0) {
+        quizPct = Math.min((data.stars / 30) * 100, 100);
+    }
+
+    if (quizPct >= 95 && gameTypesPlayed >= 5 && examData) return 'gold';
+    if (quizPct >= 80 && gameTypesPlayed >= 2) return 'silver';
+    if (stScore.total > 0 || (data && data.stars > 0)) return 'bronze';
+
+    return null;
+}
+
+function getMasteryBadgeHTML(subKey, lessonIdx) {
+    var tier = getLessonMasteryTier(subKey, lessonIdx);
+    if (!tier) return '';
+    var t = MASTERY_TIERS[tier];
+    return '<div class="mastery-badge mastery-' + tier + '" style="--mastery-color:' + t.color + '">' +
+        '<span class="mastery-icon">' + t.icon + '</span>' +
+        '<span class="mastery-label">' + t.name + '</span></div>';
+}
+
+// --- Collectible System ---
+var LESSON_COLLECTIBLES = {
+    faith: [
+        { id: 'trinity_cross', name: 'صليب الثالوث', icon: '✝️', desc: 'رمز الآب والابن والروح القدس' },
+        { id: 'incarnation_star', name: 'نجمة التجسد', icon: '⭐', desc: 'النجم الذي أرشد المجوس' },
+        { id: 'redemption_crown', name: 'إكليل الفداء', icon: '👑', desc: 'إكليل الشوك صار إكليل مجد' },
+        { id: 'salvation_key', name: 'مفتاح الخلاص', icon: '🗝️', desc: 'المسيح فتح لنا باب الملكوت' },
+        { id: 'spirit_dove', name: 'حمامة الروح', icon: '🕊️', desc: 'الروح القدس حل كحمامة' },
+        { id: 'church_lamp', name: 'سراج الكنيسة', icon: '🏛️', desc: 'الكنيسة نور العالم' }
+    ],
+    bible: [
+        { id: 'scroll_mark', name: 'لفافة مرقس', icon: '📜', desc: 'إنجيل مار مرقس' },
+        { id: 'fish_symbol', name: 'رمز السمكة', icon: '🐟', desc: 'إخثيس - يسوع المسيح ابن الله المخلص' },
+        { id: 'bread_life', name: 'خبز الحياة', icon: '🍞', desc: 'أنا هو خبز الحياة' },
+        { id: 'vine_branch', name: 'الكرمة والأغصان', icon: '🍇', desc: 'أنا الكرمة وأنتم الأغصان' },
+        { id: 'mustard_seed', name: 'حبة الخردل', icon: '🌱', desc: 'إيمان صغير يصنع المعجزات' },
+        { id: 'light_world', name: 'نور العالم', icon: '💡', desc: 'أنا هو نور العالم' }
+    ],
+    life: [
+        { id: 'leadership_shield', name: 'درع القيادة', icon: '🛡️', desc: 'القائد يحمي فريقه' },
+        { id: 'service_hands', name: 'يدا الخدمة', icon: '🤲', desc: 'خدمة الآخرين كخدمة المسيح' },
+        { id: 'wisdom_book', name: 'كتاب الحكمة', icon: '📕', desc: 'رأس الحكمة مخافة الرب' },
+        { id: 'teamwork_chain', name: 'سلسلة الوحدة', icon: '🔗', desc: 'الخيط المثلوث لا ينقطع' },
+        { id: 'courage_lion', name: 'أسد الشجاعة', icon: '🦁', desc: 'كن شجاعاً كالأسد' },
+        { id: 'prayer_candle', name: 'شمعة الصلاة', icon: '🕯️', desc: 'صلوا بلا انقطاع' }
+    ],
+    ritual: [
+        { id: 'altar_table', name: 'مذبح القداس', icon: '⛪', desc: 'المذبح قلب الكنيسة' },
+        { id: 'incense_cup', name: 'مجمرة البخور', icon: '🔥', desc: 'لتستقم صلاتي كالبخور' },
+        { id: 'water_baptism', name: 'ماء المعمودية', icon: '💧', desc: 'من آمن واعتمد خلص' },
+        { id: 'oil_myron', name: 'زيت الميرون', icon: '🫒', desc: 'مسحة الروح القدس' },
+        { id: 'bread_wine', name: 'الخبز والخمر', icon: '🍷', desc: 'هذا هو جسدي... هذا هو دمي' },
+        { id: 'icon_image', name: 'الأيقونة المقدسة', icon: '🖼️', desc: 'لاهوت بالألوان' }
+    ]
+};
+
+var SUBJECT_TROPHIES = {
+    faith: { name: 'كأس العقيدة', icon: '🏆', color: '#e74c3c' },
+    bible: { name: 'كأس الكتاب المقدس', icon: '🏆', color: '#3498db' },
+    life: { name: 'كأس المهارات', icon: '🏆', color: '#2ecc71' },
+    ritual: { name: 'كأس الطقس', icon: '🏆', color: '#9b59b6' }
+};
+
+function initCollectibles() {
+    if (!GameState.collectibles) GameState.collectibles = {};
+    if (!GameState.subjectTrophies) GameState.subjectTrophies = [];
+}
+
+function hasCollectible(subKey, lessonIdx) {
+    initCollectibles();
+    var collectible = LESSON_COLLECTIBLES[subKey] && LESSON_COLLECTIBLES[subKey][lessonIdx];
+    if (!collectible) return false;
+    return GameState.collectibles[collectible.id] === true;
+}
+
+function awardCollectible(subKey, lessonIdx) {
+    initCollectibles();
+    var collectible = LESSON_COLLECTIBLES[subKey] && LESSON_COLLECTIBLES[subKey][lessonIdx];
+    if (!collectible) return;
+    if (GameState.collectibles[collectible.id]) return;
+
+    GameState.collectibles[collectible.id] = true;
+
+    showCollectiblePopup(collectible);
+
+    var subCollectibles = LESSON_COLLECTIBLES[subKey] || [];
+    var allCollected = subCollectibles.every(function(c) {
+        return GameState.collectibles[c.id] === true;
+    });
+    if (allCollected && GameState.subjectTrophies.indexOf(subKey) === -1) {
+        GameState.subjectTrophies.push(subKey);
+        setTimeout(function() {
+            var trophy = SUBJECT_TROPHIES[subKey];
+            showAchievement('🏆', trophy.name, 'جمعت كل كنوز ' + LEVEL2_SUBJECTS[subKey].name + '!');
+            launchConfetti(4000);
+            vibrate([100, 50, 100, 50, 100, 50, 300]);
+            awardXP(200, 'كأس المادة');
+        }, 2000);
+
+        if (GameState.subjectTrophies.length >= 4) {
+            setTimeout(function() {
+                showAchievement('👑', 'جائزة الموسم الكبرى!', 'جمعت كل الكؤوس - أنت بطل حقيقي!');
+                GameState.stars = (GameState.stars || 0) + 1000;
+                GameState.gems = (GameState.gems || 0) + 100;
+                awardXP(500, 'جائزة الموسم');
+            }, 5000);
+        }
+    }
+
+    saveToLocalStorage();
+}
+
+function showCollectiblePopup(collectible) {
+    var existing = document.querySelector('.collectible-popup');
+    if (existing) existing.remove();
+
+    var popup = document.createElement('div');
+    popup.className = 'collectible-popup';
+    popup.innerHTML =
+        '<div class="collectible-popup-inner">' +
+            '<div class="collectible-glow"></div>' +
+            '<div class="collectible-icon">' + collectible.icon + '</div>' +
+            '<h3>كنز جديد!</h3>' +
+            '<h4>' + collectible.name + '</h4>' +
+            '<p>' + collectible.desc + '</p>' +
+        '</div>';
+    document.body.appendChild(popup);
+
+    vibrate([50, 30, 50, 30, 50, 30, 200]);
+
+    setTimeout(function() { popup.classList.add('show'); }, 50);
+    setTimeout(function() {
+        popup.classList.remove('show');
+        setTimeout(function() { popup.remove(); }, 600);
+    }, 3500);
+}
+
+// Auto-award collectible when lesson gets bronze mastery
+var _origUpdateStationScore = updateStationScore;
+updateStationScore = function(stationKey, field, newScore) {
+    var result = _origUpdateStationScore(stationKey, field, newScore);
+
+    var parts = stationKey.split('_');
+    if (parts.length === 2) {
+        var subKey = parts[0];
+        var lessonIdx = parseInt(parts[1]);
+        if (!isNaN(lessonIdx) && !hasCollectible(subKey, lessonIdx)) {
+            var tier = getLessonMasteryTier(subKey, lessonIdx);
+            if (tier) {
+                setTimeout(function() {
+                    awardCollectible(subKey, lessonIdx);
+                }, 500);
+            }
+        }
+    }
+
+    return result;
+};
+
+// --- Museum Screen ---
+function renderMuseum() {
+    var container = document.getElementById('museum-body');
+    if (!container) return;
+    initCollectibles();
+
+    var html = '';
+
+    html += '<div class="museum-trophies">';
+    html += '<h3><i class="fas fa-trophy"></i> الكؤوس</h3>';
+    html += '<div class="museum-trophy-grid">';
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var trophy = SUBJECT_TROPHIES[subKey];
+        var earned = GameState.subjectTrophies && GameState.subjectTrophies.indexOf(subKey) !== -1;
+        html += '<div class="museum-trophy-card' + (earned ? ' earned' : ' locked') + '" style="--trophy-color:' + trophy.color + '">';
+        html += '<div class="museum-trophy-icon">' + (earned ? trophy.icon : '🔒') + '</div>';
+        html += '<div class="museum-trophy-name">' + trophy.name + '</div>';
+        html += '</div>';
+    });
+    html += '</div></div>';
+
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var subData = LEVEL2_SUBJECTS[subKey];
+        if (!subData) return;
+        var collectibles = LESSON_COLLECTIBLES[subKey] || [];
+        var collected = collectibles.filter(function(c) { return GameState.collectibles[c.id]; }).length;
+
+        html += '<div class="museum-subject">';
+        html += '<h3>' + subData.icon + ' ' + subData.name + ' <span class="museum-count">' + collected + '/' + collectibles.length + '</span></h3>';
+        html += '<div class="museum-grid">';
+        collectibles.forEach(function(c) {
+            var earned = GameState.collectibles[c.id] === true;
+            html += '<div class="museum-item' + (earned ? ' earned' : ' locked') + '">';
+            html += '<div class="museum-item-icon">' + (earned ? c.icon : '❓') + '</div>';
+            html += '<div class="museum-item-name">' + (earned ? c.name : '???') + '</div>';
+            if (earned) html += '<div class="museum-item-desc">' + c.desc + '</div>';
+            html += '</div>';
+        });
+        html += '</div></div>';
+    });
+
+    container.innerHTML = html;
+}
+
+// --- Enhanced Streak Rewards ---
+var STREAK_REWARDS = [
+    { days: 3, stars: 50, title: null, frame: null, desc: '+50 نجمة' },
+    { days: 7, stars: 100, title: 'مثابر', frame: 'streak7', desc: 'لقب مثابر + إطار جديد' },
+    { days: 14, stars: 200, title: null, frame: null, characterSkin: true, desc: 'شكل شخصية حصري' },
+    { days: 30, stars: 500, title: 'بطل الالتزام', frame: 'streak30', desc: 'لقب بطل الالتزام + 500 نجمة' },
+    { days: 60, stars: 300, title: null, frame: 'legendary', mapTheme: 'golden', desc: 'إطار أسطوري + خريطة ذهبية' },
+    { days: 100, stars: 1000, title: 'أسد الإيمان', frame: 'lion', exclusiveCharacter: true, desc: 'لقب أسد الإيمان + شخصية حصرية' }
+];
+
+function checkStreakRewards() {
+    var streak = GameState.loginStreak || 0;
+    if (!GameState.claimedStreakRewards) GameState.claimedStreakRewards = [];
+
+    STREAK_REWARDS.forEach(function(reward) {
+        var rewardKey = 'streak' + reward.days;
+        if (streak >= reward.days && GameState.claimedStreakRewards.indexOf(rewardKey) === -1) {
+            GameState.claimedStreakRewards.push(rewardKey);
+            GameState.stars = (GameState.stars || 0) + reward.stars;
+
+            if (reward.title) {
+                if (!GameState.ownedTitles) GameState.ownedTitles = [];
+                if (GameState.ownedTitles.indexOf(reward.title) === -1) {
+                    GameState.ownedTitles.push(reward.title);
+                }
+            }
+            if (reward.frame) {
+                if (!GameState.ownedFrames) GameState.ownedFrames = [];
+                if (GameState.ownedFrames.indexOf(reward.frame) === -1) {
+                    GameState.ownedFrames.push(reward.frame);
+                }
+            }
+            if (reward.mapTheme) {
+                GameState.mapTheme = reward.mapTheme;
+            }
+
+            showAchievement('🔥', reward.days + ' يوم متواصل!', reward.desc);
+            awardXP(reward.days * 2, 'مكافأة التزام');
+            saveToLocalStorage();
+        }
+    });
+}
+
+var _origCheckDailyLogin2 = checkDailyLoginXP;
+checkDailyLoginXP = function() {
+    _origCheckDailyLogin2();
+    checkStreakRewards();
+};
+
+// --- Faith Points (new currency) ---
+function initFaithPoints() {
+    if (typeof GameState.faithPoints === 'undefined') GameState.faithPoints = 0;
+}
+
+function awardFaithPoints(amount, reason) {
+    initFaithPoints();
+    GameState.faithPoints = (GameState.faithPoints || 0) + amount;
+    showFloatingReward('+' + amount + ' ⛪');
+    showToast(reason + ' — +' + amount + ' نقاط إيمان', 'success');
+    saveToLocalStorage();
+}
+
+// --- Progress Dashboard ---
+function renderProgressDashboard() {
+    var container = document.getElementById('progress-dashboard-body');
+    if (!container) return;
+
+    var level = getPlayerLevel();
+    var xpInfo = getXpForNextLevel();
+    var phase = getLevelPhase();
+    var streak = GameState.loginStreak || 0;
+    initCollectibles();
+    initFaithPoints();
+
+    var html = '';
+
+    html += '<div class="pd-level-section">';
+    html += '<div class="pd-level-circle" style="--phase-color:' + phase.color + '">';
+    html += '<div class="pd-level-number">' + level + '</div>';
+    html += '<div class="pd-level-phase">' + phase.name + '</div>';
+    html += '</div>';
+    html += '<div class="pd-level-info">';
+    html += '<div class="pd-xp-bar"><div class="pd-xp-fill" style="width:' + xpInfo.progress + '%;background:' + phase.color + '"></div></div>';
+    html += '<div class="pd-xp-text">' + (GameState.xp || 0) + ' XP — المستوى ' + level + '</div>';
+    html += '</div></div>';
+
+    html += '<div class="pd-stats-grid">';
+    html += '<div class="pd-stat-card"><div class="pd-stat-icon">🔥</div><div class="pd-stat-value">' + streak + '</div><div class="pd-stat-label">يوم متواصل</div></div>';
+    html += '<div class="pd-stat-card"><div class="pd-stat-icon">⭐</div><div class="pd-stat-value">' + (GameState.stars || 0) + '</div><div class="pd-stat-label">نجوم</div></div>';
+    html += '<div class="pd-stat-card"><div class="pd-stat-icon">💎</div><div class="pd-stat-value">' + (GameState.gems || 0) + '</div><div class="pd-stat-label">جواهر</div></div>';
+    html += '<div class="pd-stat-card"><div class="pd-stat-icon">⛪</div><div class="pd-stat-value">' + (GameState.faithPoints || 0) + '</div><div class="pd-stat-label">نقاط إيمان</div></div>';
+    html += '</div>';
+
+    html += '<div class="pd-subjects">';
+    html += '<h3><i class="fas fa-chart-bar"></i> تقدم المواد</h3>';
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var subData = LEVEL2_SUBJECTS[subKey];
+        if (!subData) return;
+        var totalLessons = subData.lessons ? subData.lessons.length : 6;
+        var completedLessons = 0;
+        var totalMastery = 0;
+
+        for (var i = 0; i < totalLessons; i++) {
+            var tier = getLessonMasteryTier(subKey, i);
+            if (tier) completedLessons++;
+            if (tier === 'gold') totalMastery += 3;
+            else if (tier === 'silver') totalMastery += 2;
+            else if (tier === 'bronze') totalMastery += 1;
+        }
+
+        var pct = Math.round((completedLessons / totalLessons) * 100);
+
+        html += '<div class="pd-subject-row">';
+        html += '<div class="pd-subject-label">' + subData.icon + ' ' + subData.name + '</div>';
+        html += '<div class="pd-subject-bar"><div class="pd-subject-fill" style="width:' + pct + '%;background:' + subData.color + '"></div></div>';
+        html += '<div class="pd-subject-pct">' + pct + '%</div>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    html += '<div class="pd-badges">';
+    html += '<h3><i class="fas fa-medal"></i> شارات الإتقان</h3>';
+    html += '<div class="pd-badge-grid">';
+    var totalBadges = 0;
+    var goldBadges = 0;
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var subData = LEVEL2_SUBJECTS[subKey];
+        if (!subData) return;
+        var totalLessons = subData.lessons ? subData.lessons.length : 6;
+        for (var i = 0; i < totalLessons; i++) {
+            var tier = getLessonMasteryTier(subKey, i);
+            if (tier) {
+                totalBadges++;
+                if (tier === 'gold') goldBadges++;
+                var t = MASTERY_TIERS[tier];
+                html += '<div class="pd-badge mastery-' + tier + '">';
+                html += '<div class="pd-badge-icon">' + t.icon + '</div>';
+                html += '<div class="pd-badge-name">' + (subData.lessons[i] ? subData.lessons[i].name : 'درس ' + (i+1)) + '</div>';
+                html += '</div>';
+            }
+        }
+    });
+    if (totalBadges === 0) {
+        html += '<div class="pd-empty">لسه ما جمعتش شارات — العب وتحدى نفسك! 🎮</div>';
+    }
+    html += '</div>';
+    html += '<div class="pd-badge-summary">' + totalBadges + ' شارة — ' + goldBadges + ' ذهبية</div>';
+    html += '</div>';
+
+    var totalCollectibles = 0;
+    var earnedCollectibles = 0;
+    ['faith', 'bible', 'life', 'ritual'].forEach(function(subKey) {
+        var coll = LESSON_COLLECTIBLES[subKey] || [];
+        totalCollectibles += coll.length;
+        coll.forEach(function(c) {
+            if (GameState.collectibles[c.id]) earnedCollectibles++;
+        });
+    });
+    html += '<div class="pd-collectibles-summary">';
+    html += '<h3><i class="fas fa-gem"></i> كنوز الإيمان</h3>';
+    html += '<div class="pd-collect-bar"><div class="pd-collect-fill" style="width:' + (totalCollectibles > 0 ? Math.round(earnedCollectibles/totalCollectibles*100) : 0) + '%"></div></div>';
+    html += '<div class="pd-collect-text">' + earnedCollectibles + '/' + totalCollectibles + ' كنز</div>';
+    html += '<button class="btn btn-secondary btn-sm" onclick="showScreen(\'museum-screen\')"><span><i class="fas fa-landmark"></i> افتح المتحف</span></button>';
+    html += '</div>';
+
+    html += '<div class="pd-streaks">';
+    html += '<h3><i class="fas fa-fire"></i> إنجازات الالتزام</h3>';
+    html += '<div class="pd-streak-grid">';
+    STREAK_REWARDS.forEach(function(sr) {
+        var claimed = GameState.claimedStreakRewards && GameState.claimedStreakRewards.indexOf('streak' + sr.days) !== -1;
+        var reachable = streak >= sr.days;
+        html += '<div class="pd-streak-item' + (claimed ? ' claimed' : (reachable ? ' reachable' : '')) + '">';
+        html += '<div class="pd-streak-days">' + sr.days + '</div>';
+        html += '<div class="pd-streak-desc">' + sr.desc + '</div>';
+        if (claimed) html += '<div class="pd-streak-check">✅</div>';
+        html += '</div>';
+    });
+    html += '</div></div>';
+
+    container.innerHTML = html;
+}
+
+// --- Enhanced Haptic Feedback ---
+function vibrateCorrect() { vibrate(50); }
+function vibrateWrong() { vibrate([50, 30, 50]); }
+function vibrateLevelComplete() { vibrate([100, 50, 100, 50, 200]); }
+function vibrateAchievement() { vibrate([50, 30, 50, 30, 50, 30, 200]); }
+function vibrateDragStart() { vibrate(20); }
+function vibrateDrop() { vibrate([30, 20, 30]); }
+
+// --- Context-Aware Screen Transitions ---
+var _origShowScreen = showScreen;
+showScreen = function(id) {
+    var prevScreen = document.querySelector('.screen.active');
+    var prevId = prevScreen ? prevScreen.id : '';
+
+    var transitionClass = 'screen-transition-default';
+    if (id === 'level2-lesson-screen' || id === 'level2-map-screen') {
+        transitionClass = 'screen-transition-book';
+    } else if (id === 'compete-screen' || id === 'compete-lobby-screen' || id === 'compete-game-screen') {
+        transitionClass = 'screen-transition-arena';
+    } else if (id === 'bible-reading-screen' || id === 'devotion-screen' || id === 'exercises-screen') {
+        transitionClass = 'screen-transition-spiritual';
+    } else if (id === 'museum-screen') {
+        transitionClass = 'screen-transition-museum';
+    } else if (id === 'progress-dashboard-screen') {
+        transitionClass = 'screen-transition-dashboard';
+    }
+
+    _origShowScreen(id);
+
+    var newScreen = document.getElementById(id);
+    if (newScreen) {
+        newScreen.classList.add(transitionClass);
+        setTimeout(function() {
+            newScreen.classList.remove(transitionClass);
+        }, 600);
+    }
+
+    if (id === 'museum-screen') renderMuseum();
+    if (id === 'progress-dashboard-screen') renderProgressDashboard();
+
+    try { playNavigateSound(); } catch(e) {}
+};
+
+// --- Character State System ---
+var CHARACTER_STATES = {
+    idle: 'char-state-idle',
+    thinking: 'char-state-thinking',
+    celebrating: 'char-state-celebrating',
+    encouraging: 'char-state-encouraging',
+    battle: 'char-state-battle'
+};
+
+function setCharacterState(state) {
+    var avatars = document.querySelectorAll('.hub-avatar-wrap, .avatar-img, .char-avatar');
+    avatars.forEach(function(el) {
+        Object.values(CHARACTER_STATES).forEach(function(cls) {
+            el.classList.remove(cls);
+        });
+        if (CHARACTER_STATES[state]) {
+            el.classList.add(CHARACTER_STATES[state]);
+        }
+    });
+}
+
+var _origRenderHomeHub = renderHomeHub;
+renderHomeHub = function() {
+    _origRenderHomeHub();
+    setCharacterState('idle');
+    renderXPBar();
+};
+
+// --- Hook quiz answers for XP ---
+var _origShowAnswerFeedback = showAnswerFeedback;
+showAnswerFeedback = function(isCorrect) {
+    _origShowAnswerFeedback(isCorrect);
+    if (isCorrect) {
+        awardXP(10, 'إجابة صحيحة');
+        vibrateCorrect();
+    } else {
+        vibrateWrong();
+    }
+    setCharacterState(isCorrect ? 'celebrating' : 'encouraging');
+    setTimeout(function() { setCharacterState('idle'); }, 1500);
+};
+
+// --- Hook exam completion for XP ---
+var _origRenderLevel2Result = renderLevel2Result;
+if (typeof renderLevel2Result === 'function') {
+    renderLevel2Result = function(container, lesson, subject) {
+        _origRenderLevel2Result(container, lesson, subject);
+        if (level2State.examMode) {
+            awardXP(200, 'اجتياز الامتحان');
+            vibrateLevelComplete();
+        } else {
+            var quizScore = level2State.quizScore || 0;
+            var quizTotal = level2State.quizTotal || 20;
+            if (quizScore === quizTotal) {
+                awardXP(100, 'درس مثالي');
+            }
+        }
+    };
+}

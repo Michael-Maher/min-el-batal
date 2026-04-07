@@ -7801,15 +7801,15 @@ function usePowerUp(type) {
 // --- Level 2 Map Render ---
 // Node positions on the faith map image (% from top-left)
 // Mapped to the numbered stations in level2-full-bg.png
-// Center coordinates (%) matching numbered markers in level2-map-new-opt.jpg
+// Center coordinates (%) — pixel-perfect from red circle markers on level2-map-new.png
 // Using transform:translate(-50%,-50%) on nodes so these are exact centers
 var FAITH_MAP_POSITIONS = [
-    { left: 12, top: 42 },  // 1. الثالوث القدوس  — upper-left sun/trinity marker
-    { left: 16, top: 70 },  // 2. التجسد          — lower-left manger scene
-    { left: 38, top: 74 },  // 3. الفداء           — center-bottom cross
-    { left: 53, top: 22 },  // 4. المجيء الثاني    — upper-center clouds/Jesus
-    { left: 67, top: 63 },  // 5. المعمودية والميرون — right-center baptism
-    { left: 84, top: 52 }   // 6. التوبة والاعتراف  — far-right bishop scene
+    { left: 12.3, top: 37.5 },  // 1. الثالوث القدوس
+    { left: 20.7, top: 53.0 },  // 2. التجسد
+    { left: 42.6, top: 71.1 },  // 3. الفداء
+    { left: 58.1, top: 50.1 },  // 4. المجيء الثاني
+    { left: 72.7, top: 86.2 },  // 5. المعمودية والميرون
+    { left: 90.4, top: 86.2 }   // 6. التوبة والاعتراف
 ];
 
 function renderLevel2Map() {

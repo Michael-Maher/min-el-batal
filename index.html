@@ -257,19 +257,6 @@
                     </div>
                 </div>
 
-                <!-- Boss Battle -->
-                <div class="hub-card hub-card-active" onclick="openBossBattle()">
-                    <div class="hub-card-bg" style="background: linear-gradient(135deg, #3d0000 0%, #7b0000 50%, #c0392b 100%);">
-                        <div class="hub-card-overlay hub-card-overlay-light"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon" style="font-size:36px">⚔️</div>
-                            <h3>معركة الإيمان</h3>
-                            <p>هاجم العدو مع الجميع</p>
-                            <div class="hub-card-tag hub-tag-active">أسبوعي</div>
-                        </div>
-                        <div class="hub-card-shine"></div>
-                    </div>
-                </div>
             </div>
 
             <div class="hub-footer-btns">
@@ -1279,7 +1266,7 @@
             <div class="settings-section" id="settings-install-section">
                 <h3><i class="fas fa-mobile-screen-button"></i> تحميل التطبيق</h3>
                 <p style="color:var(--text-secondary);font-size:13px;margin:0 0 12px">حمّل اللعبة كتطبيق على موبايلك</p>
-                <button class="btn btn-primary" onclick="showInstallModal()" id="settings-install-btn" style="width:100%;margin-bottom:8px">
+                <button class="btn btn-primary" onclick="settingsInstallClick()" id="settings-install-btn" style="width:100%;margin-bottom:8px">
                     <span><i class="fas fa-download"></i> حمّل التطبيق</span>
                 </button>
                 <button class="btn btn-secondary" onclick="resetInstallPrompt()" id="settings-reset-install" style="width:100%;display:none">

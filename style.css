@@ -151,11 +151,19 @@ body {
 }
 
 /* ============ SCREENS ============ */
-.screen { display: none; min-height: 100vh; position: relative; z-index: 1; padding: 20px; animation: screenEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+.screen { display: none; min-height: 100vh; position: relative; z-index: 1; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); animation: screenEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes screenEnter { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .screen-inner { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px 0; }
+/* Bottom action buttons: auto-width, centered, not stretched */
+.screen-inner > .btn:last-child,
+.screen-inner > .btn:last-of-type {
+    display: block;
+    width: fit-content;
+    min-width: 140px;
+    margin: 16px auto 0;
+}
 
 /* ============ SPLASH ============ */
 .splash-content { text-align: center; max-width: 600px; }
@@ -1733,21 +1741,30 @@ body {
 }
 .hub-player-info {
     flex: 1;
+    min-width: 0;
+    overflow: hidden;
 }
 .hub-player-info h3 {
     font-size: 16px;
     font-weight: 800;
     color: var(--text-primary);
     margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .hub-rank {
     font-size: 12px;
     color: var(--text-secondary);
     margin: 2px 0 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 .hub-stats {
     display: flex;
     gap: 10px;
+    flex-shrink: 0;
 }
 .hub-title {
     text-align: center;
@@ -1906,8 +1923,10 @@ body {
 .hub-footer-btns {
     display: flex;
     justify-content: center;
-    gap: 16px;
+    flex-wrap: wrap;
+    gap: 12px;
     margin-top: 28px;
+    padding-bottom: env(safe-area-inset-bottom, 16px);
 }
 .hub-footer-btns .fab {
     width: 52px;
@@ -1920,6 +1939,7 @@ body {
     color: var(--text-primary);
     border: 1px solid var(--border);
     transition: all 0.3s;
+    flex-shrink: 0;
 }
 .hub-footer-btns .fab:hover {
     background: var(--primary);
@@ -10447,4 +10467,64 @@ body {
     .museum-card-visual { height: 80px; }
     .museum-card-fa { font-size: 32px; }
     .museum-header-card { flex-direction: column; text-align: center; }
+}
+
+/* ============================================================
+   MOBILE RESPONSIVE — hub info card + footer FABs
+   ============================================================ */
+@media (max-width: 420px) {
+    /* Shrink hub player row on tiny screens */
+    .hub-player-row {
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    .hub-avatar-wrap {
+        width: 42px;
+        height: 42px;
+    }
+    .hub-player-info h3 {
+        font-size: 14px;
+    }
+    .hub-rank {
+        font-size: 11px;
+    }
+    .hub-stats .stat {
+        font-size: 13px;
+        gap: 4px;
+    }
+    .stat-icon {
+        font-size: 15px;
+    }
+    /* Footer FABs: slightly smaller so all 6 fit in one row */
+    .hub-footer-btns {
+        gap: 8px;
+    }
+    .hub-footer-btns .fab {
+        width: 44px;
+        height: 44px;
+        font-size: 17px;
+    }
+}
+@media (max-width: 360px) {
+    .hub-footer-btns .fab {
+        width: 40px;
+        height: 40px;
+        font-size: 15px;
+    }
+    .hub-footer-btns {
+        gap: 6px;
+    }
+}
+
+/* Screen bottom buttons — consistent sizing, never stretched */
+.screen-inner > .btn {
+    align-self: center;
+}
+.screen-inner > .btn-secondary:last-child,
+.screen-inner > .btn-danger {
+    width: auto;
+    min-width: 160px;
+    display: inline-flex;
+    margin-left: auto;
+    margin-right: auto;
 }

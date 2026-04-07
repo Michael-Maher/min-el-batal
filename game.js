@@ -13935,6 +13935,66 @@ function removeInstallFAB() {
     if (fab) fab.remove();
 }
 
+// Settings: download button click — handles Android/iOS/fallback
+function settingsInstallClick() {
+    var isInstalled = window.matchMedia('(display-mode: standalone)').matches;
+    if (isInstalled) {
+        showToast('التطبيق محمّل فعلاً على موبايلك ✅', 'success');
+        return;
+    }
+
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+    if (deferredInstallPrompt) {
+        // Android/Chrome — trigger native install
+        removeInstallModal();
+        deferredInstallPrompt.prompt();
+        deferredInstallPrompt.userChoice.then(function(result) {
+            if (result.outcome === 'accepted') {
+                showToast('تم تثبيت التطبيق! 🎉', 'success');
+                showAchievement('📱', 'تم التحميل!', 'حمّلت مين البطل على موبايلك');
+                removeInstallFAB();
+                var btn = document.getElementById('settings-install-btn');
+                if (btn) btn.style.display = 'none';
+            }
+            deferredInstallPrompt = null;
+        });
+        return;
+    }
+
+    if (isIOS) {
+        // iOS instructions overlay
+        var overlay = document.createElement('div');
+        overlay.id = 'install-modal-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:10000;display:flex;align-items:flex-end;justify-content:center;padding:0;font-family:Cairo,sans-serif;direction:rtl;animation:fadeIn 0.2s ease';
+        overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+        overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:500px;text-align:center;box-shadow:0 -10px 40px rgba(0,0,0,0.4)">' +
+            '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>' +
+            '<img src="images/Logo-192.png" style="width:56px;height:56px;border-radius:14px;margin-bottom:12px">' +
+            '<h3 style="color:var(--text-primary);margin:0 0 6px;font-size:18px">حمّل مين البطل على iPhone</h3>' +
+            '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 20px;line-height:1.8">اتبع الخطوات دي:</p>' +
+            '<div style="text-align:right;background:var(--bg-dark);border-radius:14px;padding:16px;margin-bottom:20px">' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;color:var(--text-primary);font-size:13px">' +
+            '<span style="background:var(--primary);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">1</span>' +
+            '<span>اضغط على زرار المشاركة <i class="fas fa-arrow-up-from-bracket" style="color:var(--primary)"></i> في أسفل Safari</span></div>' +
+            '<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;color:var(--text-primary);font-size:13px">' +
+            '<span style="background:var(--primary);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">2</span>' +
+            '<span>اختار <strong>"Add to Home Screen"</strong></span></div>' +
+            '<div style="display:flex;align-items:center;gap:10px;color:var(--text-primary);font-size:13px">' +
+            '<span style="background:var(--primary);color:#fff;border-radius:50%;width:24px;height:24px;display:flex;align-items:center;justify-content:center;font-weight:800;flex-shrink:0">3</span>' +
+            '<span>اضغط <strong>"Add"</strong> وهيتحمل على الشاشة الرئيسية 🎉</span></div>' +
+            '</div>' +
+            '<button onclick="document.getElementById(\'install-modal-overlay\').remove()" style="width:100%;background:var(--primary);color:#fff;border:none;border-radius:14px;padding:14px;font-family:Cairo;font-weight:700;font-size:15px;cursor:pointer">' +
+            'فهمت! <i class="fas fa-check"></i></button>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        return;
+    }
+
+    // Fallback (Chrome but prompt already used / expired)
+    showInstallModal();
+}
+
 // Settings: re-enable install button
 function resetInstallPrompt() {
     localStorage.removeItem('minElBatal_installHidden');

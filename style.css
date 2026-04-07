@@ -8829,3 +8829,766 @@ body {
     background: rgba(0,206,201,0.05);
     margin-bottom: 12px;
 }
+
+/* ============================================================
+   NEW INTERACTIVE GAMES STYLES
+   ============================================================ */
+
+/* --- Card colors for new game types --- */
+.mg-court .mg-card-icon { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+.mg-creed .mg-card-icon { background: rgba(52, 152, 219, 0.15); color: #3498db; }
+.mg-council .mg-card-icon { background: rgba(155, 89, 182, 0.15); color: #9b59b6; }
+.mg-detective .mg-card-icon { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
+.mg-balance .mg-card-icon { background: rgba(46, 204, 113, 0.15); color: #2ecc71; }
+.mg-characters .mg-card-icon { background: rgba(230, 126, 34, 0.15); color: #e67e22; }
+
+.mg-court { border-color: rgba(231, 76, 60, 0.2); }
+.mg-creed { border-color: rgba(52, 152, 219, 0.2); }
+.mg-council { border-color: rgba(155, 89, 182, 0.2); }
+.mg-detective { border-color: rgba(241, 196, 15, 0.2); }
+.mg-balance { border-color: rgba(46, 204, 113, 0.2); }
+.mg-characters { border-color: rgba(230, 126, 34, 0.2); }
+
+.interactive-games-grid {
+    gap: 10px;
+}
+
+/* ========================
+   COURT OF FAITH STYLES
+   ======================== */
+.court-game { padding: 0; }
+
+.court-intro {
+    text-align: center;
+    padding: 16px;
+}
+
+.court-vs {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 16px;
+}
+
+.court-person {
+    text-align: center;
+}
+
+.court-avatar {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    margin: 0 auto 6px;
+}
+
+.court-heretic .court-avatar {
+    background: rgba(231, 76, 60, 0.2);
+    color: #e74c3c;
+    border: 2px solid rgba(231, 76, 60, 0.3);
+}
+
+.court-defender .court-avatar {
+    background: rgba(46, 204, 113, 0.2);
+    color: #2ecc71;
+    border: 2px solid rgba(46, 204, 113, 0.3);
+}
+
+.court-person h4 { font-size: 14px; margin: 0 0 2px; color: var(--text-primary); }
+.court-person p { font-size: 11px; color: var(--text-muted); margin: 0; }
+
+.court-versus {
+    font-size: 28px;
+    animation: pulse 1.5s infinite;
+}
+
+.court-intro-text {
+    font-size: 14px;
+    color: var(--text-secondary);
+    line-height: 1.7;
+    margin-bottom: 16px;
+    background: rgba(108, 92, 231, 0.08);
+    padding: 12px 16px;
+    border-radius: 12px;
+}
+
+.court-start-btn { margin-top: 8px; }
+
+/* Court round */
+.court-round { padding: 8px 0; }
+
+.court-faith-meter {
+    margin-bottom: 14px;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 12px;
+}
+
+.court-faith-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    text-align: center;
+}
+
+.court-faith-bar {
+    height: 10px;
+    background: rgba(231, 76, 60, 0.2);
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.court-faith-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e74c3c, #f39c12, #2ecc71);
+    border-radius: 5px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.court-faith-ends {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.court-claim {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background: rgba(231, 76, 60, 0.1);
+    border: 1px solid rgba(231, 76, 60, 0.2);
+    border-radius: 12px;
+    padding: 12px;
+    margin-bottom: 14px;
+}
+
+.court-claim-icon {
+    font-size: 20px;
+    color: #e74c3c;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.court-claim-text {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.court-claim-text strong {
+    color: #e74c3c;
+}
+
+.court-evidence-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gold);
+    margin-bottom: 10px;
+}
+
+.court-evidence-title i { margin-left: 4px; }
+
+.court-evidence-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.court-evidence-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    cursor: pointer;
+    transition: all 0.25s;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+.court-evidence-card i {
+    flex-shrink: 0;
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 14px;
+}
+
+.court-evidence-card:active { transform: scale(0.98); }
+.court-evidence-card.selected {
+    border-color: var(--primary);
+    background: rgba(108, 92, 231, 0.15);
+    box-shadow: 0 0 12px rgba(108, 92, 231, 0.2);
+}
+.court-evidence-card.selected i { color: var(--primary); }
+
+.court-evidence-card.court-correct {
+    border-color: var(--success);
+    background: rgba(0, 184, 148, 0.15);
+}
+.court-evidence-card.court-correct i { color: var(--success); }
+
+.court-evidence-card.court-wrong {
+    border-color: var(--danger);
+    background: rgba(255, 107, 107, 0.15);
+}
+.court-evidence-card.court-wrong i { color: var(--danger); }
+
+.court-evidence-card.court-missed {
+    border-color: var(--gold);
+    background: rgba(255, 215, 0, 0.08);
+    opacity: 0.7;
+}
+
+.court-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.court-explanation {
+    background: rgba(46, 204, 113, 0.1);
+    border: 1px solid rgba(46, 204, 113, 0.2);
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+}
+
+.court-explanation i {
+    color: var(--gold);
+    margin-left: 4px;
+}
+
+/* ========================
+   CREED BUILDER STYLES
+   ======================== */
+.creed-game { padding: 8px 0; }
+
+.creed-title {
+    text-align: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--primary);
+    margin-bottom: 10px;
+}
+
+.creed-title i { margin-left: 6px; }
+
+.creed-timer { margin-bottom: 10px; }
+
+.creed-building {
+    margin-bottom: 14px;
+    background: rgba(108, 92, 231, 0.05);
+    border: 1.5px dashed rgba(108, 92, 231, 0.2);
+    border-radius: 14px;
+    padding: 10px;
+}
+
+.creed-building-label {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.creed-building-label i { margin-left: 4px; }
+
+.creed-slot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    margin-bottom: 4px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.03);
+    border: 1px dashed rgba(255,255,255,0.08);
+    min-height: 36px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.creed-slot.filled {
+    border-style: solid;
+    border-color: rgba(108, 92, 231, 0.3);
+    background: rgba(108, 92, 231, 0.08);
+}
+
+.creed-slot:active { transform: scale(0.98); }
+
+.creed-slot-num {
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    flex-shrink: 0;
+}
+
+.creed-slot-text {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.creed-slot.creed-correct {
+    border-color: var(--success);
+    background: rgba(0, 184, 148, 0.15);
+}
+.creed-slot.creed-correct .creed-slot-num {
+    background: var(--success);
+    color: white;
+}
+
+.creed-slot.creed-wrong {
+    border-color: var(--danger);
+    background: rgba(255, 107, 107, 0.1);
+}
+.creed-slot.creed-wrong .creed-slot-num {
+    background: var(--danger);
+    color: white;
+}
+
+.creed-blocks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: center;
+}
+
+.creed-block {
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.creed-block:active { transform: scale(0.95); }
+.creed-block.used {
+    opacity: 0.3;
+    pointer-events: none;
+    text-decoration: line-through;
+}
+
+/* ========================
+   COUNCIL JOURNEY STYLES
+   ======================== */
+.council-game { padding: 0; }
+
+.council-scene {
+    padding: 8px 0;
+}
+
+.council-character {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, rgba(108, 92, 231, 0.3), rgba(0, 206, 201, 0.3));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--primary);
+    margin: 0 auto 12px;
+    border: 2px solid rgba(108, 92, 231, 0.3);
+}
+
+.council-text {
+    font-size: 14px;
+    line-height: 1.8;
+    color: var(--text-primary);
+    background: rgba(255,255,255,0.04);
+    padding: 14px;
+    border-radius: 12px;
+    margin-bottom: 14px;
+    border-right: 3px solid var(--primary);
+}
+
+.council-choices {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.council-choice-btn {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(108, 92, 231, 0.08);
+    border: 1.5px solid rgba(108, 92, 231, 0.2);
+    color: var(--text-primary);
+    font-size: 13px;
+    line-height: 1.6;
+    text-align: right;
+    cursor: pointer;
+    transition: all 0.25s;
+    font-family: 'Cairo', sans-serif;
+}
+
+.council-choice-btn:active {
+    transform: scale(0.97);
+    background: rgba(108, 92, 231, 0.2);
+}
+
+.council-ending {
+    margin-top: 16px;
+    text-align: center;
+}
+
+/* ========================
+   DETECTIVE STYLES
+   ======================== */
+.detective-game { padding: 4px 0; }
+
+.detective-setting {
+    text-align: center;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(241, 196, 15, 0.08), rgba(243, 156, 18, 0.08));
+    border-radius: 14px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(241, 196, 15, 0.15);
+}
+
+.detective-setting-icon {
+    font-size: 24px;
+    color: #f1c40f;
+    margin-bottom: 6px;
+}
+
+.detective-setting h4 {
+    font-size: 16px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.detective-points {
+    text-align: center;
+    font-size: 13px;
+    color: var(--gold);
+    margin-bottom: 12px;
+    padding: 6px 12px;
+    background: rgba(255, 215, 0, 0.08);
+    border-radius: 20px;
+    display: inline-block;
+    margin-left: auto;
+    margin-right: auto;
+    width: fit-content;
+}
+
+.detective-points i { margin-left: 4px; }
+
+.detective-objects {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.detective-object {
+    padding: 14px 10px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    border: 1.5px solid rgba(255,255,255,0.1);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.detective-object:active { transform: scale(0.95); }
+.detective-object.investigated {
+    border-color: rgba(241, 196, 15, 0.4);
+    background: rgba(241, 196, 15, 0.08);
+}
+
+.detective-obj-icon {
+    font-size: 24px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+    transition: color 0.3s;
+}
+
+.detective-object.investigated .detective-obj-icon {
+    color: #f1c40f;
+}
+
+.detective-obj-name {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.detective-obj-clue {
+    font-size: 11px;
+    color: var(--gold);
+    line-height: 1.5;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    animation: fadeIn 0.4s;
+}
+
+.detective-guess {
+    padding: 14px;
+    background: rgba(108, 92, 231, 0.06);
+    border-radius: 14px;
+    border: 1px solid rgba(108, 92, 231, 0.15);
+    animation: slideUp 0.4s;
+}
+
+.detective-guess-label {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 10px;
+}
+
+.detective-guess-label i { margin-left: 4px; }
+
+.detective-input {
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    color: var(--text-primary);
+    font-size: 14px;
+    font-family: 'Cairo', sans-serif;
+    margin-bottom: 10px;
+    text-align: right;
+    direction: rtl;
+    box-sizing: border-box;
+}
+
+.detective-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 12px rgba(108, 92, 231, 0.15);
+}
+
+.detective-hint {
+    font-size: 12px;
+    color: var(--gold);
+    background: rgba(255, 215, 0, 0.08);
+    padding: 8px 12px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    animation: fadeIn 0.4s;
+}
+
+.detective-hint i { margin-left: 4px; }
+
+.detective-guess-btns {
+    display: flex;
+    gap: 8px;
+}
+
+.detective-guess-btns .btn { flex: 1; }
+
+.detective-result {
+    text-align: center;
+    padding: 16px;
+    border-radius: 12px;
+    animation: scaleIn 0.3s;
+}
+
+.detective-result.correct {
+    background: rgba(0, 184, 148, 0.12);
+    border: 1px solid rgba(0, 184, 148, 0.2);
+}
+
+.detective-result.wrong {
+    background: rgba(255, 107, 107, 0.12);
+    border: 1px solid rgba(255, 107, 107, 0.2);
+}
+
+.detective-result-icon {
+    font-size: 36px;
+    margin-bottom: 8px;
+}
+
+.detective-result-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* ========================
+   BALANCE / SWIPE STYLES
+   ======================== */
+.balance-game {
+    padding: 8px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.balance-scale-wrap {
+    width: 100%;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+}
+
+.balance-pivot {
+    font-size: 32px;
+    color: var(--gold);
+    margin-bottom: 4px;
+}
+
+.balance-beam {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 20px;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.balance-side {
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.balance-heresy {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+}
+
+.balance-orthodox {
+    background: rgba(46, 204, 113, 0.15);
+    color: #2ecc71;
+}
+
+.balance-value {
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--gold);
+    margin-top: 4px;
+}
+
+.balance-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 12px;
+}
+
+.balance-streak {
+    color: #e67e22;
+    font-size: 14px;
+    font-weight: 700;
+    animation: pulse 0.8s infinite;
+}
+
+.balance-streak i { margin-left: 4px; }
+
+.balance-card {
+    width: 100%;
+    padding: 24px 20px;
+    background: rgba(255,255,255,0.06);
+    border: 1.5px solid rgba(255,255,255,0.12);
+    border-radius: 16px;
+    text-align: center;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-bottom: 16px;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: pan-y;
+    user-select: none;
+}
+
+.balance-stmt {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.8;
+    color: var(--text-primary);
+}
+
+.balance-card.balance-correct {
+    border-color: var(--success);
+    background: rgba(0, 184, 148, 0.15);
+}
+
+.balance-card.balance-wrong {
+    border-color: var(--danger);
+    background: rgba(255, 107, 107, 0.15);
+}
+
+.balance-buttons {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+}
+
+.balance-btn {
+    flex: 1;
+    padding: 16px;
+    border-radius: 14px;
+    border: none;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Cairo', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.balance-btn:active { transform: scale(0.95); }
+
+.balance-btn-true {
+    background: linear-gradient(135deg, #00B894, #00CEC9);
+    color: white;
+}
+
+.balance-btn-false {
+    background: linear-gradient(135deg, #FF6B6B, #e74c3c);
+    color: white;
+}
+
+/* ========================
+   ANIMATIONS
+   ======================== */
+@keyframes scaleIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

@@ -8759,7 +8759,71 @@ function renderMiniGamesSection() {
         html += '</div>';
     }
 
-    html += '</div></div>';
+    html += '</div>';
+
+    // === NEW INTERACTIVE GAMES SECTION ===
+    var iGames = getInteractiveGamesForLesson();
+    if (iGames) {
+        html += '<div class="mini-games-header" style="margin-top:20px">';
+        html += '<h3><i class="fas fa-fire-flame-curved"></i> ألعاب تفاعلية</h3>';
+        html += '<p>ألعاب جديدة — قرارات ومغامرات وألغاز!</p>';
+        html += '</div>';
+        html += '<div class="mini-games-grid interactive-games-grid">';
+
+        if (iGames.courtOfFaith) {
+            html += '<div class="mini-game-card mg-court" onclick="startMiniGame(\'courtOfFaith\')">';
+            html += '<div class="mg-card-icon"><i class="fas fa-gavel"></i></div>';
+            html += '<h4>محكمة الإيمان</h4>';
+            html += '<p>دافع عن العقيدة!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+            html += getMiniGameBadge('courtOfFaith');
+            html += '</div>';
+        }
+
+        if (iGames.creedBuilder) {
+            html += '<div class="mini-game-card mg-creed" onclick="startMiniGame(\'creedBuilder\')">';
+            html += '<div class="mg-card-icon"><i class="fas fa-building"></i></div>';
+            html += '<h4>بناء العقيدة</h4>';
+            html += '<p>رتّب العبارات صح!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+            html += getMiniGameBadge('creedBuilder');
+            html += '</div>';
+        }
+
+        if (iGames.councilJourney) {
+            html += '<div class="mini-game-card mg-council" onclick="startMiniGame(\'councilJourney\')">';
+            html += '<div class="mg-card-icon"><i class="fas fa-' + iGames.councilJourney.icon + '"></i></div>';
+            html += '<h4>' + iGames.councilJourney.title.split('—')[0] + '</h4>';
+            html += '<p>اختار طريقك!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+            html += getMiniGameBadge('councilJourney');
+            html += '</div>';
+        }
+
+        if (iGames.detective) {
+            html += '<div class="mini-game-card mg-detective" onclick="startMiniGame(\'detective\')">';
+            html += '<div class="mg-card-icon"><i class="fas fa-magnifying-glass"></i></div>';
+            html += '<h4>المحقق</h4>';
+            html += '<p>اكتشف الأدلة!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+            html += getMiniGameBadge('detective');
+            html += '</div>';
+        }
+
+        if (iGames.balance) {
+            html += '<div class="mini-game-card mg-balance" onclick="startMiniGame(\'balance\')">';
+            html += '<div class="mg-card-icon"><i class="fas fa-balance-scale"></i></div>';
+            html += '<h4>ميزان الإيمان</h4>';
+            html += '<p>صح ولا غلط — حافظ على التوازن!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+            html += getMiniGameBadge('balance');
+            html += '</div>';
+        }
+
+        html += '</div>';
+    }
+
+    html += '</div>';
     return html;
 }
 
@@ -9275,6 +9339,19 @@ function saveMiniGameScore(type, score) {
 // ========== START MINI GAME ==========
 function startMiniGame(type) {
     if (type === 'mixedChallenge') { startMixedChallenge(); return; }
+
+    // New interactive game types — data is in INTERACTIVE_GAMES, not LESSON_MINI_GAMES
+    var interactiveTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
+    if (interactiveTypes.indexOf(type) !== -1) {
+        initAudio();
+        if (type === 'courtOfFaith') startCourtOfFaith();
+        else if (type === 'creedBuilder') startCreedBuilder();
+        else if (type === 'councilJourney') startCouncilJourney();
+        else if (type === 'detective') startDetective();
+        else if (type === 'balance') startBalance();
+        return;
+    }
+
     var games = getMiniGamesForLesson();
     if (!games || !games[type]) return;
 
@@ -14013,3 +14090,1785 @@ function closeNotifSettings() {
         setTimeout(function() { overlay.remove(); }, 300);
     }
 }
+
+// ============================================================
+// NEW INTERACTIVE GAMES ENGINE
+// 5 Game Types: Court of Faith, Creed Builder, Council Journey,
+//               Detective, The Balance
+// ============================================================
+
+// --- Helper: update score display ---
+function updateMGScore() {
+    var el = document.getElementById('mg-score');
+    if (el) el.textContent = miniGameState.score;
+}
+
+// ============================================================
+// GAME DATA: INTERACTIVE GAMES PER LESSON (faith subject)
+// ============================================================
+var INTERACTIVE_GAMES = {
+    // ===== LESSON 0: التثليث والتوحيد =====
+    'faith_0': {
+        courtOfFaith: {
+            title: 'محكمة الإيمان — الدفاع عن الثالوث',
+            icon: 'gavel',
+            heretic: 'أريوس',
+            hereticTitle: 'كاهن من الإسكندرية',
+            defender: 'البابا أثناسيوس',
+            intro: 'أنت في مجمع نيقية سنة ٣٢٥م. أريوس بيقول إن الابن مخلوق ومش مساوي للآب. دافع عن الإيمان الأرثوذكسي!',
+            rounds: [
+                {
+                    claim: 'الابن مخلوق من العدم، كان فيه وقت مكانش فيه الابن!',
+                    evidence: [
+                        { text: '"في البدء كان الكلمة والكلمة كان عند الله وكان الكلمة الله" (يو ١: ١)', correct: true },
+                        { text: '"خلق الله الإنسان على صورته" (تك ١: ٢٧)', correct: false },
+                        { text: '"أنا والآب واحد" (يو ١٠: ٣٠)', correct: true },
+                        { text: '"في البدء خلق الله السماوات والأرض" (تك ١: ١)', correct: false }
+                    ],
+                    explanation: 'الابن مولود وليس مخلوق، أزلي مع الآب'
+                },
+                {
+                    claim: 'لو الابن إله، يبقى عندنا إلهين مش إله واحد!',
+                    evidence: [
+                        { text: '١×١×١=١ — الجوهر الإلهي واحد والخواص ثلاثة', correct: true },
+                        { text: '"اسمعي يا إسرائيل، الرب إلهنا رب واحد" (تث ٦: ٤)', correct: false },
+                        { text: 'الشمس واحدة فيها قرص وشعاع وحرارة — مثال للثالوث', correct: true },
+                        { text: '"لا تصنع لك تمثالاً منحوتاً" (خر ٢٠: ٤)', correct: false }
+                    ],
+                    explanation: 'التثليث لا ينفي التوحيد — جوهر واحد وثلاث خواص'
+                },
+                {
+                    claim: 'الابن أقل من الآب في المرتبة والجوهر!',
+                    evidence: [
+                        { text: '"إله حق من إله حق، مولود غير مخلوق، مساوٍ للآب في الجوهر" — قانون الإيمان', correct: true },
+                        { text: '"الذين يشهدون في السماء هم ثلاثة وهؤلاء الثلاثة هم واحد" (١يو ٥: ٧)', correct: true },
+                        { text: '"الآب أعظم مني" (يو ١٤: ٢٨)', correct: false },
+                        { text: '"كل شيء به كان" (يو ١: ٣)', correct: false }
+                    ],
+                    explanation: 'الابن مساوٍ للآب في الجوهر — "أعظم مني" تشير للتدبير لا الجوهر'
+                },
+                {
+                    claim: 'الروح القدس مجرد قوة من الله مش أقنوم حقيقي!',
+                    evidence: [
+                        { text: '"الروح القدس الرب المحيي المنبثق من الآب" — قانون الإيمان', correct: true },
+                        { text: '"روح الحق الذي من عند الآب ينبثق" (يو ١٥: ٢٦)', correct: true },
+                        { text: '"وروح الله يرف على وجه المياه" (تك ١: ٢)', correct: false },
+                        { text: '"الريح تهب حيث تشاء" (يو ٣: ٨)', correct: false }
+                    ],
+                    explanation: 'الروح القدس أقنوم حقيقي — الرب المحيي المنبثق من الآب'
+                }
+            ]
+        },
+        creedBuilder: {
+            title: 'بناء قانون الإيمان',
+            icon: 'building',
+            blocks: [
+                'بالحقيقة نؤمن',
+                'بإله واحد',
+                'الله الآب',
+                'ضابط الكل',
+                'خالق السماء والأرض',
+                'نؤمن برب واحد',
+                'يسوع المسيح',
+                'ابن الله الوحيد',
+                'نور من نور',
+                'إله حق من إله حق',
+                'مولود غير مخلوق',
+                'مساوٍ للآب في الجوهر'
+            ]
+        },
+        councilJourney: {
+            title: 'رحلة المجامع — نيقية',
+            icon: 'landmark',
+            scenes: [
+                {
+                    id: 'arrival',
+                    text: 'وصلت مجمع نيقية سنة ٣٢٥م. الإمبراطور قسطنطين جمع ٣١٨ أسقفاً. أريوس بيهاجم ألوهية المسيح. إيه أول خطوة؟',
+                    character: 'athanasius',
+                    choices: [
+                        { text: 'أبدأ بآيات الكتاب المقدس اللي بتثبت ألوهية المسيح', next: 'bible_proof', points: 10, faith: 10 },
+                        { text: 'أطلب من الأساقفة يشاركوا خبرتهم', next: 'bishops_help', points: 7, faith: 5 },
+                        { text: 'أتجاهل أريوس وأصلي', next: 'pray_only', points: 3, faith: -5 }
+                    ]
+                },
+                {
+                    id: 'bible_proof',
+                    text: 'ممتاز! فتحت الكتاب المقدس. أريوس بيقول "الابن مخلوق". أنت هتقرأ آية. أنهي آية أقوى رد؟',
+                    choices: [
+                        { text: '"أنا والآب واحد" (يو ١٠: ٣٠)', next: 'strong_defense', points: 10, faith: 10 },
+                        { text: '"في البدء خلق الله" (تك ١: ١)', next: 'weak_verse', points: 3, faith: 0 },
+                        { text: '"أحبوا بعضكم بعضاً" (يو ١٣: ٣٤)', next: 'off_topic', points: 1, faith: -5 }
+                    ]
+                },
+                {
+                    id: 'bishops_help',
+                    text: 'الأساقفة شاركوا خبراتهم. البابا ألكسندروس طلب منك تكمل الدفاع. إيه اللي هتعمله؟',
+                    choices: [
+                        { text: 'أشرح إن الابن "مولود غير مخلوق" من جوهر الآب', next: 'strong_defense', points: 10, faith: 10 },
+                        { text: 'أقول إن الموضوع صعب ومحتاج وقت', next: 'hesitate', points: 2, faith: -3 }
+                    ]
+                },
+                {
+                    id: 'pray_only',
+                    text: 'الصلاة مهمة لكن لازم كمان تدافع بالعقل والكتاب. الأساقفة محتاجينك. هترجع تدافع؟',
+                    choices: [
+                        { text: 'أيوه، هفتح الكتاب المقدس وأرد على أريوس', next: 'bible_proof', points: 5, faith: 5 },
+                        { text: 'لأ، الصلاة كافية', next: 'end_weak', points: 0, faith: -10 }
+                    ]
+                },
+                {
+                    id: 'strong_defense',
+                    text: 'دفاعك كان قوي! المجمع قرر إن الابن "مساوٍ للآب في الجوهر". آخر خطوة: إيه اللي المجمع هيعمله عشان يحفظ الإيمان للأجيال الجاية؟',
+                    choices: [
+                        { text: 'نكتب قانون الإيمان — دستور واضح لكل المسيحيين', next: 'end_perfect', points: 10, faith: 10 },
+                        { text: 'نحفظ الكلام شفاهي بدون كتابة', next: 'end_good', points: 5, faith: 3 }
+                    ]
+                },
+                {
+                    id: 'weak_verse',
+                    text: 'الآية دي عن الخلق مش عن ألوهية المسيح. أريوس لسه بيهاجم. حاول تاني بآية أقوى.',
+                    choices: [
+                        { text: '"الكلمة كان الله" (يو ١: ١)', next: 'strong_defense', points: 8, faith: 8 },
+                        { text: 'أسكت وأستسلم', next: 'end_weak', points: 0, faith: -15 }
+                    ]
+                },
+                {
+                    id: 'off_topic',
+                    text: 'الآية جميلة بس مش الوقت المناسب. المطلوب إثبات ألوهية المسيح.',
+                    choices: [
+                        { text: '"في البدء كان الكلمة وكان الكلمة الله" (يو ١: ١)', next: 'strong_defense', points: 8, faith: 8 }
+                    ]
+                },
+                {
+                    id: 'hesitate',
+                    text: 'التردد خلّى أريوس يقوى. لازم ترد بسرعة!',
+                    choices: [
+                        { text: 'أقوم وأشرح بقوة إن المسيح "نور من نور، إله حق من إله حق"', next: 'strong_defense', points: 7, faith: 7 }
+                    ]
+                },
+                {
+                    id: 'end_perfect',
+                    text: '🏆 مبروك! ساعدت في كتابة قانون الإيمان! الكنيسة كلها بتصلي بيه لغاية النهاردة. أنت بطل الإيمان!',
+                    choices: [],
+                    ending: true
+                },
+                {
+                    id: 'end_good',
+                    text: '👏 دفاعك كان كويس! بس الكتابة كانت هتحفظ الإيمان أحسن. قانون الإيمان هو اللي حفظ العقيدة.',
+                    choices: [],
+                    ending: true
+                },
+                {
+                    id: 'end_weak',
+                    text: '💪 للأسف مرديتش على أريوس. بس البابا أثناسيوس والأساقفة دافعوا وكتبوا قانون الإيمان. حاول تاني!',
+                    choices: [],
+                    ending: true
+                }
+            ]
+        },
+        detective: {
+            title: 'المحقق — اكتشف الشخصية',
+            icon: 'magnifying-glass',
+            scenes: [
+                {
+                    setting: 'مكتبة الإسكندرية القديمة',
+                    objects: [
+                        { name: 'مخطوطة قديمة', icon: 'scroll', clue: 'مكتوب عليها: "حامي الإيمان"' },
+                        { name: 'ختم أسقفي', icon: 'stamp', clue: 'ختم بابا الإسكندرية رقم ٢٠' },
+                        { name: 'خطاب', icon: 'envelope', clue: 'خطاب للإمبراطور قسطنطين عن مجمع نيقية' },
+                        { name: 'أيقونة', icon: 'image', clue: 'شاب يقف أمام آريوس يدافع عن الإيمان' }
+                    ],
+                    answer: 'البابا أثناسيوس الرسولي',
+                    hint: 'دافع عن ألوهية المسيح في مجمع نيقية'
+                },
+                {
+                    setting: 'ورشة إسكافي في الإسكندرية',
+                    objects: [
+                        { name: 'إبرة مكسورة', icon: 'syringe', clue: 'إبرة دخلت في إيد صاحبها وصرخ' },
+                        { name: 'لافتة المحل', icon: 'store', clue: 'الشخص ده صنعته إسكافي' },
+                        { name: 'صليب خشبي', icon: 'cross', clue: 'أول مسيحي في مصر بعد مارمرقس' },
+                        { name: 'صرخة مكتوبة', icon: 'comment', clue: '"يا الله الواحد!"' }
+                    ],
+                    answer: 'انيانوس الإسكافي',
+                    hint: 'أول مؤمن بشّره مارمرقس في مصر'
+                },
+                {
+                    setting: 'قاعة مجمع كبيرة',
+                    objects: [
+                        { name: 'وثيقة رسمية', icon: 'file-alt', clue: 'قانون الإيمان مكتوب فيها' },
+                        { name: 'كرسي ملوكي', icon: 'chair', clue: 'الإمبراطور قسطنطين جلس عليه' },
+                        { name: 'لوحة تذكارية', icon: 'landmark', clue: 'سنة ٣٢٥ ميلادية — ٣١٨ أسقفاً' },
+                        { name: 'حكم محكمة', icon: 'gavel', clue: 'حُكم على أريوس بالحرم' }
+                    ],
+                    answer: 'مجمع نيقية',
+                    hint: 'أول مجمع مسكوني في تاريخ الكنيسة'
+                },
+                {
+                    setting: 'مذبح كنيسة قديمة',
+                    objects: [
+                        { name: 'نار مشتعلة', icon: 'fire', clue: 'فيها لهب وضياء وحرارة — وهي واحدة' },
+                        { name: 'شمس مرسومة', icon: 'sun', clue: 'قرص وشعاع وحرارة — شمس واحدة' },
+                        { name: 'مثلث ذهبي', icon: 'shapes', clue: '٣ رؤوس وهو كيان واحد' },
+                        { name: 'معادلة', icon: 'calculator', clue: '١×١×١=١' }
+                    ],
+                    answer: 'أمثلة الثالوث في الطبيعة',
+                    hint: 'كل مثال فيه ثلاث خواص لكنه شيء واحد'
+                }
+            ]
+        },
+        balance: {
+            title: 'ميزان الإيمان',
+            icon: 'balance-scale',
+            statements: [
+                { text: 'الله واحد في جوهره', answer: true, weight: 5 },
+                { text: 'الأقانيم الثلاثة هم ثلاثة آلهة', answer: false, weight: 10 },
+                { text: 'الابن مولود من الآب أزلياً', answer: true, weight: 5 },
+                { text: 'الروح القدس مخلوق', answer: false, weight: 10 },
+                { text: 'الابن هو اللوجوس — عقل الله الناطق', answer: true, weight: 5 },
+                { text: 'كان فيه وقت مكانش فيه الابن', answer: false, weight: 10 },
+                { text: 'الجوهر الإلهي واحد', answer: true, weight: 5 },
+                { text: 'الآب أعظم من الابن في الجوهر', answer: false, weight: 10 },
+                { text: 'قانون الإيمان كتبه مجمع نيقية والقسطنطينية', answer: true, weight: 5 },
+                { text: 'الروح القدس منبثق من الآب والابن', answer: false, weight: 8 },
+                { text: 'البابا أثناسيوس دافع عن الثالوث', answer: true, weight: 5 },
+                { text: 'الابن أقل من الآب في القدرة', answer: false, weight: 10 },
+                { text: 'الثالوث ظهر في عماد المسيح', answer: true, weight: 5 },
+                { text: '١+١+١=٣ هي معادلة الثالوث', answer: false, weight: 8 },
+                { text: 'الشمس فيها قرص وشعاع وحرارة — مثال للثالوث', answer: true, weight: 5 },
+                { text: 'الانبثاق هو نفسه الولادة', answer: false, weight: 8 },
+                { text: 'الإنسان فيه روح ونفس وجسد — مثال للوحدانية', answer: true, weight: 5 },
+                { text: 'أقنوم كلمة عربية', answer: false, weight: 5 },
+                { text: 'الروح القدس هو الرب المحيي', answer: true, weight: 5 },
+                { text: 'الأقانيم ثلاثة أجزاء من الله', answer: false, weight: 10 }
+            ]
+        }
+    },
+    // ===== LESSON 1: التجسد الإلهي =====
+    'faith_1': {
+        courtOfFaith: {
+            title: 'محكمة الإيمان — الدفاع عن التجسد',
+            icon: 'gavel',
+            heretic: 'أوطاخي',
+            hereticTitle: 'راهب من القسطنطينية',
+            defender: 'القديس كيرلس',
+            intro: 'أوطاخي بيقول إن الطبيعة الإنسانية ذابت في اللاهوت! دافع عن إن المسيح طبيعة واحدة من طبيعتين بدون اختلاط.',
+            rounds: [
+                {
+                    claim: 'اللاهوت ابتلع الناسوت! الطبيعة الإنسانية ذابت في الإلهية!',
+                    evidence: [
+                        { text: '"الكلمة صار جسداً وحل بيننا" (يو ١: ١٤) — صار جسداً حقيقياً', correct: true },
+                        { text: '"في البدء كان الكلمة" — الكلمة هو الله فقط', correct: false },
+                        { text: 'مثال الحديد والنار: الحديد المحمي بالنار — اتحاد بدون اختلاط', correct: true },
+                        { text: '"الله روح" — يعني مفيش جسد', correct: false }
+                    ],
+                    explanation: 'المسيح طبيعة واحدة متحدة — بدون اختلاط ولا امتزاج ولا تغيير'
+                },
+                {
+                    claim: 'لو المسيح إنسان حقيقي، يبقى ممكن يخطئ!',
+                    evidence: [
+                        { text: '"شابهنا في كل شيء ما عدا الخطية وحدها" (عب ٤: ١٥)', correct: true },
+                        { text: '"مَن مِنكم يُبكّتني على خطية؟" (يو ٨: ٤٦)', correct: true },
+                        { text: '"الجميع أخطأوا" (رو ٣: ٢٣) — يعني المسيح كمان', correct: false },
+                        { text: '"لا صالح إلا واحد وهو الله" — يعني المسيح مش صالح', correct: false }
+                    ],
+                    explanation: 'المسيح إنسان كامل لكن بلا خطية لأن اللاهوت متحد بالناسوت'
+                },
+                {
+                    claim: 'ليه ما ينفعش ملاك يتجسد بدل ما الله نفسه يتجسد؟',
+                    evidence: [
+                        { text: 'الملاك محدود ومخلوق — مش قادر يفدي البشرية كلها', correct: true },
+                        { text: 'الفادي لازم يكون غير محدود عشان يفدي عدد غير محدود', correct: true },
+                        { text: 'الملائكة أقوى من الله في بعض الأحيان', correct: false },
+                        { text: 'الملاك ممكن يموت عن البشر', correct: false }
+                    ],
+                    explanation: 'الفادي لازم يكون الله نفسه — غير محدود وبلا خطية'
+                }
+            ]
+        },
+        creedBuilder: {
+            title: 'بناء عقيدة التجسد',
+            icon: 'building',
+            blocks: [
+                'هذا الذي',
+                'من أجلنا نحن البشر',
+                'ومن أجل خلاصنا',
+                'نزل من السماء',
+                'وتجسد',
+                'من الروح القدس',
+                'ومن مريم العذراء',
+                'تأنس',
+                'وصُلب عنا',
+                'على عهد بيلاطس البنطي',
+                'تألم وقُبر',
+                'وقام من الأموات في اليوم الثالث'
+            ]
+        },
+        councilJourney: {
+            title: 'رحلة إلى بيت لحم',
+            icon: 'star',
+            scenes: [
+                {
+                    id: 'start',
+                    text: 'الملاك جبرائيل ظهر للعذراء مريم. قالها "الروح القدس يحل عليكِ وقوة العلي تظللكِ". إيه رد العذراء؟',
+                    choices: [
+                        { text: '"هوذا أنا أَمة الرب، ليكن لي كقولك"', next: 'bethlehem', points: 10, faith: 10 },
+                        { text: '"مش فاهمة، ازاي ده يحصل؟"', next: 'question', points: 5, faith: 3 },
+                        { text: '"مش موافقة"', next: 'refuse', points: 0, faith: -10 }
+                    ]
+                },
+                {
+                    id: 'question',
+                    text: 'سؤال العذراء كان من تواضع. الملاك شرحلها. الروح القدس حلّ عليها لتطهير المستودع. إيه معنى التجسد؟',
+                    choices: [
+                        { text: 'الله أخذ جسداً إنسانياً حقيقياً', next: 'bethlehem', points: 8, faith: 8 },
+                        { text: 'الله ظهر بشكل مرئي فقط بدون جسد حقيقي', next: 'wrong_view', points: 2, faith: -5 }
+                    ]
+                },
+                {
+                    id: 'bethlehem',
+                    text: 'المسيح وُلد في بيت لحم. اتحد اللاهوت بالناسوت. الحديد المحمي بالنار مثال للاتحاد. ليه التجسد كان ضروري؟',
+                    choices: [
+                        { text: 'عشان الفادي لازم يكون من نفس طبيعة المفدي — إنسان وإله', next: 'end_perfect', points: 10, faith: 10 },
+                        { text: 'عشان الله عايز يشوف الأرض', next: 'end_ok', points: 3, faith: 0 }
+                    ]
+                },
+                {
+                    id: 'refuse',
+                    text: 'طبعاً العذراء ماقالتش كده! هي أطاعت بتواضع. القصة الحقيقية:',
+                    choices: [
+                        { text: 'ابدأ من الأول وأتعلم', next: 'start', points: 0, faith: 0 }
+                    ]
+                },
+                {
+                    id: 'wrong_view',
+                    text: 'لا! التجسد = الله أخذ جسداً حقيقياً. والتأنس = الجسد كان إنساناً كاملاً. مش مجرد ظهور.',
+                    choices: [
+                        { text: 'فهمت! أكمل الرحلة', next: 'bethlehem', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'end_perfect',
+                    text: '🏆 ممتاز! فهمت سر التجسد — الله صار إنساناً ليفدينا. "الكلمة صار جسداً وحل بيننا"!',
+                    choices: [],
+                    ending: true
+                },
+                {
+                    id: 'end_ok',
+                    text: '👏 كويس! بس التجسد الهدف الأساسي منه الفداء — الله صار إنساناً ليموت عنا ويقيمنا.',
+                    choices: [],
+                    ending: true
+                }
+            ]
+        },
+        detective: {
+            title: 'المحقق — أسرار التجسد',
+            icon: 'magnifying-glass',
+            scenes: [
+                {
+                    setting: 'مغارة بيت لحم',
+                    objects: [
+                        { name: 'مذود خشبي', icon: 'baby', clue: 'وُلد في مذود — الإله صار طفلاً' },
+                        { name: 'نجمة ساطعة', icon: 'star', clue: 'أرشدت المجوس من المشرق' },
+                        { name: 'أقمشة بيضاء', icon: 'shirt', clue: 'لفّته أمه بأقمطة' },
+                        { name: 'قنديل قديم', icon: 'candle-holder', clue: '"الكلمة صار جسداً وحل بيننا"' }
+                    ],
+                    answer: 'ميلاد المسيح — سر التجسد',
+                    hint: 'الإله أخذ جسداً وسكن بيننا'
+                },
+                {
+                    setting: 'نهر الأردن',
+                    objects: [
+                        { name: 'ماء النهر', icon: 'water', clue: 'اللي اتعمد هنا هو الله المتجسد' },
+                        { name: 'حمامة بيضاء', icon: 'dove', clue: 'الروح القدس نزل بشكل حمامة' },
+                        { name: 'صوت من السماء', icon: 'volume-up', clue: '"هذا هو ابني الحبيب"' },
+                        { name: 'يوحنا المعمدان', icon: 'person-praying', clue: '"هوذا حمل الله الذي يرفع خطية العالم"' }
+                    ],
+                    answer: 'عماد المسيح — ظهور الثالوث',
+                    hint: 'الحدث الذي ظهر فيه الثالوث بوضوح'
+                }
+            ]
+        },
+        balance: {
+            title: 'ميزان التجسد',
+            icon: 'balance-scale',
+            statements: [
+                { text: 'المسيح إله كامل وإنسان كامل', answer: true, weight: 5 },
+                { text: 'اللاهوت تحوّل إلى ناسوت', answer: false, weight: 10 },
+                { text: 'التجسد هو أن الله أخذ جسداً', answer: true, weight: 5 },
+                { text: 'المسيح شابهنا في كل شيء حتى الخطية', answer: false, weight: 10 },
+                { text: 'الروح القدس حلّ على العذراء لتطهير المستودع', answer: true, weight: 5 },
+                { text: 'يوسف النجار هو أب المسيح البيولوجي', answer: false, weight: 10 },
+                { text: 'اتحاد اللاهوت بالناسوت بدون اختلاط ولا امتزاج', answer: true, weight: 5 },
+                { text: 'الله انحصر داخل الجسد وما كانش يدير الكون', answer: false, weight: 10 },
+                { text: 'ولادة الابن الزمنية كانت من مريم العذراء', answer: true, weight: 5 },
+                { text: 'ظهورات الله في العهد القديم كانت تجسداً حقيقياً', answer: false, weight: 8 },
+                { text: 'الكلمة صار جسداً وحل بيننا', answer: true, weight: 5 },
+                { text: 'المسيح طبيعتين منفصلتين', answer: false, weight: 10 },
+                { text: 'مثال الحديد والنار يوضح الاتحاد بدون اختلاط', answer: true, weight: 5 },
+                { text: 'الملاك كان يقدر يفدي البشرية بدل المسيح', answer: false, weight: 10 },
+                { text: 'التأنس يعني أن الجسد المأخوذ كان إنساناً كاملاً', answer: true, weight: 5 }
+            ]
+        }
+    },
+    // ===== LESSON 2: الفداء والصليب =====
+    'faith_2': {
+        courtOfFaith: {
+            title: 'محكمة الإيمان — ضرورة الفداء',
+            icon: 'gavel',
+            heretic: 'المعترض',
+            hereticTitle: 'فيلسوف يشكك في الصليب',
+            defender: 'القديس بولس',
+            intro: 'فيلسوف بيسأل: ليه الله مش ممكن يسامح بدون صليب؟ ليه لازم دم؟ دافع عن حكمة الصليب!',
+            rounds: [
+                {
+                    claim: 'ليه مينفعش ربنا يسامح آدم بدون كل ده؟ هو مش رحيم؟',
+                    evidence: [
+                        { text: '"الرحمة والحق التقيا، البر والسلام تلاثما" (مز ٨٥: ١٠) — لازم العدل والرحمة يتحققوا', correct: true },
+                        { text: '"بدون سفك دم لا تحصل مغفرة" (عب ٩: ٢٢)', correct: true },
+                        { text: '"الله محبة" — يعني المسامحة كافية', correct: false },
+                        { text: '"من يحبني يحفظ وصاياي" — يعني الأعمال كافية', correct: false }
+                    ],
+                    explanation: 'لو الله سامح بدون فداء كان ده ضد عدله — الرحمة والحق لازم يتحققوا'
+                },
+                {
+                    claim: 'ليه ما بعتش ملاك يموت بدل ما يموت هو؟',
+                    evidence: [
+                        { text: 'الملاك محدود ومخلوق — دمه ما ينفعش يفدي خطية غير محدودة', correct: true },
+                        { text: 'الفادي لازم يكون من نفس طبيعة المفدي — إنسان', correct: true },
+                        { text: 'الملائكة أقوياء كفاية للفداء', correct: false },
+                        { text: 'ذبائح الحيوانات كانت كافية', correct: false }
+                    ],
+                    explanation: 'الفادي لازم يكون إنسان كامل وإله كامل — ماحدش غير المسيح يقدر'
+                },
+                {
+                    claim: 'الصليب ضعف! إله يموت؟ ده مش منطقي!',
+                    evidence: [
+                        { text: '"حمل قائم كأنه مذبوح" (رؤ ٥: ٦) — القوة في التضحية', correct: true },
+                        { text: 'اللاهوت لم يمت — الناسوت المتحد باللاهوت هو اللي مات', correct: true },
+                        { text: 'الموت على الصليب كان هزيمة', correct: false },
+                        { text: 'الله ضعيف لأنه سمح بالصلب', correct: false }
+                    ],
+                    explanation: 'الصليب قوة ومحبة — "أين شوكتك يا موت؟"'
+                }
+            ]
+        },
+        creedBuilder: {
+            title: 'بناء عقيدة الفداء',
+            icon: 'cross',
+            blocks: [
+                'في آدم يموت الجميع',
+                'وفي المسيح سيحيا الجميع',
+                'الرحمة والحق التقيا',
+                'البر والسلام تلاثما',
+                'بدون سفك دم',
+                'لا تحصل مغفرة',
+                'هكذا أحب الله العالم',
+                'حتى بذل ابنه الوحيد',
+                'لكي لا يهلك كل من يؤمن به',
+                'بل تكون له الحياة الأبدية',
+                'حمل الله الذي يرفع',
+                'خطية العالم'
+            ]
+        },
+        councilJourney: {
+            title: 'رحلة إلى الجلجثة',
+            icon: 'cross',
+            scenes: [
+                {
+                    id: 'start',
+                    text: 'أنت واقف عند قدم الصليب يوم الجمعة العظيمة. المسيح معلق بين السماء والأرض. ليه المسيح اختار ده؟',
+                    choices: [
+                        { text: 'لأن الفداء محتاج حد غير محدود يموت عن خطية غير محدودة', next: 'understand', points: 10, faith: 10 },
+                        { text: 'لأن الله غضبان من البشر', next: 'wrong', points: 2, faith: -5 },
+                        { text: 'مش فاهم ليه', next: 'learn', points: 5, faith: 0 }
+                    ]
+                },
+                {
+                    id: 'understand',
+                    text: 'صح! "هكذا أحب الله العالم حتى بذل ابنه الوحيد". ستار الهيكل انشق. إيه معنى ده؟',
+                    choices: [
+                        { text: 'الطريق لله بقى مفتوح — الحجاب بيننا وبين الله اترفع', next: 'end_perfect', points: 10, faith: 10 },
+                        { text: 'الهيكل اتخرب', next: 'end_ok', points: 5, faith: 3 }
+                    ]
+                },
+                {
+                    id: 'wrong',
+                    text: 'لا! الصليب مش غضب — ده حب! "الله محبة" والصليب أعظم تعبير عن المحبة.',
+                    choices: [
+                        { text: 'فهمت — الصليب محبة مش غضب', next: 'understand', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'learn',
+                    text: 'بعد سقوط آدم، الموت حكم على الجميع. الله مش ممكن يسامح بدون عدل. فالمسيح أخذ مكاننا.',
+                    choices: [
+                        { text: 'فهمت! الفداء يحقق العدل والرحمة معاً', next: 'understand', points: 8, faith: 8 }
+                    ]
+                },
+                {
+                    id: 'end_perfect',
+                    text: '🏆 ممتاز! فهمت سر الصليب — المحبة فتحت الطريق لله! "بالصليب جاء فرح في العالم كله"!',
+                    choices: [],
+                    ending: true
+                },
+                {
+                    id: 'end_ok',
+                    text: '👏 الهيكل ماتخربش — ستار الهيكل انشق يعني الحجاب اتشال والطريق لله بقى مفتوح!',
+                    choices: [],
+                    ending: true
+                }
+            ]
+        },
+        detective: {
+            title: 'المحقق — رموز الفداء',
+            icon: 'magnifying-glass',
+            scenes: [
+                {
+                    setting: 'خيمة الاجتماع في العهد القديم',
+                    objects: [
+                        { name: 'حمل مذبوح', icon: 'drumstick-bite', clue: 'ذبيحة عيد الفصح — رمز لذبيحة أعظم' },
+                        { name: 'دم على الباب', icon: 'door-open', clue: 'دم الحمل على الأبواب حمى من الملاك المهلك' },
+                        { name: 'عظام غير مكسورة', icon: 'bone', clue: '"عظم لا يُكسر منه" — نبوة تحققت' },
+                        { name: 'سفر الخروج', icon: 'book', clue: 'خروج ١٢ — أول عيد فصح' }
+                    ],
+                    answer: 'خروف الفصح — رمز للمسيح',
+                    hint: 'ذبيحة العهد القديم التي ترمز لفداء المسيح'
+                },
+                {
+                    setting: 'تل الجلجثة',
+                    objects: [
+                        { name: 'صليب خشبي', icon: 'cross', clue: 'أداة الإعدام صارت رمز الانتصار' },
+                        { name: 'ستار ممزق', icon: 'scroll', clue: 'انشق من فوق إلى أسفل — الطريق لله انفتح' },
+                        { name: 'ظلمة على الأرض', icon: 'moon', clue: 'من الساعة السادسة إلى التاسعة' },
+                        { name: 'قائد المئة', icon: 'person', clue: '"حقاً كان هذا ابن الله!"' }
+                    ],
+                    answer: 'صلب المسيح — الفداء الحقيقي',
+                    hint: 'الحدث الذي غيّر مصير البشرية'
+                }
+            ]
+        },
+        balance: {
+            title: 'ميزان الفداء',
+            icon: 'balance-scale',
+            statements: [
+                { text: 'الفداء عمل إلهي قام به الله بنفسه', answer: true, weight: 5 },
+                { text: 'ممكن ملاك يفدي البشرية', answer: false, weight: 10 },
+                { text: 'الرحمة والحق التقيا في الصليب', answer: true, weight: 5 },
+                { text: 'ربنا ممكن يسامح بدون فداء', answer: false, weight: 10 },
+                { text: 'المسيح هو آدم الثاني', answer: true, weight: 5 },
+                { text: 'ذبائح العهد القديم كانت كافية لمغفرة الخطايا', answer: false, weight: 8 },
+                { text: 'الصليب رمز للمحبة والانتصار', answer: true, weight: 5 },
+                { text: 'اللاهوت مات على الصليب', answer: false, weight: 10 },
+                { text: 'ستار الهيكل انشق من فوق إلى أسفل', answer: true, weight: 5 },
+                { text: 'المسيح صُلب يوم الأحد', answer: false, weight: 5 },
+                { text: 'الصليب فتح الطريق بيننا وبين الله', answer: true, weight: 5 },
+                { text: 'خروف الفصح كان رمزاً للمسيح', answer: true, weight: 5 },
+                { text: 'دم المسيح يطهر من كل خطية', answer: true, weight: 5 },
+                { text: 'الفادي مش لازم يكون من نفس طبيعة المفدي', answer: false, weight: 10 },
+                { text: 'بدون سفك دم لا تحصل مغفرة', answer: true, weight: 5 }
+            ]
+        }
+    },
+    // ===== LESSON 3: القيامة والمجيء الثاني =====
+    'faith_3': {
+        courtOfFaith: {
+            title: 'محكمة الإيمان — حقيقة القيامة',
+            icon: 'gavel',
+            heretic: 'المشكك',
+            hereticTitle: 'منكر القيامة',
+            defender: 'بولس الرسول',
+            intro: 'حد بيشكك في القيامة ويقول إنها مجرد رمز أو خيال. دافع عن حقيقة قيامة المسيح بالجسد!',
+            rounds: [
+                {
+                    claim: 'القيامة مجرد فكرة رمزية وروحية مش حقيقية!',
+                    evidence: [
+                        { text: '"إن لم يكن المسيح قد قام فباطلة كرازتنا وباطل إيمانكم" (١كو ١٥: ١٤)', correct: true },
+                        { text: 'توما لمس جراحات المسيح بعد القيامة — قيامة جسدية حقيقية', correct: true },
+                        { text: '"الروح لا جسد لها" — يعني القيامة روحية بس', correct: false },
+                        { text: '"أنا والآب واحد" — مش ليها علاقة بالقيامة', correct: false }
+                    ],
+                    explanation: 'القيامة كانت جسدية حقيقية — المسيح أكل وشرب وظهر ل٥٠٠ أخ'
+                },
+                {
+                    claim: 'لو المسيح قام فعلاً، ليه ما بقاش على الأرض؟',
+                    evidence: [
+                        { text: 'بقي ٤٠ يوماً يعلّم ثم صعد — عنده رسالة سماوية', correct: true },
+                        { text: '"في بيت أبي منازل كثيرة... أمضي لأعد لكم مكاناً" (يو ١٤: ٢)', correct: true },
+                        { text: 'لأنه خاف من اليهود', correct: false },
+                        { text: 'لأن جسد القيامة ضعيف', correct: false }
+                    ],
+                    explanation: 'صعد ليعد لنا مكاناً وسيأتي ثانياً ليدين الأحياء والأموات'
+                }
+            ]
+        },
+        creedBuilder: {
+            title: 'بناء عقيدة القيامة',
+            icon: 'sun',
+            blocks: [
+                'وقام من الأموات',
+                'في اليوم الثالث',
+                'كما في الكتب',
+                'وصعد إلى السماوات',
+                'وجلس عن يمين أبيه',
+                'وأيضاً يأتي',
+                'في مجده',
+                'ليدين الأحياء والأموات',
+                'الذي ليس لملكه انقضاء',
+                'ونعترف بمعمودية واحدة',
+                'لمغفرة الخطايا',
+                'وننتظر قيامة الأموات وحياة الدهر الآتي'
+            ]
+        },
+        councilJourney: {
+            title: 'رحلة القيامة',
+            icon: 'sun',
+            scenes: [
+                {
+                    id: 'tomb',
+                    text: 'فجر الأحد. أنت عند القبر الفارغ. الحجر مدحرج والأكفان موجودة. إيه أول حاجة هتعملها؟',
+                    choices: [
+                        { text: 'أدخل القبر وأشوف الأكفان — دليل إن الجسد قام مش اتسرق', next: 'evidence', points: 10, faith: 10 },
+                        { text: 'أهرب من الخوف', next: 'fear', points: 2, faith: -5 },
+                        { text: 'أستنى أشوف إيه هيحصل', next: 'wait', points: 5, faith: 3 }
+                    ]
+                },
+                {
+                    id: 'evidence',
+                    text: 'الأكفان مطوية بنظام — لو حد سرق الجسد مكانش هيطوي الأكفان! الملائكة قالوا "ليس هو ههنا لأنه قام". مين أول واحدة شافت المسيح؟',
+                    choices: [
+                        { text: 'مريم المجدلية — أول شاهدة على القيامة', next: 'appearances', points: 10, faith: 10 },
+                        { text: 'بطرس الرسول', next: 'wrong_witness', points: 3, faith: 0 }
+                    ]
+                },
+                {
+                    id: 'fear',
+                    text: 'الخوف طبيعي، بس الملائكة قالوا "لا تخافوا"! القيامة فرح مش خوف.',
+                    choices: [
+                        { text: 'أرجع للقبر وأشوف الحقيقة', next: 'evidence', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'wait',
+                    text: 'وأنت مستني، المسيح ظهر لمريم المجدلية. جسد القيامة كان حقيقي بس ممجد.',
+                    choices: [
+                        { text: 'أروح أبشّر التلاميذ', next: 'appearances', points: 8, faith: 8 }
+                    ]
+                },
+                {
+                    id: 'wrong_witness',
+                    text: 'بطرس راح للقبر بس أول واحدة شافت المسيح كانت مريم المجدلية.',
+                    choices: [
+                        { text: 'فهمت، أكمل', next: 'appearances', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'appearances',
+                    text: 'المسيح ظهر لتلاميذه والأبواب مغلقة. جسد القيامة الممجد يقدر يدخل الأبواب المغلقة. بعد ٤٠ يوم إيه اللي حصل؟',
+                    choices: [
+                        { text: 'صعد إلى السماء من جبل الزيتون — وسيأتي ثانياً ليدين', next: 'end_perfect', points: 10, faith: 10 },
+                        { text: 'اختفى', next: 'end_ok', points: 3, faith: 0 }
+                    ]
+                },
+                {
+                    id: 'end_perfect',
+                    text: '🏆 ممتاز! "أين شوكتك يا موت؟" — القيامة انتصرت على الموت! وننتظر مجيئه الثاني بفرح.',
+                    choices: [],
+                    ending: true
+                },
+                {
+                    id: 'end_ok',
+                    text: '👏 ما اختفاش — صعد إلى السماء وجلس عن يمين الآب. وأيضاً يأتي في مجده ليدين.',
+                    choices: [],
+                    ending: true
+                }
+            ]
+        },
+        detective: {
+            title: 'المحقق — أدلة القيامة',
+            icon: 'magnifying-glass',
+            scenes: [
+                {
+                    setting: 'القبر الفارغ صباح الأحد',
+                    objects: [
+                        { name: 'حجر مدحرج', icon: 'circle', clue: 'الحجر الضخم اتدحرج — مين قدر يعمل كده؟' },
+                        { name: 'أكفان مطوية', icon: 'scroll', clue: 'لو سرقة مكانش حد هيطوي الأكفان' },
+                        { name: 'ملاكين جالسين', icon: 'user-shield', clue: '"ليس هو ههنا لأنه قام"' },
+                        { name: 'حراس نايمين', icon: 'bed', clue: 'الحراس رُشوا عشان يقولوا "التلاميذ سرقوه"' }
+                    ],
+                    answer: 'قيامة المسيح من الأموات',
+                    hint: 'أعظم حدث في التاريخ — القبر فارغ والمسيح حي'
+                }
+            ]
+        },
+        balance: {
+            title: 'ميزان القيامة',
+            icon: 'balance-scale',
+            statements: [
+                { text: 'المسيح قام بالجسد في اليوم الثالث', answer: true, weight: 5 },
+                { text: 'القيامة كانت رمزية فقط', answer: false, weight: 10 },
+                { text: 'جسد القيامة روحاني ممجد', answer: true, weight: 5 },
+                { text: 'اللاهوت مات على الصليب', answer: false, weight: 10 },
+                { text: 'مريم المجدلية أول من رأت المسيح بعد القيامة', answer: true, weight: 5 },
+                { text: 'المسيح سيملك على الأرض ألف سنة', answer: false, weight: 8 },
+                { text: 'المسيح بقي ٤٠ يوماً بعد القيامة ثم صعد', answer: true, weight: 5 },
+                { text: 'يوم الرب يأتي فجأة مثل الحرامي في الليل', answer: true, weight: 5 },
+                { text: 'في المجيء الثاني المسيح يدين الأحياء فقط', answer: false, weight: 8 },
+                { text: 'جسد المسيح بعد القيامة كان يدخل والأبواب مغلقة', answer: true, weight: 5 },
+                { text: 'التناول من جسد الرب ودمه يعطينا قوة القيامة', answer: true, weight: 5 },
+                { text: 'القيامة لا تعطينا رجاء', answer: false, weight: 10 },
+                { text: 'توما آمن لما رأى ولمس جراحات المسيح', answer: true, weight: 5 },
+                { text: 'صعد المسيح من جبل سيناء', answer: false, weight: 5 },
+                { text: 'الأموات في المسيح يقومون أولاً عند المجيء الثاني', answer: true, weight: 5 }
+            ]
+        }
+    },
+    // ===== LESSON 4: المعمودية والميرون =====
+    'faith_4': {
+        courtOfFaith: {
+            title: 'محكمة الإيمان — ضرورة المعمودية',
+            icon: 'gavel',
+            heretic: 'المعترض',
+            hereticTitle: 'رافض المعمودية للأطفال',
+            defender: 'الكاهن',
+            intro: 'حد بيقول: "الأطفال مش محتاجين معمودية! يكبروا ويقرروا بنفسهم!" دافع عن معمودية الأطفال.',
+            rounds: [
+                {
+                    claim: 'الأطفال مش محتاجين معمودية لأنهم بريئين!',
+                    evidence: [
+                        { text: '"إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله" (يو ٣: ٥)', correct: true },
+                        { text: 'المعمودية تغفر الخطية الجدية (الأصلية) الموروثة من آدم', correct: true },
+                        { text: '"دعوا الأولاد يأتون إلي" — بس ما قالش يعمّدوهم', correct: false },
+                        { text: '"الإنسان يولد بريئاً" — فمش محتاج معمودية', correct: false }
+                    ],
+                    explanation: 'كل إنسان يولد بالخطية الجدية — والمعمودية هي الولادة الجديدة'
+                },
+                {
+                    claim: 'المعمودية مجرد رش ماء، مش محتاج تغطيس!',
+                    evidence: [
+                        { text: '"بابتيزما" كلمة يونانية معناها "تغطيس" — مش رش', correct: true },
+                        { text: 'المسيح نفسه "صعد من الماء" — يعني كان مغطس', correct: true },
+                        { text: '"الروح القدس حلّ عليه" — يعني الرش كافي', correct: false },
+                        { text: 'يوحنا كان بيرش الناس بالماء', correct: false }
+                    ],
+                    explanation: 'المعمودية بالتغطيس — ٣ مرات باسم الثالوث — دفن وقيامة مع المسيح'
+                }
+            ]
+        },
+        creedBuilder: {
+            title: 'بناء ترتيب المعمودية',
+            icon: 'water',
+            blocks: [
+                'الصلاة على الماء',
+                'وضع زيت الغاليلاون',
+                'مسح المعمَّد بالزيت',
+                'خلع الملابس القديمة',
+                'التغطيسة الأولى — باسم الآب',
+                'التغطيسة الثانية — باسم الابن',
+                'التغطيسة الثالثة — باسم الروح القدس',
+                'لبس الملابس البيضاء',
+                'مسح الميرون — ٣٦ رشمة',
+                'رشومات الرأس — تقديس الحواس',
+                'رشومات الأيدين — تقديس العمل',
+                'رشومات الأرجل — تقديس المسيرة'
+            ]
+        },
+        councilJourney: {
+            title: 'رحلة المعمودية',
+            icon: 'water',
+            scenes: [
+                {
+                    id: 'start',
+                    text: 'أنت في كنيسة قديمة. طفل صغير جاي للمعمودية. الكاهن بيبدأ بالصلاة على الماء. إيه أول خطوة بعد الصلاة؟',
+                    choices: [
+                        { text: 'مسح الطفل بزيت الغاليلاون — زيت الفرح والتقديس', next: 'oil', points: 10, faith: 10 },
+                        { text: 'تغطيس الطفل في الماء مباشرة', next: 'rush', points: 3, faith: -3 },
+                        { text: 'لبس الطفل ملابس بيضاء', next: 'wrong_order', points: 2, faith: -5 }
+                    ]
+                },
+                {
+                    id: 'oil',
+                    text: 'ممتاز! بعد المسح بالزيت، الكاهن بيغطس الطفل. كام مرة بيتغطس ولماذا؟',
+                    choices: [
+                        { text: '٣ مرات — باسم الآب والابن والروح القدس', next: 'baptism', points: 10, faith: 10 },
+                        { text: 'مرة واحدة كفاية', next: 'wrong_count', points: 3, faith: -3 }
+                    ]
+                },
+                {
+                    id: 'rush',
+                    text: 'لا! في خطوات قبل التغطيس — لازم يتمسح بزيت الغاليلاون الأول. كل خطوة ليها معنى.',
+                    choices: [
+                        { text: 'فهمت! أبدأ بالترتيب الصح', next: 'oil', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'wrong_order',
+                    text: 'الملابس البيضاء بتيجي بعد التغطيس مش قبله — رمز للطهارة والنقاء بعد الولادة الجديدة.',
+                    choices: [
+                        { text: 'فهمت! أرجع للترتيب الصح', next: 'oil', points: 3, faith: 3 }
+                    ]
+                },
+                {
+                    id: 'wrong_count',
+                    text: '٣ مرات مش مرة واحدة! كل تغطيسة باسم أقنوم — الآب والابن والروح القدس.',
+                    choices: [
+                        { text: 'فهمت — ٣ تغطيسات باسم الثالوث', next: 'baptism', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'baptism',
+                    text: 'بعد التغطيس، الطفل لبس ملابس بيضاء. الآن سر الميرون — كام رشمة بيعملها الكاهن؟',
+                    choices: [
+                        { text: '٣٦ رشمة — تقدس كل حواس وكيان الإنسان', next: 'end_perfect', points: 10, faith: 10 },
+                        { text: '١٢ رشمة', next: 'wrong_chrism', points: 3, faith: 0 }
+                    ]
+                },
+                {
+                    id: 'wrong_chrism',
+                    text: '٣٦ مش ١٢! — ٨ للرأس (الحواس) + ١٢ للأيدين (العمل) + ١٢ للأرجل (المسيرة) + ٤ للصلب والظهر.',
+                    choices: [
+                        { text: 'فهمت!', next: 'end_perfect', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'end_perfect',
+                    text: '🏆 مبروك! الطفل اتعمد واتمسح بالميرون. بقى عضو في جسد المسيح! "رب واحد، إيمان واحد، معمودية واحدة".',
+                    choices: [],
+                    ending: true
+                }
+            ]
+        },
+        detective: {
+            title: 'المحقق — رموز المعمودية',
+            icon: 'magnifying-glass',
+            scenes: [
+                {
+                    setting: 'فلك نوح القديم',
+                    objects: [
+                        { name: 'فلك خشبي', icon: 'ship', clue: 'أنقذ أسرة واحدة من الطوفان' },
+                        { name: 'ماء الطوفان', icon: 'water', clue: 'الماء أهلك العالم القديم وبدأ عالم جديد' },
+                        { name: 'حمامة بغصن زيتون', icon: 'dove', clue: 'علامة أن الأرض جفت — بداية جديدة' },
+                        { name: 'قوس قزح', icon: 'rainbow', clue: 'عهد الله الجديد مع البشرية' }
+                    ],
+                    answer: 'فلك نوح — رمز للمعمودية',
+                    hint: 'الماء أهلك القديم وبدأ الجديد — مثل المعمودية'
+                },
+                {
+                    setting: 'البحر الأحمر',
+                    objects: [
+                        { name: 'عصا موسى', icon: 'wand-magic', clue: 'ضرب بيها البحر فانشق' },
+                        { name: 'ممر في البحر', icon: 'road', clue: 'الشعب عبر على أرض يابسة' },
+                        { name: 'جيش فرعون', icon: 'horse', clue: 'غرق في الماء — الشر هُزم' },
+                        { name: 'ترنيمة مريم', icon: 'music', clue: '"رنموا للرب فإنه قد تعظم" — فرح الخلاص' }
+                    ],
+                    answer: 'عبور البحر الأحمر — رمز للمعمودية',
+                    hint: 'عبور من العبودية للحرية عبر الماء'
+                }
+            ]
+        },
+        balance: {
+            title: 'ميزان المعمودية',
+            icon: 'balance-scale',
+            statements: [
+                { text: 'المعمودية هي باب الأسرار السبعة', answer: true, weight: 5 },
+                { text: 'المعمودية بالرش كافية', answer: false, weight: 10 },
+                { text: 'المعمَّد يُغطس ٣ مرات', answer: true, weight: 5 },
+                { text: 'المعمودية ممكن تتعاد', answer: false, weight: 10 },
+                { text: 'الميرون فيه ٣٦ رشمة', answer: true, weight: 5 },
+                { text: 'المعمودية لا تغفر الخطية الجدية', answer: false, weight: 10 },
+                { text: 'الطوفان وفلك نوح رمز للمعمودية', answer: true, weight: 5 },
+                { text: 'الولد يُعمَّد بعد ٨٠ يوم', answer: false, weight: 5 },
+                { text: 'عبور البحر الأحمر رمز للمعمودية', answer: true, weight: 5 },
+                { text: 'المعمودية لا تحتاج كاهن', answer: false, weight: 10 },
+                { text: 'المعمودية موت وقيامة مع المسيح', answer: true, weight: 5 },
+                { text: 'البنت تُعمَّد بعد ٤٠ يوم', answer: false, weight: 5 },
+                { text: 'بعد المعمودية علاج الخطية بالتوبة والاعتراف', answer: true, weight: 5 },
+                { text: 'الميرون سر حلول الروح القدس', answer: true, weight: 5 },
+                { text: 'كلمة معمودية معناها "رش"', answer: false, weight: 8 }
+            ]
+        }
+    },
+    // ===== LESSON 5: التوبة والاعتراف =====
+    'faith_5': {
+        courtOfFaith: {
+            title: 'محكمة الإيمان — ضرورة الاعتراف',
+            icon: 'gavel',
+            heretic: 'المعترض',
+            hereticTitle: 'رافض الاعتراف للكاهن',
+            defender: 'الكاهن',
+            intro: 'حد بيقول: "أنا بعترف لربنا مباشرة! مش محتاج كاهن!" دافع عن سر الاعتراف.',
+            rounds: [
+                {
+                    claim: 'أنا بعترف لربنا مباشرة! مش محتاج وسيط!',
+                    evidence: [
+                        { text: '"من غفرتم خطاياه تُغفر له ومن أمسكتم خطاياه أُمسكت" (يو ٢٠: ٢٣)', correct: true },
+                        { text: 'المؤمنون في أعمال الرسل كانوا "يأتون مقرين ومخبرين بأفعالهم"', correct: true },
+                        { text: '"الله غفور رحيم" — يعني مش محتاج كاهن', correct: false },
+                        { text: '"صلوا بعضكم لأجل بعض" — يعني الصلاة كافية', correct: false }
+                    ],
+                    explanation: 'المسيح أعطى الكهنة سلطان الحل والربط — الاعتراف سر كنسي'
+                },
+                {
+                    claim: 'ربنا سأل آدم "أين أنت؟" — يعني الله عارف خطايانا ومش محتاج نعترف!',
+                    evidence: [
+                        { text: 'سأله عشان يديه فرصة للاعتراف — مش عشان هو مش عارف', correct: true },
+                        { text: 'قايين رفض يعترف فحُرم — الاعتراف أهم من المعرفة', correct: true },
+                        { text: 'ربنا عارف كل حاجة فالاعتراف غير ضروري', correct: false },
+                        { text: 'آدم اعتذر وخلاص', correct: false }
+                    ],
+                    explanation: 'الاعتراف فرصة للتوبة والعلاج — مش مجرد إخبار الله'
+                }
+            ]
+        },
+        creedBuilder: {
+            title: 'بناء خطوات التوبة',
+            icon: 'heart',
+            blocks: [
+                'الشعور بالخطية والندم',
+                'فحص النفس ومحاسبتها',
+                'العزم على عدم الرجوع',
+                'الذهاب لأب الاعتراف',
+                'الإقرار بالخطية بصدق',
+                'عدم تبرير النفس',
+                'عدم إلقاء اللوم على الآخرين',
+                'سماع إرشاد الكاهن',
+                'تنفيذ كلام أب الاعتراف',
+                'نوال الحل من الكاهن',
+                'التناول من جسد الرب ودمه',
+                'الحياة الجديدة في المسيح'
+            ]
+        },
+        councilJourney: {
+            title: 'رحلة التوبة — الابن الضال',
+            icon: 'heart',
+            scenes: [
+                {
+                    id: 'start',
+                    text: 'أنت الابن الضال. أخدت ميراثك وسافرت بلد بعيدة. صرفت كل حاجة. دلوقتي جعان وبترعى خنازير. إيه اللي هتعمله؟',
+                    choices: [
+                        { text: '"أقوم وأذهب إلى أبي وأقول له: أخطأت إلى السماء وقدامك"', next: 'return', points: 10, faith: 10 },
+                        { text: 'أستمر في البلد البعيدة وأحاول لوحدي', next: 'stay', points: 2, faith: -5 },
+                        { text: 'ألوم الظروف والناس', next: 'blame', points: 0, faith: -10 }
+                    ]
+                },
+                {
+                    id: 'return',
+                    text: 'قومت ورحت لأبوك. وأنت لسه بعيد، أبوك شافك وجري ناحيتك وحضنك! إيه اللي هتقوله؟',
+                    choices: [
+                        { text: '"يا أبي أخطأت إلى السماء وقدامك ولست مستحقاً أن أُدعى لك ابناً"', next: 'forgiven', points: 10, faith: 10 },
+                        { text: '"يا أبي أنا مش غلطان، الظروف هي السبب"', next: 'justify', points: 1, faith: -8 }
+                    ]
+                },
+                {
+                    id: 'stay',
+                    text: 'البقاء في البعد مش حل. بتجوع أكتر. المخرج هو الرجوع للأب.',
+                    choices: [
+                        { text: 'فعلاً — أقوم وأرجع', next: 'return', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'blame',
+                    text: 'قايين لوّم ربنا وقال "خطيتي أعظم من أن تُحتمل" — تبرير مش توبة. آدم لوّم حواء. اللوم مش حل.',
+                    choices: [
+                        { text: 'فهمت — لازم أعترف بغلطي أنا', next: 'return', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'justify',
+                    text: 'التبرير مش اعتراف! آدم قال "المرأة هي السبب" وما اعترفش. التوبة الحقيقية = صدق بدون تبرير.',
+                    choices: [
+                        { text: '"يا أبي أنا أخطأت فعلاً"', next: 'forgiven', points: 5, faith: 5 }
+                    ]
+                },
+                {
+                    id: 'forgiven',
+                    text: '🏆 أبوك فرح بيك! قال "ابني هذا كان ميتاً فعاش وكان ضالاً فوُجد". ألبسك الحلة الأولى وعمل فرح كبير! هكذا يكون فرح في السماء بخاطئ واحد يتوب!',
+                    choices: [],
+                    ending: true
+                }
+            ]
+        },
+        detective: {
+            title: 'المحقق — شخصيات التوبة',
+            icon: 'magnifying-glass',
+            scenes: [
+                {
+                    setting: 'بيت في أورشليم',
+                    objects: [
+                        { name: 'دموع كتيرة', icon: 'tint', clue: 'بللت قدمي المسيح بدموعها' },
+                        { name: 'طيب ثمين', icon: 'flask', clue: 'سكبت طيب على قدميه' },
+                        { name: 'شعر طويل', icon: 'user', clue: 'مسحت قدميه بشعرها' },
+                        { name: 'كلمة المسيح', icon: 'comment', clue: '"غُفرت لها خطاياها الكثيرة لأنها أحبت كثيراً"' }
+                    ],
+                    answer: 'المرأة الخاطئة التائبة',
+                    hint: 'سكبت دموعها وطيبها على قدمي المسيح'
+                },
+                {
+                    setting: 'شجرة جميزة في أريحا',
+                    objects: [
+                        { name: 'شجرة عالية', icon: 'tree', clue: 'طلع عليها عشان يشوف المسيح لأنه قصير' },
+                        { name: 'أموال مسروقة', icon: 'coins', clue: 'كان عشّار يأخذ أكثر من الحق' },
+                        { name: 'تعهد مكتوب', icon: 'file-contract', clue: '"أعطي نصف أموالي للمساكين ومن ظلمته أرد أربعة أضعاف"' },
+                        { name: 'كلمة المسيح', icon: 'comment', clue: '"اليوم حصل خلاص لهذا البيت"' }
+                    ],
+                    answer: 'زكا العشار',
+                    hint: 'عشّار تاب ورد ما أخذه أربعة أضعاف'
+                }
+            ]
+        },
+        balance: {
+            title: 'ميزان التوبة',
+            icon: 'balance-scale',
+            statements: [
+                { text: 'المسيح أعطى التلاميذ سلطان الحل والربط', answer: true, weight: 5 },
+                { text: 'ممكن أعترف لربنا مباشرة بدون كاهن', answer: false, weight: 10 },
+                { text: 'الكاهن وكيل على أسرار الله', answer: true, weight: 5 },
+                { text: 'آدم اعترف بخطيته وتاب', answer: false, weight: 8 },
+                { text: 'الاعتراف موجود من العهد القديم', answer: true, weight: 5 },
+                { text: 'التبرير والدفاع عن النفس هو اعتراف صحيح', answer: false, weight: 10 },
+                { text: 'المؤمنون في أعمال الرسل كانوا يعترفون شفاهياً', answer: true, weight: 5 },
+                { text: 'الاعتراف مجرد تقليد بشري', answer: false, weight: 10 },
+                { text: 'ربنا سأل آدم ليديه فرصة للاعتراف', answer: true, weight: 5 },
+                { text: 'قايين اعترف بخطيته وربنا سامحه', answer: false, weight: 8 },
+                { text: 'التوبة تحتاج صدق ومحاسبة نفس', answer: true, weight: 5 },
+                { text: 'لازم ننفذ كلام أب الاعتراف', answer: true, weight: 5 },
+                { text: 'الابن الضال رجع لأبوه واعترف', answer: true, weight: 5 },
+                { text: 'إلقاء اللوم على الآخرين هو توبة حقيقية', answer: false, weight: 10 },
+                { text: '"من غفرتم خطاياه تُغفر" قالها المسيح للتلاميذ', answer: true, weight: 5 }
+            ]
+        }
+    }
+};
+
+// ============================================================
+// GAME ENGINE 1: محكمة الإيمان (COURT OF FAITH)
+// ============================================================
+function startCourtOfFaith() {
+    var games = getInteractiveGamesForLesson();
+    if (!games || !games.courtOfFaith) return;
+    var data = games.courtOfFaith;
+
+    miniGameState = {
+        type: 'courtOfFaith', index: 0, score: 0, total: data.rounds.length * 10,
+        answers: [], timer: null, timeLeft: 0, data: data,
+        faithMeter: 50, selectedEvidence: [], roundAnswered: false
+    };
+
+    renderCourtIntro(data);
+}
+
+function renderCourtIntro(data) {
+    var html = '<div class="court-game">';
+    html += '<div class="court-intro">';
+    html += '<div class="court-vs">';
+    html += '<div class="court-person court-heretic"><div class="court-avatar"><i class="fas fa-user-slash"></i></div><h4>' + data.heretic + '</h4><p>' + data.hereticTitle + '</p></div>';
+    html += '<div class="court-versus">⚔️</div>';
+    html += '<div class="court-person court-defender"><div class="court-avatar"><i class="fas fa-shield-alt"></i></div><h4>' + data.defender + '</h4><p>المدافع عن الإيمان</p></div>';
+    html += '</div>';
+    html += '<p class="court-intro-text">' + data.intro + '</p>';
+    html += '<button class="btn btn-primary court-start-btn" onclick="renderCourtRound()"><span><i class="fas fa-gavel"></i> ابدأ المحاكمة!</span></button>';
+    html += '</div></div>';
+
+    renderMiniGameUI(data.title, data.icon, html);
+}
+
+function renderCourtRound() {
+    var data = miniGameState.data;
+    if (miniGameState.index >= data.rounds.length) {
+        showCourtResult();
+        return;
+    }
+
+    var round = data.rounds[miniGameState.index];
+    var progress = (miniGameState.index + 1) + '/' + data.rounds.length;
+
+    var html = '<div class="court-round">';
+    // Faith meter
+    html += '<div class="court-faith-meter"><div class="court-faith-label">ميزان الإيمان</div>';
+    html += '<div class="court-faith-bar"><div class="court-faith-fill" id="court-faith-fill" style="width:' + miniGameState.faithMeter + '%"></div></div>';
+    html += '<div class="court-faith-ends"><span>هرطقة</span><span>أرثوذكسية</span></div></div>';
+
+    // Progress
+    html += '<div class="mg-progress">' + progress + '</div>';
+
+    // Heretic claim
+    html += '<div class="court-claim"><div class="court-claim-icon"><i class="fas fa-exclamation-triangle"></i></div>';
+    html += '<div class="court-claim-text">';
+    html += '<strong>' + data.heretic + ':</strong> ' + round.claim;
+    html += '</div></div>';
+
+    // Evidence cards
+    html += '<div class="court-evidence-title"><i class="fas fa-book-bible"></i> اختار الأدلة الصحيحة للرد:</div>';
+    html += '<div class="court-evidence-grid">';
+    var shuffled = round.evidence.slice();
+    shuffleArray(shuffled);
+    shuffled.forEach(function(ev, i) {
+        html += '<div class="court-evidence-card" id="court-ev-' + i + '" onclick="selectCourtEvidence(' + i + ', ' + ev.correct + ')" data-correct="' + ev.correct + '">';
+        html += '<i class="fas fa-' + (ev.correct ? 'book-bible' : 'question') + '"></i>';
+        html += '<p>' + ev.text + '</p>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    // Confirm button
+    html += '<div class="court-actions" id="court-actions" style="display:none">';
+    html += '<button class="btn btn-primary" onclick="confirmCourtRound()"><span><i class="fas fa-check"></i> ثبّت ردك</span></button>';
+    html += '</div>';
+
+    html += '</div>';
+
+    var body = document.getElementById('mg-body');
+    if (body) body.innerHTML = html;
+}
+
+function selectCourtEvidence(idx, isCorrect) {
+    if (miniGameState.roundAnswered) return;
+
+    var card = document.getElementById('court-ev-' + idx);
+    if (!card) return;
+
+    if (card.classList.contains('selected')) {
+        card.classList.remove('selected');
+        return;
+    }
+    card.classList.add('selected');
+
+    // Show confirm button
+    var actions = document.getElementById('court-actions');
+    if (actions) actions.style.display = 'flex';
+}
+
+function confirmCourtRound() {
+    if (miniGameState.roundAnswered) return;
+    miniGameState.roundAnswered = true;
+
+    var cards = document.querySelectorAll('.court-evidence-card');
+    var correctSelected = 0;
+    var wrongSelected = 0;
+
+    cards.forEach(function(card) {
+        var isCorrect = card.getAttribute('data-correct') === 'true';
+        var isSelected = card.classList.contains('selected');
+
+        if (isSelected && isCorrect) {
+            card.classList.add('court-correct');
+            correctSelected++;
+        } else if (isSelected && !isCorrect) {
+            card.classList.add('court-wrong');
+            wrongSelected++;
+        } else if (!isSelected && isCorrect) {
+            card.classList.add('court-missed');
+        }
+        card.onclick = null;
+    });
+
+    // Score calculation
+    var roundScore = Math.max(0, (correctSelected * 5) - (wrongSelected * 3));
+    miniGameState.score += roundScore;
+    miniGameState.faithMeter = Math.min(100, Math.max(0, miniGameState.faithMeter + (correctSelected * 10) - (wrongSelected * 15)));
+    updateMGScore();
+
+    // Animate faith meter
+    var fill = document.getElementById('court-faith-fill');
+    if (fill) fill.style.width = miniGameState.faithMeter + '%';
+
+    // Show explanation
+    var round = miniGameState.data.rounds[miniGameState.index];
+    var actions = document.getElementById('court-actions');
+    if (actions) {
+        actions.innerHTML = '<div class="court-explanation"><i class="fas fa-lightbulb"></i> ' + round.explanation + '</div>' +
+            '<button class="btn btn-primary" onclick="nextCourtRound()"><span><i class="fas fa-arrow-left"></i> التالي</span></button>';
+    }
+
+    showAnswerFeedback(correctSelected > wrongSelected);
+    if (correctSelected > 0) { if (typeof playCorrectSound === 'function') playCorrectSound(); vibrate(50); }
+    else { if (typeof playWrongSound === 'function') playWrongSound(); }
+}
+
+function nextCourtRound() {
+    miniGameState.index++;
+    miniGameState.roundAnswered = false;
+    renderCourtRound();
+}
+
+function showCourtResult() {
+    saveMiniGameScore('courtOfFaith', miniGameState.score);
+
+    var pct = miniGameState.total > 0 ? Math.round((miniGameState.score / miniGameState.total) * 100) : 0;
+    var emoji = pct >= 90 ? '⚖️' : (pct >= 60 ? '🛡️' : '💪');
+    var message = pct >= 90 ? 'مدافع عظيم عن الإيمان!' : (pct >= 60 ? 'دفاع جيد! كمّل!' : 'حاول تاني — اقرأ الدرس وارجع!');
+
+    showMiniGameResult('محكمة الإيمان');
+}
+
+// ============================================================
+// GAME ENGINE 2: بناء العقيدة (CREED BUILDER)
+// ============================================================
+function startCreedBuilder() {
+    var games = getInteractiveGamesForLesson();
+    if (!games || !games.creedBuilder) return;
+    var data = games.creedBuilder;
+
+    miniGameState = {
+        type: 'creedBuilder', index: 0, score: 0, total: data.blocks.length * 3,
+        answers: [], timer: null, timeLeft: 60, data: data,
+        placedBlocks: [], availableBlocks: []
+    };
+
+    // Shuffle blocks for the player
+    var shuffled = data.blocks.map(function(b, i) { return { text: b, correctIndex: i }; });
+    shuffleArray(shuffled);
+    miniGameState.availableBlocks = shuffled;
+
+    renderCreedBuilder(data);
+}
+
+function renderCreedBuilder(data) {
+    var html = '<div class="creed-game">';
+    html += '<div class="creed-title"><i class="fas fa-' + data.icon + '"></i> ' + data.title + '</div>';
+
+    // Timer
+    html += '<div class="creed-timer"><div class="mg-timer-bar"><div class="mg-timer-fill" id="creed-timer-fill" style="width:100%"></div></div></div>';
+
+    // Building area (drop zone)
+    html += '<div class="creed-building" id="creed-building">';
+    html += '<div class="creed-building-label"><i class="fas fa-arrow-down"></i> رتّب العبارات بالترتيب الصح</div>';
+    for (var i = 0; i < data.blocks.length; i++) {
+        html += '<div class="creed-slot" id="creed-slot-' + i + '" data-index="' + i + '" onclick="removeCreedBlock(' + i + ')">';
+        html += '<span class="creed-slot-num">' + (i + 1) + '</span>';
+        html += '<span class="creed-slot-text" id="creed-slot-text-' + i + '"></span>';
+        html += '</div>';
+    }
+    html += '</div>';
+
+    // Available blocks (source)
+    html += '<div class="creed-blocks" id="creed-blocks">';
+    miniGameState.availableBlocks.forEach(function(block, i) {
+        html += '<div class="creed-block" id="creed-avail-' + i + '" onclick="placeCreedBlock(' + i + ')">' + block.text + '</div>';
+    });
+    html += '</div>';
+
+    // Check button
+    html += '<button class="btn btn-primary creed-check-btn" onclick="checkCreedBuilder()" style="width:100%;margin-top:12px"><span><i class="fas fa-check"></i> تحقق من الترتيب</span></button>';
+
+    html += '</div>';
+
+    renderMiniGameUI(data.title, data.icon, html);
+    startCreedTimer();
+}
+
+function startCreedTimer() {
+    miniGameState.timeLeft = 60;
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
+    miniGameState.timer = setInterval(function() {
+        miniGameState.timeLeft -= 0.1;
+        var fill = document.getElementById('creed-timer-fill');
+        if (fill) fill.style.width = Math.max(0, (miniGameState.timeLeft / 60) * 100) + '%';
+        if (miniGameState.timeLeft <= 0) {
+            clearInterval(miniGameState.timer);
+            checkCreedBuilder();
+        }
+    }, 100);
+}
+
+function placeCreedBlock(availIdx) {
+    var block = miniGameState.availableBlocks[availIdx];
+    if (!block || block.placed) return;
+
+    // Find first empty slot
+    var slotIdx = miniGameState.placedBlocks.length;
+    if (slotIdx >= miniGameState.data.blocks.length) return;
+
+    miniGameState.placedBlocks.push(availIdx);
+    block.placed = true;
+
+    // Update UI
+    var slotText = document.getElementById('creed-slot-text-' + slotIdx);
+    var slot = document.getElementById('creed-slot-' + slotIdx);
+    if (slotText) slotText.textContent = block.text;
+    if (slot) slot.classList.add('filled');
+
+    var avail = document.getElementById('creed-avail-' + availIdx);
+    if (avail) avail.classList.add('used');
+}
+
+function removeCreedBlock(slotIdx) {
+    if (slotIdx >= miniGameState.placedBlocks.length) return;
+
+    // Remove this block and shift everything after it
+    var removed = miniGameState.placedBlocks.splice(slotIdx, 1)[0];
+    miniGameState.availableBlocks[removed].placed = false;
+
+    // Re-render placed blocks
+    var data = miniGameState.data;
+    for (var i = 0; i < data.blocks.length; i++) {
+        var slotText = document.getElementById('creed-slot-text-' + i);
+        var slot = document.getElementById('creed-slot-' + i);
+        if (i < miniGameState.placedBlocks.length) {
+            var aIdx = miniGameState.placedBlocks[i];
+            if (slotText) slotText.textContent = miniGameState.availableBlocks[aIdx].text;
+            if (slot) slot.classList.add('filled');
+        } else {
+            if (slotText) slotText.textContent = '';
+            if (slot) slot.classList.remove('filled');
+        }
+    }
+
+    // Re-render available
+    var avail = document.getElementById('creed-avail-' + removed);
+    if (avail) avail.classList.remove('used');
+}
+
+function checkCreedBuilder() {
+    if (miniGameState.timer) clearInterval(miniGameState.timer);
+
+    var data = miniGameState.data;
+    var correct = 0;
+
+    for (var i = 0; i < data.blocks.length; i++) {
+        var slot = document.getElementById('creed-slot-' + i);
+        if (i < miniGameState.placedBlocks.length) {
+            var aIdx = miniGameState.placedBlocks[i];
+            var block = miniGameState.availableBlocks[aIdx];
+            if (block.correctIndex === i) {
+                correct++;
+                if (slot) slot.classList.add('creed-correct');
+            } else {
+                if (slot) slot.classList.add('creed-wrong');
+            }
+        } else {
+            if (slot) slot.classList.add('creed-wrong');
+        }
+    }
+
+    miniGameState.score = correct * 3;
+    updateMGScore();
+
+    showAnswerFeedback(correct >= data.blocks.length * 0.7);
+    if (correct >= data.blocks.length * 0.7) {
+        if (typeof playCorrectSound === 'function') playCorrectSound();
+    }
+
+    setTimeout(function() {
+        showMiniGameResult('بناء العقيدة');
+    }, 1500);
+}
+
+// ============================================================
+// GAME ENGINE 3: رحلة المجامع (COUNCIL JOURNEY)
+// ============================================================
+function startCouncilJourney() {
+    var games = getInteractiveGamesForLesson();
+    if (!games || !games.councilJourney) return;
+    var data = games.councilJourney;
+
+    miniGameState = {
+        type: 'councilJourney', index: 0, score: 0, total: 50,
+        answers: [], timer: null, timeLeft: 0, data: data,
+        faithMeter: 50, currentScene: data.scenes[0].id, path: [], scenesVisited: 0
+    };
+
+    renderCouncilScene(data.scenes[0]);
+}
+
+function renderCouncilScene(scene) {
+    if (!scene) return;
+    miniGameState.currentScene = scene.id;
+    miniGameState.scenesVisited++;
+
+    var data = miniGameState.data;
+    var html = '<div class="council-game">';
+
+    // Faith meter
+    html += '<div class="court-faith-meter"><div class="court-faith-label"><i class="fas fa-' + data.icon + '"></i> ' + data.title + '</div>';
+    html += '<div class="court-faith-bar"><div class="court-faith-fill" style="width:' + miniGameState.faithMeter + '%"></div></div>';
+    html += '<div class="court-faith-ends"><span>ضعيف</span><span>قوي</span></div></div>';
+
+    // Scene text
+    html += '<div class="council-scene">';
+    if (scene.character) {
+        html += '<div class="council-character"><i class="fas fa-user-shield"></i></div>';
+    }
+    html += '<div class="council-text">' + scene.text + '</div>';
+
+    // Choices
+    if (scene.choices && scene.choices.length > 0) {
+        html += '<div class="council-choices">';
+        scene.choices.forEach(function(choice, i) {
+            html += '<button class="council-choice-btn" onclick="makeCouncilChoice(\'' + choice.next + '\',' + choice.points + ',' + choice.faith + ')">';
+            html += '<span class="council-choice-text">' + choice.text + '</span>';
+            html += '</button>';
+        });
+        html += '</div>';
+    } else if (scene.ending) {
+        // Ending scene
+        html += '<div class="council-ending">';
+        html += '<button class="btn btn-primary" onclick="finishCouncilJourney()"><span><i class="fas fa-flag-checkered"></i> النتيجة</span></button>';
+        html += '</div>';
+    }
+
+    html += '</div></div>';
+
+    var body = document.getElementById('mg-body');
+    if (body) {
+        body.innerHTML = html;
+        body.scrollTop = 0;
+    } else {
+        renderMiniGameUI(data.title, data.icon, html);
+    }
+}
+
+function makeCouncilChoice(nextId, points, faith) {
+    miniGameState.score += points;
+    miniGameState.faithMeter = Math.min(100, Math.max(0, miniGameState.faithMeter + faith));
+    miniGameState.path.push(nextId);
+    updateMGScore();
+
+    if (points >= 8) {
+        showAnswerFeedback(true);
+        if (typeof playCorrectSound === 'function') playCorrectSound();
+        vibrate(50);
+    } else if (points <= 2) {
+        showAnswerFeedback(false);
+        if (typeof playWrongSound === 'function') playWrongSound();
+    }
+
+    // Find next scene
+    var scenes = miniGameState.data.scenes;
+    var next = null;
+    for (var i = 0; i < scenes.length; i++) {
+        if (scenes[i].id === nextId) { next = scenes[i]; break; }
+    }
+
+    setTimeout(function() {
+        if (next) renderCouncilScene(next);
+        else finishCouncilJourney();
+    }, 800);
+}
+
+function finishCouncilJourney() {
+    // Cap score at total
+    miniGameState.score = Math.min(miniGameState.score, miniGameState.total);
+    showMiniGameResult('رحلة المجامع');
+}
+
+// ============================================================
+// GAME ENGINE 4: المحقق (DETECTIVE)
+// ============================================================
+function startDetective() {
+    var games = getInteractiveGamesForLesson();
+    if (!games || !games.detective) return;
+    var data = games.detective;
+
+    miniGameState = {
+        type: 'detective', index: 0, score: 0, total: data.scenes.length * 10,
+        answers: [], timer: null, timeLeft: 0, data: data,
+        cluesFound: [], maxPoints: 10, guessSubmitted: false
+    };
+
+    renderDetectiveScene();
+}
+
+function renderDetectiveScene() {
+    var data = miniGameState.data;
+    if (miniGameState.index >= data.scenes.length) {
+        showMiniGameResult('المحقق');
+        return;
+    }
+
+    var scene = data.scenes[miniGameState.index];
+    miniGameState.cluesFound = [];
+    miniGameState.maxPoints = 10;
+    miniGameState.guessSubmitted = false;
+
+    var progress = (miniGameState.index + 1) + '/' + data.scenes.length;
+
+    var html = '<div class="detective-game">';
+    html += '<div class="mg-progress">' + progress + '</div>';
+
+    // Setting
+    html += '<div class="detective-setting">';
+    html += '<div class="detective-setting-icon"><i class="fas fa-map-marker-alt"></i></div>';
+    html += '<h4>' + scene.setting + '</h4>';
+    html += '</div>';
+
+    // Points indicator
+    html += '<div class="detective-points" id="detective-points"><i class="fas fa-star"></i> نقاط متاحة: <strong>' + miniGameState.maxPoints + '</strong></div>';
+
+    // Objects to investigate
+    html += '<div class="detective-objects">';
+    scene.objects.forEach(function(obj, i) {
+        html += '<div class="detective-object" id="det-obj-' + i + '" onclick="investigateObject(' + i + ')">';
+        html += '<div class="detective-obj-icon"><i class="fas fa-' + obj.icon + '"></i></div>';
+        html += '<div class="detective-obj-name">' + obj.name + '</div>';
+        html += '<div class="detective-obj-clue" id="det-clue-' + i + '" style="display:none">' + obj.clue + '</div>';
+        html += '</div>';
+    });
+    html += '</div>';
+
+    // Guess area
+    html += '<div class="detective-guess" id="detective-guess" style="display:none">';
+    html += '<div class="detective-guess-label"><i class="fas fa-lightbulb"></i> مين/إيه الإجابة؟</div>';
+    html += '<input type="text" class="detective-input" id="detective-answer" placeholder="اكتب إجابتك..." autocomplete="off">';
+    html += '<div class="detective-hint" id="detective-hint" style="display:none"><i class="fas fa-info-circle"></i> تلميح: ' + scene.hint + '</div>';
+    html += '<div class="detective-guess-btns">';
+    html += '<button class="btn btn-primary" onclick="submitDetectiveGuess()"><span><i class="fas fa-check"></i> تأكيد</span></button>';
+    html += '<button class="btn btn-secondary" onclick="showDetectiveHint()"><span><i class="fas fa-question"></i> تلميح (-3 نقاط)</span></button>';
+    html += '</div></div>';
+
+    html += '</div>';
+
+    var body = document.getElementById('mg-body');
+    if (body) body.innerHTML = html;
+    else renderMiniGameUI(data.title, data.icon, html);
+}
+
+function investigateObject(idx) {
+    if (miniGameState.guessSubmitted) return;
+    var clue = document.getElementById('det-clue-' + idx);
+    var obj = document.getElementById('det-obj-' + idx);
+    if (!clue || !obj) return;
+
+    if (miniGameState.cluesFound.indexOf(idx) === -1) {
+        miniGameState.cluesFound.push(idx);
+        // Each clue after the first reduces max points
+        if (miniGameState.cluesFound.length > 1) {
+            miniGameState.maxPoints = Math.max(3, miniGameState.maxPoints - 2);
+            var pts = document.getElementById('detective-points');
+            if (pts) pts.innerHTML = '<i class="fas fa-star"></i> نقاط متاحة: <strong>' + miniGameState.maxPoints + '</strong>';
+        }
+    }
+
+    clue.style.display = 'block';
+    obj.classList.add('investigated');
+    vibrate(30);
+
+    // Show guess area after at least 2 clues
+    if (miniGameState.cluesFound.length >= 2) {
+        var guess = document.getElementById('detective-guess');
+        if (guess) guess.style.display = 'block';
+    }
+}
+
+function showDetectiveHint() {
+    miniGameState.maxPoints = Math.max(1, miniGameState.maxPoints - 3);
+    var pts = document.getElementById('detective-points');
+    if (pts) pts.innerHTML = '<i class="fas fa-star"></i> نقاط متاحة: <strong>' + miniGameState.maxPoints + '</strong>';
+
+    var hint = document.getElementById('detective-hint');
+    if (hint) hint.style.display = 'block';
+}
+
+function submitDetectiveGuess() {
+    if (miniGameState.guessSubmitted) return;
+    miniGameState.guessSubmitted = true;
+
+    var scene = miniGameState.data.scenes[miniGameState.index];
+    var input = document.getElementById('detective-answer');
+    var userAnswer = input ? input.value.trim() : '';
+
+    // Fuzzy match: check if answer contains key words
+    var correct = false;
+    var answerWords = scene.answer.split(/[\s—\-\/]+/);
+    var matchCount = 0;
+    answerWords.forEach(function(word) {
+        if (word.length > 2 && userAnswer.indexOf(word) !== -1) matchCount++;
+    });
+    if (matchCount >= Math.ceil(answerWords.length * 0.4) || userAnswer.length > 3 && scene.answer.indexOf(userAnswer) !== -1) {
+        correct = true;
+    }
+
+    if (correct) {
+        miniGameState.score += miniGameState.maxPoints;
+        updateMGScore();
+        showAnswerFeedback(true);
+        if (typeof playCorrectSound === 'function') playCorrectSound();
+    } else {
+        showAnswerFeedback(false);
+        if (typeof playWrongSound === 'function') playWrongSound();
+    }
+
+    // Show correct answer
+    var guess = document.getElementById('detective-guess');
+    if (guess) {
+        guess.innerHTML = '<div class="detective-result ' + (correct ? 'correct' : 'wrong') + '">' +
+            '<div class="detective-result-icon">' + (correct ? '✅' : '❌') + '</div>' +
+            '<div class="detective-result-text">' + (correct ? 'صح! ' : 'الإجابة الصحيحة: ') + scene.answer + '</div>' +
+            '</div>' +
+            '<button class="btn btn-primary" onclick="nextDetectiveScene()" style="margin-top:12px"><span><i class="fas fa-arrow-left"></i> التالي</span></button>';
+    }
+}
+
+function nextDetectiveScene() {
+    miniGameState.index++;
+    renderDetectiveScene();
+}
+
+// ============================================================
+// GAME ENGINE 5: الميزان (THE BALANCE)
+// ============================================================
+function startBalance() {
+    var games = getInteractiveGamesForLesson();
+    if (!games || !games.balance) return;
+    var data = games.balance;
+
+    var stmts = data.statements.slice();
+    shuffleArray(stmts);
+    stmts = stmts.slice(0, 15); // Pick 15
+
+    miniGameState = {
+        type: 'balance', index: 0, score: 0, total: stmts.length * 3,
+        answers: [], timer: null, timeLeft: 0, data: stmts,
+        balanceValue: 50, streak: 0
+    };
+
+    renderBalanceCard();
+}
+
+function renderBalanceCard() {
+    var data = miniGameState.data;
+    if (miniGameState.index >= data.length) {
+        showMiniGameResult('ميزان الإيمان');
+        return;
+    }
+
+    var stmt = data[miniGameState.index];
+    var progress = (miniGameState.index + 1) + '/' + data.length;
+
+    var html = '<div class="balance-game">';
+
+    // Balance visual
+    var angle = (miniGameState.balanceValue - 50) * 0.6; // -30 to +30 degrees
+    html += '<div class="balance-scale-wrap">';
+    html += '<div class="balance-pivot"><i class="fas fa-balance-scale"></i></div>';
+    html += '<div class="balance-beam" id="balance-beam" style="transform:rotate(' + angle + 'deg)">';
+    html += '<div class="balance-side balance-heresy"><span>هرطقة</span></div>';
+    html += '<div class="balance-side balance-orthodox"><span>أرثوذكسية</span></div>';
+    html += '</div>';
+    html += '<div class="balance-value" id="balance-value">' + miniGameState.balanceValue + '%</div>';
+    html += '</div>';
+
+    // Progress and streak
+    html += '<div class="balance-info">';
+    html += '<div class="mg-progress">' + progress + '</div>';
+    if (miniGameState.streak > 1) {
+        html += '<div class="balance-streak"><i class="fas fa-fire"></i> ' + miniGameState.streak + 'x</div>';
+    }
+    html += '</div>';
+
+    // Statement card
+    html += '<div class="balance-card" id="balance-card">';
+    html += '<div class="balance-stmt">' + stmt.text + '</div>';
+    html += '</div>';
+
+    // Swipe buttons
+    html += '<div class="balance-buttons">';
+    html += '<button class="balance-btn balance-btn-false" onclick="answerBalance(false)">';
+    html += '<i class="fas fa-times"></i> غلط';
+    html += '</button>';
+    html += '<button class="balance-btn balance-btn-true" onclick="answerBalance(true)">';
+    html += '<i class="fas fa-check"></i> صح';
+    html += '</button>';
+    html += '</div>';
+
+    html += '</div>';
+
+    var body = document.getElementById('mg-body');
+    if (body) body.innerHTML = html;
+    else renderMiniGameUI('ميزان الإيمان', 'balance-scale', html);
+
+    // Add swipe support
+    setTimeout(function() {
+        var card = document.getElementById('balance-card');
+        if (!card) return;
+        var startX = 0;
+        card.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; }, { passive: true });
+        card.addEventListener('touchend', function(e) {
+            var diff = e.changedTouches[0].clientX - startX;
+            if (Math.abs(diff) > 60) {
+                answerBalance(diff > 0); // Swipe right = true, left = false
+            }
+        }, { passive: true });
+    }, 100);
+}
+
+function answerBalance(userAnswer) {
+    var stmt = miniGameState.data[miniGameState.index];
+    var correct = (userAnswer === stmt.answer);
+
+    var card = document.getElementById('balance-card');
+    if (card) {
+        card.classList.add(correct ? 'balance-correct' : 'balance-wrong');
+        card.style.transform = 'translateX(' + (userAnswer ? '80px' : '-80px') + ') rotate(' + (userAnswer ? '8' : '-8') + 'deg)';
+        card.style.opacity = '0.5';
+    }
+
+    if (correct) {
+        miniGameState.streak++;
+        var points = Math.min(3 + miniGameState.streak, 5); // Streak bonus
+        miniGameState.score += points;
+        miniGameState.balanceValue = Math.min(100, miniGameState.balanceValue + stmt.weight);
+        if (typeof playCorrectSound === 'function') playCorrectSound();
+        vibrate(50);
+    } else {
+        miniGameState.streak = 0;
+        miniGameState.balanceValue = Math.max(0, miniGameState.balanceValue - stmt.weight);
+        if (typeof playWrongSound === 'function') playWrongSound();
+        vibrate([50, 30, 50]);
+    }
+
+    updateMGScore();
+
+    // Animate balance
+    var beam = document.getElementById('balance-beam');
+    var valEl = document.getElementById('balance-value');
+    if (beam) {
+        var angle = (miniGameState.balanceValue - 50) * 0.6;
+        beam.style.transform = 'rotate(' + angle + 'deg)';
+    }
+    if (valEl) valEl.textContent = miniGameState.balanceValue + '%';
+
+    showAnswerFeedback(correct);
+
+    miniGameState.index++;
+    setTimeout(renderBalanceCard, 900);
+}
+
+// ============================================================
+// HELPER: Get interactive games for current lesson
+// ============================================================
+function getInteractiveGamesForLesson() {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson;
+    return INTERACTIVE_GAMES[key] || null;
+}
+
+// ============================================================
+// UPDATE: saveMiniGameScore to include new game types
+// ============================================================
+(function() {
+    var origSaveMiniGameScore = saveMiniGameScore;
+    saveMiniGameScore = function(type, score) {
+        // Add new game types to the calculation
+        var newTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
+        origSaveMiniGameScore(type, score);
+
+        // If it's a new game type, also recalculate total
+        if (newTypes.indexOf(type) !== -1) {
+            var stationKey = getStationKey();
+            var totalGamesScore = 0;
+            var allTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge',
+                            'courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
+            allTypes.forEach(function(gt) {
+                var k = stationKey + '_mg_' + gt;
+                var s = GameState.miniGameScores[k] || 0;
+                if (gt === 'mixedChallenge') {
+                    totalGamesScore = Math.max(totalGamesScore, Math.min(s, STATION_GAMES_MAX));
+                } else {
+                    totalGamesScore += s;
+                }
+            });
+            totalGamesScore = Math.min(totalGamesScore, STATION_GAMES_MAX);
+            updateStationScore(stationKey, 'games', totalGamesScore);
+            liveRefreshStationProgress();
+        }
+    };
+})();

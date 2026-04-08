@@ -9515,6 +9515,8 @@ function getMiniGameBadge(type) {
 // Unlock threshold = 90% of max (must play most/all games well)
 var STATION_MAX_SCORE = 100;
 var STATION_GAMES_MAX = 80;
+var STATION_MINI_GAMES_MAX = 50;       // cap for the 7 standard mini-games
+var STATION_INTERACTIVE_GAMES_MAX = 30; // cap for the 5 interactive games (required to reach 80)
 var STATION_SERMON_SCORE = 10;
 var STATION_SUMMARY_SCORE = 10;
 var STATION_UNLOCK_THRESHOLD = 90; // 90% of 100 — must play all games well
@@ -9604,20 +9606,23 @@ function saveMiniGameScore(type, score) {
         GameState.miniGameScores[mgKey] = score;
     }
 
-    // Calculate total games score for this station from all mini-games
-    var totalGamesScore = 0;
-    var gameTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'];
-    gameTypes.forEach(function(gt) {
-        var k = stationKey + '_mg_' + gt;
-        var s = GameState.miniGameScores[k] || 0;
+    // Calculate total games score: split into mini-games (max 50) + interactive (max 30)
+    var miniScore = 0;
+    var interactiveScore = 0;
+    var miniTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'];
+    var interactiveTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
+    miniTypes.forEach(function(gt) {
+        var s = GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
         if (gt === 'mixedChallenge') {
-            // Mixed challenge alone can fill the full games score
-            totalGamesScore = Math.max(totalGamesScore, Math.min(s, STATION_GAMES_MAX));
+            miniScore = Math.max(miniScore, Math.min(s, STATION_MINI_GAMES_MAX));
         } else {
-            totalGamesScore += s; // Direct contribution — no per-game cap
+            miniScore += s;
         }
     });
-    // Cap total at 60
+    interactiveTypes.forEach(function(gt) {
+        interactiveScore += GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
+    });
+    var totalGamesScore = Math.min(miniScore, STATION_MINI_GAMES_MAX) + Math.min(interactiveScore, STATION_INTERACTIVE_GAMES_MAX);
     totalGamesScore = Math.min(totalGamesScore, STATION_GAMES_MAX);
 
     // Update station score (games portion)
@@ -9789,10 +9794,23 @@ function showMiniGameResult(title) {
     html += '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:8px;overflow:hidden">';
     html += '<div style="height:100%;width:' + Math.min(stScore.total / STATION_MAX_SCORE * 100, 100) + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:4px;transition:width 1s"></div>';
     html += '</div>';
+    // Calculate mini vs interactive breakdown for display
+    var _sk = getStationKey();
+    var _miniDisp = 0, _intDisp = 0;
+    ['trueFalse','whoAmI','sortVerse','fillBlank','matchPairs','characters','mixedChallenge'].forEach(function(gt){
+        var s = (GameState.miniGameScores||{})[_sk+'_mg_'+gt]||0;
+        _miniDisp = gt==='mixedChallenge' ? Math.max(_miniDisp,Math.min(s,STATION_MINI_GAMES_MAX)) : _miniDisp+s;
+    });
+    _miniDisp = Math.min(_miniDisp, STATION_MINI_GAMES_MAX);
+    ['courtOfFaith','creedBuilder','councilJourney','detective','balance'].forEach(function(gt){
+        _intDisp += (GameState.miniGameScores||{})[_sk+'_mg_'+gt]||0;
+    });
+    _intDisp = Math.min(_intDisp, STATION_INTERACTIVE_GAMES_MAX);
     html += '<div style="display:flex;justify-content:space-around;margin-top:8px;font-size:11px;color:var(--text-muted)">';
     html += '<span>🎬 ' + stScore.sermon + '/' + STATION_SERMON_SCORE + '</span>';
     html += '<span>📝 ' + stScore.summary + '/' + STATION_SUMMARY_SCORE + '</span>';
-    html += '<span>🎮 ' + stScore.games + '/' + STATION_GAMES_MAX + '</span>';
+    html += '<span>🎮 ' + _miniDisp + '/' + STATION_MINI_GAMES_MAX + '</span>';
+    html += '<span>⚡ ' + _intDisp + '/' + STATION_INTERACTIVE_GAMES_MAX + '</span>';
     html += '</div>';
     if (stScore.total >= STATION_UNLOCK_THRESHOLD) {
         html += '<div style="color:#00B894;font-size:13px;margin-top:6px"><i class="fas fa-unlock"></i> المحطة الجاية مفتوحة!</div>';
@@ -10437,16 +10455,35 @@ function toggleLessonRecording() {
         if (status) status.innerHTML = '';
     } else {
         // Start recording
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            showToast('التسجيل الصوتي مش متاح على المتصفح ده', 'error');
+            return;
+        }
         navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
-            lessonRecorder = new MediaRecorder(stream);
+            // Detect best supported MIME type (iOS needs mp4, others prefer webm)
+            var mimeType = '';
+            var mimeOrder = ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
+            for (var mi = 0; mi < mimeOrder.length; mi++) {
+                try {
+                    if (MediaRecorder.isTypeSupported(mimeOrder[mi])) {
+                        mimeType = mimeOrder[mi];
+                        break;
+                    }
+                } catch(e) {}
+            }
+            var recOptions = mimeType ? { mimeType: mimeType } : {};
+            lessonRecorder = new MediaRecorder(stream, recOptions);
             lessonAudioChunks = [];
-            lessonRecorder.ondataavailable = function(e) { lessonAudioChunks.push(e.data); };
+            lessonRecorder.ondataavailable = function(e) {
+                if (e.data && e.data.size > 0) lessonAudioChunks.push(e.data);
+            };
             lessonRecorder.onstop = function() {
-                var blob = new Blob(lessonAudioChunks, { type: 'audio/webm' });
+                var blobType = mimeType || 'audio/webm';
+                var blob = new Blob(lessonAudioChunks, { type: blobType });
                 var url = URL.createObjectURL(blob);
                 var preview = document.getElementById('lesson-audio-preview');
                 if (preview) {
-                    preview.innerHTML = '<audio controls src="' + url + '"></audio>';
+                    preview.innerHTML = '<audio controls src="' + url + '" style="width:100%;margin-top:8px;border-radius:8px"></audio>';
                 }
                 // Convert to base64 for storage
                 var reader = new FileReader();
@@ -10461,7 +10498,13 @@ function toggleLessonRecording() {
             var status = document.getElementById('lesson-recording-status');
             if (status) status.innerHTML = '<span class="recording-indicator"><i class="fas fa-circle" style="color:red;animation:blink 1s infinite"></i> جاري التسجيل...</span>';
         }).catch(function(err) {
-            showToast('مش قادر أفتح الميكروفون - اسمح بالأذن', 'error');
+            var msg = 'مش قادر أفتح الميكروفون';
+            if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                msg = 'اسمح بالوصول للميكروفون من الإعدادات ثم حاول تاني';
+            } else if (err.name === 'NotFoundError') {
+                msg = 'مفيش ميكروفون على الجهاز';
+            }
+            showToast(msg, 'error');
         });
     }
 }
@@ -16264,21 +16307,22 @@ function getInteractiveGamesForLesson() {
         var newTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
         origSaveMiniGameScore(type, score);
 
-        // If it's a new game type, also recalculate total
+        // If it's a new game type, also recalculate total using split model
         if (newTypes.indexOf(type) !== -1) {
             var stationKey = getStationKey();
-            var totalGamesScore = 0;
-            var allTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge',
-                            'courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
-            allTypes.forEach(function(gt) {
-                var k = stationKey + '_mg_' + gt;
-                var s = GameState.miniGameScores[k] || 0;
+            var miniScore2 = 0, interactiveScore2 = 0;
+            ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'].forEach(function(gt) {
+                var s = GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
                 if (gt === 'mixedChallenge') {
-                    totalGamesScore = Math.max(totalGamesScore, Math.min(s, STATION_GAMES_MAX));
+                    miniScore2 = Math.max(miniScore2, Math.min(s, STATION_MINI_GAMES_MAX));
                 } else {
-                    totalGamesScore += s;
+                    miniScore2 += s;
                 }
             });
+            ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'].forEach(function(gt) {
+                interactiveScore2 += GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
+            });
+            var totalGamesScore = Math.min(miniScore2, STATION_MINI_GAMES_MAX) + Math.min(interactiveScore2, STATION_INTERACTIVE_GAMES_MAX);
             totalGamesScore = Math.min(totalGamesScore, STATION_GAMES_MAX);
             updateStationScore(stationKey, 'games', totalGamesScore);
             liveRefreshStationProgress();

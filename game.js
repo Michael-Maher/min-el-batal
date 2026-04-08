@@ -74,7 +74,7 @@ const GameState = {
     redeemedRewards: [],
     dailyLoginDate: '',       // last daily login XP date 'YYYY-MM-DD'
     miniGameScores: {},       // { 'faith_0_mg_trueFalse': 15, ... }
-    stationScores: {},        // { 'faith_0': { sermon: 10, summary: 10, games: 45, total: 65 } }
+    stationScores: {},        // { 'faith_0': { sermon: 5, summary: 10, games: 45, interactive: 60, total: 120 } }
     teamLastAction: 0,        // timestamp of last team join/leave action
     dailySpinDate: '',
     dailyBonusSpin: false,
@@ -235,15 +235,16 @@ function submitLogin() {
                 var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
                 allKeys.forEach(function(k) {
                     if (scoreKey === 'stationScores') {
-                        var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
-                        var l = localObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
+                        var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
+                        var l = localObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
                         merged[k] = {
                             sermon: Math.max(c.sermon || 0, l.sermon || 0),
                             summary: Math.max(c.summary || 0, l.summary || 0),
                             games: Math.max(c.games || 0, l.games || 0),
+                            interactive: Math.max(c.interactive || 0, l.interactive || 0),
                             total: 0
                         };
-                        merged[k].total = Math.min(merged[k].sermon + merged[k].summary + merged[k].games, 80);
+                        merged[k].total = merged[k].sermon + merged[k].summary + merged[k].games + merged[k].interactive;
                     } else {
                         merged[k] = Math.max(cloudObj[k] || 0, localObj[k] || 0);
                     }
@@ -694,15 +695,16 @@ function loadFromCloud(phone) {
                             var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
                             allKeys.forEach(function(k) {
                                 if (key === 'stationScores') {
-                                    var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
-                                    var l = localObj[k] || { sermon: 0, summary: 0, games: 0, total: 0 };
+                                    var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
+                                    var l = localObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
                                     merged[k] = {
                                         sermon: Math.max(c.sermon || 0, l.sermon || 0),
                                         summary: Math.max(c.summary || 0, l.summary || 0),
                                         games: Math.max(c.games || 0, l.games || 0),
+                                        interactive: Math.max(c.interactive || 0, l.interactive || 0),
                                         total: 0
                                     };
-                                    merged[k].total = Math.min(merged[k].sermon + merged[k].summary + merged[k].games, 80);
+                                    merged[k].total = merged[k].sermon + merged[k].summary + merged[k].games + merged[k].interactive;
                                 } else {
                                     merged[k] = Math.max(cloudObj[k] || 0, localObj[k] || 0);
                                 }
@@ -7951,6 +7953,7 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
             progressIcons += '<span class="node-progress-dot ' + (stScore.sermon > 0 ? 'done' : '') + '" title="وعظة">🎬</span>';
             progressIcons += '<span class="node-progress-dot ' + (hasSummary ? 'done' : '') + '" title="تلخيص">📝</span>';
             progressIcons += '<span class="node-progress-dot ' + (hasQuizScore ? 'done' : '') + '" title="ألعاب">🎮</span>';
+            progressIcons += '<span class="node-progress-dot ' + ((stScore.interactive||0) > 0 ? 'done' : '') + '" title="ألعاب تفاعلية">⚡</span>';
             starsHTML += '<div class="node-progress-row">' + progressIcons + '</div>';
         }
         // Show unlock requirement for locked stations
@@ -9507,19 +9510,18 @@ function getMiniGameBadge(type) {
     return '<div class="mg-card-new">جديد!</div>';
 }
 
-// Station scoring: max 100 per station (10 sermon + 10 summary + 80 games)
-// Games: ALL game types must be played to reach max
-//   - Old mini-games (trueFalse, whoAmI, sortVerse, fillBlank, matchPairs, characters) ~6-10 each
-//   - New interactive games (courtOfFaith, creedBuilder, councilJourney, detective, balance) ~8-10 each
-//   - mixedChallenge can fill up to 80 alone
-// Unlock threshold = 90% of max (must play most/all games well)
-var STATION_MAX_SCORE = 100;
-var STATION_GAMES_MAX = 80;
-var STATION_MINI_GAMES_MAX = 50;       // cap for the 7 standard mini-games
-var STATION_INTERACTIVE_GAMES_MAX = 30; // cap for the 5 interactive games (required to reach 80)
-var STATION_SERMON_SCORE = 10;
+// Station scoring: max 150 per station — 4 separate components
+//   🎬 sermon      : 5   pts  (watch the video)
+//   📝 summary     : 10  pts  (submit تلخيص)
+//   🎮 games       : 60  pts  (7 standard mini-games incl. mixedChallenge)
+//   ⚡ interactive : 75  pts  (5 interactive: courtOfFaith, creedBuilder, councilJourney, detective, balance)
+// Unlock threshold = 120 / 150 — must play BOTH mini-games and interactive games well
+var STATION_MAX_SCORE = 150;
+var STATION_GAMES_MAX = 60;             // cap for the 7 standard mini-games
+var STATION_INTERACTIVE_GAMES_MAX = 75; // cap for the 5 interactive games (own field)
+var STATION_SERMON_SCORE = 5;
 var STATION_SUMMARY_SCORE = 10;
-var STATION_UNLOCK_THRESHOLD = 90; // 90% of 100 — must play all games well
+var STATION_UNLOCK_THRESHOLD = 120; // 80% of 150
 
 // Global station progress bar - appears below tabs in ALL stages
 function getStationProgressHTML() {
@@ -9531,9 +9533,10 @@ function getStationProgressHTML() {
     html += '<div class="station-progress-row">';
     html += '<span class="station-progress-label">نتيجة المحطة</span>';
     html += '<span class="station-progress-badges">';
-    html += '<span class="sp-badge ' + (stScore.sermon > 0 ? 'done' : '') + '">🎬 ' + stScore.sermon + '</span>';
-    html += '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + stScore.summary + '</span>';
-    html += '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + stScore.games + '</span>';
+    html += '<span class="sp-badge ' + (stScore.sermon > 0 ? 'done' : '') + '">🎬 ' + (stScore.sermon||0) + '</span>';
+    html += '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + (stScore.summary||0) + '</span>';
+    html += '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + (stScore.games||0) + '</span>';
+    html += '<span class="sp-badge ' + ((stScore.interactive||0) > 0 ? 'done' : '') + '">⚡ ' + (stScore.interactive||0) + '</span>';
     html += '</span>';
     html += '<span class="station-progress-score" style="color:' + scoreColor + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>';
     html += '</div>';
@@ -9553,9 +9556,10 @@ function liveRefreshStationProgress() {
         '<div class="station-progress-row">' +
         '<span class="station-progress-label">نتيجة المحطة</span>' +
         '<span class="station-progress-badges">' +
-        '<span class="sp-badge ' + (stScore.sermon > 0 ? 'done' : '') + '">🎬 ' + stScore.sermon + '</span>' +
-        '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + stScore.summary + '</span>' +
-        '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + stScore.games + '</span>' +
+        '<span class="sp-badge ' + (stScore.sermon > 0 ? 'done' : '') + '">🎬 ' + (stScore.sermon||0) + '</span>' +
+        '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + (stScore.summary||0) + '</span>' +
+        '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + (stScore.games||0) + '</span>' +
+        '<span class="sp-badge ' + ((stScore.interactive||0) > 0 ? 'done' : '') + '">⚡ ' + (stScore.interactive||0) + '</span>' +
         '</span>' +
         '<span class="station-progress-score" style="color:' + scoreColor + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>' +
         '</div>' +
@@ -9574,22 +9578,28 @@ function getStationKey() {
 
 function getStationScore(stationKey) {
     if (!GameState.stationScores) GameState.stationScores = {};
-    return GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, total: 0 };
+    return GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
 }
 
 function updateStationScore(stationKey, field, newScore) {
     if (!GameState.stationScores) GameState.stationScores = {};
-    var current = GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, total: 0 };
+    var current = GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
 
-    // Keep best score (max)
-    var maxForField = field === 'sermon' ? STATION_SERMON_SCORE : (field === 'summary' ? STATION_SUMMARY_SCORE : STATION_GAMES_MAX);
+    // Keep best score (max) — field can be 'sermon', 'summary', 'games', or 'interactive'
+    var maxForField = field === 'sermon' ? STATION_SERMON_SCORE
+                    : field === 'summary' ? STATION_SUMMARY_SCORE
+                    : field === 'interactive' ? STATION_INTERACTIVE_GAMES_MAX
+                    : STATION_GAMES_MAX;
     var cappedScore = Math.min(newScore, maxForField);
 
-    if (cappedScore > current[field]) {
+    if (cappedScore > (current[field] || 0)) {
         current[field] = cappedScore;
     }
 
-    current.total = Math.min(current.sermon + current.summary + current.games, STATION_MAX_SCORE);
+    current.total = Math.min(
+        (current.sermon || 0) + (current.summary || 0) + (current.games || 0) + (current.interactive || 0),
+        STATION_MAX_SCORE
+    );
     GameState.stationScores[stationKey] = current;
     saveToLocalStorage(true); // Save locally but skip cloud (callers handle cloud save)
     return current;
@@ -9606,27 +9616,28 @@ function saveMiniGameScore(type, score) {
         GameState.miniGameScores[mgKey] = score;
     }
 
-    // Calculate total games score: split into mini-games (max 50) + interactive (max 30)
+    // Calculate mini-games score (field: 'games', max 60)
     var miniScore = 0;
-    var interactiveScore = 0;
-    var miniTypes = ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'];
-    var interactiveTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
-    miniTypes.forEach(function(gt) {
+    ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'].forEach(function(gt) {
         var s = GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
         if (gt === 'mixedChallenge') {
-            miniScore = Math.max(miniScore, Math.min(s, STATION_MINI_GAMES_MAX));
+            miniScore = Math.max(miniScore, Math.min(s, STATION_GAMES_MAX));
         } else {
             miniScore += s;
         }
     });
-    interactiveTypes.forEach(function(gt) {
+    miniScore = Math.min(miniScore, STATION_GAMES_MAX);
+
+    // Calculate interactive-games score (field: 'interactive', max 75)
+    var interactiveScore = 0;
+    ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'].forEach(function(gt) {
         interactiveScore += GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
     });
-    var totalGamesScore = Math.min(miniScore, STATION_MINI_GAMES_MAX) + Math.min(interactiveScore, STATION_INTERACTIVE_GAMES_MAX);
-    totalGamesScore = Math.min(totalGamesScore, STATION_GAMES_MAX);
+    interactiveScore = Math.min(interactiveScore, STATION_INTERACTIVE_GAMES_MAX);
 
-    // Update station score (games portion)
-    var stScore = updateStationScore(stationKey, 'games', totalGamesScore);
+    // Update each field separately so both always stay up to date
+    updateStationScore(stationKey, 'games', miniScore);
+    var stScore = updateStationScore(stationKey, 'interactive', interactiveScore);
 
     // Live-refresh progress bar immediately
     liveRefreshStationProgress();
@@ -9794,23 +9805,11 @@ function showMiniGameResult(title) {
     html += '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;margin-top:8px;overflow:hidden">';
     html += '<div style="height:100%;width:' + Math.min(stScore.total / STATION_MAX_SCORE * 100, 100) + '%;background:linear-gradient(90deg,#6C5CE7,#00CEC9);border-radius:4px;transition:width 1s"></div>';
     html += '</div>';
-    // Calculate mini vs interactive breakdown for display
-    var _sk = getStationKey();
-    var _miniDisp = 0, _intDisp = 0;
-    ['trueFalse','whoAmI','sortVerse','fillBlank','matchPairs','characters','mixedChallenge'].forEach(function(gt){
-        var s = (GameState.miniGameScores||{})[_sk+'_mg_'+gt]||0;
-        _miniDisp = gt==='mixedChallenge' ? Math.max(_miniDisp,Math.min(s,STATION_MINI_GAMES_MAX)) : _miniDisp+s;
-    });
-    _miniDisp = Math.min(_miniDisp, STATION_MINI_GAMES_MAX);
-    ['courtOfFaith','creedBuilder','councilJourney','detective','balance'].forEach(function(gt){
-        _intDisp += (GameState.miniGameScores||{})[_sk+'_mg_'+gt]||0;
-    });
-    _intDisp = Math.min(_intDisp, STATION_INTERACTIVE_GAMES_MAX);
-    html += '<div style="display:flex;justify-content:space-around;margin-top:8px;font-size:11px;color:var(--text-muted)">';
-    html += '<span>🎬 ' + stScore.sermon + '/' + STATION_SERMON_SCORE + '</span>';
-    html += '<span>📝 ' + stScore.summary + '/' + STATION_SUMMARY_SCORE + '</span>';
-    html += '<span>🎮 ' + _miniDisp + '/' + STATION_MINI_GAMES_MAX + '</span>';
-    html += '<span>⚡ ' + _intDisp + '/' + STATION_INTERACTIVE_GAMES_MAX + '</span>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;margin-top:10px;font-size:12px;text-align:right">';
+    html += '<span style="color:var(--text-muted)">🎬 وعظة</span><span style="color:' + (stScore.sermon>0?'#00B894':'var(--gold)') + '">' + (stScore.sermon||0) + ' / ' + STATION_SERMON_SCORE + '</span>';
+    html += '<span style="color:var(--text-muted)">📝 تلخيص</span><span style="color:' + (stScore.summary>0?'#00B894':'var(--gold)') + '">' + (stScore.summary||0) + ' / ' + STATION_SUMMARY_SCORE + '</span>';
+    html += '<span style="color:var(--text-muted)">🎮 ألعاب</span><span style="color:' + (stScore.games>0?'#00B894':'var(--gold)') + '">' + (stScore.games||0) + ' / ' + STATION_GAMES_MAX + '</span>';
+    html += '<span style="color:var(--text-muted)">⚡ تفاعلية</span><span style="color:' + ((stScore.interactive||0)>0?'#00B894':'var(--gold)') + '">' + (stScore.interactive||0) + ' / ' + STATION_INTERACTIVE_GAMES_MAX + '</span>';
     html += '</div>';
     if (stScore.total >= STATION_UNLOCK_THRESHOLD) {
         html += '<div style="color:#00B894;font-size:13px;margin-top:6px"><i class="fas fa-unlock"></i> المحطة الجاية مفتوحة!</div>';
@@ -16307,24 +16306,15 @@ function getInteractiveGamesForLesson() {
         var newTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
         origSaveMiniGameScore(type, score);
 
-        // If it's a new game type, also recalculate total using split model
+        // If it's an interactive type, recalculate interactive field separately
         if (newTypes.indexOf(type) !== -1) {
-            var stationKey = getStationKey();
-            var miniScore2 = 0, interactiveScore2 = 0;
-            ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'].forEach(function(gt) {
-                var s = GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
-                if (gt === 'mixedChallenge') {
-                    miniScore2 = Math.max(miniScore2, Math.min(s, STATION_MINI_GAMES_MAX));
-                } else {
-                    miniScore2 += s;
-                }
-            });
+            var stationKey2 = getStationKey();
+            var interactiveScore2 = 0;
             ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'].forEach(function(gt) {
-                interactiveScore2 += GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
+                interactiveScore2 += (GameState.miniGameScores || {})[stationKey2 + '_mg_' + gt] || 0;
             });
-            var totalGamesScore = Math.min(miniScore2, STATION_MINI_GAMES_MAX) + Math.min(interactiveScore2, STATION_INTERACTIVE_GAMES_MAX);
-            totalGamesScore = Math.min(totalGamesScore, STATION_GAMES_MAX);
-            updateStationScore(stationKey, 'games', totalGamesScore);
+            interactiveScore2 = Math.min(interactiveScore2, STATION_INTERACTIVE_GAMES_MAX);
+            updateStationScore(stationKey2, 'interactive', interactiveScore2);
             liveRefreshStationProgress();
         }
     };

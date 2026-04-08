@@ -782,10 +782,33 @@ body {
 .badge-mission { background: #FF6B35; color: white; }
 
 /* ============ DAILY VERSE ============ */
-.daily-verse-card { background: linear-gradient(135deg, rgba(108,92,231,0.12), rgba(0,206,201,0.08)); border: 1px solid var(--primary); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 16px; animation: slideUp 0.5s ease; }
-.dv-icon { font-size: 28px; color: var(--gold); flex-shrink: 0; margin-top: 4px; }
+.daily-verse-card {
+    background: linear-gradient(135deg, rgba(201,162,39,0.10), rgba(245,215,110,0.05), rgba(108,92,231,0.06));
+    border: 2px solid #C9A227;
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    animation: slideUp 0.5s ease;
+    box-shadow: 0 0 0 1px rgba(201,162,39,0.15), 0 0 16px rgba(201,162,39,0.15), inset 0 0 20px rgba(201,162,39,0.04);
+    position: relative;
+}
+.daily-verse-card::before {
+    content: '❝';
+    position: absolute;
+    top: 6px;
+    right: 14px;
+    font-size: 36px;
+    line-height: 1;
+    color: rgba(201,162,39,0.18);
+    font-family: Georgia, serif;
+    pointer-events: none;
+}
+.dv-icon { font-size: 28px; color: #F5D76E; flex-shrink: 0; margin-top: 4px; filter: drop-shadow(0 0 6px rgba(201,162,39,0.5)); }
 .dv-content { flex: 1; }
-.dv-label { font-size: 11px; color: var(--secondary); font-weight: 800; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+.dv-label { font-size: 11px; color: #C9A227; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 6px; }
 .dv-text { font-size: 19px; line-height: 2.2; color: var(--text-primary); font-weight: 700; }
 .dv-ref { font-size: 14px; color: var(--gold); font-weight: 800; margin-top: 8px; display: inline-block; background: var(--bg-dark); padding: 4px 16px; border-radius: var(--radius-full); border: 1.5px solid var(--gold); }
 
@@ -860,7 +883,7 @@ body {
 
 /* Clickable Banner Cards */
 .daily-verse-card { cursor: pointer; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
-.daily-verse-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px rgba(108,92,231,0.18); }
+.daily-verse-card:hover { transform: translateY(-3px); box-shadow: 0 0 0 1px rgba(201,162,39,0.3), 0 8px 28px rgba(201,162,39,0.25), inset 0 0 20px rgba(201,162,39,0.06); border-color: #F5D76E; }
 .daily-verse-card:active { transform: translateY(-1px) scale(0.98); }
 .weekly-challenge-card { cursor: pointer; transition: all 0.3s cubic-bezier(0.4,0,0.2,1); }
 .weekly-challenge-card:hover { transform: translateY(-3px); box-shadow: 0 6px 24px rgba(253,203,110,0.18); }
@@ -8352,53 +8375,98 @@ body {
 
 /* Daily verse card on home hub */
 .today-verse-card {
-    background: rgba(4, 28, 50, 0.55);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1.5px solid;
-    border-radius: 16px;
-    padding: 16px 18px;
+    background: linear-gradient(160deg, rgba(4,28,50,0.72) 0%, rgba(20,10,40,0.75) 100%);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    border: 2px solid #C9A227;
+    border-radius: 18px;
+    padding: 20px 20px 16px;
     text-align: center;
     cursor: default;
     animation: fadeSlideUp 0.5s ease;
+    box-shadow:
+        0 0 0 1px rgba(201,162,39,0.18),
+        0 0 18px rgba(201,162,39,0.22),
+        inset 0 0 32px rgba(201,162,39,0.06),
+        0 8px 32px rgba(0,0,0,0.45);
+    position: relative;
 }
+
+/* Gold corner ornaments */
+.today-verse-card::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border-radius: 14px;
+    border: 1px solid rgba(201,162,39,0.2);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Animated gold shimmer line across top */
+.today-verse-card .verse-gold-line {
+    display: block;
+    width: 60px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #C9A227, #F5D76E, #C9A227, transparent);
+    border-radius: 2px;
+    margin: 0 auto 12px;
+    animation: goldPulse 2.5s ease-in-out infinite;
+    position: relative;
+    z-index: 2;
+}
+@keyframes goldPulse {
+    0%, 100% { opacity: 0.6; width: 50px; }
+    50% { opacity: 1; width: 80px; }
+}
+
 .today-verse-pending {
     cursor: pointer;
-    border-color: rgba(253,203,110,0.5) !important;
-    background: rgba(253,203,110,0.07) !important;
-    transition: background 0.3s;
+    border-color: rgba(253,203,110,0.7) !important;
+    background: rgba(253,203,110,0.08) !important;
+    box-shadow: 0 0 20px rgba(253,203,110,0.25), 0 8px 32px rgba(0,0,0,0.45) !important;
+    transition: background 0.3s, box-shadow 0.3s;
 }
 .today-verse-pending:active { opacity: 0.8; }
 .today-verse-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: rgba(255,255,255,0.7);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    margin-bottom: 6px;
+    font-size: 12px;
+    font-weight: 800;
+    color: #F5D76E;
+    letter-spacing: 1.5px;
+    margin-bottom: 8px;
+    position: relative;
+    z-index: 2;
 }
 .today-verse-ref {
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 800;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     display: inline-block;
-    background: rgba(0,0,0,0.25);
-    border: 1.5px solid var(--gold);
-    color: var(--gold) !important;
+    background: linear-gradient(135deg, rgba(201,162,39,0.2), rgba(201,162,39,0.08));
+    border: 1.5px solid #C9A227;
+    color: #F5D76E !important;
     border-radius: 20px;
-    padding: 3px 16px;
+    padding: 4px 18px;
+    text-shadow: 0 1px 6px rgba(201,162,39,0.4);
+    box-shadow: 0 0 10px rgba(201,162,39,0.2);
+    position: relative;
+    z-index: 2;
 }
 .today-verse-text {
-    font-size: 18px;
-    line-height: 2.2;
-    color: rgba(255,255,255,0.95);
+    font-size: 17px;
+    line-height: 2.3;
+    color: rgba(255,255,255,0.97);
     font-weight: 600;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    position: relative;
+    z-index: 2;
 }
 .today-verse-spin-prompt {
     font-size: 16px;
-    color: #FDCB6E;
+    color: #F5D76E;
     font-weight: 700;
     padding: 6px 0;
+    text-shadow: 0 0 8px rgba(245,215,110,0.5);
 }
 
 /* Verse spin badge on spiritual card */

@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "game-server",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["http-server", ".", "-p", "8080", "-c-1"],
-      "port": 8080
+      "runtimeExecutable": "/opt/homebrew/Cellar/node@22/22.22.0/bin/node",
+      "runtimeArgs": ["-e", "const http=require('http'),fs=require('fs'),path=require('path');const port=process.env.PORT||8080;http.createServer((req,res)=>{let fp='.'+decodeURIComponent(req.url==='/'?'/index.html':req.url.split('?')[0]);const ext=path.extname(fp);const mime={'.html':'text/html','.css':'text/css','.js':'application/javascript','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.json':'application/json','.webp':'image/webp','.ico':'image/x-icon','.svg':'image/svg+xml','.webmanifest':'application/manifest+json'};fs.readFile(fp,(err,data)=>{if(err){res.writeHead(404);res.end('Not found');return;}res.writeHead(200,{'Content-Type':mime[ext]||'text/plain','Cache-Control':'no-cache'});res.end(data);});}).listen(port,()=>console.log('Server on '+port));"],
+      "autoPort": true
     }
   ]
 }

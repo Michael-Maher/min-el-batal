@@ -68,7 +68,21 @@
       "Bash(find /Users/mmichaelmaher/.claude -name hookify*.md)",
       "Bash(find /Users/mmichaelmaher/Documents/min-el-batal -name *.local.md)",
       "Bash(find /Users/mmichaelmaher/.claude -name *.local.md)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(git rm:*)",
+      "Bash(/opt/homebrew/bin/node -c /Users/mmichaelmaher/Documents/min-el-batal/game.js)",
+      "Bash(export PATH=\"/opt/homebrew/bin:$PATH\")",
+      "Bash(/opt/homebrew/bin/firebase deploy:*)",
+      "Read(//usr/local/bin/**)",
+      "Read(//Users/mmichaelmaher/.npm/**)",
+      "Bash(export PATH=\"/opt/homebrew/opt/node/bin:/usr/local/opt/node/bin:$PATH\")",
+      "Bash(export PATH=\"/opt/homebrew/Cellar/node@22/22.22.0/bin:$PATH\")",
+      "Bash(NODE_PATH=/opt/homebrew/Cellar/node@22/22.22.0/bin PATH=\"/opt/homebrew/Cellar/node@22/22.22.0/bin:$PATH\" /opt/homebrew/bin/firebase deploy --only hosting)",
+      "Bash(node -e \"const fs = require\\('fs'\\); const code = fs.readFileSync\\('/Users/mmichaelmaher/Documents/min-el-batal/game.js', 'utf8'\\); try { eval\\('var x = ' + code.match\\(/const QUESTIONS = \\\\{[\\\\s\\\\S]*?\\\\};/\\)[0]\\); console.log\\('QUESTIONS.creed length:', x.creed.length\\); } catch\\(e\\) { console.log\\('Error:', e.message.slice\\(0,100\\)\\); }\")",
+      "Bash(node -e ':*)",
+      "Bash(node --check game.js)",
+      "Bash(ls /Users/mmichaelmaher/Documents/min-el-batal/*.json)",
+      "Bash(firebase firestore:indexes)"
     ]
   }
 }

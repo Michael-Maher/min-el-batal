@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>لوحة الإدارة — مين البطل؟</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0b0f1a; --bg2:#111827; --bg3:#1a2235;
+  --card:#161d2e; --card2:#1e2740;
+  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.13);
+  --accent:#7c6af7; --accent2:#a78bfa;
+  --teal:#22d3ee; --gold:#fbbf24; --red:#f87171;
+  --green:#34d399; --pink:#f472b6; --orange:#fb923c;
+  --text:#e2e8f0; --muted:rgba(226,232,240,.45); --muted2:rgba(226,232,240,.22);
+  --radius:14px; --rsm:8px;
+  --sw:230px; --th:58px; --trans:.17s ease;
+}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+button{font-family:'Cairo',sans-serif;cursor:pointer}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:99px}
+
+/* ══ AUTH SCREENS ══ */
+.auth-screen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:20px;
+  background:radial-gradient(ellipse at 50% 0%,rgba(124,106,247,.18) 0%,transparent 60%),var(--bg);
+}
+.auth-card{
+  background:var(--card);border:1px solid var(--border2);border-radius:24px;
+  padding:40px 30px;width:100%;max-width:420px;
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+}
+.auth-icon{font-size:52px;text-align:center;margin-bottom:14px;filter:drop-shadow(0 0 18px rgba(124,106,247,.6))}
+.auth-card h1{font-size:22px;font-weight:900;text-align:center;margin-bottom:3px}
+.auth-card .sub{color:var(--muted);font-size:13px;text-align:center;margin-bottom:26px}
+.field{position:relative;margin-bottom:13px}
+.field i.ico{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted2);font-size:14px;pointer-events:none}
+.inp{
+  width:100%;background:rgba(255,255,255,.05);border:1px solid var(--border2);
+  border-radius:10px;padding:12px 40px 12px 16px;color:var(--text);
+  font-family:'Cairo',sans-serif;font-size:14px;outline:none;
+  transition:border-color var(--trans),box-shadow var(--trans);
+}
+.inp:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,247,.18)}
+.inp[dir="ltr"]{text-align:left}
+.check-row{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--muted)}
+.check-row input[type=checkbox]{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+.btn-auth{
+  width:100%;padding:13px;background:var(--accent);color:#fff;border:none;
+  border-radius:11px;font-size:15px;font-weight:700;
+  transition:opacity var(--trans),transform var(--trans);
+}
+.btn-auth:hover{opacity:.88;transform:translateY(-1px)}
+.btn-auth:disabled{opacity:.5;transform:none;cursor:default}
+.auth-link{text-align:center;margin-top:14px;font-size:13px;color:var(--muted)}
+.auth-link a{color:var(--accent2);cursor:pointer;text-decoration:none}
+.auth-link a:hover{text-decoration:underline}
+.auth-err{color:var(--red);font-size:13px;margin-top:10px;text-align:center;display:none}
+.auth-ok{color:var(--green);font-size:13px;margin-top:10px;text-align:center;display:none}
+.divider{display:flex;align-items:center;gap:10px;margin:16px 0;color:var(--muted2);font-size:12px}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* ══ LAYOUT ══ */
+#app{display:none;min-height:100vh}
+
+.sidebar{
+  position:fixed;top:0;right:0;bottom:0;width:var(--sw);
+  background:var(--card);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;z-index:200;
+  transition:transform var(--trans);
+}
+.sidebar-logo{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.sidebar-logo-icon{font-size:26px;filter:drop-shadow(0 0 8px rgba(124,106,247,.5))}
+.sidebar-logo h2{font-size:14px;font-weight:900;line-height:1.1}
+.sidebar-logo p{font-size:11px;color:var(--muted)}
+.who-badge{
+  margin:10px 12px 0;padding:9px 12px;background:rgba(124,106,247,.12);
+  border:1px solid rgba(124,106,247,.25);border-radius:10px;
+  display:flex;align-items:center;gap:8px;
+}
+.who-badge .wb-name{font-size:13px;font-weight:700;line-height:1.1}
+.who-badge .wb-role{font-size:10px;color:var(--muted)}
+.role-super{color:var(--gold)}
+.role-admin{color:var(--accent2)}
+.sidebar-nav{flex:1;padding:10px 10px 0;overflow-y:auto}
+.nav-grp{margin-bottom:18px}
+.nav-grp-title{font-size:10px;font-weight:700;color:var(--muted2);padding:0 10px;margin-bottom:5px;letter-spacing:.8px;text-transform:uppercase}
+.nav-btn{
+  display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:var(--rsm);
+  font-size:13px;font-weight:600;color:var(--muted);
+  transition:all var(--trans);cursor:pointer;border:none;background:none;width:100%;text-align:right;
+}
+.nav-btn i{width:15px;text-align:center;font-size:13px;flex-shrink:0}
+.nav-btn:hover{background:rgba(255,255,255,.05);color:var(--text)}
+.nav-btn.active{background:rgba(124,106,247,.15);color:var(--accent2)}
+.nav-btn .nbadge{
+  margin-right:auto;background:var(--red);color:#fff;
+  font-size:10px;font-weight:700;padding:1px 6px;border-radius:99px;min-width:18px;text-align:center
+}
+.sidebar-foot{padding:12px 10px 14px;border-top:1px solid var(--border)}
+.btn-logout{
+  display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:var(--rsm);
+  font-size:13px;font-weight:600;color:var(--muted);
+  background:none;border:none;width:100%;transition:all var(--trans)
+}
+.btn-logout:hover{color:var(--red);background:rgba(248,113,113,.08)}
+
+.topbar{
+  position:fixed;top:0;right:var(--sw);left:0;height:var(--th);
+  background:rgba(11,15,26,.85);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);z-index:100;
+  display:flex;align-items:center;padding:0 22px;gap:12px;
+}
+.topbar-title{font-size:15px;font-weight:700}
+.topbar-title small{color:var(--muted);font-weight:400;font-size:12px;margin-right:6px}
+.topbar-right{margin-right:auto;display:flex;align-items:center;gap:10px}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.btn-ref{
+  background:rgba(255,255,255,.06);border:1px solid var(--border2);
+  border-radius:var(--rsm);padding:6px 14px;color:var(--muted);
+  font-family:'Cairo',sans-serif;font-size:13px;
+  display:flex;align-items:center;gap:5px;transition:all var(--trans);
+}
+.btn-ref:hover{color:var(--text);border-color:var(--accent)}
+.btn-ref.spin i{animation:rot .7s linear infinite}
+@keyframes rot{to{transform:rotate(360deg)}}
+.hamburger{display:none;background:none;border:none;color:var(--text);font-size:20px;padding:4px 8px}
+
+.main{margin-right:var(--sw);padding-top:var(--th);min-height:100vh}
+.page{display:none;padding:22px}
+.page.active{display:block}
+.ph{margin-bottom:22px}
+.ph h2{font-size:19px;font-weight:900;display:flex;align-items:center;gap:8px}
+.ph p{color:var(--muted);font-size:13px;margin-top:3px}
+
+/* ══ CARDS / KPI ══ */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:13px;margin-bottom:20px}
+.kpi{
+  background:var(--card);border:1px solid var(--border);border-radius:var(--radius);
+  padding:17px 15px;position:relative;overflow:hidden;
+  transition:transform var(--trans),box-shadow var(--trans);cursor:default;
+}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.35)}
+.kpi::before{content:'';position:absolute;inset:0 0 auto 0;height:3px;background:var(--kc,var(--accent))}
+.kpi-icon{font-size:26px;margin-bottom:7px}
+.kpi-val{font-size:27px;font-weight:900;color:var(--kc,var(--accent));line-height:1}
+.kpi-lbl{font-size:11px;color:var(--muted);margin-top:3px}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
+.ch{padding:14px 17px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ch h3{font-size:13px;font-weight:700;display:flex;align-items:center;gap:7px}
+.cb{padding:17px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:15px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+
+/* BARS */
+.barchart{display:flex;flex-direction:column;gap:10px}
+.barrow{display:flex;align-items:center;gap:10px;font-size:12px}
+.barlbl{width:90px;text-align:right;white-space:nowrap;flex-shrink:0;color:var(--muted)}
+.bartrack{flex:1;background:rgba(255,255,255,.05);border-radius:99px;height:9px;overflow:hidden}
+.barfill{height:100%;border-radius:99px;transition:width .7s cubic-bezier(.4,0,.2,1)}
+.barnum{width:32px;text-align:left;color:var(--muted)}
+.donut-wrap{display:flex;align-items:center;gap:14px}
+.donut-leg{flex:1;display:flex;flex-direction:column;gap:7px}
+.leg-row{display:flex;align-items:center;gap:7px;font-size:12px}
+.leg-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+
+/* TABLE */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{
+  background:var(--bg3);padding:11px 13px;text-align:right;
+  font-size:11px;color:var(--muted);font-weight:700;
+  border-bottom:1px solid var(--border);white-space:nowrap;
+  cursor:pointer;user-select:none;transition:color var(--trans);
+}
+thead th:hover{color:var(--text)}
+thead th.sorted{color:var(--accent2)}
+tbody tr{border-bottom:1px solid var(--border);transition:background var(--trans)}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:rgba(124,106,247,.06)}
+tbody td{padding:10px 13px;vertical-align:middle}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:99px;font-size:11px;font-weight:700}
+.b-male{background:rgba(34,211,238,.12);color:var(--teal)}
+.b-female{background:rgba(244,114,182,.12);color:var(--pink)}
+.b-p1{background:rgba(167,139,250,.12);color:var(--accent2)}
+.b-p2{background:rgba(34,211,238,.12);color:var(--teal)}
+.b-p3{background:rgba(251,191,36,.12);color:var(--gold)}
+.b-team{background:rgba(52,211,153,.12);color:var(--green)}
+.b-noteam{background:rgba(255,255,255,.05);color:var(--muted)}
+.b-pending{background:rgba(251,191,36,.12);color:var(--gold)}
+.b-done{background:rgba(52,211,153,.12);color:var(--green)}
+.b-rejected{background:rgba(248,113,113,.1);color:var(--red)}
+.b-super{background:rgba(251,191,36,.15);color:var(--gold)}
+.b-admin{background:rgba(124,106,247,.15);color:var(--accent2)}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:8px 15px;border-radius:var(--rsm);font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;border:none;transition:opacity var(--trans),transform var(--trans);cursor:pointer}
+.btn:hover{opacity:.83;transform:translateY(-1px)}
+.btn:disabled{opacity:.45;transform:none;cursor:default}
+.bp{background:var(--accent);color:#fff}
+.bs{background:var(--green);color:#000}
+.bd{background:rgba(248,113,113,.15);color:var(--red);border:1px solid rgba(248,113,113,.3)}
+.bg{background:rgba(255,255,255,.07);color:var(--text);border:1px solid var(--border2)}
+.bsm{padding:5px 11px;font-size:12px}
+.bxs{padding:3px 8px;font-size:11px}
+
+/* FILTERS */
+.fbar{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:15px;align-items:center}
+.flt{background:var(--card);border:1px solid var(--border2);border-radius:var(--rsm);padding:8px 13px;color:var(--text);font-family:'Cairo',sans-serif;font-size:13px;outline:none;transition:border-color var(--trans);min-width:130px}
+.flt:focus{border-color:var(--accent)}
+.fcnt{font-size:12px;color:var(--muted);margin-right:auto}
+
+/* TOP LIST */
+.ranklist{display:flex;flex-direction:column;gap:7px}
+.rankrow{display:flex;align-items:center;gap:11px;padding:9px 13px;background:rgba(255,255,255,.03);border-radius:10px}
+.ranknum{font-size:16px;width:24px;text-align:center}
+.rankinfo{flex:1}
+.rankname{font-size:13px;font-weight:700}
+.ranksub{font-size:11px;color:var(--muted)}
+.rankscore{font-size:14px;font-weight:900;color:var(--gold)}
+
+/* REWARDS */
+.rrow{display:flex;align-items:center;gap:13px;padding:12px 15px;border-bottom:1px solid var(--border)}
+.rrow:last-child{border-bottom:none}
+.rico{font-size:28px}
+.rinfo{flex:1}
+.rname{font-size:14px;font-weight:700}
+.rmeta{font-size:12px;color:var(--muted);margin-top:2px}
+.rdate{font-size:11px;color:var(--muted2)}
+
+/* ROOMS */
+.rorow{display:flex;align-items:center;gap:13px;padding:12px 15px;border-bottom:1px solid var(--border)}
+.rorow:last-child{border-bottom:none}
+.rocode{font-family:monospace;font-size:18px;font-weight:900;color:var(--accent2);letter-spacing:2px}
+.roinfo{flex:1}
+.rotitle{font-size:13px;font-weight:700}
+.rosub{font-size:12px;color:var(--muted)}
+
+/* PLAYER MODAL */
+.modal-ov{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)}
+.modal{background:var(--card);border:1px solid var(--border2);border-radius:20px;width:100%;max-height:92vh;overflow-y:auto;box-shadow:0 32px 100px rgba(0,0,0,.6)}
+.mhead{padding:18px 20px 0;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--card);z-index:1;padding-bottom:13px;border-bottom:1px solid var(--border)}
+.mhead h2{font-size:16px;font-weight:900}
+.mbody{padding:18px 20px}
+.btnx{background:rgba(255,255,255,.08);border:none;border-radius:7px;width:32px;height:32px;color:var(--text);font-size:14px;display:flex;align-items:center;justify-content:center}
+.dg{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-bottom:14px}
+.dgi{background:rgba(255,255,255,.04);border-radius:9px;padding:10px 13px}
+.dgl{font-size:10px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:.4px}
+.dgv{font-size:13px;font-weight:700}
+.dgv.lg{font-size:21px;font-weight:900}
+.pb-w{margin-bottom:11px}
+.pb-h{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px}
+.pb-t{background:rgba(255,255,255,.05);border-radius:99px;height:7px;overflow:hidden}
+.pb-f{height:100%;border-radius:99px}
+.slbl{font-size:10px;font-weight:700;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:9px;margin-top:3px}
+.erow{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.elbl{width:110px;font-size:12px;color:var(--muted);flex-shrink:0}
+.einp{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:7px;padding:7px 11px;color:var(--text);font-family:'Cairo',sans-serif;font-size:13px;outline:none;min-width:0;transition:border-color var(--trans)}
+.einp:focus{border-color:var(--accent)}
+.einp[type=number]{direction:ltr;text-align:right}
+.pugrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:9px}
+.pubox{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;padding:11px;text-align:center}
+.puico{font-size:20px;margin-bottom:5px}
+.punm{font-size:11px;color:var(--muted);margin-bottom:6px}
+.puinp{width:100%;background:rgba(255,255,255,.06);border:1px solid var(--border2);border-radius:6px;padding:5px;color:var(--text);font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;text-align:center;outline:none}
+
+/* PM TABS */
+.pm-tabs{display:flex;gap:3px;padding:10px 20px 0;border-bottom:1px solid var(--border);background:var(--card);position:sticky;top:70px;z-index:1;flex-wrap:wrap}
+.pm-tab{padding:6px 13px;border-radius:8px 8px 0 0;border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:700;cursor:pointer;transition:all .15s;font-family:'Cairo',sans-serif;white-space:nowrap}
+.pm-tab.active{background:var(--accent);color:#fff}
+.pm-tab:hover:not(.active){background:rgba(255,255,255,.07);color:var(--text)}
+/* lesson rows */
+.subj-block{margin-bottom:16px}
+.subj-hdr{display:flex;align-items:center;gap:8px;padding:7px 11px;border-radius:8px;margin-bottom:6px;font-weight:700;font-size:12px}
+.lesson-row{background:rgba(255,255,255,.02);border-radius:8px;padding:9px 11px;margin-bottom:5px;border:1px solid var(--border)}
+.lesson-hd{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.l-num{font-size:10px;color:var(--muted);min-width:40px;flex-shrink:0}
+.l-name{flex:1;font-size:12px;font-weight:600}
+.l-total{font-size:12px;font-weight:700;margin-right:4px;flex-shrink:0}
+.station-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}
+.st-cell{background:rgba(255,255,255,.04);border-radius:6px;padding:4px 6px;text-align:center}
+.st-cell-lbl{font-size:9px;color:var(--muted);display:block}
+.st-cell-val{font-size:11px;font-weight:700}
+.mg-row{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.mg-badge{font-size:10px;background:rgba(255,255,255,.06);border-radius:4px;padding:2px 6px;color:var(--muted)}
+/* points tab */
+.pts-total{text-align:center;padding:16px;margin-bottom:14px;background:rgba(251,191,36,.07);border-radius:12px;border:1px solid rgba(251,191,36,.2)}
+.pts-total-num{font-size:44px;font-weight:900;color:var(--gold);line-height:1}
+.pts-total-lbl{font-size:12px;color:var(--muted);margin-top:4px}
+.pts-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.pts-ico{font-size:16px;width:22px;text-align:center;flex-shrink:0}
+.pts-info{flex:1;min-width:0}
+.pts-lbl{font-size:12px;font-weight:600}
+.pts-sub{font-size:11px;color:var(--muted)}
+.pts-val{font-weight:700;font-size:13px;color:var(--gold);white-space:nowrap}
+/* spiritual tab */
+.sp-section{margin-bottom:12px}
+.sp-day{display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.02);margin-bottom:3px;font-size:12px;border:1px solid var(--border)}
+.sp-date{font-size:10px;color:var(--muted);min-width:72px;direction:ltr;flex-shrink:0;padding-top:1px}
+.sp-content{flex:1;min-width:0}
+.sp-icons{display:flex;gap:5px;font-size:14px;flex-shrink:0}
+
+/* TEAM ASSIGN */
+.taopt{display:flex;flex-direction:column;gap:7px;max-height:320px;overflow-y:auto}
+.tarow{display:flex;align-items:center;justify-content:space-between;padding:10px 13px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;cursor:pointer;transition:all var(--trans)}
+.tarow:hover{border-color:var(--accent);background:rgba(124,106,247,.08)}
+.tarow.full{opacity:.4;cursor:default}
+.tarow.full:hover{border-color:var(--border);background:rgba(255,255,255,.04)}
+.tal{display:flex;align-items:center;gap:9px}
+.tlogo{font-size:21px}
+.tnam{font-size:13px;font-weight:700}
+.tcnt{font-size:11px;color:var(--muted)}
+
+/* TEAMS GRID */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(275px,1fr));gap:15px}
+.tcard{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;transition:border-color var(--trans)}
+.tcard:hover{border-color:rgba(124,106,247,.35)}
+.tband{height:4px}
+.tinner{padding:17px}
+.ttop{display:flex;align-items:center;gap:11px;margin-bottom:13px}
+.tlogobd{font-size:32px}
+.tiname{font-size:15px;font-weight:900}
+.tisub{font-size:11px;color:var(--muted)}
+.tscores{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:13px}
+.tsb{background:rgba(255,255,255,.04);border-radius:7px;padding:7px;text-align:center}
+.tsv{font-size:14px;font-weight:900}
+.tsl{font-size:10px;color:var(--muted)}
+.mlist{display:flex;flex-direction:column;gap:4px}
+.mrow{display:flex;align-items:center;justify-content:space-between;padding:5px 9px;background:rgba(255,255,255,.03);border-radius:7px}
+.mname{font-size:12px;font-weight:600}
+.admbdg{color:var(--gold);font-size:10px;margin-left:4px}
+
+/* ANNOUNCE */
+.antxt{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:9px;padding:11px 13px;color:var(--text);font-family:'Cairo',sans-serif;font-size:13px;resize:vertical;min-height:90px;outline:none;width:100%;transition:border-color var(--trans)}
+.antxt:focus{border-color:var(--accent)}
+
+/* ══ ADMIN MANAGEMENT ══ */
+.admgmt-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
+.amtab{padding:8px 16px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--card);color:var(--muted);font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all var(--trans);display:flex;align-items:center;gap:6px}
+.amtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.amtab:not(.active):hover{border-color:var(--accent);color:var(--text)}
+.amtab .amcnt{background:rgba(255,255,255,.25);color:#fff;font-size:10px;padding:1px 5px;border-radius:99px;font-weight:700}
+.amtab:not(.active) .amcnt{background:rgba(255,255,255,.1);color:var(--muted)}
+.ampanel{display:none}
+.ampanel.active{display:block}
+.areqcard{
+  display:flex;align-items:center;gap:13px;
+  padding:14px 16px;border-bottom:1px solid var(--border);
+}
+.areqcard:last-child{border-bottom:none}
+.areqcard .av{
+  width:42px;height:42px;border-radius:50%;background:rgba(124,106,247,.2);
+  border:2px solid rgba(124,106,247,.4);display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:900;color:var(--accent2);flex-shrink:0;
+}
+.areqinfo{flex:1}
+.areqname{font-size:14px;font-weight:700}
+.areqmeta{font-size:12px;color:var(--muted);margin-top:2px}
+.areqact{display:flex;gap:7px;flex-wrap:wrap}
+.superbox{
+  background:linear-gradient(135deg,rgba(251,191,36,.08),rgba(124,106,247,.08));
+  border:1px solid rgba(251,191,36,.3);border-radius:var(--radius);
+  padding:18px;margin-bottom:20px;display:flex;align-items:center;gap:14px;
+}
+.superbox .sbico{font-size:36px;filter:drop-shadow(0 0 10px rgba(251,191,36,.4))}
+.superbox .sbinfo h3{font-size:15px;font-weight:900;color:var(--gold)}
+.superbox .sbinfo p{font-size:12px;color:var(--muted);margin-top:2px}
+
+/* EMPTY / LOADING */
+.empty{text-align:center;padding:50px;color:var(--muted)}
+.empty i{font-size:36px;margin-bottom:11px;display:block;opacity:.4}
+.loading{text-align:center;padding:46px;color:var(--muted)}
+.loading i{font-size:26px;margin-bottom:10px;display:block;animation:rot .9s linear infinite}
+
+/* TOAST */
+.toast{
+  position:fixed;bottom:22px;left:50%;
+  transform:translateX(-50%) translateY(80px);
+  background:var(--card2);border:1px solid var(--border2);
+  border-radius:11px;padding:11px 22px;font-size:14px;font-weight:700;
+  z-index:9999;transition:transform .3s cubic-bezier(.4,0,.2,1);white-space:nowrap;pointer-events:none;
+}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:var(--green);color:var(--green)}
+.toast.err{border-color:var(--red);color:var(--red)}
+.toast.info{border-color:var(--accent);color:var(--accent2)}
+
+/* RESPONSIVE */
+@media(max-width:760px){
+  :root{--sw:0px}
+  .sidebar{transform:translateX(100%);width:230px}
+  .sidebar.open{transform:translateX(0)}
+  .hamburger{display:block}
+  .topbar{right:0}
+  .main{margin-right:0}
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .g2,.g3{grid-template-columns:1fr}
+  .dg{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div class="auth-screen" id="screen-login">
+  <div class="auth-card">
+    <div class="auth-icon">🛡️</div>
+    <h1>لوحة الإدارة</h1>
+    <p class="sub">مين البطل؟ — كنيسة الشهيدة رفقة</p>
+    <div class="field"><i class="ico fas fa-phone"></i><input class="inp" type="tel" id="l-phone" placeholder="رقم التليفون" dir="ltr" maxlength="11" onkeydown="if(event.key==='Enter')tryLogin()"></div>
+    <div class="field"><i class="ico fas fa-lock"></i><input class="inp" type="password" id="l-pass" placeholder="كلمة السر" dir="ltr" onkeydown="if(event.key==='Enter')tryLogin()"></div>
+    <div class="check-row"><input type="checkbox" id="l-keep"> <label for="l-keep">ابقاني داخل (Keep me logged in)</label></div>
+    <button class="btn-auth" id="btn-login" onclick="tryLogin()"><i class="fas fa-shield-halved"></i> دخول</button>
+    <div class="auth-err" id="l-err">رقم التليفون أو كلمة السر غلط</div>
+    <div class="divider">أو</div>
+    <div class="auth-link"><a onclick="showScreen('screen-request')">طلب صلاحية أدمن جديد</a></div>
+  </div>
+</div>
+
+<!-- ══ REQUEST ACCESS ══ -->
+<div class="auth-screen" id="screen-request" style="display:none">
+  <div class="auth-card">
+    <div class="auth-icon">📝</div>
+    <h1>طلب صلاحية أدمن</h1>
+    <p class="sub">هيتراجع الطلب من المسؤول الأعلى ويتم التفعيل</p>
+    <div class="field"><i class="ico fas fa-user"></i><input class="inp" type="text" id="r-name" placeholder="اسمك الكامل" maxlength="40"></div>
+    <div class="field"><i class="ico fas fa-phone"></i><input class="inp" type="tel" id="r-phone" placeholder="رقم التليفون" dir="ltr" maxlength="11"></div>
+    <div class="field"><i class="ico fas fa-lock"></i><input class="inp" type="password" id="r-pass" placeholder="كلمة سر جديدة" dir="ltr"></div>
+    <div class="field"><i class="ico fas fa-lock"></i><input class="inp" type="password" id="r-pass2" placeholder="تأكيد كلمة السر" dir="ltr"></div>
+    <button class="btn-auth" id="btn-req" onclick="submitRequest()"><i class="fas fa-paper-plane"></i> إرسال الطلب</button>
+    <div class="auth-err" id="r-err"></div>
+    <div class="auth-ok" id="r-ok">✅ تم إرسال طلبك! انتظر موافقة المسؤول الأعلى.</div>
+    <div class="divider"></div>
+    <div class="auth-link"><a onclick="showScreen('screen-login')"><i class="fas fa-arrow-right"></i> رجوع لتسجيل الدخول</a></div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">🛡️</div>
+      <div><div class="sidebar-logo" style="padding:0;border:none"><h2 style="font-size:13px;font-weight:900">لوحة الإدارة</h2><p>مين البطل؟</p></div></div>
+    </div>
+    <div class="who-badge">
+      <div style="font-size:20px" id="wb-ico">👤</div>
+      <div><div class="wb-name" id="wb-name">—</div><div class="wb-role" id="wb-role">—</div></div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-grp">
+        <div class="nav-grp-title">الرئيسية</div>
+        <button class="nav-btn active" onclick="goPage('insights')"><i class="fas fa-chart-pie"></i> الإحصائيات</button>
+        <button class="nav-btn" onclick="goPage('players')"><i class="fas fa-users"></i> اللاعبين</button>
+        <button class="nav-btn" onclick="goPage('teams')"><i class="fas fa-shield-halved"></i> الفرق</button>
+      </div>
+      <div class="nav-grp">
+        <div class="nav-grp-title">الإدارة</div>
+        <button class="nav-btn" onclick="goPage('rewards')" id="nav-rewards"><i class="fas fa-gift"></i> طلبات الجوائز</button>
+        <button class="nav-btn" onclick="goPage('rooms')"><i class="fas fa-bolt"></i> غرف المنافسة</button>
+        <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
+      </div>
+      <div class="nav-grp" id="nav-grp-super" style="display:none">
+        <div class="nav-grp-title">المسؤول الأعلى</div>
+        <button class="nav-btn" onclick="goPage('admins')" id="nav-admins"><i class="fas fa-user-shield"></i> إدارة الأدمنز</button>
+      </div>
+    </nav>
+    <div class="sidebar-foot">
+      <button class="btn-logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
+    </div>
+  </aside>
+
+  <header class="topbar">
+    <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
+    <div class="topbar-title" id="tb-title">الإحصائيات <small id="tb-sub">نظرة عامة</small></div>
+    <div class="topbar-right">
+      <div class="live-dot" title="متصل بـ Firebase"></div>
+      <button class="btn-ref" id="btn-ref" onclick="refreshAll()"><i class="fas fa-rotate-right"></i> تحديث</button>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- INSIGHTS -->
+    <div class="page active" id="page-insights">
+      <div class="ph"><h2><i class="fas fa-chart-pie" style="color:var(--accent2)"></i> الإحصائيات العامة</h2><p>نظرة شاملة على بيانات اللعبة</p></div>
+      <div class="kpi-grid" id="kpi-grid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+      <div class="g2" style="margin-bottom:14px" id="charts1"></div>
+      <div class="g2" style="margin-bottom:14px" id="charts2"></div>
+      <div class="card" id="top10card"><div class="ch"><h3><i class="fas fa-trophy" style="color:var(--gold)"></i> أعلى ١٠ لاعبين</h3></div><div class="cb"><div class="ranklist" id="top10list"></div></div></div>
+      <div class="g2" style="margin-bottom:14px" id="charts3"></div>
+      <div class="g2" style="margin-bottom:14px" id="charts4"></div>
+    </div>
+
+    <!-- PLAYERS -->
+    <div class="page" id="page-players">
+      <div class="ph"><h2><i class="fas fa-users" style="color:var(--teal)"></i> اللاعبين</h2><p>إدارة وتعديل وتصدير بيانات جميع اللاعبين</p></div>
+      <div class="fbar">
+        <input type="text" class="flt" id="f-name" placeholder="🔍 الاسم أو المستخدم" oninput="applyF()">
+        <input type="tel"  class="flt" id="f-phone" placeholder="رقم التليفون" oninput="applyF()" dir="ltr">
+        <select class="flt" id="f-gender" onchange="applyF()"><option value="">النوع (الكل)</option><option value="male">👦 ولد</option><option value="female">👧 بنت</option></select>
+        <select class="flt" id="f-year"   onchange="applyF()"><option value="">السنة (الكل)</option><option value="prep1">أولى إعدادي</option><option value="prep2">تانية إعدادي</option><option value="prep3">تالتة إعدادي</option></select>
+        <select class="flt" id="f-team"   onchange="applyF()"><option value="">الفريق (الكل)</option><option value="__none__">بدون فريق</option></select>
+        <button class="btn bg bsm" onclick="clearF()"><i class="fas fa-times"></i> مسح</button>
+        <span class="fcnt" id="fcnt"></span>
+        <button class="btn bg bsm" onclick="exportCSV()"><i class="fas fa-file-csv"></i> تصدير CSV</button>
+      </div>
+      <div class="card tbl-wrap">
+        <table>
+          <thead><tr>
+            <th onclick="sortBy('playerName')">الاسم <i class="fas fa-sort" id="si-playerName"></i></th>
+            <th onclick="sortBy('playerPhone')">التليفون <i class="fas fa-sort" id="si-playerPhone"></i></th>
+            <th onclick="sortBy('gender')">النوع <i class="fas fa-sort" id="si-gender"></i></th>
+            <th onclick="sortBy('academicYear')">السنة <i class="fas fa-sort" id="si-academicYear"></i></th>
+            <th onclick="sortBy('stars')">⭐ نجوم <i class="fas fa-sort" id="si-stars"></i></th>
+            <th onclick="sortBy('gems')">💎 جواهر <i class="fas fa-sort" id="si-gems"></i></th>
+            <th onclick="sortBy('xp')">✨ XP <i class="fas fa-sort" id="si-xp"></i></th>
+            <th>الفريق</th><th>إجراءات</th>
+          </tr></thead>
+          <tbody id="ptbody"><tr><td colspan="9" class="loading"><i class="fas fa-spinner"></i></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TEAMS -->
+    <div class="page" id="page-teams">
+      <div class="ph"><h2><i class="fas fa-shield-halved" style="color:var(--accent2)"></i> الفرق</h2><p>إدارة الفرق وأعضائها</p></div>
+      <div class="tgrid" id="tgrid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- REWARDS -->
+    <div class="page" id="page-rewards">
+      <div class="ph"><h2><i class="fas fa-gift" style="color:var(--gold)"></i> طلبات الجوائز</h2><p>استبدالات النجوم والجواهر بجوائز حقيقية</p></div>
+      <div class="fbar">
+        <select class="flt" id="rf-s" onchange="renderRewards()"><option value="">الكل</option><option value="pending">⏳ معلّقة</option><option value="done">✅ تم التسليم</option></select>
+        <span class="fcnt" id="rcnt"></span>
+      </div>
+      <div class="card" id="rcard"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- ROOMS -->
+    <div class="page" id="page-rooms">
+      <div class="ph"><h2><i class="fas fa-bolt" style="color:var(--orange)"></i> غرف المنافسة</h2><p>الغرف النشطة والمنتهية</p></div>
+      <div class="fbar">
+        <select class="flt" id="rm-s" onchange="renderRooms()"><option value="">الكل</option><option value="lobby">في الانتظار</option><option value="playing">تلعب الآن</option><option value="finished">منتهية</option></select>
+        <span class="fcnt" id="rmcnt"></span>
+      </div>
+      <div class="card" id="rmcard"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- ANNOUNCE -->
+    <div class="page" id="page-announce">
+      <div class="ph"><h2><i class="fas fa-bullhorn" style="color:var(--pink)"></i> الإعلانات</h2><p>إرسال إشعارات تظهر للاعبين عند فتح اللعبة</p></div>
+      <div class="g2">
+        <div class="card">
+          <div class="ch"><h3><i class="fas fa-plus" style="color:var(--green)"></i> إعلان جديد</h3></div>
+          <div class="cb" style="display:flex;flex-direction:column;gap:12px">
+            <div><div class="slbl">عنوان الإعلان</div><input type="text" class="einp" id="an-title" placeholder="مثال: درس جديد 📖" style="width:100%"></div>
+            <div><div class="slbl">نص الرسالة</div><textarea class="antxt" id="an-body" placeholder="اكتب نص الإعلان..."></textarea></div>
+            <div><div class="slbl">الأيقونة</div>
+              <select class="einp" id="an-icon" style="width:100%">
+                <option value="📢">📢 إعلان عام</option><option value="📖">📖 درس جديد</option>
+                <option value="🏆">🏆 منافسة</option><option value="🎁">🎁 مكافأة</option>
+                <option value="⚔️">⚔️ تحدي جديد</option><option value="✝️">✝️ رسالة روحية</option>
+                <option value="🎉">🎉 احتفال</option>
+              </select>
+            </div>
+            <button class="btn bp" onclick="sendAnnounce()"><i class="fas fa-paper-plane"></i> إرسال</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ch"><h3><i class="fas fa-history" style="color:var(--muted)"></i> الإعلانات السابقة</h3><button class="btn bg bsm" onclick="loadAnnounce()"><i class="fas fa-rotate-right"></i></button></div>
+          <div id="anlist" class="cb"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ADMIN MANAGEMENT (superadmin only) -->
+    <div class="page" id="page-admins">
+      <div class="ph"><h2><i class="fas fa-user-shield" style="color:var(--gold)"></i> إدارة الأدمنز</h2><p>قبول وإدارة الأدمنز المساعدين</p></div>
+      <div class="superbox">
+        <div class="sbico">👑</div>
+        <div class="sbinfo">
+          <h3>المسؤول الأعلى</h3>
+          <p id="super-info">جاري التحميل...</p>
+        </div>
+      </div>
+      <div class="admgmt-tabs">
+        <button class="amtab active" onclick="amTab('pending')" id="amt-pending"><i class="fas fa-clock"></i> طلبات جديدة <span class="amcnt" id="am-pcount">0</span></button>
+        <button class="amtab" onclick="amTab('active')" id="amt-active"><i class="fas fa-users"></i> الأدمنز الحاليين <span class="amcnt" id="am-acount">0</span></button>
+        <button class="amtab" onclick="amTab('rejected')" id="amt-rejected"><i class="fas fa-ban"></i> المرفوضون <span class="amcnt" id="am-rcount">0</span></button>
+      </div>
+      <div class="card" id="ampanel-pending"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+      <div class="card" id="ampanel-active" style="display:none"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+      <div class="card" id="ampanel-rejected" style="display:none"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+  </main>
+</div>
+
+<!-- PLAYER EDIT MODAL -->
+<div id="modal-player" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-player')">
+  <div class="modal" style="max-width:760px" id="mplayer-box"></div>
+</div>
+
+<!-- ASSIGN TEAM MODAL -->
+<div id="modal-assign" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-assign')">
+  <div class="modal" style="max-width:440px">
+    <div class="mhead"><h2><i class="fas fa-users"></i> اختار فريق</h2><button class="btnx" onclick="closeM('modal-assign')"><i class="fas fa-times"></i></button></div>
+    <div style="padding:14px 18px 18px"><div class="taopt" id="taopt"></div></div>
+  </div>
+</div>
+
+<!-- EDIT ADMIN MODAL -->
+<div id="modal-admin" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-admin')">
+  <div class="modal" style="max-width:420px" id="madmin-box"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+// ════════════════════════════════
+//  FIREBASE + CONFIG
+// ════════════════════════════════
+firebase.initializeApp({
+  apiKey:"AIzaSyDZXv7nmtJ5tqSLmvrxQ1F4WuoHmBxttuY",
+  authDomain:"min-el-batal.firebaseapp.com",
+  projectId:"min-el-batal",
+  storageBucket:"min-el-batal.firebasestorage.app",
+  messagingSenderId:"743794480493",
+  appId:"1:743794480493:web:74c8ef6a444e29f7a4b664"
+});
+const db = firebase.firestore();
+const SESSION_KEY = 'minElBatal_adminSession';
+const SUPER = { phone:'01207714622', passHash:hp('01207714622'+'123456789mI'), name:'المسؤول الأعلى', role:'superadmin' };
+
+// ════════════════════════════════
+//  STATE
+// ════════════════════════════════
+let me = null; // current logged-in admin
+let players=[], teams=[], rewards=[], rooms=[], announces=[], admins=[], adminReqs=[];
+let filtered=[], sortField='stars', sortDir='desc', pendingAssignPhone=null;
+const YR = {prep1:'أولى إعدادي',prep2:'تانية إعدادي',prep3:'تالتة إعدادي'};
+const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
+const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#10b981',lessons:['اعرف نفسك','قوة الكلمة','إدارة الوقت','القيادة الخادمة','التعامل مع الضغوط','صانع السلام']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']}};
+
+// ════════════════════════════════
+//  PASSWORD HASH (simple djb2)
+// ════════════════════════════════
+function hp(str) {
+  var h=5381;
+  for(var i=0;i<str.length;i++) h=((h<<5)+h)+str.charCodeAt(i)|0;
+  return (h>>>0).toString(16);
+}
+
+// ════════════════════════════════
+//  AUTH SCREENS
+// ════════════════════════════════
+function showScreen(id) {
+  ['screen-login','screen-request'].forEach(s=>{
+    const el=document.getElementById(s);
+    if(el) el.style.display = s===id?'flex':'none';
+  });
+}
+
+// ════════════════════════════════
+//  SESSION
+// ════════════════════════════════
+function saveSession(admin, keep) {
+  const data = { phone:admin.phone, name:admin.name, role:admin.role, _id:admin._id||'super',
+                 expires: Date.now() + (keep ? 30*86400000 : 8*3600000) };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(data));
+}
+function loadSession() {
+  try {
+    const d = JSON.parse(localStorage.getItem(SESSION_KEY)||'null');
+    if (d && d.expires > Date.now()) return d;
+  } catch(e){}
+  return null;
+}
+function clearSession() { localStorage.removeItem(SESSION_KEY); }
+
+// ════════════════════════════════
+//  LOGIN
+// ════════════════════════════════
+async function tryLogin() {
+  const phone = document.getElementById('l-phone').value.trim();
+  const pass  = document.getElementById('l-pass').value;
+  const keep  = document.getElementById('l-keep').checked;
+  const err   = document.getElementById('l-err');
+  const btn   = document.getElementById('btn-login');
+  err.style.display='none';
+  if (!phone || !pass) { err.textContent='اكتب رقم التليفون وكلمة السر'; err.style.display='block'; return; }
+  btn.disabled=true; btn.textContent='جاري التحقق...';
+
+  const hash = hp(phone+pass);
+
+  // 1. Check superadmin
+  if (phone===SUPER.phone && hash===SUPER.passHash) {
+    me = { phone:SUPER.phone, name:SUPER.name, role:'superadmin', _id:'super' };
+    saveSession(me, keep);
+    enterApp(); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return;
+  }
+
+  // 2. Check Firestore admins
+  try {
+    const snap = await db.collection('admins').where('phone','==',phone).limit(1).get();
+    if (!snap.empty) {
+      const d = snap.docs[0].data();
+      if (d.passwordHash !== hash) { showErr('l-err','كلمة السر غلط'); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return; }
+      if (d.status !== 'active')   { showErr('l-err','حسابك لسه تحت المراجعة أو تم رفضه'); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return; }
+      me = { phone:d.phone, name:d.name, role:d.role||'admin', _id:snap.docs[0].id };
+      saveSession(me, keep);
+      enterApp(); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return;
+    }
+  } catch(e) { console.error(e); }
+
+  showErr('l-err','رقم التليفون أو كلمة السر غلط');
+  btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول';
+}
+
+function showErr(id, msg) {
+  const el=document.getElementById(id); el.textContent=msg; el.style.display='block';
+}
+
+function enterApp() {
+  document.getElementById('screen-login').style.display='none';
+  document.getElementById('app').style.display='block';
+  // Update who badge
+  document.getElementById('wb-name').textContent = me.name;
+  document.getElementById('wb-role').textContent = me.role==='superadmin'?'👑 المسؤول الأعلى':'🛡️ أدمن';
+  document.getElementById('wb-ico').textContent  = me.role==='superadmin'?'👑':'🛡️';
+  // Show superadmin nav
+  if (me.role==='superadmin') document.getElementById('nav-grp-super').style.display='block';
+  document.getElementById('super-info').textContent = SUPER.name+' · '+SUPER.phone;
+  loadAll();
+}
+
+function doLogout() {
+  clearSession();
+  me=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('l-phone').value='';
+  document.getElementById('l-pass').value='';
+  document.getElementById('l-err').style.display='none';
+  showScreen('screen-login');
+}
+
+// ════════════════════════════════
+//  REQUEST ACCESS
+// ════════════════════════════════
+async function submitRequest() {
+  const name  = document.getElementById('r-name').value.trim();
+  const phone = document.getElementById('r-phone').value.trim();
+  const pass  = document.getElementById('r-pass').value;
+  const pass2 = document.getElementById('r-pass2').value;
+  const err=document.getElementById('r-err'), ok=document.getElementById('r-ok');
+  err.style.display='none'; ok.style.display='none';
+  if (!name)              { showErr('r-err','اكتب اسمك'); return; }
+  if (!/^01\d{9}$/.test(phone)) { showErr('r-err','اكتب رقم تليفون صحيح'); return; }
+  if (!pass||pass.length<6)     { showErr('r-err','كلمة السر لازم ٦ حروف على الأقل'); return; }
+  if (pass!==pass2)             { showErr('r-err','كلمة السر مش متطابقة'); return; }
+  if (phone===SUPER.phone)      { showErr('r-err','الرقم ده محجوز'); return; }
+
+  const btn=document.getElementById('btn-req');
+  btn.disabled=true; btn.textContent='جاري الإرسال...';
+  try {
+    // Check not already registered
+    const [chkA, chkR] = await Promise.all([
+      db.collection('admins').where('phone','==',phone).limit(1).get(),
+      db.collection('admin_requests').where('phone','==',phone).limit(1).get()
+    ]);
+    if (!chkA.empty) { showErr('r-err','الرقم ده مسجّل أدمن بالفعل'); btn.disabled=false; btn.textContent='إرسال الطلب'; return; }
+    if (!chkR.empty) { showErr('r-err','في طلب سابق بالرقم ده'); btn.disabled=false; btn.textContent='إرسال الطلب'; return; }
+    await db.collection('admin_requests').add({
+      name, phone, passwordHash:hp(phone+pass), status:'pending',
+      requestedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    ok.style.display='block';
+    ['r-name','r-phone','r-pass','r-pass2'].forEach(id=>document.getElementById(id).value='');
+  } catch(e) { console.error(e); showErr('r-err','حصل خطأ، حاول تاني'); }
+  btn.disabled=false; btn.textContent='إرسال الطلب';
+}
+
+// ════════════════════════════════
+//  AUTO-LOGIN CHECK
+// ════════════════════════════════
+(function() {
+  const sess = loadSession();
+  if (sess) {
+    me = sess;
+    enterApp();
+  }
+})();
+
+// ════════════════════════════════
+//  LOAD DATA — resilient (no Promise.all crashing)
+// ════════════════════════════════
+async function safeGet(query) {
+  try { return await query.get(); } catch(e) { console.warn('collection load failed:',e.message); return { empty:true, docs:[], forEach:()=>{} }; }
+}
+
+async function loadAll() {
+  const btn=document.getElementById('btn-ref');
+  btn.classList.add('spin');
+
+  // Load each collection independently — failures don't block others
+  const [ps,ts,rs,rms,ans,ads,arqs] = await Promise.all([
+    safeGet(db.collection('players')),
+    safeGet(db.collection('teams')),
+    safeGet(db.collection('reward_requests')),
+    safeGet(db.collection('compete_rooms').limit(60)),      // no orderBy = no index needed
+    safeGet(db.collection('announcements').limit(30)),
+    safeGet(db.collection('admins')),
+    safeGet(db.collection('admin_requests'))
+  ]);
+
+  const collect = (snap, arr) => { arr.length=0; snap.forEach(d=>{const x=d.data();x._id=d.id;arr.push(x);}); };
+  collect(ps,players); collect(ts,teams); collect(rs,rewards);
+  collect(rms,rooms);  collect(ans,announces);
+  collect(ads,admins); collect(arqs,adminReqs);
+
+  // Sort client-side (no index required)
+  rooms.sort((a,b)=>{
+    const ta = a.createdAt?.toDate?.()?.getTime?.() || new Date(a.createdAt||0).getTime();
+    const tb = b.createdAt?.toDate?.()?.getTime?.() || new Date(b.createdAt||0).getTime();
+    return tb-ta;
+  });
+  rewards.sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+  announces.sort((a,b)=>{
+    const ta=a.createdAt?.toDate?.()?.getTime?.()|| new Date(a.createdAt||0).getTime();
+    const tb=b.createdAt?.toDate?.()?.getTime?.()|| new Date(b.createdAt||0).getTime();
+    return tb-ta;
+  });
+
+  fillTeamFilter();
+  try { renderInsights(); } catch(e) { console.warn('renderInsights error:', e); }
+  applyF(); renderTeams(); renderRewards(); renderRooms(); renderAnnounce(); renderAdminMgmt();
+  updateBadges();
+  btn.classList.remove('spin');
+}
+
+async function refreshAll() { await loadAll(); toast('تم التحديث ✓','ok'); }
+
+// ════════════════════════════════
+//  NAV
+// ════════════════════════════════
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',admins:'إدارة الأدمنز'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',admins:'قبول وإدارة الأدمنز'};
+function goPage(name) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  const nb=document.querySelector(`[onclick="goPage('${name}')"]`);
+  if(nb) nb.classList.add('active');
+  document.getElementById('tb-title').childNodes[0].textContent=PTITLES[name]||name;
+  document.getElementById('tb-sub').textContent=PSUBS[name]||'';
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+// ════════════════════════════════
+//  BADGES
+// ════════════════════════════════
+function updateBadges() {
+  const pend = rewards.filter(r=>!r.fulfilled).length;
+  const nb=document.getElementById('nav-rewards');
+  let b=nb.querySelector('.nbadge');
+  if(pend>0){if(!b){b=document.createElement('span');b.className='nbadge';nb.appendChild(b);}b.textContent=pend;}
+  else if(b) b.remove();
+
+  const arpend = adminReqs.filter(r=>r.status==='pending').length;
+  const na=document.getElementById('nav-admins');
+  if(na){let ab=na.querySelector('.nbadge');
+    if(arpend>0){if(!ab){ab=document.createElement('span');ab.className='nbadge';na.appendChild(ab);}ab.textContent=arpend;}
+    else if(ab) ab.remove();}
+}
+
+// ════════════════════════════════
+//  INSIGHTS
+// ════════════════════════════════
+function renderInsights() {
+  const T=players.length, M=players.filter(p=>p.gender==='male').length, F=players.filter(p=>p.gender==='female').length;
+  const iT=players.filter(p=>p.team&&p.team.trim()).length;
+  const tS=players.reduce((s,p)=>s+(p.stars||0),0), tG=players.reduce((s,p)=>s+(p.gems||0),0), tXP=players.reduce((s,p)=>s+(p.xp||0),0);
+  const vp=players.filter(p=>p.totalAnswered); const avgA=vp.length?Math.round(vp.reduce((s,p)=>s+(p.totalCorrect||0)/p.totalAnswered*100,0)/vp.length):0;
+  const pend=rewards.filter(r=>!r.fulfilled).length, actR=rooms.filter(r=>r.status==='playing').length;
+
+  document.getElementById('kpi-grid').innerHTML=[
+    {i:'👥',v:T,l:'إجمالي اللاعبين',c:'var(--accent)'},
+    {i:'👦',v:M,l:'أولاد',c:'var(--teal)'},
+    {i:'👧',v:F,l:'بنات',c:'var(--pink)'},
+    {i:'🛡️',v:teams.length,l:'فرق',c:'var(--green)'},
+    {i:'⭐',v:tS.toLocaleString(),l:'إجمالي النجوم',c:'var(--gold)'},
+    {i:'💎',v:tG.toLocaleString(),l:'إجمالي الجواهر',c:'#60a5fa'},
+    {i:'✨',v:tXP.toLocaleString(),l:'إجمالي XP',c:'var(--accent2)'},
+    {i:'🎯',v:avgA+'%',l:'متوسط الدقة',c:'var(--orange)'},
+    {i:'🏆',v:iT,l:'في فريق',c:'var(--green)'},
+    {i:'🚶',v:T-iT,l:'بدون فريق',c:'var(--muted)'},
+    {i:'🎁',v:pend,l:'جوائز معلّقة',c:'var(--gold)'},
+    {i:'⚔️',v:actR,l:'غرف نشطة',c:'var(--red)'},
+  ].map(k=>`<div class="kpi" style="--kc:${k.c}"><div class="kpi-icon">${k.i}</div><div class="kpi-val">${k.v}</div><div class="kpi-lbl">${k.l}</div></div>`).join('');
+
+  const yc={prep1:0,prep2:0,prep3:0}; players.forEach(p=>{if(yc[p.academicYear]!==undefined)yc[p.academicYear]++;});
+  const maxY=Math.max(...Object.values(yc),1);
+  const yCols={prep1:'var(--accent2)',prep2:'var(--teal)',prep3:'var(--gold)'};
+  const tsBars=[...teams].sort((a,b)=>(b.totalStars||0)-(a.totalStars||0)).slice(0,6);
+  const maxTS=Math.max(...tsBars.map(t=>t.totalStars||0),1);
+
+  document.getElementById('charts1').innerHTML=`
+    <div class="card"><div class="ch"><h3><i class="fas fa-graduation-cap" style="color:var(--gold)"></i> توزيع السنوات الدراسية</h3></div><div class="cb"><div class="barchart">
+      ${Object.entries(yc).map(([y,c])=>`<div class="barrow"><span class="barlbl">${YR[y]}</span><div class="bartrack"><div class="barfill" style="width:${(c/maxY*100).toFixed(1)}%;background:${yCols[y]}"></div></div><span class="barnum">${c}</span></div>`).join('')}
+    </div></div></div>
+    <div class="card"><div class="ch"><h3><i class="fas fa-venus-mars" style="color:var(--pink)"></i> توزيع النوع</h3></div><div class="cb">
+      <div class="donut-wrap">
+        <svg width="84" height="84" viewBox="0 0 84 84">${donutSVG(M,F,T)}</svg>
+        <div class="donut-leg">
+          <div class="leg-row"><div class="leg-dot" style="background:var(--teal)"></div> أولاد: <strong>${M}</strong></div>
+          <div class="leg-row"><div class="leg-dot" style="background:var(--pink)"></div> بنات: <strong>${F}</strong></div>
+          <div class="leg-row"><div class="leg-dot" style="background:rgba(255,255,255,.15)"></div> غير محدد: <strong>${T-M-F}</strong></div>
+        </div>
+      </div>
+    </div></div>`;
+
+  document.getElementById('charts2').innerHTML=`
+    <div class="card"><div class="ch"><h3><i class="fas fa-users" style="color:var(--green)"></i> حجم الفرق</h3></div><div class="cb"><div class="barchart">
+      ${teams.length?[...teams].sort((a,b)=>(b.members||[]).length-(a.members||[]).length).slice(0,6).map(t=>`<div class="barrow"><span class="barlbl">${t.logo||'⚔️'} ${t.name.substring(0,8)}</span><div class="bartrack"><div class="barfill" style="width:${((t.members||[]).length/6*100).toFixed(1)}%;background:${t.color||'var(--accent)'}"></div></div><span class="barnum">${(t.members||[]).length}/6</span></div>`).join(''):'<div class="empty" style="padding:16px"><p>لا توجد فرق</p></div>'}
+    </div></div></div>
+    <div class="card"><div class="ch"><h3><i class="fas fa-trophy" style="color:var(--gold)"></i> نجوم الفرق</h3></div><div class="cb"><div class="barchart">
+      ${tsBars.length?tsBars.map(t=>`<div class="barrow"><span class="barlbl">${t.logo||'⚔️'} ${t.name.substring(0,8)}</span><div class="bartrack"><div class="barfill" style="width:${((t.totalStars||0)/maxTS*100).toFixed(1)}%;background:var(--gold)"></div></div><span class="barnum">${t.totalStars||0}</span></div>`).join(''):'<div class="empty" style="padding:16px"><p>لا توجد فرق</p></div>'}
+    </div></div></div>`;
+
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('top10list').innerHTML=[...players].sort((a,b)=>(b.stars||0)-(a.stars||0)).slice(0,10).map((p,i)=>`
+    <div class="rankrow"><span class="ranknum">${medals[i]||(i+1)}</span>
+    <div class="rankinfo"><div class="rankname">${esc(p.playerName||'—')}</div><div class="ranksub">${YR[p.academicYear]||''} · ${esc(p.team||'بدون فريق')}</div></div>
+    <span class="rankscore">⭐ ${(p.stars||0).toLocaleString()}</span></div>`).join('');
+
+  // ── charts3: Lesson completion per subject + spiritual activity ──
+  const subKeys=['faith','bible','life','ritual'];
+  const subColors={'faith':'#e74c3c','bible':'#3b82f6','life':'#10b981','ritual':'#8b5cf6'};
+  // lesson completion: count players with stationScores[sk_i].total > 0
+  const lessonComp={}; // sk -> [count per lesson]
+  subKeys.forEach(function(sk){
+    lessonComp[sk]=Array(6).fill(0);
+    players.forEach(function(p){
+      const ss=p.stationScores||{};
+      for(var i=0;i<6;i++){if((ss[sk+'_'+i]||{}).total>0) lessonComp[sk][i]++;}
+    });
+  });
+  var _allLC=subKeys.reduce(function(acc,sk){return acc.concat(lessonComp[sk]);},[]); var maxLC=Math.max.apply(null,_allLC.concat([1]));
+  // subject totals
+  const subjTotals=subKeys.map(function(sk){
+    return{sk,name:SUBJECTS[sk].name,icon:SUBJECTS[sk].icon,color:subColors[sk],done:players.filter(function(p){return Object.keys(p.stationScores||{}).some(function(k){return k.startsWith(sk+'_')&&p.stationScores[k].total>0;});}).length};
+  });
+  const maxST=Math.max.apply(null,subjTotals.map(function(x){return x.done;}).concat([1]));
+  // spiritual stats
+  const bibleTotal=players.reduce(function(s,p){return s+Object.values(p.bibleReadingLog||{}).filter(function(v){return v.done;}).length;},0);
+  const devotTotal=players.reduce(function(s,p){return s+Object.keys(p.devotionLog||{}).length;},0);
+  const verseTotal=players.reduce(function(s,p){return s+Object.values(p.dailyVerseLog||{}).filter(function(v){return v.completed;}).length;},0);
+  const exTotal=players.reduce(function(s,p){return s+Object.keys(p.exerciseLog||{}).filter(function(k){return p.exerciseLog[k].daily&&p.exerciseLog[k].daily.length;}).length;},0);
+  const lampActive=players.filter(function(p){return (p.lampData||{}).points>0;}).length;
+  const paulActive=players.filter(function(p){return Object.keys(p.paulJourneyData||{}).length>0;}).length;
+  const maxSp=Math.max(bibleTotal,devotTotal,verseTotal,exTotal,lampActive,paulActive,1);
+  const spRows=[
+    {lbl:'قراءة إصحاحات',v:bibleTotal,c:'#3b82f6',ico:'📖'},
+    {lbl:'تأمل روحي (أيام)',v:devotTotal,c:'#f472b6',ico:'🌅'},
+    {lbl:'آية اليوم',v:verseTotal,c:'#fbbf24',ico:'✍️'},
+    {lbl:'تمارين (أيام)',v:exTotal,c:'#10b981',ico:'🏋️'},
+    {lbl:'لاعبين نشطوا اللامب',v:lampActive,c:'#facc15',ico:'💡'},
+    {lbl:'لاعبين في رحلة بولس',v:paulActive,c:'#fb923c',ico:'🗺️'}
+  ];
+
+  document.getElementById('charts3').innerHTML=`
+    <div class="card"><div class="ch"><h3><i class="fas fa-book-open" style="color:var(--accent2)"></i> إتمام الدروس لكل مادة</h3><span style="font-size:11px;color:var(--muted)">عدد اللاعبين اللي أنهوا على الأقل درس واحد</span></div><div class="cb"><div class="barchart">
+      ${subjTotals.map(function(x){return'<div class="barrow"><span class="barlbl">'+x.icon+' '+x.name.split(' ').slice(0,2).join(' ')+'</span><div class="bartrack"><div class="barfill" style="width:'+(x.done/maxST*100).toFixed(1)+'%;background:'+x.color+'"></div></div><span class="barnum">'+x.done+' / '+players.length+'</span></div>';}).join('')}
+    </div></div></div>
+    <div class="card"><div class="ch"><h3><i class="fas fa-pray" style="color:var(--pink)"></i> النشاط الروحي الإجمالي</h3><span style="font-size:11px;color:var(--muted)">إجمالي الأفعال لكل اللاعبين</span></div><div class="cb"><div class="barchart">
+      ${spRows.map(function(r){return'<div class="barrow"><span class="barlbl">'+r.ico+' '+r.lbl+'</span><div class="bartrack"><div class="barfill" style="width:'+(r.v/maxSp*100).toFixed(1)+'%;background:'+r.c+'"></div></div><span class="barnum">'+r.v+'</span></div>';}).join('')}
+    </div></div></div>`;
+
+  // ── charts4: Lesson-by-lesson heatmap + competition stats ──
+  // pick subject with most activity
+  const lessonHeatRows=subKeys.reduce(function(acc,sk){
+    return acc.concat(lessonComp[sk].map(function(cnt,i){
+      return{label:SUBJECTS[sk].icon+' د'+(i+1)+' '+SUBJECTS[sk].lessons[i].substring(0,12),cnt:cnt,color:subColors[sk]};
+    }));
+  },[]);
+  const maxLH=Math.max.apply(null,lessonHeatRows.map(function(r){return r.cnt;}).concat([1]));
+  // competitions
+  const totalRooms=rooms.length, finRooms=rooms.filter(function(r){return r.status==='finished';}).length;
+  const activeRooms=rooms.filter(function(r){return r.status==='playing';}).length;
+  const lobbyRooms=rooms.filter(function(r){return r.status==='lobby';}).length;
+  const avgPlayers=totalRooms?Math.round(rooms.reduce(function(s,r){return s+Object.keys(r.players||{}).length;},0)/totalRooms):0;
+  const topScore=rooms.reduce(function(best,r){const sc=Math.max(...Object.values(r.players||{}).map(function(p){return p.score||0;}),0);return sc>best?sc:best;},0);
+  const compModes={classic:rooms.filter(function(r){return r.mode==='classic';}).length,sparkle:rooms.filter(function(r){return r.mode==='sparkle';}).length};
+  const maxMode=Math.max(compModes.classic,compModes.sparkle,1);
+
+  document.getElementById('charts4').innerHTML=`
+    <div class="card" style="overflow:hidden"><div class="ch"><h3><i class="fas fa-list" style="color:var(--teal)"></i> تفاصيل إتمام كل درس</h3><span style="font-size:11px;color:var(--muted)">عدد اللاعبين لكل درس</span></div><div class="cb" style="max-height:320px;overflow-y:auto"><div class="barchart">
+      ${lessonHeatRows.map(function(r){return'<div class="barrow"><span class="barlbl" style="font-size:10px;width:130px">'+r.label+'</span><div class="bartrack"><div class="barfill" style="width:'+(r.cnt/maxLH*100).toFixed(1)+'%;background:'+r.color+'"></div></div><span class="barnum">'+r.cnt+'</span></div>';}).join('')}
+    </div></div></div>
+    <div class="card"><div class="ch"><h3><i class="fas fa-bolt" style="color:var(--red)"></i> إحصائيات المنافسات</h3></div><div class="cb">
+      <div class="dg" style="grid-template-columns:repeat(2,1fr);margin-bottom:12px">
+        <div class="dgi" style="text-align:center"><div class="dgl">إجمالي الغرف</div><div class="dgv lg" style="color:var(--accent)">${totalRooms}</div></div>
+        <div class="dgi" style="text-align:center"><div class="dgl">منتهية</div><div class="dgv lg" style="color:var(--green)">${finRooms}</div></div>
+        <div class="dgi" style="text-align:center"><div class="dgl">نشطة الآن</div><div class="dgv lg" style="color:var(--red)">${activeRooms}</div></div>
+        <div class="dgi" style="text-align:center"><div class="dgl">في الانتظار</div><div class="dgv lg" style="color:var(--gold)">${lobbyRooms}</div></div>
+        <div class="dgi" style="text-align:center"><div class="dgl">متوسط اللاعبين/غرفة</div><div class="dgv lg" style="color:var(--teal)">${avgPlayers}</div></div>
+        <div class="dgi" style="text-align:center"><div class="dgl">أعلى سكور</div><div class="dgv lg" style="color:var(--gold)">⭐${topScore}</div></div>
+      </div>
+      <div class="slbl">نوع اللعب</div>
+      <div class="barchart">
+        <div class="barrow"><span class="barlbl">🎮 كلاسيك</span><div class="bartrack"><div class="barfill" style="width:${(compModes.classic/maxMode*100).toFixed(1)}%;background:var(--accent)"></div></div><span class="barnum">${compModes.classic}</span></div>
+        <div class="barrow"><span class="barlbl">✨ سباركل</span><div class="bartrack"><div class="barfill" style="width:${(compModes.sparkle/maxMode*100).toFixed(1)}%;background:var(--pink)"></div></div><span class="barnum">${compModes.sparkle}</span></div>
+      </div>
+    </div></div>`;
+}
+
+function donutSVG(m,f,T) {
+  if(!T) return '<circle cx="42" cy="42" r="31" fill="none" stroke="rgba(255,255,255,.07)" stroke-width="12"/>';
+  const r=31,cx=42,cy=42,C=2*Math.PI*r; let off=0;
+  return [{v:m,c:'#22d3ee'},{v:f,c:'#f472b6'},{v:T-m-f,c:'rgba(255,255,255,.12)'}].filter(s=>s.v>0).map(s=>{
+    const len=(s.v/T)*C;
+    const svg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.c}" stroke-width="12" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 ${cx} ${cy})"/>`;
+    off+=len; return svg;
+  }).join('');
+}
+
+// ════════════════════════════════
+//  PLAYERS
+// ════════════════════════════════
+function fillTeamFilter() {
+  const sel=document.getElementById('f-team'), ex=new Set(Array.from(sel.options).map(o=>o.value));
+  teams.forEach(t=>{if(!ex.has(t.name)){const o=document.createElement('option');o.value=t.name;o.textContent=(t.logo||'⚔️')+' '+t.name;sel.appendChild(o);}});
+}
+function applyF() {
+  const n=document.getElementById('f-name').value.toLowerCase().trim(),
+        ph=document.getElementById('f-phone').value.trim(),
+        g=document.getElementById('f-gender').value,
+        y=document.getElementById('f-year').value,
+        t=document.getElementById('f-team').value;
+  filtered=players.filter(p=>{
+    if(n&&!(p.playerName||'').toLowerCase().includes(n)&&!(p.username||'').toLowerCase().includes(n)) return false;
+    if(ph&&!(p.playerPhone||'').includes(ph)) return false;
+    if(g&&p.gender!==g) return false;
+    if(y&&p.academicYear!==y) return false;
+    if(t==='__none__'&&p.team&&p.team.trim()) return false;
+    if(t&&t!=='__none__'&&p.team!==t) return false;
+    return true;
+  });
+  doSort(); document.getElementById('fcnt').textContent=filtered.length+' لاعب'; renderPT();
+}
+function clearF(){['f-name','f-phone'].forEach(id=>document.getElementById(id).value='');['f-gender','f-year','f-team'].forEach(id=>document.getElementById(id).value='');applyF();}
+function sortBy(f){if(sortField===f)sortDir=sortDir==='asc'?'desc':'asc';else{sortField=f;sortDir='desc';}
+  document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
+  const el=document.getElementById('si-'+f);if(el){el.closest('th').classList.add('sorted');el.className='fas fa-sort-'+(sortDir==='asc'?'up':'down');}
+  doSort();renderPT();}
+function doSort(){filtered.sort((a,b)=>{let av=a[sortField]??0,bv=b[sortField]??0;if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?(sortDir==='asc'?-1:1):av>bv?(sortDir==='asc'?1:-1):0;});}
+function renderPT() {
+  const tbody=document.getElementById('ptbody');
+  if(!filtered.length){tbody.innerHTML='<tr><td colspan="9" class="empty"><i class="fas fa-search"></i><p>لا يوجد نتائج</p></td></tr>';return;}
+  tbody.innerHTML=filtered.map(p=>{
+    const gb=p.gender==='male'?'<span class="badge b-male">👦 ولد</span>':p.gender==='female'?'<span class="badge b-female">👧 بنت</span>':'<span style="color:var(--muted);font-size:11px">—</span>';
+    const yb=p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'—';
+    const tb=p.team&&p.team.trim()?`<span class="badge b-team">${p.teamLogo||'⚔️'} ${esc(p.team)}</span>`:'<span class="badge b-noteam">بدون فريق</span>';
+    const ab=p.team&&p.team.trim()?`<button class="btn bd bxs" onclick="removeFromTeam('${p.playerPhone}','${esc(p.team)}')"><i class="fas fa-user-minus"></i> إزالة</button>`
+                                  :`<button class="btn bg bxs" onclick="openAssign('${p.playerPhone}')"><i class="fas fa-user-plus"></i> فريق</button>`;
+    return `<tr>
+      <td><div style="font-weight:700">${esc(p.playerName||'—')}</div><div style="font-size:11px;color:var(--muted)">@${esc(p.username||'—')}</div></td>
+      <td dir="ltr" style="font-size:12px">${esc(p.playerPhone||'—')}</td>
+      <td>${gb}</td><td>${yb}</td>
+      <td style="color:var(--gold);font-weight:700">⭐ ${(p.stars||0).toLocaleString()}</td>
+      <td style="color:#60a5fa;font-weight:700">💎 ${(p.gems||0).toLocaleString()}</td>
+      <td style="color:var(--accent2);font-weight:700">✨ ${(p.xp||0).toLocaleString()}</td>
+      <td>${tb}</td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn bg bxs" onclick="openPM('${p.playerPhone}')"><i class="fas fa-pen"></i> تعديل</button>
+        ${ab}
+        <button class="btn bd bxs" onclick="deletePlayer('${p.playerPhone}')" title="حذف اللاعب"><i class="fas fa-trash"></i></button>
+      </div></td></tr>`;
+  }).join('');
+}
+
+// ════════════════════════════════
+//  PLAYER MODAL
+// ════════════════════════════════
+function openPM(phone) {
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  document.getElementById('mplayer-box').innerHTML=`
+    <div class="mhead">
+      <div><h2 style="font-size:15px">👤 ${esc(p.playerName||'—')}</h2><div style="font-size:11px;color:var(--muted);direction:ltr;margin-top:2px">${esc(p.playerPhone||'')}</div></div>
+      <button class="btnx" onclick="closeM('modal-player')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="pm-tabs">
+      <button class="pm-tab active" onclick="pmTab(0)">✏️ تعديل</button>
+      <button class="pm-tab" onclick="pmTab(1)">📚 الدروس</button>
+      <button class="pm-tab" onclick="pmTab(2)">⭐ مصادر النقاط</button>
+      <button class="pm-tab" onclick="pmTab(3)">🙏 الحياة الروحية</button>
+    </div>
+    <div class="mbody" id="pm-tab-0">${renderEditTab(p)}</div>
+    <div class="mbody" id="pm-tab-1" style="display:none">${renderLessonsTab(p)}</div>
+    <div class="mbody" id="pm-tab-2" style="display:none">${renderPointsTab(p)}</div>
+    <div class="mbody" id="pm-tab-3" style="display:none">${renderSpiritualTab(p)}</div>
+  `;
+  document.getElementById('modal-player').style.display='flex';
+}
+
+function pmTab(n) {
+  document.querySelectorAll('.pm-tab').forEach((t,i)=>t.classList.toggle('active',i===n));
+  [0,1,2,3].forEach(i=>{const el=document.getElementById('pm-tab-'+i);if(el)el.style.display=i===n?'block':'none';});
+}
+
+function renderEditTab(p) {
+  const acc=p.totalAnswered?Math.round((p.totalCorrect||0)/p.totalAnswered*100):0, PU=p.powerUps||{};
+  return `
+    <div class="slbl">📊 إحصائيات</div>
+    <div class="dg" style="grid-template-columns:repeat(3,1fr);margin-bottom:14px">
+      <div class="dgi" style="text-align:center"><div class="dgl">⭐ نجوم</div><div class="dgv lg" style="color:var(--gold)">${(p.stars||0).toLocaleString()}</div></div>
+      <div class="dgi" style="text-align:center"><div class="dgl">💎 جواهر</div><div class="dgv lg" style="color:#60a5fa">${(p.gems||0).toLocaleString()}</div></div>
+      <div class="dgi" style="text-align:center"><div class="dgl">✨ XP</div><div class="dgv lg" style="color:var(--accent2)">${(p.xp||0).toLocaleString()}</div></div>
+      <div class="dgi" style="text-align:center"><div class="dgl">🔥 أطول سلسلة</div><div class="dgv lg" style="color:var(--pink)">${p.bestStreak||0}</div></div>
+      <div class="dgi" style="text-align:center"><div class="dgl">🎮 ألعاب</div><div class="dgv lg" style="color:var(--green)">${p.gamesPlayed||0}</div></div>
+      <div class="dgi" style="text-align:center"><div class="dgl">✅ دقة</div><div class="dgv lg" style="color:var(--teal)">${acc}%</div></div>
+    </div>
+    <div class="pb-w"><div class="pb-h"><span>XP</span><span>${p.xp||0}/5000</span></div><div class="pb-t"><div class="pb-f" style="width:${Math.min((p.xp||0)/5000*100,100).toFixed(1)}%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div></div></div>
+    <div class="pb-w"><div class="pb-h"><span>دقة الإجابات</span><span>${acc}%</span></div><div class="pb-t"><div class="pb-f" style="width:${acc}%;background:linear-gradient(90deg,var(--green),var(--teal))"></div></div></div>
+    <div class="slbl" style="margin-top:14px">✏️ تعديل الإحصائيات</div>
+    <div class="erow"><span class="elbl">⭐ نجوم</span><input type="number" class="einp" id="e-stars" value="${p.stars||0}" min="0"></div>
+    <div class="erow"><span class="elbl">💎 جواهر</span><input type="number" class="einp" id="e-gems" value="${p.gems||0}" min="0"></div>
+    <div class="erow"><span class="elbl">✨ XP</span><input type="number" class="einp" id="e-xp" value="${p.xp||0}" min="0"></div>
+    <div class="erow"><span class="elbl">🔥 أطول سلسلة</span><input type="number" class="einp" id="e-streak" value="${p.bestStreak||0}" min="0"></div>
+    <div class="erow"><span class="elbl">📚 السنة</span>
+      <select class="einp" id="e-year"><option value="prep1" ${p.academicYear==='prep1'?'selected':''}>أولى إعدادي</option><option value="prep2" ${p.academicYear==='prep2'?'selected':''}>تانية إعدادي</option><option value="prep3" ${p.academicYear==='prep3'?'selected':''}>تالتة إعدادي</option></select>
+    </div>
+    <div class="erow"><span class="elbl">🚀 المستوى</span><input type="number" class="einp" id="e-level" value="${p.currentLevel||1}" min="1"></div>
+    <div class="slbl" style="margin-top:14px">⚡ المساعدات</div>
+    <div class="pugrid">
+      <div class="pubox"><div class="puico">🎯</div><div class="punm">50/50</div><input type="number" class="puinp" id="pu-ff" value="${PU.fiftyFifty??2}" min="0"></div>
+      <div class="pubox"><div class="puico">⏭️</div><div class="punm">تخطي</div><input type="number" class="puinp" id="pu-sk" value="${PU.skip??1}" min="0"></div>
+      <div class="pubox"><div class="puico">⚡</div><div class="punm">مضاعفة</div><input type="number" class="puinp" id="pu-dp" value="${PU.doublePoints??1}" min="0"></div>
+      <div class="pubox"><div class="puico">❄️</div><div class="punm">تجميد</div><input type="number" class="puinp" id="pu-fz" value="${PU.freeze??1}" min="0"></div>
+      <div class="pubox"><div class="puico">💡</div><div class="punm">تلميح</div><input type="number" class="puinp" id="pu-ht" value="${PU.hint??2}" min="0"></div>
+    </div>
+    <div class="slbl" style="margin-top:14px">ℹ️ معلومات الحساب</div>
+    <div class="dg">
+      <div class="dgi"><div class="dgl">الاسم</div><div class="dgv">${esc(p.playerName||'—')}</div></div>
+      <div class="dgi"><div class="dgl">المستخدم</div><div class="dgv">@${esc(p.username||'—')}</div></div>
+      <div class="dgi"><div class="dgl">الإيميل</div><div class="dgv" dir="ltr" style="font-size:11px">${esc(p.email||'—')}</div></div>
+      <div class="dgi"><div class="dgl">التليفون</div><div class="dgv" dir="ltr">${esc(p.playerPhone||'—')}</div></div>
+      <div class="dgi"><div class="dgl">الفريق</div><div class="dgv">${p.team?(p.teamLogo||'')+' '+esc(p.team):'بدون فريق'}</div></div>
+      <div class="dgi"><div class="dgl">التسجيل</div><div class="dgv" style="font-size:11px">${p.createdAt?new Date(p.createdAt).toLocaleDateString('ar-EG'):'—'}</div></div>
+    </div>
+    <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap;align-items:center">
+      <button class="btn bp" onclick="savePM('${p.playerPhone}')"><i class="fas fa-save"></i> حفظ التعديلات</button>
+      <button class="btn bg" onclick="closeM('modal-player')">إلغاء</button>
+      <button class="btn bs" onclick="grantSpin('${p.playerPhone}')"><i class="fas fa-star-half-alt"></i> منح سبينة</button>
+      <button class="btn bd" onclick="deletePlayer('${p.playerPhone}')" style="margin-right:auto"><i class="fas fa-trash"></i> حذف اللاعب</button>
+    </div>`;
+}
+
+function renderLessonsTab(p) {
+  const ss=p.stationScores||{}, mgs=p.miniGameScores||{}, wv=p.watchedVideos||{};
+  const MG={trueFalse:'صح/غلط',imageWord:'صورة وكلمة',memory:'ذاكرة',fillBlank:'أكمل الجملة',quiz:'كويز'};
+  let html='';
+  Object.keys(SUBJECTS).forEach(function(sk){
+    const sub=SUBJECTS[sk];
+    const done=sub.lessons.filter(function(_,i){return (ss[sk+'_'+i]||{}).total>0;}).length;
+    html+='<div class="subj-block">';
+    html+='<div class="subj-hdr" style="background:'+sub.color+'1a;border:1px solid '+sub.color+'33"><span style="font-size:16px">'+sub.icon+'</span><span style="color:'+sub.color+'">'+sub.name+'</span><span style="margin-right:auto;font-size:10px;color:var(--muted)">'+done+'/6 درس</span></div>';
+    sub.lessons.forEach(function(lname,i){
+      const key=sk+'_'+i, sc=ss[key]||{}, total=sc.total||0, pct=Math.round(total/150*100);
+      const vw=wv[sk+'_lesson_'+i+'_video']?'🎬':'⬜';
+      const svw=wv[sk+'_lesson_'+i+'_short_video']?'📹':'';
+      const active=total>0;
+      html+='<div class="lesson-row"'+(active?' style="border-color:'+sub.color+'33"':'')+'>';
+      html+='<div class="lesson-hd"><span class="l-num">د '+(i+1)+'</span><span class="l-name">'+lname+'</span><span title="فيديو طويل">'+vw+'</span>'+(svw?'<span title="ملخص سريع">'+svw+'</span>':'')+'<span class="l-total" style="color:'+(active?sub.color:'var(--muted)')+'">'+total+'/150</span></div>';
+      html+='<div class="pb-t"><div class="pb-f" style="width:'+pct+'%;background:'+sub.color+'"></div></div>';
+      if(active){
+        html+='<div class="station-grid">';
+        html+='<div class="st-cell"><span class="st-cell-lbl">وعظة</span><span class="st-cell-val" style="color:#fb923c">'+(sc.sermon||0)+'/5</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">ملخص</span><span class="st-cell-val" style="color:#60a5fa">'+(sc.summary||0)+'/10</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/60</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">تفاعلي</span><span class="st-cell-val" style="color:#a78bfa">'+(sc.interactive||0)+'/75</span></div>';
+        html+='</div>';
+        const mgBadges=Object.keys(MG).filter(function(t){return mgs[key+'_mg_'+t]>0;}).map(function(t){return'<span class="mg-badge">'+MG[t]+': '+mgs[key+'_mg_'+t]+'</span>';});
+        if(mgBadges.length) html+='<div class="mg-row">'+mgBadges.join('')+'</div>';
+      }
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  return html||'<div style="color:var(--muted);text-align:center;padding:30px">لا توجد بيانات دروس بعد</div>';
+}
+
+function renderPointsTab(p) {
+  const ss=p.stationScores||{}, ld=p.levelsData||{}, bl=p.bibleReadingLog||{};
+  const dl=p.devotionLog||{}, el=p.exerciseLog||{}, lamp=p.lampData||{};
+  const dvl=p.dailyVerseLog||{}, pj=p.paulJourneyData||{};
+  const l1Stars=Object.values(ld).reduce(function(s,v){return s+(v.stars||0);},0);
+  const l2Points=Object.values(ss).reduce(function(s,v){return s+(v.total||0);},0);
+  const l2LessonsDone=Object.keys(ss).filter(function(k){return ss[k].total>0;}).length;
+  const bibleCount=Object.values(bl).filter(function(v){return v.done;}).length;
+  const morningCount=Object.values(dl).filter(function(v){return v.morning;}).length;
+  const nightCount=Object.values(dl).filter(function(v){return v.night;}).length;
+  const exerciseDays=Object.values(el).filter(function(v){return v.daily&&v.daily.length;}).length;
+  const verseCount=Object.values(dvl).filter(function(v){return v.completed;}).length;
+  const paulDone=Object.values(pj).filter(function(v){return v.completed||v.done;}).length;
+  const lampPts=lamp.points||0, lampStreak=lamp.streakDays||0;
+  const rows=[
+    {ico:'🎮',lbl:'اختبارات المستوى 1',sub:Object.keys(ld).length+' مرحلة أُنجزت',val:l1Stars+' ⭐'},
+    {ico:'📚',lbl:'الدروس التفاعلية (م٢)',sub:l2LessonsDone+' درس مكتمل · '+l2Points.toLocaleString()+' نقطة إجمالية',val:l2Points.toLocaleString()+'  نقطة'},
+    {ico:'📖',lbl:'القراءة الكتابية',sub:bibleCount+' إصحاح',val:'~'+(bibleCount*10)+' ⭐'},
+    {ico:'🌅',lbl:'التأمل الروحي',sub:morningCount+' صباحي + '+nightCount+' مسائي',val:'~'+((morningCount+nightCount)*5)+' ⭐'},
+    {ico:'✍️',lbl:'آية اليوم',sub:verseCount+' يوم مكتمل',val:'~'+verseCount+' ⭐'},
+    {ico:'💡',lbl:'اللامب (مهمات يومية)',sub:'سلسلة: '+lampStreak+' يوم',val:lampPts+' نقطة'},
+    {ico:'🗺️',lbl:'رحلة بولس',sub:paulDone+' محطة أُكملت',val:'~'+(paulDone*30)+' ⭐'},
+    {ico:'🏋️',lbl:'التمارين والرياضة',sub:exerciseDays+' يوم نشاط',val:exerciseDays+' يوم'},
+    {ico:'🔥',lbl:'أعلى سلسلة دخول',sub:'يوم وراء يوم',val:(p.bestStreak||0)+' يوم'}
+  ];
+  return '<div class="pts-total"><div class="pts-total-num">'+(p.stars||0).toLocaleString()+'</div><div class="pts-total-lbl">إجمالي النجوم ⭐</div></div>'+
+    rows.map(function(r,i){return'<div class="pts-row"'+(i===rows.length-1?' style="border:none"':'')+'><div class="pts-ico">'+r.ico+'</div><div class="pts-info"><div class="pts-lbl">'+r.lbl+'</div><div class="pts-sub">'+r.sub+'</div></div><div class="pts-val">'+r.val+'</div></div>';}).join('');
+}
+
+function renderSpiritualTab(p) {
+  const bl=p.bibleReadingLog||{}, dl=p.devotionLog||{};
+  const el=p.exerciseLog||{}, lamp=p.lampData||{}, dvl=p.dailyVerseLog||{};
+  let html='';
+  // Lamp summary
+  html+='<div class="slbl">💡 اللامب</div>';
+  html+='<div class="dg" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">';
+  html+='<div class="dgi" style="text-align:center"><div class="dgl">النقاط</div><div class="dgv lg" style="color:var(--gold)">'+(lamp.points||0)+'</div></div>';
+  html+='<div class="dgi" style="text-align:center"><div class="dgl">سلسلة</div><div class="dgv lg" style="color:var(--orange)">'+(lamp.streakDays||0)+' يوم</div></div>';
+  html+='<div class="dgi" style="text-align:center"><div class="dgl">آخر نشاط</div><div class="dgv" style="font-size:11px">'+(lamp.lastActiveDate||'—')+'</div></div>';
+  html+='</div>';
+  // Bible reading
+  const bKeys=Object.keys(bl).sort().reverse().slice(0,30);
+  const bDone=Object.values(bl).filter(function(v){return v.done;}).length;
+  html+='<div class="slbl">📖 القراءة الكتابية ('+bDone+' إصحاح مكتمل)</div>';
+  if(bKeys.length){
+    html+='<div class="sp-section">';
+    bKeys.forEach(function(k){
+      const e=bl[k];
+      html+='<div class="sp-day"><span class="sp-date">'+k+'</span><div class="sp-content">'+(e.chapter?'إصحاح '+e.chapter:'')+(e.summary?'<div style="color:var(--muted);font-size:10px;margin-top:1px">'+esc(e.summary.substring(0,70))+(e.summary.length>70?'...':'')+'</div>':'')+'</div><span>'+(e.done?'✅':'⬜')+'</span></div>';
+    });
+    html+='</div>';
+  } else html+='<div style="color:var(--muted);font-size:12px;padding:6px 0 12px">لا توجد بيانات</div>';
+  // Devotion
+  const dKeys=Object.keys(dl).sort().reverse().slice(0,30);
+  const dTotal=Object.keys(dl).length;
+  html+='<div class="slbl">🌅 التأمل الروحي ('+dTotal+' يوم)</div>';
+  if(dKeys.length){
+    html+='<div class="sp-section">';
+    dKeys.forEach(function(k){
+      const e=dl[k];
+      html+='<div class="sp-day"><span class="sp-date">'+k+'</span><div class="sp-content"></div><div class="sp-icons"><span title="صباحي">'+(e.morning?'🌅':'⬜')+'</span><span title="مسائي">'+(e.night?'🌙':'⬜')+'</span></div></div>';
+    });
+    html+='</div>';
+  } else html+='<div style="color:var(--muted);font-size:12px;padding:6px 0 12px">لا توجد بيانات</div>';
+  // Daily verse
+  const dvKeys=Object.keys(dvl).sort().reverse().slice(0,25);
+  const dvDone=Object.values(dvl).filter(function(v){return v.completed;}).length;
+  html+='<div class="slbl">✍️ آية اليوم ('+dvDone+' مكتملة)</div>';
+  if(dvKeys.length){
+    html+='<div class="sp-section">';
+    dvKeys.forEach(function(k){
+      const e=dvl[k];
+      html+='<div class="sp-day"><span class="sp-date" style="min-width:130px">'+k+'</span><div class="sp-content"></div><span>'+(e.completed?'✅':'⬜')+'</span></div>';
+    });
+    html+='</div>';
+  } else html+='<div style="color:var(--muted);font-size:12px;padding:6px 0 12px">لا توجد بيانات</div>';
+  // Exercise log
+  const eKeys=Object.keys(el).sort().reverse().slice(0,20);
+  const eDone=eKeys.filter(function(k){return el[k].daily&&el[k].daily.length;}).length;
+  html+='<div class="slbl">🏋️ التمارين والرياضة ('+eDone+' يوم)</div>';
+  if(eKeys.length){
+    html+='<div class="sp-section">';
+    eKeys.forEach(function(k){
+      const e=el[k];
+      const hasDaily=e.daily&&e.daily.length;
+      html+='<div class="sp-day"><span class="sp-date">'+k+'</span><div class="sp-content">'+(hasDaily?e.daily.join(' · '):'')+(e.weekly?'<div style="color:var(--muted);font-size:10px">'+esc(e.weekly.substring(0,60))+'</div>':'')+'</div><span>'+(hasDaily?'✅':'⬜')+'</span></div>';
+    });
+    html+='</div>';
+  } else html+='<div style="color:var(--muted);font-size:12px;padding:6px 0 12px">لا توجد بيانات</div>';
+  return html;
+}
+
+async function savePM(phone) {
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  const upd={stars:+document.getElementById('e-stars').value||0,gems:+document.getElementById('e-gems').value||0,xp:+document.getElementById('e-xp').value||0,bestStreak:+document.getElementById('e-streak').value||0,academicYear:document.getElementById('e-year').value,currentLevel:+document.getElementById('e-level').value||1,powerUps:{fiftyFifty:+document.getElementById('pu-ff').value||0,skip:+document.getElementById('pu-sk').value||0,doublePoints:+document.getElementById('pu-dp').value||0,freeze:+document.getElementById('pu-fz').value||0,hint:+document.getElementById('pu-ht').value||0},lastUpdated:new Date().toISOString()};
+  try {
+    await db.collection('players').doc(p._id).update(upd);
+    await db.collection('leaderboard').doc(phone).update({stars:upd.stars,gems:upd.gems,xp:upd.xp}).catch(()=>{});
+    Object.assign(p,upd); closeM('modal-player'); applyF(); renderInsights(); toast('✅ تم الحفظ','ok');
+  } catch(e){console.error(e);toast('خطأ في الحفظ','err');}
+}
+
+async function grantSpin(phone) {
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  try{await db.collection('players').doc(p._id).update({dailyBonusSpin:true,dailySpinDate:''});p.dailyBonusSpin=true;toast('🎰 تم منح سبينة','ok');}
+  catch(e){toast('خطأ','err');}
+}
+
+async function deletePlayer(phone) {
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  if(!confirm('هتحذف "'+p.playerName+'" نهائياً؟\nكل بياناته هتتمسح ومفيش رجوع!')) return;
+  try {
+    if(p.team){
+      const t=teams.find(x=>x.name===p.team);
+      if(t){
+        const nm=(t.members||[]).filter(function(m){return m!==p.playerPhone;});
+        const nn=(t.memberNames||[]).filter(function(_,i){return (t.members||[])[i]!==p.playerPhone;});
+        await db.collection('teams').doc(t._id).update({members:nm,memberNames:nn,admins:(t.admins||[]).filter(function(m){return m!==p.playerPhone;})});
+        t.members=nm; t.memberNames=nn;
+      }
+    }
+    await db.collection('leaderboard').doc(phone).delete().catch(function(){});
+    await db.collection('players').doc(p._id).delete();
+    players=players.filter(function(x){return x._id!==p._id;});
+    closeM('modal-player');
+    applyF(); renderInsights(); renderTeams();
+    toast('🗑️ تم حذف اللاعب نهائياً','err');
+  } catch(e){console.error(e);toast('خطأ في الحذف','err');}
+}
+
+// ════════════════════════════════
+//  TEAM ASSIGN / REMOVE
+// ════════════════════════════════
+function openAssign(phone) {
+  pendingAssignPhone=phone;
+  document.getElementById('taopt').innerHTML=teams.length?teams.map(t=>{const c=(t.members||[]).length,full=c>=6;return`<div class="tarow${full?' full':''}" onclick="${full?'':` doAssign('${t._id}')`}"><div class="tal"><span class="tlogo">${t.logo||'⚔️'}</span><div><div class="tnam">${esc(t.name)}</div><div class="tcnt">${c}/6 أعضاء</div></div></div>${full?'<span style="color:var(--muted);font-size:11px">ممتلئ</span>':`<button class="btn bs bsm" onclick="event.stopPropagation();doAssign('${t._id}')">إضافة</button>`}</div>`;}).join(''):'<div class="empty"><p>لا توجد فرق</p></div>';
+  document.getElementById('modal-assign').style.display='flex';
+}
+async function doAssign(tid) {
+  const p=players.find(x=>x.playerPhone===pendingAssignPhone||x._id===pendingAssignPhone),t=teams.find(x=>x._id===tid);
+  if(!p||!t) return;
+  try {
+    if(p.team){const ot=teams.find(x=>x.name===p.team);if(ot){const nm=(ot.members||[]).filter(m=>m!==p.playerPhone),nn=(ot.memberNames||[]).filter((_,i)=>(ot.members||[])[i]!==p.playerPhone);await db.collection('teams').doc(ot._id).update({members:nm,memberNames:nn,admins:(ot.admins||[]).filter(m=>m!==p.playerPhone)});ot.members=nm;ot.memberNames=nn;}}
+    const nm=[...(t.members||[]),p.playerPhone],nn=[...(t.memberNames||[]),p.playerName];
+    await db.collection('teams').doc(tid).update({members:nm,memberNames:nn});
+    await db.collection('players').doc(p._id).update({team:t.name,teamLogo:t.logo||'',teamColor:t.color||''});
+    t.members=nm;t.memberNames=nn;p.team=t.name;p.teamLogo=t.logo||'';p.teamColor=t.color||'';
+    closeM('modal-assign');applyF();renderInsights();renderTeams();toast(`✅ تم إضافة ${p.playerName.split(' ')[0]} لفريق ${t.name}`,'ok');
+  } catch(e){console.error(e);toast('خطأ','err');}
+}
+async function removeFromTeam(phone,tname) {
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone),t=teams.find(x=>x.name===tname);
+  if(!p) return;
+  try {
+    if(t){const nm=(t.members||[]).filter(m=>m!==p.playerPhone),nn=(t.memberNames||[]).filter((_,i)=>(t.members||[])[i]!==p.playerPhone);await db.collection('teams').doc(t._id).update({members:nm,memberNames:nn,admins:(t.admins||[]).filter(m=>m!==p.playerPhone)});t.members=nm;t.memberNames=nn;}
+    await db.collection('players').doc(p._id).update({team:'',teamLogo:'',teamColor:''});
+    p.team='';p.teamLogo='';p.teamColor='';
+    applyF();renderInsights();renderTeams();toast(`✅ تم إزالة ${p.playerName.split(' ')[0]} من الفريق`,'ok');
+  } catch(e){toast('خطأ','err');}
+}
+
+// ════════════════════════════════
+//  TEAMS
+// ════════════════════════════════
+function renderTeams() {
+  if(!teams.length){document.getElementById('tgrid').innerHTML='<div class="empty"><i class="fas fa-users-slash"></i><p>لا توجد فرق</p></div>';return;}
+  const medals=['🥇','🥈','🥉'];
+  document.getElementById('tgrid').innerHTML=[...teams].sort((a,b)=>(b.totalStars||0)-(a.totalStars||0)).map((t,i)=>{
+    const ads=t.admins||[],mbs=(t.members||[]).map(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);return{ph,name:pl?pl.playerName:ph,adm:ads.includes(ph)};});
+    return`<div class="tcard"><div class="tband" style="background:${t.color||'var(--accent)'}"></div><div class="tinner">
+      <div class="ttop"><div class="tlogobd" style="filter:drop-shadow(0 2px 10px ${t.color||'#7c6af7'}88)">${t.logo||'⚔️'}</div><div><div class="tiname">${esc(t.name)}</div><div class="tisub">${mbs.length}/6 أعضاء · ${medals[i]||'#'+(i+1)}</div></div></div>
+      <div class="tscores"><div class="tsb"><div class="tsv" style="color:var(--gold)">⭐${(t.totalStars||0).toLocaleString()}</div><div class="tsl">نجوم</div></div><div class="tsb"><div class="tsv" style="color:#60a5fa">💎${(t.totalGems||0).toLocaleString()}</div><div class="tsl">جواهر</div></div><div class="tsb"><div class="tsv" style="color:var(--accent2)">✨${(t.totalXp||0).toLocaleString()}</div><div class="tsl">XP</div></div></div>
+      <div class="slbl">الأعضاء</div>
+      <div class="mlist">${mbs.length?mbs.map(m=>`<div class="mrow"><span class="mname">${m.adm?'<span class="admbdg">⚔️</span>':''} ${esc(m.name)}</span><button class="btn bd bxs" onclick="removeFromTeam('${m.ph}','${esc(t.name)}')"><i class="fas fa-times"></i></button></div>`).join(''):'<div style="color:var(--muted);font-size:12px;text-align:center;padding:6px">لا يوجد أعضاء</div>'}</div>
+    </div></div>`;}).join('');
+}
+
+// ════════════════════════════════
+//  REWARDS
+// ════════════════════════════════
+function renderRewards() {
+  const f=document.getElementById('rf-s').value;
+  const list=f==='pending'?rewards.filter(r=>!r.fulfilled):f==='done'?rewards.filter(r=>r.fulfilled):rewards;
+  document.getElementById('rcnt').textContent=list.length+' طلب';
+  document.getElementById('rcard').innerHTML=list.length?list.map(r=>`
+    <div class="rrow"><div class="rico">${RICO[r.rewardId]||'🎁'}</div>
+    <div class="rinfo"><div class="rname">${esc(r.rewardName||r.rewardId||'—')}</div>
+    <div class="rmeta"><strong>${esc(r.playerName||'—')}</strong> · <span dir="ltr">${esc(r.playerPhone||'—')}</span> · ⭐${(r.cost?.stars||0).toLocaleString()} + 💎${(r.cost?.gems||0).toLocaleString()}</div>
+    <div class="rdate">${r.date?new Date(r.date).toLocaleString('ar-EG'):'—'}</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <span class="badge ${r.fulfilled?'b-done':'b-pending'}">${r.fulfilled?'✅ تم التسليم':'⏳ معلّق'}</span>
+      ${!r.fulfilled?`<button class="btn bs bsm" onclick="fulfillR('${r._id}')"><i class="fas fa-check"></i> تم التسليم</button>`:''}
+    </div></div>`).join(''):'<div class="empty"><i class="fas fa-gift"></i><p>لا توجد طلبات</p></div>';
+}
+async function fulfillR(id) {
+  try{await db.collection('reward_requests').doc(id).update({fulfilled:true});const r=rewards.find(x=>x._id===id);if(r)r.fulfilled=true;renderRewards();updateBadges();renderInsights();toast('🎉 تم تسليم الجائزة','ok');}
+  catch(e){toast('خطأ','err');}
+}
+
+// ════════════════════════════════
+//  ROOMS
+// ════════════════════════════════
+function renderRooms() {
+  const f=document.getElementById('rm-s').value, list=f?rooms.filter(r=>r.status===f):rooms;
+  document.getElementById('rmcnt').textContent=list.length+' غرفة';
+  const SL={lobby:'<span style="color:var(--gold)">⏳ انتظار</span>',playing:'<span style="color:var(--green)">🎮 تلعب الآن</span>',finished:'<span style="color:var(--muted)">✅ منتهية</span>'};
+  const ML={classic:'كلاسيك',sparkle:'سباركل'};
+  document.getElementById('rmcard').innerHTML=list.length?list.map(r=>{
+    const pc=Object.keys(r.players||{}).length, top=Math.max(...Object.values(r.players||{}).map(p=>p.score||0),0);
+    const ts=r.createdAt?.toDate?.()?.toLocaleString('ar-EG')||new Date(r.createdAt||0).toLocaleString('ar-EG');
+    return`<div class="rorow"><div class="rocode">${r.code||r._id.substring(0,6)}</div>
+      <div class="roinfo"><div class="rotitle">${SL[r.status]||r.status} · ${ML[r.mode]||r.mode||'—'}</div>
+      <div class="rosub">المضيف: <strong>${esc(r.hostName||'—')}</strong> · ${pc} لاعب · أعلى: <strong style="color:var(--gold)">⭐${top}</strong> · ${ts}</div></div>
+      ${r.status!=='finished'?`<button class="btn bd bsm" onclick="deleteRoom('${r._id}')"><i class="fas fa-trash"></i> حذف</button>`:''}
+    </div>`;}).join(''):'<div class="empty"><i class="fas fa-bolt"></i><p>لا توجد غرف</p></div>';
+}
+async function deleteRoom(id){if(!confirm('تحذف الغرفة دي؟'))return;try{await db.collection('compete_rooms').doc(id).delete();rooms=rooms.filter(r=>r._id!==id);renderRooms();renderInsights();toast('تم الحذف','ok');}catch(e){toast('خطأ','err');}}
+
+// ════════════════════════════════
+//  ANNOUNCE
+// ════════════════════════════════
+function renderAnnounce() {
+  if(!announces.length){document.getElementById('anlist').innerHTML='<div class="empty"><p>لا توجد إعلانات</p></div>';return;}
+  document.getElementById('anlist').innerHTML=announces.map(a=>`
+    <div class="rrow"><div style="font-size:24px">${a.icon||'📢'}</div>
+    <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(a.title||'—')}</div>
+    <div style="color:var(--muted);font-size:12px;margin:3px 0">${esc(a.body||'—')}</div>
+    <div style="font-size:11px;color:var(--muted2)">${a.createdAt?new Date(a.createdAt?.toDate?.()??a.createdAt).toLocaleString('ar-EG'):'—'}</div></div>
+    <button class="btn bd bxs" onclick="deleteAnnounce('${a._id}')"><i class="fas fa-trash"></i></button></div>`).join('');
+}
+async function sendAnnounce(){
+  const title=document.getElementById('an-title').value.trim(),body=document.getElementById('an-body').value.trim(),icon=document.getElementById('an-icon').value;
+  if(!title||!body){toast('اكتب العنوان والرسالة','err');return;}
+  try{const ref=await db.collection('announcements').add({title,body,icon,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    const nd={_id:ref.id,title,body,icon,createdAt:new Date()};announces.unshift(nd);
+    document.getElementById('an-title').value='';document.getElementById('an-body').value='';
+    renderAnnounce();toast('📢 تم الإرسال','ok');}
+  catch(e){toast('خطأ','err');}
+}
+async function deleteAnnounce(id){try{await db.collection('announcements').doc(id).delete();announces=announces.filter(a=>a._id!==id);renderAnnounce();toast('تم الحذف','ok');}catch(e){toast('خطأ','err');}}
+async function loadAnnounce(){const s=await safeGet(db.collection('announcements').limit(30));announces=[];s.forEach(d=>{const x=d.data();x._id=d.id;announces.push(x);});announces.sort((a,b)=>(b.createdAt?.toDate?.()?.getTime?.()??0)-(a.createdAt?.toDate?.()?.getTime?.()??0));renderAnnounce();}
+
+// ════════════════════════════════
+//  ADMIN MANAGEMENT
+// ════════════════════════════════
+function amTab(name){
+  ['pending','active','rejected'].forEach(t=>{
+    document.getElementById('amt-'+t).classList.toggle('active',t===name);
+    document.getElementById('ampanel-'+t).style.display=t===name?'block':'none';
+  });
+}
+function renderAdminMgmt(){
+  if(me?.role!=='superadmin') return;
+  const pend=adminReqs.filter(r=>r.status==='pending'), actv=admins, rej=adminReqs.filter(r=>r.status==='rejected');
+  document.getElementById('am-pcount').textContent=pend.length;
+  document.getElementById('am-acount').textContent=actv.length;
+  document.getElementById('am-rcount').textContent=rej.length;
+
+  // Pending requests
+  document.getElementById('ampanel-pending').innerHTML=pend.length?pend.map(r=>`
+    <div class="areqcard">
+      <div class="av">${(r.name||'?').charAt(0)}</div>
+      <div class="areqinfo"><div class="areqname">${esc(r.name||'—')}</div>
+      <div class="areqmeta" dir="ltr">${esc(r.phone||'—')} · ${r.requestedAt?new Date(r.requestedAt?.toDate?.()??r.requestedAt).toLocaleDateString('ar-EG'):'—'}</div></div>
+      <div class="areqact">
+        <button class="btn bs bsm" onclick="approveReq('${r._id}','${esc(r.name)}','${esc(r.phone)}','${r.passwordHash}')"><i class="fas fa-check"></i> قبول</button>
+        <button class="btn bd bsm" onclick="rejectReq('${r._id}')"><i class="fas fa-times"></i> رفض</button>
+      </div>
+    </div>`).join(''):'<div class="empty"><i class="fas fa-inbox"></i><p>لا توجد طلبات جديدة</p></div>';
+
+  // Active admins
+  document.getElementById('ampanel-active').innerHTML=actv.length?`
+    <div class="areqcard" style="background:rgba(251,191,36,.04);border-bottom:1px solid rgba(251,191,36,.15)">
+      <div class="av" style="background:rgba(251,191,36,.2);border-color:rgba(251,191,36,.4);color:var(--gold)">👑</div>
+      <div class="areqinfo"><div class="areqname" style="color:var(--gold)">${esc(SUPER.name)}</div>
+      <div class="areqmeta" dir="ltr">${SUPER.phone} · <span class="badge b-super">المسؤول الأعلى</span></div></div>
+    </div>`+actv.map(a=>`
+    <div class="areqcard">
+      <div class="av">${(a.name||'?').charAt(0)}</div>
+      <div class="areqinfo"><div class="areqname">${esc(a.name||'—')}</div>
+      <div class="areqmeta" dir="ltr">${esc(a.phone||'—')} · <span class="badge b-admin">أدمن</span></div></div>
+      <div class="areqact">
+        <button class="btn bg bsm" onclick="editAdmin('${a._id}')"><i class="fas fa-pen"></i> تعديل</button>
+        <button class="btn bd bsm" onclick="removeAdmin('${a._id}','${esc(a.name)}')"><i class="fas fa-trash"></i> حذف</button>
+      </div>
+    </div>`).join(''):'<div class="empty"><i class="fas fa-users"></i><p>لا يوجد أدمنز حاليين (غير المسؤول الأعلى)</p></div>';
+
+  // Rejected
+  document.getElementById('ampanel-rejected').innerHTML=rej.length?rej.map(r=>`
+    <div class="areqcard">
+      <div class="av" style="background:rgba(248,113,113,.12);border-color:rgba(248,113,113,.3);color:var(--red)">${(r.name||'?').charAt(0)}</div>
+      <div class="areqinfo"><div class="areqname">${esc(r.name||'—')}</div>
+      <div class="areqmeta" dir="ltr">${esc(r.phone||'—')} · <span class="badge b-rejected">مرفوض</span></div></div>
+      <div class="areqact">
+        <button class="btn bg bsm" onclick="approveReq('${r._id}','${esc(r.name)}','${esc(r.phone)}','${r.passwordHash}')"><i class="fas fa-undo"></i> إعادة قبول</button>
+        <button class="btn bd bsm" onclick="deleteReq('${r._id}')"><i class="fas fa-trash"></i> حذف نهائي</button>
+      </div>
+    </div>`).join(''):'<div class="empty"><i class="fas fa-ban"></i><p>لا يوجد طلبات مرفوضة</p></div>';
+}
+
+async function approveReq(id, name, phone, passHash) {
+  try {
+    await db.collection('admins').add({ name, phone, passwordHash:passHash, role:'admin', status:'active', approvedBy:me.phone, approvedAt:firebase.firestore.FieldValue.serverTimestamp() });
+    await db.collection('admin_requests').doc(id).update({ status:'approved' });
+    const r=adminReqs.find(x=>x._id===id); if(r) r.status='approved';
+    const fresh=await db.collection('admins').get(); admins=[]; fresh.forEach(d=>{const x=d.data();x._id=d.id;admins.push(x);});
+    renderAdminMgmt(); updateBadges(); toast(`✅ تم قبول ${name}`,'ok');
+  } catch(e){console.error(e);toast('خطأ','err');}
+}
+async function rejectReq(id) {
+  try { await db.collection('admin_requests').doc(id).update({status:'rejected'}); const r=adminReqs.find(x=>x._id===id);if(r)r.status='rejected'; renderAdminMgmt();updateBadges();toast('تم الرفض','info'); } catch(e){toast('خطأ','err');}
+}
+async function deleteReq(id) {
+  if(!confirm('تحذف الطلب ده نهائياً؟')) return;
+  try{await db.collection('admin_requests').doc(id).delete();adminReqs=adminReqs.filter(x=>x._id!==id);renderAdminMgmt();toast('تم الحذف','ok');}catch(e){toast('خطأ','err');}
+}
+async function removeAdmin(id, name) {
+  if(!confirm(`تحذف أدمن "${name}"؟`)) return;
+  try{await db.collection('admins').doc(id).delete();admins=admins.filter(x=>x._id!==id);renderAdminMgmt();toast('تم الحذف','ok');}catch(e){toast('خطأ','err');}
+}
+function editAdmin(id) {
+  const a=admins.find(x=>x._id===id); if(!a) return;
+  document.getElementById('madmin-box').innerHTML=`
+    <div class="mhead"><h2>✏️ تعديل أدمن</h2><button class="btnx" onclick="closeM('modal-admin')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">الاسم</span><input type="text" class="einp" id="ea-name" value="${esc(a.name||'')}" style="flex:1"></div>
+      <div class="erow"><span class="elbl">رقم التليفون</span><input type="tel" class="einp" id="ea-phone" value="${esc(a.phone||'')}" dir="ltr" style="flex:1"></div>
+      <div class="erow"><span class="elbl">كلمة سر جديدة</span><input type="password" class="einp" id="ea-pass" placeholder="اتركها فاضية لو مش هتغيرها" dir="ltr" style="flex:1"></div>
+      <div style="display:flex;gap:9px;margin-top:16px">
+        <button class="btn bp" onclick="saveAdmin('${id}','${esc(a.phone)}')"><i class="fas fa-save"></i> حفظ</button>
+        <button class="btn bg" onclick="closeM('modal-admin')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-admin').style.display='flex';
+}
+async function saveAdmin(id, oldPhone) {
+  const name=document.getElementById('ea-name').value.trim(), phone=document.getElementById('ea-phone').value.trim(), pass=document.getElementById('ea-pass').value;
+  if(!name||!phone){toast('اكتب الاسم والتليفون','err');return;}
+  const upd={name,phone,lastUpdated:new Date().toISOString()};
+  if(pass) upd.passwordHash=hp(phone+pass);
+  try{await db.collection('admins').doc(id).update(upd);const a=admins.find(x=>x._id===id);if(a)Object.assign(a,upd);closeM('modal-admin');renderAdminMgmt();toast('✅ تم الحفظ','ok');}
+  catch(e){toast('خطأ','err');}
+}
+
+// ════════════════════════════════
+//  CSV EXPORT
+// ════════════════════════════════
+function exportCSV(){
+  const rows=[['الاسم','المستخدم','التليفون','الإيميل','النوع','السنة','الفريق','نجوم','جواهر','XP','دقة','ألعاب','تاريخ التسجيل']];
+  filtered.forEach(p=>{const acc=p.totalAnswered?Math.round((p.totalCorrect||0)/p.totalAnswered*100):0;rows.push([p.playerName||'',p.username||'',p.playerPhone||'',p.email||'',p.gender==='male'?'ولد':p.gender==='female'?'بنت':'',YR[p.academicYear]||p.academicYear||'',p.team||'',p.stars||0,p.gems||0,p.xp||0,acc+'%',p.gamesPlayed||0,p.createdAt?new Date(p.createdAt).toLocaleDateString('ar-EG'):'']);});
+  const csv='\uFEFF'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download=`players-${new Date().toISOString().slice(0,10)}.csv`;a.click();toast('📥 جاري التحميل...','info');
+}
+
+// ════════════════════════════════
+//  HELPERS
+// ════════════════════════════════
+function closeM(id){document.getElementById(id).style.display='none';}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);}
+</script>
+</body>
+</html>

@@ -25,6 +25,7 @@ const GameState = {
     username: '',
     email: '',
     academicYear: '',
+    gender: '',
     character: 'david',
     currentLevel: 1,
     stars: 0,
@@ -255,11 +256,37 @@ function submitLogin() {
             ['stars', 'gems', 'totalCorrect', 'totalAnswered', 'bestStreak', 'gamesPlayed', 'xp'].forEach(function(k) {
                 GameState[k] = Math.max(GameState[k] || 0, localBackup[k] || 0);
             });
-            // Merge object maps (watchedVideos, lessonSummaries)
-            ['watchedVideos', 'lessonSummaries'].forEach(function(k) {
+            // Merge all object maps — cloud wins for same keys, local-only entries preserved
+            ['watchedVideos', 'lessonSummaries', 'dailyVerseLog', 'bibleReadingLog',
+             'devotionLog', 'exerciseLog', 'paulJourneyData', 'highlightedVerses',
+             'weeklyChallengeLog', 'questionHistory'].forEach(function(k) {
                 var cloudMap = GameState[k] || {};
                 var localMap = localBackup[k] || {};
-                GameState[k] = Object.assign({}, localMap, cloudMap);
+                if (typeof cloudMap === 'object' && !Array.isArray(cloudMap))
+                    GameState[k] = Object.assign({}, localMap, cloudMap);
+            });
+            // Deep merge level2Data (subject → lesson_N / exam_N entries)
+            var cloudL2 = GameState.level2Data || {}, localL2 = localBackup.level2Data || {};
+            var mergedL2 = Object.assign({}, localL2);
+            Object.keys(cloudL2).forEach(function(sk) {
+                mergedL2[sk] = Object.assign({}, localL2[sk] || {}, cloudL2[sk] || {});
+            });
+            GameState.level2Data = mergedL2;
+            // lampData deep merge (take max points/streak, union dailyLog)
+            var cLamp = GameState.lampData || {}, lLamp = localBackup.lampData || {};
+            GameState.lampData = {
+                points:          Math.max(cLamp.points     || 0, lLamp.points     || 0),
+                streakDays:      Math.max(cLamp.streakDays || 0, lLamp.streakDays || 0),
+                lastActiveDate:  cLamp.lastActiveDate  || lLamp.lastActiveDate  || '',
+                dailyLog: Object.assign({}, lLamp.dailyLog || {}, cLamp.dailyLog || {})
+            };
+            // Array fields: union unique values
+            ['redeemedRewards', 'claimedStreakRewards', 'ownedFrames', 'ownedTitles'].forEach(function(k) {
+                var cArr = GameState[k] || [], lArr = localBackup[k] || [];
+                if (!Array.isArray(cArr) || !Array.isArray(lArr)) return;
+                var merged = cArr.slice();
+                lArr.forEach(function(v) { if (merged.indexOf(v) < 0) merged.push(v); });
+                GameState[k] = merged;
             });
             // Team: use local if local has a more recent team action (teamLastAction timestamp)
             var localTeamTime = localBackup.teamLastAction || 0;
@@ -269,6 +296,9 @@ function submitLogin() {
                 GameState.teamLogo = localBackup.teamLogo || '';
                 GameState.teamColor = localBackup.teamColor || '';
             }
+            // Save merged state to localStorage and back to cloud so all devices stay in sync
+            saveToLocalStorage(true);
+            saveToCloud();
 
             console.log('Login merged scores:', JSON.stringify(GameState.stationScores));
             handleRememberMe(rememberMe, GameState.playerPhone);
@@ -276,6 +306,7 @@ function submitLogin() {
             showScreen('home-hub-screen');
             syncLeaderboard();
             requestNotificationsAfterLogin();
+            checkAdminAnnouncements();
             checkPendingRoomJoin();
         })
         .catch(function(err) {
@@ -300,6 +331,7 @@ function submitRegister() {
     var email = document.getElementById('player-email').value.trim().toLowerCase();
     var phone = document.getElementById('player-phone').value.trim();
     var year = document.getElementById('player-year').value;
+    var gender = document.getElementById('player-gender').value;
     var password = document.getElementById('player-password').value;
     var passwordConfirm = document.getElementById('player-password-confirm').value;
 
@@ -311,6 +343,7 @@ function submitRegister() {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showToast('اكتب إيميل صحيح', 'error'); return; }
     if (!phone || !/^01\d{9}$/.test(phone)) { showToast('اكتب رقم تليفون صحيح (01xxxxxxxxx)', 'error'); return; }
     if (!year) { showToast('اختار السنة الدراسية', 'error'); return; }
+    if (!gender) { showToast('اختار النوع', 'error'); return; }
     if (!password || password.length < 6) { showToast('كلمة السر لازم ٦ حروف على الأقل', 'error'); return; }
     if (password !== passwordConfirm) { showToast('كلمة السر مش متطابقة', 'error'); return; }
 
@@ -362,6 +395,7 @@ function submitRegister() {
         GameState.playerName = name;
         GameState.playerPhone = phone;
         GameState.academicYear = year;
+        GameState.gender = gender;
         GameState.username = username;
         GameState.email = email;
 
@@ -382,6 +416,7 @@ function submitRegister() {
                 showToast('تم التسجيل بنجاح! 🎉', 'success');
                 showScreen('character-screen');
                 requestNotificationsAfterLogin();
+            checkAdminAnnouncements();
             })
             .catch(function(err) {
                 console.error('Registration save error:', err);
@@ -560,6 +595,7 @@ function submitOldAccountUpgrade(docId, phone) {
             showScreen('home-hub-screen');
             syncLeaderboard();
             requestNotificationsAfterLogin();
+            checkAdminAnnouncements();
         }).catch(function(err) {
             console.error('Upgrade error:', err);
             showToast('حصل مشكلة، حاول تاني', 'error');
@@ -713,19 +749,37 @@ function loadFromCloud(phone) {
                         } else if (key === 'stars' || key === 'gems' || key === 'totalCorrect' || key === 'totalAnswered' || key === 'bestStreak' || key === 'gamesPlayed') {
                             // For numeric scores, take max of cloud and local
                             GameState[key] = Math.max(data[key] || 0, localBackup[key] || GameState[key] || 0);
-                        } else if (key === 'lessonSummaries' || key === 'watchedVideos') {
-                            // For object maps, merge (keep all entries from both)
+                        } else if (['lessonSummaries', 'watchedVideos', 'dailyVerseLog',
+                                    'bibleReadingLog', 'devotionLog', 'exerciseLog',
+                                    'paulJourneyData', 'highlightedVerses',
+                                    'weeklyChallengeLog', 'questionHistory'].indexOf(key) >= 0) {
                             var cloudMap = data[key] || {};
                             var localMap = localBackup[key] || GameState[key] || {};
                             GameState[key] = Object.assign({}, localMap, cloudMap);
+                        } else if (key === 'level2Data') {
+                            var cL2 = data[key] || {}, lL2 = (localBackup[key] || GameState[key] || {});
+                            var mL2 = Object.assign({}, lL2);
+                            Object.keys(cL2).forEach(function(sk) {
+                                mL2[sk] = Object.assign({}, lL2[sk] || {}, cL2[sk] || {});
+                            });
+                            GameState[key] = mL2;
+                        } else if (key === 'lampData') {
+                            var cL = data[key] || {}, lL = localBackup[key] || GameState[key] || {};
+                            GameState[key] = {
+                                points:         Math.max(cL.points     || 0, lL.points     || 0),
+                                streakDays:     Math.max(cL.streakDays || 0, lL.streakDays || 0),
+                                lastActiveDate: cL.lastActiveDate  || lL.lastActiveDate  || '',
+                                dailyLog: Object.assign({}, lL.dailyLog || {}, cL.dailyLog || {})
+                            };
                         } else {
                             GameState[key] = data[key];
                         }
                     }
                 });
-                console.log('Game loaded from cloud for', phone, 'stationScores:', JSON.stringify(GameState.stationScores));
-                // Re-save merged data locally (don't trigger cloud save back)
+                console.log('Game loaded from cloud for', phone);
+                // Save merged state to localStorage AND back to cloud to keep all devices in sync
                 saveToLocalStorage(true);
+                if (GameState.playerPhone) saveToCloud();
                 return data;
             } else {
                 console.log('No cloud save found for', phone);
@@ -2108,7 +2162,8 @@ function showScreen(id) {
     if (id === 'map-screen') renderMap();
     if (id === 'paul-journey-screen') renderPaulMap();
     if (id === 'lamp-screen') renderLampScreen();
-    if (id === 'character-screen') renderCharacters();
+    if (id === 'character-screen') { renderCharacters(); renderCharSuggestions(); }
+    if (id === 'info-screen') { _infoTab = 0; renderInfoScreen(); }
     if (id === 'shop-screen') renderShop();
     if (id === 'leaderboard-screen') renderLeaderboard();
     if (id === 'settings-screen') renderSettings();
@@ -2117,7 +2172,7 @@ function showScreen(id) {
     if (id === 'bible-reading-screen') renderBibleReading();
     if (id === 'devotion-screen') renderDevotion();
     if (id === 'exercises-screen') renderExercises();
-    if (id === 'compete-screen') renderCompeteHub();
+    if (id === 'compete-screen') { applyCompeteFilterDefault(); renderCompeteHub(); cleanStaleRooms(); }
     if (id === 'rewards-shop-screen') { renderRewardsShop(); }
     if (id === 'teams-screen') { renderTeamsScreen(); }
 }
@@ -3476,7 +3531,28 @@ function renderShop() {
         tabsHtml += '<button class="shop-tab' + (shopActiveTab === t.id ? ' active' : '') + '" onclick="shopActiveTab=\'' + t.id + '\';renderShop()">' + t.label + '</button>';
     });
     tabsHtml += '</div>';
-    grid.innerHTML = tabsHtml;
+    // Build affordable suggestions banner
+    var gems = GameState.gems || 0;
+    var suggestItems = [];
+    Object.keys(ARMOR_ITEMS).forEach(function(k) { var it = ARMOR_ITEMS[k]; if (!it.owned && (GameState.armor||[]).indexOf(k)<0 && it.cost <= gems) suggestItems.push({ icon: it.icon, name: it.name, cost: it.cost, tab: 'armor' }); });
+    Object.keys(PROFILE_FRAMES).forEach(function(k) { var fr = PROFILE_FRAMES[k]; if (fr.cost > 0 && (GameState.ownedFrames||[]).indexOf(k)<0 && fr.cost <= gems) suggestItems.push({ icon: fr.icon, name: fr.name, cost: fr.cost, tab: 'frames' }); });
+    Object.keys(PLAYER_TITLES).forEach(function(k) { var t = PLAYER_TITLES[k]; if (t.cost > 0 && (GameState.ownedTitles||[]).indexOf(k)<0 && t.cost <= gems) suggestItems.push({ icon: t.icon, name: t.name, cost: t.cost, tab: 'titles' }); });
+    Object.keys(MAP_THEMES).forEach(function(k) { var th = MAP_THEMES[k]; if (th.cost > 0 && GameState.mapTheme !== k && th.cost <= gems) suggestItems.push({ icon: th.icon, name: th.name, cost: th.cost, tab: 'themes' }); });
+
+    if (suggestItems.length > 0) {
+        var bannerHtml = '<div class="shop-suggest-banner"><h4>💡 تقدر تشتريه دلوقتي (' + suggestItems.length + ')</h4><div class="shop-suggest-scroll">';
+        suggestItems.forEach(function(it) {
+            bannerHtml += '<div class="shop-suggest-chip" onclick="shopActiveTab=\'' + it.tab + '\';renderShop()">';
+            bannerHtml += '<div class="ssc-icon">' + it.icon + '</div>';
+            bannerHtml += '<span class="ssc-name">' + it.name + '</span>';
+            bannerHtml += '<div class="ssc-cost">💎 ' + it.cost + '</div>';
+            bannerHtml += '</div>';
+        });
+        bannerHtml += '</div></div>';
+        grid.innerHTML = bannerHtml + tabsHtml;
+    } else {
+        grid.innerHTML = tabsHtml;
+    }
 
     var itemsHtml = '<div class="shop-grid-items">';
 
@@ -7257,6 +7333,344 @@ if (!GameState.level2Data) {
 }
 
 // --- Home Hub Render ---
+// ============================================================
+// INFO / GUIDE SCREEN
+// ============================================================
+var _infoTab = 0;
+
+function renderInfoScreen() {
+    var el = document.getElementById('info-content');
+    if (!el) return;
+    var tabs = [
+        { icon: '🏆', label: 'النقاط' },
+        { icon: '🦸', label: 'الشخصيات' },
+        { icon: '🛒', label: 'المتجر' },
+        { icon: '📋', label: 'الأنشطة' }
+    ];
+    var html = '<div class="info-tabs-bar">';
+    tabs.forEach(function(t, i) {
+        html += '<button class="info-tab-btn' + (i === _infoTab ? ' active' : '') + '" onclick="_infoTab=' + i + ';renderInfoScreen()">' + t.icon + '<br><span>' + t.label + '</span></button>';
+    });
+    html += '</div>';
+    if (_infoTab === 0) html += _infoPointsTab();
+    else if (_infoTab === 1) html += _infoCharsTab();
+    else if (_infoTab === 2) html += _infoShopTab();
+    else html += _infoActivitiesTab();
+    el.innerHTML = html;
+}
+
+function _infoPointsTab() {
+    var stars = GameState.stars || 0;
+    var gems = GameState.gems || 0;
+    var rank = getRank();
+    var curRankIdx = 0;
+    for (var ri = RANKS.length - 1; ri >= 0; ri--) { if (stars >= RANKS[ri].min) { curRankIdx = ri; break; } }
+    var html = '';
+
+    // Player summary
+    html += '<div class="info-summary-card">';
+    html += '<div class="info-summary-row"><span>⭐ نجومك الحالية</span><strong>' + stars + '</strong></div>';
+    html += '<div class="info-summary-row"><span>💎 جواهرك الحالية</span><strong>' + gems + '</strong></div>';
+    html += '<div class="info-summary-row"><span>' + rank.emoji + ' رتبتك الحالية</span><strong>' + rank.title + '</strong></div>';
+    if (curRankIdx < RANKS.length - 1) {
+        var nextR = RANKS[curRankIdx + 1];
+        var need = nextR.min - stars;
+        html += '<div class="info-summary-row"><span>📈 للرتبة التالية (' + nextR.title + ')</span><strong style="color:var(--secondary)">' + need + ' ⭐ تانية</strong></div>';
+    }
+    html += '</div>';
+
+    // Stars earning
+    html += '<div class="info-section"><h3 class="info-section-title">⭐ ازاي تكسب نجوم؟</h3><div class="info-ways-grid">';
+    var sWays = [
+        { i: '🎓', t: 'المستوى الثاني (الدروس)', d: 'أنهي دروس العقيدة أو الكتاب المقدس أو المهارات أو الطقس ← حتى 30 نجمة لكل درس' },
+        { i: '🏅', t: 'المنافسات الجماعية', d: 'افوز في تحدي أونلاين مع أصحابك ← نجوم إضافية حسب ترتيبك' },
+        { i: '🌅', t: 'التأمل اليومي (الخلوة)', d: 'صلاة الصبح أو بالليل ← 5 نجوم لكل جلسة' },
+        { i: '📖', t: 'قراءة إنجيل مرقس', d: 'أكمل أصحاح يومي وسجّل ملخصه ← نجوم ومكافآت' },
+        { i: '💡', t: 'مهمات اللامب (الأسبوعية)', d: 'قراءة، قول الآباء، تسبحة ← 10 نقاط لكل مهمة يومية' },
+        { i: '📝', t: 'مهمات خاصة', d: 'سجّل مزمور، اشرح قصة، اعمل خير ← 3-4 نجوم لكل مهمة' },
+        { i: '💪', t: 'التداريب الروحية', d: 'تداريب يومية وأسبوعية ← نقاط لكل تمرين تنجزه' },
+        { i: '💧', t: 'قدرة القديسة فيرينا', d: 'فعّلها أثناء اللعب ← +30 نجمة فورية (تكلف 8 جواهر)' }
+    ];
+    sWays.forEach(function(w) {
+        html += '<div class="info-way-card"><div class="info-way-icon">' + w.i + '</div><div><strong>' + w.t + '</strong><p>' + w.d + '</p></div></div>';
+    });
+    html += '</div></div>';
+
+    // Gems earning
+    html += '<div class="info-section"><h3 class="info-section-title">💎 ازاي تكسب جواهر؟</h3><div class="info-ways-grid">';
+    var gWays = [
+        { i: '📅', t: 'دخول يومي', d: '+5 جواهر كل يوم تفتح اللعبة' },
+        { i: '📖', t: 'إنهاء أصحاح', d: 'أكمل أصحاح من إنجيل مرقس ← 3 جواهر' },
+        { i: '🎓', t: 'المستوى الثاني', d: 'أنهي درس بنتيجة عالية ← جواهر إضافية' },
+        { i: '📝', t: 'مهمات خاصة', d: 'أنهي مهمة متكاملة ← 15-25 جوهرة' },
+        { i: '🎯', t: 'عجلة الحظ', d: 'فرصة للفوز بجواهر وجوائز عشوائية!' }
+    ];
+    gWays.forEach(function(w) {
+        html += '<div class="info-way-card"><div class="info-way-icon">' + w.i + '</div><div><strong>' + w.t + '</strong><p>' + w.d + '</p></div></div>';
+    });
+    html += '</div></div>';
+
+    // Ranks ladder
+    html += '<div class="info-section"><h3 class="info-section-title">🎖️ سلم الرتب</h3><div class="info-ranks-grid">';
+    RANKS.forEach(function(r, i) {
+        var isCur = (i === curRankIdx);
+        html += '<div class="info-rank-row' + (isCur ? ' current-rank' : '') + '">';
+        html += '<span class="info-rank-emoji">' + r.emoji + '</span>';
+        html += '<span class="info-rank-name">' + r.title + '</span>';
+        html += '<span class="info-rank-req">' + r.min + '+ ⭐</span>';
+        if (isCur) html += '<span class="info-rank-badge">أنت هنا ✓</span>';
+        html += '</div>';
+    });
+    html += '</div></div>';
+
+    return html;
+}
+
+function _infoCharsTab() {
+    var stars = GameState.stars || 0;
+    var html = '';
+
+    // Find closest locked character
+    var lockedChars = Object.keys(CHARACTERS).filter(function(k) { return !CHARACTERS[k].unlocked && CHARACTERS[k].cost; });
+    lockedChars.sort(function(a, b) { return (CHARACTERS[a].cost || 0) - (CHARACTERS[b].cost || 0); });
+    var nextChar = lockedChars[0] ? CHARACTERS[lockedChars[0]] : null;
+    var nextKey = lockedChars[0];
+
+    if (nextChar) {
+        var pct = Math.min(100, Math.round((stars / nextChar.cost) * 100));
+        var canAfford = stars >= nextChar.cost;
+        html += '<div class="info-next-unlock">';
+        html += '<img class="info-next-unlock-img" src="' + nextChar.image + '" alt="' + nextChar.name + '" onerror="this.style.display=\'none\'">';
+        html += '<div class="info-next-unlock-text">';
+        html += '<h4>' + (canAfford ? '🔓 جاهز تفتح!' : '⏳ الشخصية الجاية') + '</h4>';
+        html += '<p><strong>' + nextChar.name + '</strong> — ' + nextChar.ability + '</p>';
+        html += '<div class="info-next-unlock-prog"><div class="info-next-unlock-prog-fill" style="width:' + pct + '%"></div></div>';
+        html += '<p class="info-next-unlock-pct">' + Math.min(stars, nextChar.cost) + ' / ' + nextChar.cost + ' ⭐ (' + pct + '%)</p>';
+        if (canAfford) {
+            html += '<button class="btn btn-small btn-gold" style="margin-top:6px" onclick="showScreen(\'character-screen\')">اذهب للشخصيات →</button>';
+        }
+        html += '</div></div>';
+    }
+
+    // All characters grid
+    html += '<div class="info-section"><h3 class="info-section-title">🦸 الشخصيات السبعة</h3>';
+    html += '<div class="info-chars-grid">';
+    Object.keys(CHARACTERS).forEach(function(key) {
+        var ch = CHARACTERS[key];
+        var isOwned = ch.unlocked;
+        var canBuy = !isOwned && ch.cost && stars >= ch.cost;
+        var cardClass = isOwned ? 'unlocked' : canBuy ? 'locked-affordable' : 'locked';
+        html += '<div class="info-char-card ' + cardClass + '">';
+        html += '<div class="info-char-img-wrap"><img src="' + ch.image + '" alt="' + ch.name + '" onerror="this.style.display=\'none\'"></div>';
+        html += '<div class="info-char-name">' + ch.emoji + ' ' + ch.name + '</div>';
+        html += '<div class="info-char-ability">' + ch.role + '</div>';
+        if (ch.power) {
+            html += '<div class="info-char-power">' + ch.power.icon + ' ' + ch.power.name + '<br><small style="color:var(--text-muted)">' + ch.power.desc + '</small></div>';
+        }
+        if (isOwned) {
+            html += '<span class="info-char-status owned">✓ مفتوحة</span>';
+        } else if (canBuy) {
+            html += '<span class="info-char-status affordable">🔓 ' + ch.cost + ' ⭐ - جاهز!</span>';
+        } else if (ch.cost) {
+            html += '<span class="info-char-status needs">🔒 ' + ch.cost + ' ⭐</span>';
+        }
+        html += '</div>';
+    });
+    html += '</div></div>';
+
+    // Tier upgrades section
+    html += '<div class="info-section"><h3 class="info-section-title">⬆️ ترقية الشخصيات</h3><div class="info-ways-grid">';
+    html += '<div class="info-way-card"><div class="info-way-icon">🥉</div><div><strong>برونزي (البداية)</strong><p>كل الشخصيات تبدأ برونزي</p></div></div>';
+    html += '<div class="info-way-card"><div class="info-way-icon">🥈</div><div><strong>فضي ← 500 ⭐</strong><p>ترقية بصرية مميزة + توهج فضي</p></div></div>';
+    html += '<div class="info-way-card"><div class="info-way-icon">🥇</div><div><strong>ذهبي ← 2000 ⭐</strong><p>أعلى مستوى + لقب خاص مميز</p></div></div>';
+    html += '</div></div>';
+
+    return html;
+}
+
+function _infoShopTab() {
+    var stars = GameState.stars || 0;
+    var gems = GameState.gems || 0;
+    var html = '';
+
+    // Balance
+    html += '<div class="info-shop-balance">';
+    html += '<div class="info-shop-balance-item"><div class="val">' + stars + '</div><div class="lbl">⭐ نجوم</div></div>';
+    html += '<div class="info-shop-balance-item"><div class="val">' + gems + '</div><div class="lbl">💎 جواهر</div></div>';
+    html += '</div>';
+
+    // Build all purchasable items list
+    var allItems = [];
+    Object.keys(ARMOR_ITEMS).forEach(function(k) {
+        var it = ARMOR_ITEMS[k];
+        allItems.push({ key: k, icon: it.icon, name: it.name, desc: it.desc, cost: it.cost, currency: 'gems', screen: 'shop-screen', tab: 'armor', owned: (GameState.armor || []).indexOf(k) >= 0 });
+    });
+    Object.keys(PROFILE_FRAMES).forEach(function(k) {
+        var fr = PROFILE_FRAMES[k];
+        if (fr.cost === 0) return;
+        allItems.push({ key: k, icon: fr.icon, name: fr.name, desc: fr.desc, cost: fr.cost, currency: 'gems', screen: 'shop-screen', tab: 'frames', owned: (GameState.ownedFrames || []).indexOf(k) >= 0 });
+    });
+    Object.keys(PLAYER_TITLES).forEach(function(k) {
+        var t = PLAYER_TITLES[k];
+        if (t.cost === 0) return;
+        allItems.push({ key: k, icon: t.icon, name: t.name, desc: t.desc, cost: t.cost, currency: 'gems', screen: 'shop-screen', tab: 'titles', owned: (GameState.ownedTitles || []).indexOf(k) >= 0 });
+    });
+    Object.keys(MAP_THEMES).forEach(function(k) {
+        var th = MAP_THEMES[k];
+        if (th.cost === 0) return;
+        allItems.push({ key: k, icon: th.icon, name: th.name, desc: th.desc, cost: th.cost, currency: 'gems', screen: 'shop-screen', tab: 'themes', owned: (GameState.mapTheme === k) });
+    });
+
+    // Affordable items
+    var affordable = allItems.filter(function(it) { return !it.owned && it.cost <= gems; });
+    var close = allItems.filter(function(it) { return !it.owned && it.cost > gems && (it.cost - gems) <= 20; });
+
+    if (affordable.length > 0) {
+        html += '<div class="info-shop-affordable"><h4>✅ تقدر تشتريه دلوقتي (' + affordable.length + ' عناصر)</h4>';
+        affordable.forEach(function(it) {
+            html += '<div class="info-shop-item-row">';
+            html += '<div class="info-shop-item-icon">' + it.icon + '</div>';
+            html += '<div class="info-shop-item-info"><strong>' + it.name + '</strong><span>' + it.desc + '</span></div>';
+            html += '<div class="info-shop-item-cost">💎 ' + it.cost + '</div>';
+            html += '</div>';
+        });
+        html += '<button class="btn btn-small btn-primary" style="width:100%;margin-top:8px" onclick="shopActiveTab=\'' + affordable[0].tab + '\';showScreen(\'shop-screen\')">افتح المتجر →</button>';
+        html += '</div>';
+    }
+
+    if (close.length > 0) {
+        html += '<div class="info-section"><h3 class="info-section-title">⏳ قريب تشتريه</h3><div class="info-ways-grid">';
+        close.forEach(function(it) {
+            html += '<div class="info-way-card"><div class="info-way-icon">' + it.icon + '</div><div><strong>' + it.name + '</strong><p>' + it.desc + '</p><span style="color:var(--warning);font-size:12px;font-weight:700">محتاج ' + (it.cost - gems) + ' 💎 أكتر</span></div></div>';
+        });
+        html += '</div></div>';
+    }
+
+    // Full items catalog
+    var armorItems = allItems.filter(function(i){ return i.tab === 'armor'; });
+    var frameItems = allItems.filter(function(i){ return i.tab === 'frames'; });
+    var titleItems = allItems.filter(function(i){ return i.tab === 'titles'; });
+    var themeItems = allItems.filter(function(i){ return i.tab === 'themes'; });
+
+    function renderItemGroup(title, items) {
+        if (!items.length) return '';
+        var s = '<div class="info-shop-section"><div class="info-shop-section-title">' + title + '</div>';
+        items.forEach(function(it) {
+            var costClass = it.owned ? 'owned' : (it.cost <= gems ? 'affordable' : (it.cost - gems <= 20 ? 'close' : ''));
+            s += '<div class="info-shop-item-row">';
+            s += '<div class="info-shop-item-icon">' + it.icon + '</div>';
+            s += '<div class="info-shop-item-info"><strong>' + it.name + '</strong><span>' + it.desc + '</span></div>';
+            s += '<div class="info-shop-item-cost ' + costClass + '">' + (it.owned ? '✓ عندك' : '💎 ' + it.cost) + '</div>';
+            s += '</div>';
+        });
+        s += '</div>';
+        return s;
+    }
+    html += '<div class="info-section"><h3 class="info-section-title">📦 كل محتويات المتجر</h3>';
+    html += renderItemGroup('🛡️ درع الكلمة (6 قطع)', armorItems);
+    html += renderItemGroup('🖼️ إطارات البروفايل', frameItems);
+    html += renderItemGroup('🏅 الألقاب', titleItems);
+    html += renderItemGroup('🗺️ ثيمات الخريطة', themeItems);
+    html += '<div class="info-way-card" style="margin-top:8px"><div class="info-way-icon">🔥</div><div><strong>جوائز المداومة</strong><p>يوم 7: إطار اللهيب المقدس | يوم 14: رتبة فضية | يوم 30: لقب المثابر الأمين</p></div></div>';
+    html += '</div>';
+
+    return html;
+}
+
+function _infoActivitiesTab() {
+    var html = '';
+    var activities = [
+        { i: '🎓', n: 'المستوى الثاني', d: '4 مواد: عقيدة، كتاب مقدس، مهارات الحياة، طقس — 6 دروس لكل مادة', r: 'حتى 30 ⭐ للدرس', screen: 'level2-subjects-screen' },
+        { i: '⚔️', n: 'المنافسات الجماعية', d: 'تحدّي أصحابك أونلاين في Classic, Sparkle, Speed, Duel وغيرها', r: 'نجوم حسب ترتيبك', screen: 'compete-screen' },
+        { i: '📖', n: 'إنجيل مرقس اليومي', d: '16 أصحاح مع متابعة يومية، تلخيص مكتوب', r: '3 💎 لكل أصحاح', screen: 'bible-reading-screen' },
+        { i: '🕯️', n: 'الخلوة الشخصية', d: 'صلاة الصبح ومرتبة بالليل — تسجيل يومي', r: '+5 ⭐ لكل جلسة', screen: 'devotion-screen' },
+        { i: '💪', n: 'التداريب الروحية', d: 'تداريب يومية (قراءة، حفظ، مساعدة) وأسبوعية (كنيسة، اعتراف، تناول)', r: '2-10 نقاط لكل تمرين', screen: 'exercises-screen' },
+        { i: '💡', n: 'مهمات اللامب', d: 'قراءة + قول الآباء + تسبحة — 7 أسابيع متجددة', r: '10 نقاط لكل مهمة', screen: 'lamp-screen' },
+        { i: '🗺️', n: 'رحلة بولس الرسول', d: 'تتبع رحلات بولس التبشيرية على الخريطة', r: 'نقاط وإنجازات', screen: 'paul-journey-screen' },
+        { i: '📋', n: 'المهمات الخاصة', d: 'تسجيل مزامير، شرح قصص، أعمال خير، زيارة كنيسة، تحدي صلاة', r: '15-25 💎 + 3-4 ⭐', screen: 'mission-screen' },
+        { i: '🔥', n: 'مداومة الدخول', d: 'ادخل كل يوم وحافظ على السلسلة للفوز بجوائز كبيرة', r: 'جائزة يوم 7، 14، 30', screen: 'shop-screen' },
+        { i: '📊', n: 'لوحة التقدم', d: 'شوف إحصائياتك: نجومك، دروسك، نشاطاتك اليومية', r: 'متابعة أدائك', screen: 'progress-dashboard-screen' }
+    ];
+    html += '<div class="info-section"><h3 class="info-section-title">📋 كل الأنشطة المتاحة</h3>';
+    html += '<div class="info-activities-grid">';
+    activities.forEach(function(a) {
+        html += '<div class="info-activity-card" onclick="showScreen(\'' + a.screen + '\')">';
+        html += '<div class="info-activity-icon">' + a.i + '</div>';
+        html += '<div class="info-activity-name">' + a.n + '</div>';
+        html += '<div class="info-activity-desc">' + a.d + '</div>';
+        html += '<div class="info-activity-reward">' + a.r + '</div>';
+        html += '</div>';
+    });
+    html += '</div></div>';
+
+    // Level 2 subjects detail
+    html += '<div class="info-section"><h3 class="info-section-title">🎓 مواد المستوى الثاني</h3><div class="info-ways-grid">';
+    var subjects = [
+        { i: '✝️', n: 'عقيدة ولاهوت', d: 'التثليث، التجسد، الفداء، القيامة، المعمودية، التوبة — 6 دروس' },
+        { i: '📖', n: 'كتاب مقدس', d: 'كلمة الله، شخصيات العهد القديم، حياة المسيح، أمثال، رسائل بولس، الرؤيا' },
+        { i: '🌟', n: 'مهارات الحياة والقيادة', d: 'اعرف نفسك، الكلمة، الوقت، القيادة الخادمة، الضغوط، صانع السلام' },
+        { i: '⛪', n: 'الطقس', d: 'القداس الإلهي، المعمودية، الصوم والصلاة، الأعياد، التسبحة، الكنيسة من الداخل' }
+    ];
+    subjects.forEach(function(s) {
+        html += '<div class="info-way-card"><div class="info-way-icon">' + s.i + '</div><div><strong>' + s.n + '</strong><p>' + s.d + '</p></div></div>';
+    });
+    html += '</div></div>';
+
+    // Competition modes
+    html += '<div class="info-section"><h3 class="info-section-title">⚔️ أنواع المنافسات</h3><div class="info-ways-grid">';
+    var modes = [
+        { i: '🏆', t: 'Classic', d: '10 أسئلة، 15 ثانية لكل سؤال — الأساسي' },
+        { i: '✨', t: 'Sparkle', d: '20 سؤالاً سريع — 10 ثواني لكل سؤال' },
+        { i: '⚡', t: 'Speed', d: '15 سؤالاً — 8 ثواني فقط! للمتحدين' },
+        { i: '⚔️', t: 'Duel', d: 'مواجهة 1 vs 1 مباشرة' },
+        { i: '👥', t: 'Team', d: 'فريقين يتنافسوا — 2 ضد 2' }
+    ];
+    modes.forEach(function(m) {
+        html += '<div class="info-way-card"><div class="info-way-icon">' + m.i + '</div><div><strong>' + m.t + '</strong><p>' + m.d + '</p></div></div>';
+    });
+    html += '</div></div>';
+
+    return html;
+}
+
+// ============================================================
+// CHARACTER SUGGESTIONS (shown on character screen)
+// ============================================================
+function renderCharSuggestions() {
+    var el = document.getElementById('char-suggestions');
+    if (!el) return;
+    var stars = GameState.stars || 0;
+    var locked = Object.keys(CHARACTERS).filter(function(k) { return !CHARACTERS[k].unlocked && CHARACTERS[k].cost; });
+    if (!locked.length) {
+        el.innerHTML = '<div class="char-suggest-panel" style="text-align:center"><p style="margin:0;color:var(--success);font-weight:800">🎉 فتحت كل الشخصيات! أنت بطل حقيقي!</p></div>';
+        return;
+    }
+    locked.sort(function(a, b) { return (CHARACTERS[a].cost || 0) - (CHARACTERS[b].cost || 0); });
+    var show = locked.slice(0, 3);
+    var html = '<div class="char-suggest-panel"><p class="char-suggest-title">💡 الشخصيات القادمة</p>';
+    show.forEach(function(key) {
+        var ch = CHARACTERS[key];
+        var cost = ch.cost || 0;
+        var pct = Math.min(100, Math.round((stars / cost) * 100));
+        var canBuy = stars >= cost;
+        html += '<div class="char-suggest-row">';
+        html += '<img class="char-suggest-img" src="' + ch.image + '" alt="' + ch.name + '" onerror="this.style.display=\'none\'">';
+        html += '<div class="char-suggest-info">';
+        html += '<strong>' + ch.emoji + ' ' + ch.name + '</strong>';
+        html += '<p>' + ch.ability + '</p>';
+        html += '<div class="char-suggest-prog"><div class="char-suggest-prog-fill" style="width:' + pct + '%"></div></div>';
+        html += '</div>';
+        html += '<button class="char-suggest-btn ' + (canBuy ? 'can-unlock' : 'needs-more') + '" onclick="' + (canBuy ? 'event.stopPropagation()' : 'event.stopPropagation()') + '">' +
+            (canBuy ? '🔓 افتح!' : cost + ' ⭐') + '</button>';
+        html += '</div>';
+    });
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+// ============================================================
+// HOME HUB
+// ============================================================
 function renderHomeHub() {
     var ch = CHARACTERS[GameState.character];
     var avatarImg = document.getElementById('hub-avatar-img');
@@ -7930,8 +8344,7 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         var hasQuizScore = stScore.games > 0;
         var isCompleted = stScore.total >= STATION_UNLOCK_THRESHOLD;
 
-        // Only station 1 is available for now; all others are locked
-        var isAvailable = (i === 0);
+        var isAvailable = isLessonAccessible(level2State.currentSubject, i);
 
         var stateClass = isCompleted ? 'l2-imgmap-node-completed' : (isAvailable ? 'l2-imgmap-node-available' : 'l2-imgmap-node-locked');
         var hasExam = GameState.level2Data && GameState.level2Data[level2State.currentSubject] &&
@@ -7958,7 +8371,11 @@ function renderLevel2ImageMap(subject, subjectData, currentStation) {
         }
         // Show unlock requirement for locked stations
         if (!isAvailable && !isCompleted) {
-            starsHTML += '<div class="node-unlock-req"><i class="fas fa-lock"></i> جيب ' + STATION_UNLOCK_THRESHOLD + '+ من المحطة السابقة</div>';
+            if (!isLessonScheduled(i)) {
+                starsHTML += '<div class="node-unlock-req"><i class="fas fa-calendar-alt"></i> يفتح ' + getLessonUnlockDateStr(i) + '</div>';
+            } else {
+                starsHTML += '<div class="node-unlock-req"><i class="fas fa-lock"></i> اعمل 90%+ من الدرس السابق</div>';
+            }
         }
         starsHTML += '</div>';
 
@@ -8066,14 +8483,7 @@ function renderLevel2ListMap(subject, subjectData) {
         var lmHasQuiz = stars > 0;
         var isCompleted = lmHasSummary && lmHasQuiz;
 
-        var isAvailable = (i === 0);
-        if (i > 0) {
-            var prevSmKey = level2State.currentSubject + '_' + (i - 1);
-            var prevSmDone = GameState.lessonSummaries && GameState.lessonSummaries[prevSmKey];
-            var prevData = subjectData['lesson_' + (i - 1)] || {};
-            var prevQzDone = (prevData.stars || 0) > 0;
-            isAvailable = prevSmDone && prevQzDone;
-        }
+        var isAvailable = isLessonAccessible(level2State.currentSubject, i);
 
         var stateClass = isCompleted ? 'l2-map-node-completed' : (isAvailable ? 'l2-map-node-available' : 'l2-map-node-locked');
 
@@ -8108,7 +8518,15 @@ function renderLevel2ListMap(subject, subjectData) {
                 node.onclick = function() { startLevel2Lesson(idx); };
             })(i);
         } else {
-            node.onclick = function() { showToast('أكمل الدرس السابق الأول! 🔒', 'warning'); };
+            (function(idx) {
+                node.onclick = function() {
+                    if (!isLessonScheduled(idx)) {
+                        showToast('يفتح ' + getLessonUnlockDateStr(idx) + ' 🗓️', 'warning');
+                    } else {
+                        showToast('محتاج 90%+ من الدرس السابق عشان تفتح ده 🔒', 'warning');
+                    }
+                };
+            })(i);
         }
 
         container.appendChild(node);
@@ -9521,7 +9939,43 @@ var STATION_GAMES_MAX = 60;             // cap for the 7 standard mini-games
 var STATION_INTERACTIVE_GAMES_MAX = 75; // cap for the 5 interactive games (own field)
 var STATION_SERMON_SCORE = 5;
 var STATION_SUMMARY_SCORE = 10;
-var STATION_UNLOCK_THRESHOLD = 120; // 80% of 150
+var STATION_UNLOCK_THRESHOLD = 120; // 80% of 150 — visual "completed" badge
+
+// ── Lesson Schedule ────────────────────────────────────────────────────────
+// Lesson 0 is available from LESSON_SCHEDULE_START (a Tuesday at 12:00 Cairo).
+// Each subsequent Tuesday at 12:00 Cairo time, the next lesson becomes globally available.
+// Individual access also requires ≥90% (135/150) on the previous lesson.
+var LESSON_SCHEDULE_START = new Date('2026-04-14T10:00:00Z'); // Tue 14 Apr 2026 12:00 Cairo (UTC+2)
+var LESSON_PASS_THRESHOLD = 135; // 90% of 150
+
+function getScheduledLessonCount() {
+    var now = new Date();
+    if (now < LESSON_SCHEDULE_START) return 1;
+    var msPerWeek = 7 * 24 * 60 * 60 * 1000;
+    var weeksPassed = Math.floor((now - LESSON_SCHEDULE_START) / msPerWeek);
+    return Math.min(weeksPassed + 1, 6);
+}
+
+function isLessonScheduled(lessonIdx) {
+    return lessonIdx < getScheduledLessonCount();
+}
+
+function isLessonAccessible(subKey, lessonIdx) {
+    if (!isLessonScheduled(lessonIdx)) return false;
+    if (lessonIdx === 0) return true;
+    var prevKey = subKey + '_' + (lessonIdx - 1);
+    var prevScore = (GameState.stationScores && GameState.stationScores[prevKey]) || {};
+    return (prevScore.total || 0) >= LESSON_PASS_THRESHOLD;
+}
+
+function getLessonUnlockDateStr(lessonIdx) {
+    var unlockTime = new Date(LESSON_SCHEDULE_START.getTime() + lessonIdx * 7 * 24 * 60 * 60 * 1000);
+    var cairoMs = unlockTime.getTime() + 2 * 60 * 60 * 1000; // UTC+2
+    var d = new Date(cairoMs);
+    var months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    return 'الثلاثاء ' + d.getUTCDate() + ' ' + months[d.getUTCMonth()];
+}
+// ──────────────────────────────────────────────────────────────────────────
 
 // Global station progress bar - appears below tabs in ALL stages
 function getStationProgressHTML() {
@@ -11185,6 +11639,7 @@ function renderCompeteFilterPanel() {
             lessonGroups += '<div class="compete-filter-sub-label" style="color:' + sObj.color + '">' + sObj.label + '</div>';
             lessonGroups += '<div class="compete-filter-pills">';
             sub.lessons.forEach(function(lesson, i) {
+                if (!isLessonScheduled(i)) return; // only show globally unlocked lessons
                 var active = selL.indexOf(i) >= 0;
                 lessonGroups += '<button class="filter-pill' + (active ? ' active' : '') +
                     '" onclick="toggleCompeteLesson(\'' + subKey + '\',' + i + ')" style="--pill-color:' + sObj.color + '">' +
@@ -11253,8 +11708,20 @@ function toggleCompeteLesson(subKey, lessonIdx) {
     renderCompeteHub();
 }
 
+function applyCompeteFilterDefault() {
+    // Set default filter to faith subject + all currently scheduled lessons
+    // Only applies when filter is empty (first open or after explicit clear)
+    if (globalCompeteFilter.subjects.length === 0) {
+        var cnt = getScheduledLessonCount();
+        var lessons = [];
+        for (var i = 0; i < cnt; i++) lessons.push(i);
+        globalCompeteFilter = { subjects: ['faith'], lessons: { faith: lessons } };
+    }
+}
+
 function clearCompeteFilter() {
     globalCompeteFilter = { subjects: [], lessons: {} };
+    applyCompeteFilterDefault(); // reset back to schedule-based default
     renderCompeteHub();
 }
 
@@ -12003,19 +12470,43 @@ function checkAllAnswered() {
 }
 
 function awardCompeteStars(room) {
-    // Award stars based on ranking
     var players = room.players || {};
     var sorted = Object.keys(players).sort(function(a, b) {
         return (players[b].score || 0) - (players[a].score || 0);
     });
-
     var myRank = sorted.indexOf(GameState.playerPhone);
-    var starRewards = [20, 12, 8, 5, 3]; // 1st to 5th place
+    var starRewards = [20, 12, 8, 5, 3];
     var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2;
-
     GameState.stars += reward;
     saveToCloud();
     saveToLocalStorage();
+
+    // Auto-delete room 45 seconds after it ends (host only)
+    if (competeState.isHost && competeState.roomId && firebaseDb) {
+        var roomToDelete = competeState.roomId;
+        setTimeout(function() {
+            firebaseDb.collection('compete_rooms').doc(roomToDelete).delete().catch(function() {});
+        }, 45000);
+    }
+}
+
+// Clean up stale competition rooms (older than 2 hours or stuck in lobby with no players)
+function cleanStaleRooms() {
+    if (!firebaseDb) return;
+    var twoHoursAgo = Date.now() - 2 * 60 * 60 * 1000;
+    firebaseDb.collection('compete_rooms').limit(80).get().then(function(snap) {
+        snap.forEach(function(doc) {
+            var r = doc.data();
+            // Get creation time
+            var createdMs = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate().getTime() : (r.createdAt || 0);
+            var isStale = createdMs < twoHoursAgo;
+            var isFinished = r.status === 'finished';
+            var isEmptyLobby = r.status === 'lobby' && Object.keys(r.players || {}).length === 0;
+            if (isStale || isFinished || isEmptyLobby) {
+                doc.ref.delete().catch(function() {});
+            }
+        });
+    }).catch(function() {});
 }
 
 // --- Results ---
@@ -14166,6 +14657,68 @@ function requestNotificationsAfterLogin() {
             }
         }
     }, 5000); // Wait 5 seconds after login
+}
+
+// --- Admin Announcements ---
+function checkAdminAnnouncements() {
+    if (!firebaseDb) return;
+    // Only show announcements from the last 14 days
+    var cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    var seenKey = 'minElBatal_seenAnnouncements';
+    var seen = JSON.parse(localStorage.getItem(seenKey) || '[]');
+
+    firebaseDb.collection('announcements')
+        .orderBy('createdAt', 'desc')
+        .limit(5)
+        .get()
+        .then(function(snap) {
+            if (snap.empty) return;
+            var unseen = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : new Date(d.createdAt || 0);
+                if (!seen.includes(doc.id) && ts > cutoff) {
+                    unseen.push({ id: doc.id, title: d.title || '', body: d.body || '', icon: d.icon || '📢' });
+                }
+            });
+            if (!unseen.length) return;
+            // Show after a delay so home hub renders first
+            setTimeout(function() { showAnnouncementBanner(unseen, seen, seenKey); }, 2000);
+        })
+        .catch(function() {});
+}
+
+function showAnnouncementBanner(items, seen, seenKey) {
+    if (!items.length) return;
+    var item = items[0];
+    var rest = items.slice(1);
+
+    var el = document.createElement('div');
+    el.id = 'announce-banner';
+    el.style.cssText = [
+        'position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;',
+        'padding:20px;background:rgba(0,0,0,0.75);backdrop-filter:blur(6px);',
+        'font-family:Cairo,sans-serif;direction:rtl;animation:fadein .3s ease'
+    ].join('');
+
+    el.innerHTML = '<div style="background:var(--bg-card,#1a2040);border:1px solid rgba(255,255,255,0.12);border-radius:22px;padding:28px 22px;max-width:380px;width:100%;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.6)">' +
+        '<div style="font-size:52px;margin-bottom:10px">' + item.icon + '</div>' +
+        '<h2 style="color:#e2e8f0;font-size:18px;font-weight:900;margin:0 0 8px">' + item.title + '</h2>' +
+        '<p style="color:rgba(226,232,240,.65);font-size:14px;line-height:1.6;margin:0 0 22px">' + item.body + '</p>' +
+        '<div style="display:flex;gap:10px;justify-content:center">' +
+        '<button onclick="dismissAnnouncement(\'' + item.id + '\',' + JSON.stringify(rest) + ',' + JSON.stringify(seen) + ',\'' + seenKey + '\')" style="background:var(--accent,#7c6af7);color:#fff;border:none;border-radius:10px;padding:11px 24px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer">حسناً 👍</button>' +
+        '</div></div>';
+    document.body.appendChild(el);
+}
+
+function dismissAnnouncement(id, rest, seen, seenKey) {
+    seen.push(id);
+    localStorage.setItem(seenKey, JSON.stringify(seen));
+    var el = document.getElementById('announce-banner');
+    if (el) el.remove();
+    if (rest && rest.length) {
+        setTimeout(function() { showAnnouncementBanner(rest, seen, seenKey); }, 400);
+    }
 }
 
 function showNotificationPrompt() {

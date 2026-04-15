@@ -153,6 +153,8 @@ body {
 /* ============ SCREENS ============ */
 .screen { display: none; min-height: 100vh; position: relative; z-index: 1; padding: 20px; padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); animation: screenEnter 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
 .screen.active { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+/* Tall-content screens: anchor to top so overflow scrolls down, not above viewport */
+#shop-screen.active, #leaderboard-screen.active, #rewards-shop-screen.active, #settings-screen.active { justify-content: flex-start; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes screenEnter { from { opacity: 0; transform: translateY(16px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
 .screen-inner { width: 100%; max-width: 800px; margin: 0 auto; padding: 20px 0; }
@@ -540,7 +542,7 @@ body {
 .shop-character-preview { text-align: center; margin-bottom: 12px; }
 .shop-avatar-img { width: 90px; height: 90px; border: 3px solid var(--gold); border-radius: var(--radius); background: var(--bg-dark); object-fit: cover; }
 .preview-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
-.shop-items-grid { display: grid; grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
+.shop-items-grid { display: block; width: 100%; margin-bottom: 24px; }
 .shop-item { background: var(--bg-card); border: 2px solid var(--border); border-radius: var(--radius); padding: 20px; text-align: center; transition: var(--transition); position: relative; }
 .shop-item:hover { border-color: var(--primary); transform: translateY(-4px); }
 .shop-item.owned { border-color: var(--success); }
@@ -681,7 +683,7 @@ body {
     .spotdiff-scene { width: 100%; height: 220px; }
     .connect-container { flex-direction: column; align-items: center; }
     .connect-item { min-width: 200px; }
-    .shop-items-grid { grid-template-columns: 1fr 1fr; }
+    .shop-grid-items { grid-template-columns: repeat(3, 1fr); }
     .theme-grid { grid-template-columns: repeat(2, 1fr); }
     .memory-grid { grid-template-columns: repeat(4, 1fr); gap: 6px; }
     .tf-statement { font-size: 18px; }
@@ -8705,8 +8707,8 @@ body {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
-    grid-column: 1 / -1;
     width: 100%;
+    margin-top: 4px;
 }
 .shop-item-card {
     background: var(--bg-card);

@@ -2153,6 +2153,9 @@ function showScreen(id) {
     if (id === 'home-hub-screen') {
         renderHomeHub();
         updateSpiritualBadges();
+        showCompanion('idle');
+        // Random tip after 2s
+        setTimeout(function() { if (companionState.visible) companionSpeak(COMPANION_TIPS[Math.floor(Math.random() * COMPANION_TIPS.length)], 4000); }, 2500);
         // Auto-open verse wheel on first visit today
         var todayKey = getTodayKey ? getTodayKey() : new Date().toISOString().split('T')[0];
         if (GameState.playerPhone && GameState.todayVerseSpinDate !== todayKey) {
@@ -2164,6 +2167,8 @@ function showScreen(id) {
     if (id === 'lamp-screen') renderLampScreen();
     if (id === 'character-screen') { renderCharacters(); renderCharSuggestions(); }
     if (id === 'info-screen') { _infoTab = 0; renderInfoScreen(); }
+    if (id === 'fun-zone-screen') { renderFunZone(); showCompanion('idle'); companionSpeak('اختار لعبة واستمتع! 🎮', 2500); }
+    if (id === 'emoji-game-screen') { /* rendered by game start functions */ }
     if (id === 'shop-screen') renderShop();
     if (id === 'leaderboard-screen') renderLeaderboard();
     if (id === 'settings-screen') renderSettings();
@@ -7272,6 +7277,873 @@ var COMBO_MESSAGES = [
 ];
 
 // --- SCORE POPUP ---
+// ============================================================
+// CHARACTER COMPANION SYSTEM (v2 — Floating AssistiveTouch)
+// ============================================================
+var companionState = { visible: false, mood: 'idle', timeout: null, tipIndex: -1, menuOpen: false };
+
+var COMPANION_TIPS = [
+    'اقرأ أصحاح النهارده واكسب جواهر! 📖',
+    'المداومة هي السر — ادخل كل يوم! 🔥',
+    'جرّب تلعب منافسة مع أصحابك! ⚔️',
+    'الخلوة الصبح بتديك 5 نجوم! 🌅',
+    'كل ما تعمل كومبو أعلى نقاطك تزيد! 💪',
+    'اشتري سلاح من المتجر يقوّيك! 🛡️',
+    'ادخل ساحة المرح وجرّب كل الألعاب! 🎮',
+    'خمّن القصة من الإيموجي! 🎭',
+    'حافظ على سلسلة الدخول اليومي! 🔥',
+    'أنا معاك في المغامرة دي! 🦸',
+    'اجمع النجوم وفتح شخصيات أقوى! ⭐',
+    'شارك في الفرق واكسب مكافآت! 👥'
+];
+var COMPANION_CORRECT = ['برافو عليك! 🎉', 'شاطر! 💪', 'ممتاز! ⭐', 'يا بطل! 🏆', 'كمّل كده! 🔥', 'رائع جداً! 🌟'];
+var COMPANION_WRONG  = ['مفيش مشكلة! 💪', 'المرة الجاية! 🙏', 'ركّز كمان شوية! 🎯', 'لا تيأس! 🕊️', 'حاول تاني! 🔄'];
+var COMPANION_STREAK = ['كومبو رهيب! 🔥🔥', 'مش طبيعي! 💥', 'أنت نااار! 🔥', 'ما شاء الله! 🌟', 'خرافي! 🚀'];
+
+/* ── Position helpers ── */
+function _cmpLoadPos() {
+    try { var s = localStorage.getItem('companion_pos2'); if (s) return JSON.parse(s); } catch(e) {}
+    return null;
+}
+function _cmpSavePos(l, t) {
+    try { localStorage.setItem('companion_pos2', JSON.stringify({l:l, t:t})); } catch(e) {}
+}
+function _cmpClamp(l, t) {
+    var sz = 62, pad = 6;
+    return {
+        l: Math.max(pad, Math.min(window.innerWidth  - sz - pad, l)),
+        t: Math.max(pad, Math.min(window.innerHeight - sz - pad, t))
+    };
+}
+function _cmpApplyPos(el, l, t) {
+    var p = _cmpClamp(l, t);
+    el.style.left   = p.l + 'px';
+    el.style.top    = p.t + 'px';
+    el.style.bottom = 'auto';
+    el.style.right  = 'auto';
+    el.classList.toggle('on-right', p.l > window.innerWidth / 2);
+    return p;
+}
+function _cmpSnap(el) {
+    var sz = 62, pad = 10;
+    var l = parseInt(el.style.left)  || 0;
+    var t = parseInt(el.style.top)   || 0;
+    var snapL = l < window.innerWidth / 2 ? pad : window.innerWidth - sz - pad;
+    var p = _cmpClamp(snapL, t);
+    el.style.transition = 'left 0.35s cubic-bezier(0.34,1.56,0.64,1), top 0.2s ease';
+    el.style.left = p.l + 'px';
+    el.style.top  = p.t + 'px';
+    el.classList.toggle('on-right', p.l > window.innerWidth / 2);
+    _cmpSavePos(p.l, p.t);
+    setTimeout(function() { if (el) el.style.transition = ''; }, 420);
+}
+
+/* ── Drag + tap + long-press ── */
+function _cmpSetupDrag(el) {
+    var dragging = false, moved = false;
+    var sx = 0, sy = 0, sl = 0, st = 0;
+    var lpTimer = null;
+
+    function start(cx, cy) {
+        dragging = true; moved = false;
+        sx = cx; sy = cy;
+        sl = parseInt(el.style.left) || 0;
+        st = parseInt(el.style.top)  || 0;
+        el.style.transition = 'none';
+        el.classList.add('dragging');
+        lpTimer = setTimeout(function() {
+            if (!moved) { dragging = false; companionOpenMenu(); }
+        }, 480);
+    }
+    function move(cx, cy) {
+        if (!dragging) return;
+        var dx = cx - sx, dy = cy - sy;
+        if (!moved && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) { moved = true; clearTimeout(lpTimer); }
+        if (!moved) return;
+        _cmpApplyPos(el, sl + dx, st + dy);
+    }
+    function end() {
+        if (!dragging) return;
+        dragging = false;
+        clearTimeout(lpTimer);
+        el.classList.remove('dragging');
+        if (!moved) { companionTapped(); }
+        else        { _cmpSnap(el); }
+    }
+
+    el.addEventListener('touchstart', function(e) { var t=e.touches[0]; start(t.clientX, t.clientY); }, {passive:true});
+    el.addEventListener('touchmove',  function(e) { var t=e.touches[0]; move(t.clientX, t.clientY); if (moved) e.preventDefault(); }, {passive:false});
+    el.addEventListener('touchend',   end, {passive:true});
+    el.addEventListener('mousedown', function(e) { start(e.clientX, e.clientY); e.preventDefault(); });
+    window.addEventListener('mousemove', function(e) { move(e.clientX, e.clientY); });
+    window.addEventListener('mouseup',   end);
+}
+
+/* ── Mood helper ── */
+function _cmpSetMood(mood) {
+    var el = document.getElementById('companion-widget');
+    if (!el) return;
+    el.className = el.className.replace(/companion-(idle|happy|sad|celebrate|thinking|streak)/g, '').replace(/\s+/g,' ').trim();
+    el.classList.add('companion-' + mood);
+    companionState.mood = mood;
+}
+
+/* ── Bubble helpers ── */
+function _cmpHideBubble() {
+    var b = document.getElementById('companion-bubble');
+    if (b) b.classList.remove('show');
+    var el = document.getElementById('companion-widget');
+    if (el) el.classList.remove('has-tip', 'active');
+    companionState.tipIndex = -1;
+}
+
+/* ── Public API ── */
+function showCompanion(mood) {
+    if (!GameState.character || !CHARACTERS[GameState.character]) return;
+    var ch = CHARACTERS[GameState.character];
+    var el = document.getElementById('companion-widget');
+
+    if (!el) {
+        // Overlay (closes menu on outside tap)
+        var ov = document.createElement('div');
+        ov.id = 'companion-overlay';
+        ov.className = 'companion-overlay';
+        ov.onclick = companionCloseMenu;
+        document.body.appendChild(ov);
+
+        // Widget
+        el = document.createElement('div');
+        el.id = 'companion-widget';
+        el.className = 'companion-widget companion-idle';
+        el.innerHTML =
+            '<div class="companion-menu" id="companion-menu">' +
+            '  <div class="companion-menu-item" onclick="companionMenuAction(\'tips\')"><span class="mi-emoji">💡</span><span class="mi-label">نصائح</span></div>' +
+            '  <div class="companion-menu-item" onclick="companionMenuAction(\'fun\')"><span class="mi-emoji">🎮</span><span class="mi-label">مرح</span></div>' +
+            '  <div class="companion-menu-item" onclick="companionMenuAction(\'leaderboard\')"><span class="mi-emoji">🏆</span><span class="mi-label">أبطال</span></div>' +
+            '  <div class="companion-menu-item" onclick="companionMenuAction(\'hide\')"><span class="mi-emoji">✕</span><span class="mi-label">إخفاء</span></div>' +
+            '</div>' +
+            '<div class="companion-bubble" id="companion-bubble"></div>' +
+            '<div class="companion-btn">' +
+            '  <img src="' + ch.image + '" alt="' + ch.name + '">' +
+            '  <div class="companion-tip-badge" id="companion-tip-badge"></div>' +
+            '</div>';
+        document.body.appendChild(el);
+
+        // Initial position
+        var saved = _cmpLoadPos();
+        if (saved) {
+            _cmpApplyPos(el, saved.l, saved.t);
+        } else {
+            _cmpApplyPos(el, 10, window.innerHeight - 62 - 88);
+        }
+
+        _cmpSetupDrag(el);
+    } else {
+        el.classList.remove('hidden');
+        var img = el.querySelector('.companion-btn img');
+        if (img) img.src = ch.image;
+    }
+
+    companionState.visible = true;
+    _cmpSetMood(mood || 'idle');
+}
+
+function hideCompanion() {
+    var el = document.getElementById('companion-widget');
+    if (el) el.classList.add('hidden');
+    companionState.visible = false;
+    companionState.tipIndex = -1;
+    _cmpHideBubble();
+    companionCloseMenu();
+}
+
+function companionSpeak(text, duration) {
+    var b = document.getElementById('companion-bubble');
+    if (!b) return;
+    b.innerHTML = text;
+    b.classList.add('show');
+    var el = document.getElementById('companion-widget');
+    if (el) el.classList.add('active');
+    if (companionState.timeout) clearTimeout(companionState.timeout);
+    if (duration) {
+        companionState.timeout = setTimeout(_cmpHideBubble, duration);
+    }
+}
+
+function companionReact(type) {
+    var el = document.getElementById('companion-widget');
+    if (!el || !companionState.visible) return;
+    companionState.tipIndex = -1;   // reset tip cycle on reaction
+    _cmpSetMood(type);
+    if (type === 'happy')     companionSpeak(COMPANION_CORRECT[Math.floor(Math.random() * COMPANION_CORRECT.length)], 1800);
+    else if (type === 'sad')  companionSpeak(COMPANION_WRONG [Math.floor(Math.random() * COMPANION_WRONG.length)],  2000);
+    else if (type === 'streak') companionSpeak(COMPANION_STREAK[Math.floor(Math.random() * COMPANION_STREAK.length)], 2000);
+    else if (type === 'celebrate') companionSpeak('مبروووك! 🎉🎊', 2500);
+    setTimeout(function() { if (el && companionState.visible) _cmpSetMood('idle'); }, 2000);
+}
+
+function companionTapped() {
+    if (companionState.menuOpen) { companionCloseMenu(); return; }
+    var b   = document.getElementById('companion-bubble');
+    var el  = document.getElementById('companion-widget');
+    var badge = document.getElementById('companion-tip-badge');
+    var tipShowing = b && b.classList.contains('show') && companionState.tipIndex >= 0;
+
+    if (!tipShowing) {
+        companionState.tipIndex = 0;
+    } else {
+        companionState.tipIndex++;
+        if (companionState.tipIndex >= COMPANION_TIPS.length) {
+            _cmpHideBubble();
+            return;
+        }
+    }
+
+    var idx   = companionState.tipIndex;
+    var total = COMPANION_TIPS.length;
+    var hint  = idx < total - 1 ? '◀ اضغط للتالي' : '✕ اضغط للإخفاء';
+
+    if (b) {
+        b.innerHTML =
+            COMPANION_TIPS[idx] +
+            '<span class="companion-bubble-hint">' + hint + '</span>' +
+            '<span class="companion-bubble-progress">نصيحة ' + (idx + 1) + ' / ' + total + '</span>';
+        b.classList.add('show');
+    }
+    if (el)    el.classList.add('has-tip', 'active');
+    if (badge) badge.textContent = idx + 1;
+    if (companionState.timeout) clearTimeout(companionState.timeout);
+}
+
+function companionOpenMenu() {
+    companionState.menuOpen = true;
+    var menu = document.getElementById('companion-menu');
+    var ov   = document.getElementById('companion-overlay');
+    if (menu) menu.classList.add('open');
+    if (ov)   ov.classList.add('active');
+    var el = document.getElementById('companion-widget');
+    if (el) el.classList.add('active');
+    _cmpHideBubble();
+    companionState.tipIndex = -1;
+}
+
+function companionCloseMenu() {
+    companionState.menuOpen = false;
+    var menu = document.getElementById('companion-menu');
+    var ov   = document.getElementById('companion-overlay');
+    if (menu) menu.classList.remove('open');
+    if (ov)   ov.classList.remove('active');
+}
+
+function companionMenuAction(action) {
+    companionCloseMenu();
+    if (action === 'tips') {
+        // Jump straight to tip 1 via tapped logic
+        companionState.tipIndex = -1;
+        companionTapped();
+    } else if (action === 'fun') {
+        showScreen('fun-zone-screen');
+    } else if (action === 'leaderboard') {
+        showScreen('leaderboard-screen');
+    } else if (action === 'hide') {
+        hideCompanion();
+    }
+}
+
+// ============================================================
+// FLYING STARS/GEMS COLLECTION ANIMATION
+// ============================================================
+function flyStarsToCounter(count, sourceX, sourceY) {
+    var counterEl = document.getElementById('hub-stars');
+    if (!counterEl) { counterEl = document.querySelector('.stat-icon'); }
+    if (!counterEl) return;
+    var tRect = counterEl.getBoundingClientRect();
+    var tx = tRect.left + tRect.width / 2;
+    var ty = tRect.top + tRect.height / 2;
+    var sx = sourceX || (window.innerWidth / 2);
+    var sy = sourceY || (window.innerHeight / 2);
+    var num = Math.min(count || 1, 15);
+
+    for (var i = 0; i < num; i++) {
+        (function(idx) {
+            setTimeout(function() {
+                var star = document.createElement('div');
+                star.className = 'flying-star';
+                star.textContent = '⭐';
+                star.style.left = (sx + (Math.random() - 0.5) * 40) + 'px';
+                star.style.top = (sy + (Math.random() - 0.5) * 40) + 'px';
+                document.body.appendChild(star);
+                // Trail particles
+                var trailId = setInterval(function() {
+                    var t = document.createElement('div');
+                    t.className = 'star-trail';
+                    var r = star.getBoundingClientRect();
+                    t.style.left = (r.left + r.width / 2) + 'px';
+                    t.style.top = (r.top + r.height / 2) + 'px';
+                    document.body.appendChild(t);
+                    setTimeout(function() { t.remove(); }, 400);
+                }, 50);
+                requestAnimationFrame(function() {
+                    star.style.left = tx + 'px';
+                    star.style.top = ty + 'px';
+                    star.classList.add('flying');
+                });
+                setTimeout(function() {
+                    clearInterval(trailId);
+                    star.remove();
+                    counterEl.classList.add('star-counter-bounce');
+                    setTimeout(function() { counterEl.classList.remove('star-counter-bounce'); }, 300);
+                }, 700);
+            }, idx * 80);
+        })(i);
+    }
+}
+
+function flyGemsToCounter(count, sourceX, sourceY) {
+    var counterEl = document.getElementById('hub-gems');
+    if (!counterEl) return;
+    var tRect = counterEl.getBoundingClientRect();
+    var num = Math.min(count || 1, 10);
+    for (var i = 0; i < num; i++) {
+        (function(idx) {
+            setTimeout(function() {
+                var gem = document.createElement('div');
+                gem.className = 'flying-star';
+                gem.textContent = '💎';
+                gem.style.left = (sourceX || window.innerWidth / 2) + 'px';
+                gem.style.top = (sourceY || window.innerHeight / 2) + 'px';
+                document.body.appendChild(gem);
+                requestAnimationFrame(function() {
+                    gem.style.left = (tRect.left + tRect.width / 2) + 'px';
+                    gem.style.top = (tRect.top + tRect.height / 2) + 'px';
+                    gem.classList.add('flying');
+                });
+                setTimeout(function() { gem.remove(); }, 700);
+            }, idx * 100);
+        })(i);
+    }
+}
+
+// ============================================================
+// STREAK FIRE BORDER
+// ============================================================
+var fireEl = null;
+function updateFireBorder(combo) {
+    if (!fireEl) {
+        fireEl = document.createElement('div');
+        fireEl.className = 'streak-fire-border';
+        document.body.appendChild(fireEl);
+    }
+    if (combo >= 5) { fireEl.className = 'streak-fire-border active combo-5'; }
+    else if (combo >= 3) { fireEl.className = 'streak-fire-border active combo-3'; }
+    else if (combo >= 2) { fireEl.className = 'streak-fire-border active combo-2'; }
+    else { fireEl.className = 'streak-fire-border'; }
+}
+
+// ============================================================
+// BUTTON RIPPLE EFFECT (global)
+// ============================================================
+document.addEventListener('click', function(e) {
+    var target = e.target.closest('.btn, .fab, .l2-quiz-option, .emoji-option, .fz-game-card');
+    if (!target) return;
+    var rect = target.getBoundingClientRect();
+    var ripple = document.createElement('span');
+    ripple.className = 'ripple-effect';
+    var size = Math.max(rect.width, rect.height);
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+    target.appendChild(ripple);
+    setTimeout(function() { ripple.remove(); }, 600);
+});
+
+// ============================================================
+// EMOJI GUESS GAME
+// ============================================================
+var EMOJI_PUZZLES = [
+    { emojis: '🐍 🍎 👫 🌳', answer: 'آدم وحواء', options: ['آدم وحواء', 'فلك نوح', 'إبراهيم وإسحق', 'موسى النبي'] },
+    { emojis: '🚢 🌊 🐘 🕊️', answer: 'فلك نوح', options: ['فلك نوح', 'عبور البحر الأحمر', 'يونان النبي', 'بطرس الرسول'] },
+    { emojis: '⭐ 👶 🐫 👑', answer: 'ميلاد المسيح', options: ['ميلاد المسيح', 'سليمان الحكيم', 'داود الملك', 'المجوس الثلاثة'] },
+    { emojis: '🦁 🔥 🙏 👼', answer: 'دانيال في جب الأسود', options: ['دانيال في جب الأسود', 'شمشون الجبار', 'إيليا النبي', 'داود وجليات'] },
+    { emojis: '🌊 🏃 ☁️ 🔥', answer: 'عبور البحر الأحمر', options: ['عبور البحر الأحمر', 'الطوفان', 'إيليا وعربة النار', 'يونان'] },
+    { emojis: '🪨 🏹 👦 👑', answer: 'داود وجليات', options: ['داود وجليات', 'شمشون', 'يشوع بن نون', 'جدعون'] },
+    { emojis: '🐳 🌊 🙏 🏙️', answer: 'يونان النبي', options: ['يونان النبي', 'نوح', 'بطرس الرسول', 'بولس الرسول'] },
+    { emojis: '🍞 🐟 👥 ⛰️', answer: 'إشباع الجموع', options: ['إشباع الجموع', 'العشاء الأخير', 'عرس قانا', 'التجلي'] },
+    { emojis: '💧 🕊️ 🌊 ✨', answer: 'معمودية المسيح', options: ['معمودية المسيح', 'خلق العالم', 'الطوفان', 'حلول الروح القدس'] },
+    { emojis: '✝️ ☀️ 🪨 👼', answer: 'القيامة', options: ['القيامة', 'الصلب', 'الصعود', 'التجلي'] },
+    { emojis: '🔥 👅 💨 👥', answer: 'حلول الروح القدس', options: ['حلول الروح القدس', 'إيليا النبي', 'موسى وسيناء', 'العليقة'] },
+    { emojis: '⛓️ 🌙 👼 🚪', answer: 'بطرس في السجن', options: ['بطرس في السجن', 'يوسف في السجن', 'بولس وسيلا', 'يوحنا المعمدان'] },
+    { emojis: '🐑 🏔️ 🔪 👼', answer: 'إبراهيم وإسحق', options: ['إبراهيم وإسحق', 'هابيل وقابيل', 'موسى والعليقة', 'إيليا'] },
+    { emojis: '🌈 ☁️ 🕊️ ⛵', answer: 'وعد قوس قزح', options: ['وعد قوس قزح', 'الخلق', 'الطوفان', 'عبور الأردن'] },
+    { emojis: '👁️ 🚫 🏃 ✨', answer: 'شفاء المولود أعمى', options: ['شفاء المولود أعمى', 'إقامة لعازر', 'شفاء بارتيماوس', 'شاول على طريق دمشق'] },
+    { emojis: '🍷 💧 🎉 👰', answer: 'عرس قانا الجليل', options: ['عرس قانا الجليل', 'العشاء الأخير', 'العنصرة', 'إشباع الجموع'] },
+    { emojis: '🌟 🐫 🎁 👶', answer: 'المجوس الثلاثة', options: ['المجوس الثلاثة', 'الرعاة', 'ميلاد المسيح', 'سليمان'] },
+    { emojis: '☀️ 🌙 ⭐ 🌍', answer: 'خلق العالم', options: ['خلق العالم', 'القيامة', 'الصعود', 'نهاية العالم'] },
+    { emojis: '🔥 🌳 👟 📜', answer: 'العليقة المشتعلة', options: ['العليقة المشتعلة', 'إيليا والنار', 'جبل سيناء', 'حريق الهيكل'] },
+    { emojis: '💀 🏥 🙏 🎉', answer: 'إقامة لعازر', options: ['إقامة لعازر', 'شفاء المفلوج', 'ابنة يايرس', 'شفاء الأبرص'] },
+    { emojis: '🌾 👩 💍 🏠', answer: 'راعوث ونعمي', options: ['راعوث ونعمي', 'أستير الملكة', 'سارة وإبراهيم', 'حنة أم صموئيل'] },
+    { emojis: '🏛️ 💪 ⛓️ 🏚️', answer: 'شمشون الجبار', options: ['شمشون الجبار', 'داود وجليات', 'يشوع وأريحا', 'جدعون'] },
+    { emojis: '🐍 🏜️ ✝️ 👀', answer: 'الحية النحاسية', options: ['الحية النحاسية', 'آدم والحية', 'موسى في البرية', 'سقوط الإنسان'] },
+    { emojis: '🧑‍🦯 💡 🏊 👀', answer: 'شفاء أعمى بيت صيدا', options: ['شفاء أعمى بيت صيدا', 'المولود أعمى', 'بارتيماوس', 'شاول'] },
+    { emojis: '👑 🎵 🐑 ⚔️', answer: 'داود الملك', options: ['داود الملك', 'سليمان', 'شاول الملك', 'يشوع'] },
+    { emojis: '🌊 🚶 😱 ⛵', answer: 'المسيح يمشي على الماء', options: ['المسيح يمشي على الماء', 'تهدئة العاصفة', 'صيد السمك العجيب', 'بطرس يغرق'] },
+    { emojis: '🏰 📯 🧱 💥', answer: 'سقوط أريحا', options: ['سقوط أريحا', 'برج بابل', 'سقوط أورشليم', 'حرب جدعون'] },
+    { emojis: '👼 📜 🤰 🌟', answer: 'بشارة العذراء', options: ['بشارة العذراء', 'ميلاد يوحنا', 'ميلاد المسيح', 'بشارة زكريا'] },
+    { emojis: '🍇 🥖 🙏 😢', answer: 'العشاء الأخير', options: ['العشاء الأخير', 'عرس قانا', 'إشباع الجموع', 'الفصح اليهودي'] },
+    { emojis: '☁️ 👆 👼 👼', answer: 'صعود المسيح', options: ['صعود المسيح', 'التجلي', 'القيامة', 'المجيء الثاني'] }
+];
+
+var emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: 0, timer: null, timeLeft: 0, questions: [], answered: false };
+
+function startEmojiGame() {
+    var puzzles = EMOJI_PUZZLES.slice();
+    shuffleArray(puzzles);
+    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: Math.min(12, puzzles.length), timer: null, timeLeft: 10, questions: puzzles.slice(0, 12), answered: false };
+    showScreen('emoji-game-screen');
+    showCompanion('idle');
+    companionSpeak('يلا نشوف بتعرف القصص قد إيه! 🎭', 2500);
+    renderEmojiRound();
+}
+
+function exitEmojiGame() {
+    if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+    hideCompanion();
+    updateFireBorder(0);
+    showScreen('fun-zone-screen');
+}
+
+function renderEmojiRound() {
+    var body = document.getElementById('emoji-game-body');
+    if (!body) return;
+    if (emojiGameState.index >= emojiGameState.total) {
+        renderEmojiResult();
+        return;
+    }
+    emojiGameState.answered = false;
+    var q = emojiGameState.questions[emojiGameState.index];
+    var opts = q.options.slice();
+    shuffleArray(opts);
+
+    var html = '<div class="emoji-game-wrap">';
+    html += '<div class="emoji-game-header">';
+    html += '<div class="emoji-game-score">⭐ ' + emojiGameState.score + '</div>';
+    html += '<div class="emoji-round-label">' + (emojiGameState.index + 1) + ' / ' + emojiGameState.total + '</div>';
+    html += '<div class="emoji-game-timer" id="emoji-timer">10</div>';
+    html += '</div>';
+    html += '<div class="emoji-hint-text">إيه القصة اللي الإيموجي دول بيمثلوها؟</div>';
+    html += '<div class="emoji-display" id="emoji-display">' + q.emojis + '</div>';
+    html += '<div class="emoji-options-grid">';
+    opts.forEach(function(opt) {
+        html += '<button class="emoji-option" onclick="answerEmojiGame(\'' + opt.replace(/'/g, "\\'") + '\')">' + opt + '</button>';
+    });
+    html += '</div></div>';
+    body.innerHTML = html;
+
+    // Timer
+    emojiGameState.timeLeft = 10;
+    if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+    emojiGameState.timer = setInterval(function() {
+        emojiGameState.timeLeft--;
+        var timerEl = document.getElementById('emoji-timer');
+        if (timerEl) {
+            timerEl.textContent = Math.max(0, emojiGameState.timeLeft);
+            if (emojiGameState.timeLeft <= 3) timerEl.classList.add('warning');
+        }
+        if (emojiGameState.timeLeft <= 0) {
+            clearInterval(emojiGameState.timer);
+            answerEmojiGame(null);
+        }
+    }, 1000);
+
+    updateFireBorder(emojiGameState.streak);
+}
+
+function answerEmojiGame(answer) {
+    if (emojiGameState.answered) return;
+    emojiGameState.answered = true;
+    if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+
+    var q = emojiGameState.questions[emojiGameState.index];
+    var isCorrect = answer === q.answer;
+
+    // Highlight options
+    var opts = document.querySelectorAll('.emoji-option');
+    opts.forEach(function(opt) {
+        opt.style.pointerEvents = 'none';
+        if (opt.textContent === q.answer) opt.classList.add('correct');
+        else if (opt.textContent === answer && !isCorrect) opt.classList.add('wrong');
+    });
+
+    if (isCorrect) {
+        emojiGameState.correct++;
+        emojiGameState.streak++;
+        if (emojiGameState.streak > emojiGameState.maxStreak) emojiGameState.maxStreak = emojiGameState.streak;
+        var pts = 10 + Math.min(emojiGameState.streak - 1, 4) * 5 + Math.max(0, emojiGameState.timeLeft);
+        emojiGameState.score += pts;
+        playCorrectSound();
+        vibrate(50);
+        companionReact(emojiGameState.streak >= 3 ? 'streak' : 'happy');
+        showScorePopup(pts, emojiGameState.streak >= 2, emojiGameState.streak);
+        if (emojiGameState.streak >= 3 && emojiGameState.streak % 3 === 0) {
+            var streakEl = document.createElement('div');
+            streakEl.className = 'emoji-streak-display';
+            streakEl.textContent = emojiGameState.streak + 'x 🔥';
+            document.body.appendChild(streakEl);
+            setTimeout(function() { streakEl.remove(); }, 800);
+        }
+    } else {
+        emojiGameState.streak = 0;
+        playWrongSound();
+        vibrate([50, 30, 50]);
+        companionReact('sad');
+        var display = document.getElementById('emoji-display');
+        if (display) { display.style.animation = 'none'; display.offsetHeight; display.style.animation = 'wrongShake 0.4s ease'; }
+    }
+
+    updateFireBorder(emojiGameState.streak);
+    emojiGameState.index++;
+    // Route to correct renderer based on game type
+    var nextRenderer = renderEmojiRound;
+    if (emojiGameState.questions[0] && emojiGameState.questions[0].isQuiz) nextRenderer = renderQuickQuizRound;
+    else if (emojiGameState.questions[0] && emojiGameState.questions[0].isVerse) nextRenderer = renderVerseMemoryRound;
+    setTimeout(nextRenderer, 1300);
+}
+
+function renderEmojiResult() {
+    if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+    updateFireBorder(0);
+    var body = document.getElementById('emoji-game-body');
+    if (!body) return;
+    var pct = Math.round(emojiGameState.correct / emojiGameState.total * 100);
+    var icon = pct >= 80 ? '🏆' : pct >= 50 ? '⭐' : '💪';
+    var msg = pct >= 80 ? 'عبقري الكتاب المقدس!' : pct >= 50 ? 'كويس جداً!' : 'حاول تاني وركّز أكتر!';
+
+    // Award stars
+    var earnedStars = Math.round(emojiGameState.score / 15);
+    GameState.stars = (GameState.stars || 0) + earnedStars;
+    saveGame();
+
+    companionReact('celebrate');
+    companionSpeak(msg, 3000);
+    if (pct >= 50) launchConfetti(1500);
+
+    var html = '<div class="emoji-result-wrap">';
+    html += '<div class="emoji-result-icon">' + icon + '</div>';
+    html += '<div class="emoji-result-score">' + emojiGameState.score + ' نقطة</div>';
+    html += '<div class="emoji-result-msg">' + msg + '</div>';
+    html += '<div class="emoji-result-stats">';
+    html += '<div class="emoji-result-stat"><div class="val">' + emojiGameState.correct + '/' + emojiGameState.total + '</div><div class="lbl">إجابات صح</div></div>';
+    html += '<div class="emoji-result-stat"><div class="val">' + emojiGameState.maxStreak + 'x</div><div class="lbl">أعلى كومبو</div></div>';
+    html += '<div class="emoji-result-stat"><div class="val">+' + earnedStars + ' ⭐</div><div class="lbl">نجوم مكتسبة</div></div>';
+    html += '</div>';
+    html += '<button class="btn btn-primary" onclick="startEmojiGame()" style="width:100%;margin-bottom:10px"><span>🔄 العب تاني</span></button>';
+    html += '<button class="btn btn-secondary" onclick="exitEmojiGame()" style="width:100%"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>';
+    html += '</div>';
+    body.innerHTML = html;
+
+    flyStarsToCounter(Math.min(earnedStars, 10));
+}
+
+// ============================================================
+// FUN ZONE SCREEN
+// ============================================================
+function renderFunZone() {
+    var el = document.getElementById('fun-zone-content');
+    if (!el) return;
+    var todayKey = new Date().toISOString().split('T')[0];
+    var playedToday = GameState.lastEmojiGameDate === todayKey;
+
+    var html = '<div style="text-align:center;margin-bottom:16px">';
+    html += '<div style="font-size:48px;margin-bottom:8px">🎮</div>';
+    html += '<p style="color:var(--text-secondary);font-size:13px">ألعاب ممتعة تختبر معرفتك بالكتاب المقدس!</p>';
+    html += '</div>';
+
+    html += '<div class="fun-zone-games-grid">';
+
+    // Emoji Guess Game
+    html += '<div class="fz-game-card" onclick="startEmojiGame()" style="border-color: var(--gold)">';
+    if (!playedToday) html += '<div class="fz-daily-badge">جديد!</div>';
+    html += '<div class="fz-game-icon">🎭</div>';
+    html += '<div class="fz-game-name">خمّن من الإيموجي</div>';
+    html += '<div class="fz-game-desc">شوف الإيموجي واعرف القصة الكتابية!</div>';
+    html += '<div class="fz-game-reward">⭐ حتى 20 نجمة</div>';
+    html += '</div>';
+
+    // Quick Quiz (random 10 from L2 questions)
+    html += '<div class="fz-game-card" onclick="startQuickQuiz()">';
+    html += '<div class="fz-game-icon">⚡</div>';
+    html += '<div class="fz-game-name">اختبار سريع</div>';
+    html += '<div class="fz-game-desc">10 أسئلة عشوائية — إجابة سريعة!</div>';
+    html += '<div class="fz-game-reward">⭐ حتى 15 نجمة</div>';
+    html += '</div>';
+
+    // True/False Blitz
+    html += '<div class="fz-game-card" onclick="startTFBlitz()">';
+    html += '<div class="fz-game-icon">✅</div>';
+    html += '<div class="fz-game-name">صح ولا غلط بلتز</div>';
+    html += '<div class="fz-game-desc">30 ثانية — جاوب بأسرع ما يمكن!</div>';
+    html += '<div class="fz-game-reward">⭐ حتى 10 نجوم</div>';
+    html += '</div>';
+
+    // Verse Memory
+    html += '<div class="fz-game-card" onclick="startVerseMemory()">';
+    html += '<div class="fz-game-icon">🧠</div>';
+    html += '<div class="fz-game-name">تحدي الذاكرة</div>';
+    html += '<div class="fz-game-desc">اتعرض عليك آية — اختار الكلمة اللي كانت فيها!</div>';
+    html += '<div class="fz-game-reward">⭐ حتى 12 نجمة</div>';
+    html += '</div>';
+
+    html += '</div>';
+    el.innerHTML = html;
+}
+
+// Quick Quiz — pulls random L2 questions
+function startQuickQuiz() {
+    var allQs = [];
+    var subKeys = Object.keys(LEVEL2_SUBJECTS || {});
+    subKeys.forEach(function(sk) {
+        var sub = LEVEL2_SUBJECTS[sk];
+        if (!sub || !sub.lessons) return;
+        sub.lessons.forEach(function(lesson) {
+            if (lesson && lesson.questions) {
+                lesson.questions.forEach(function(q) {
+                    allQs.push(q);
+                });
+            }
+        });
+    });
+    if (allQs.length < 5) { showToast('مفيش أسئلة كافية حالياً', 'warning'); return; }
+    shuffleArray(allQs);
+    var selected = allQs.slice(0, 10);
+    // Reuse emoji game framework for simplicity
+    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: selected.length, timer: null, timeLeft: 15, questions: selected.map(function(q) { return { emojis: '❓', isQuiz: true, q: q.q, answer: q.options[q.correct], options: q.options.slice() }; }), answered: false };
+    showScreen('emoji-game-screen');
+    showCompanion('thinking');
+    companionSpeak('10 أسئلة عشوائية — يلا! 🚀', 2000);
+    renderQuickQuizRound();
+}
+
+function renderQuickQuizRound() {
+    var body = document.getElementById('emoji-game-body');
+    if (!body) return;
+    if (emojiGameState.index >= emojiGameState.total) { renderEmojiResult(); return; }
+    emojiGameState.answered = false;
+    var q = emojiGameState.questions[emojiGameState.index];
+    var opts = q.options.slice();
+    shuffleArray(opts);
+
+    var html = '<div class="emoji-game-wrap">';
+    html += '<div class="emoji-game-header">';
+    html += '<div class="emoji-game-score">⭐ ' + emojiGameState.score + '</div>';
+    html += '<div class="emoji-round-label">' + (emojiGameState.index + 1) + ' / ' + emojiGameState.total + '</div>';
+    html += '<div class="emoji-game-timer" id="emoji-timer">15</div>';
+    html += '</div>';
+    html += '<div class="emoji-display" style="font-size:16px;letter-spacing:0;padding:20px;line-height:1.6">' + q.q + '</div>';
+    html += '<div class="emoji-options-grid">';
+    opts.forEach(function(opt) {
+        html += '<button class="emoji-option" onclick="answerEmojiGame(\'' + opt.replace(/'/g, "\\'") + '\')">' + opt + '</button>';
+    });
+    html += '</div></div>';
+    body.innerHTML = html;
+
+    emojiGameState.timeLeft = 15;
+    if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+    emojiGameState.timer = setInterval(function() {
+        emojiGameState.timeLeft--;
+        var timerEl = document.getElementById('emoji-timer');
+        if (timerEl) { timerEl.textContent = Math.max(0, emojiGameState.timeLeft); if (emojiGameState.timeLeft <= 3) timerEl.classList.add('warning'); }
+        if (emojiGameState.timeLeft <= 0) { clearInterval(emojiGameState.timer); answerEmojiGame(null); }
+    }, 1000);
+    updateFireBorder(emojiGameState.streak);
+}
+
+// True/False Blitz — 30 second speed round
+var TF_BLITZ_DATA = [
+    { q: 'موسى هو اللي بنى الفلك', a: false },
+    { q: 'داود النبي كان راعي غنم', a: true },
+    { q: 'يونان أقام في بطن الحوت 3 أيام', a: true },
+    { q: 'بولس الرسول كان من الـ12 تلميذ', a: false },
+    { q: 'المسيح اتعمّد في نهر الأردن', a: true },
+    { q: 'أول معجزة للمسيح كانت إشباع الجموع', a: false },
+    { q: 'إبراهيم هو أبو الآباء', a: true },
+    { q: 'سفر المزامير كتبه سليمان', a: false },
+    { q: 'العذراء مريم زارت أليصابات', a: true },
+    { q: 'لعازر أقامه المسيح بعد 4 أيام', a: true },
+    { q: 'شمشون كانت قوته في لحيته', a: false },
+    { q: 'الروح القدس حل يوم الخمسين', a: true },
+    { q: 'يوسف كان ابن إبراهيم', a: false },
+    { q: 'المسيح صام 40 يوماً', a: true },
+    { q: 'بطرس أنكر المسيح مرتين', a: false },
+    { q: 'راعوث كانت موآبية', a: true },
+    { q: 'عيسو باع بكوريته بطبق عدس', a: true },
+    { q: 'المسيح صعد من جبل الزيتون', a: true },
+    { q: 'سفر الرؤيا كتبه بولس', a: false },
+    { q: 'المن هو الطعام اللي نزل من السما', a: true },
+    { q: 'أريحا هي أول مدينة فتحها يشوع', a: true },
+    { q: 'القديس مرقس هو كاتب أقصر إنجيل', a: true },
+    { q: 'نيقوديموس جه للمسيح بالنهار', a: false },
+    { q: 'صموئيل النبي ربّته أمه في الهيكل', a: true },
+    { q: 'المسيح شفى 10 بُرص ورجعله واحد بس يشكره', a: true }
+];
+
+var tfBlitzState = { index: 0, score: 0, streak: 0, correct: 0, timer: null, timeLeft: 30, questions: [], answered: false };
+
+function startTFBlitz() {
+    var qs = TF_BLITZ_DATA.slice();
+    shuffleArray(qs);
+    tfBlitzState = { index: 0, score: 0, streak: 0, correct: 0, timer: null, timeLeft: 30, questions: qs, answered: false };
+    showScreen('emoji-game-screen');
+    showCompanion('thinking');
+    companionSpeak('30 ثانية — صح ولا غلط! ⚡', 2000);
+    renderTFBlitzRound();
+    // Global 30s timer
+    tfBlitzState.timer = setInterval(function() {
+        tfBlitzState.timeLeft--;
+        var timerEl = document.getElementById('emoji-timer');
+        if (timerEl) { timerEl.textContent = Math.max(0, tfBlitzState.timeLeft); if (tfBlitzState.timeLeft <= 5) timerEl.classList.add('warning'); }
+        if (tfBlitzState.timeLeft <= 0) { clearInterval(tfBlitzState.timer); renderTFBlitzResult(); }
+    }, 1000);
+}
+
+function renderTFBlitzRound() {
+    var body = document.getElementById('emoji-game-body');
+    if (!body) return;
+    if (tfBlitzState.index >= tfBlitzState.questions.length) { clearInterval(tfBlitzState.timer); renderTFBlitzResult(); return; }
+    tfBlitzState.answered = false;
+    var q = tfBlitzState.questions[tfBlitzState.index];
+
+    var html = '<div class="emoji-game-wrap">';
+    html += '<div class="emoji-game-header">';
+    html += '<div class="emoji-game-score">⭐ ' + tfBlitzState.score + ' (' + tfBlitzState.correct + ' صح)</div>';
+    html += '<div></div>';
+    html += '<div class="emoji-game-timer" id="emoji-timer">' + tfBlitzState.timeLeft + '</div>';
+    html += '</div>';
+    html += '<div class="emoji-display" style="font-size:16px;letter-spacing:0;padding:20px;line-height:1.6">' + q.q + '</div>';
+    html += '<div class="emoji-options-grid">';
+    html += '<button class="emoji-option" style="background:rgba(0,184,148,0.1);border-color:var(--success)" onclick="answerTFBlitz(true)">✅ صح</button>';
+    html += '<button class="emoji-option" style="background:rgba(225,112,85,0.1);border-color:var(--danger)" onclick="answerTFBlitz(false)">❌ غلط</button>';
+    html += '</div></div>';
+    body.innerHTML = html;
+    updateFireBorder(tfBlitzState.streak);
+}
+
+function answerTFBlitz(answer) {
+    if (tfBlitzState.answered || tfBlitzState.timeLeft <= 0) return;
+    tfBlitzState.answered = true;
+    var q = tfBlitzState.questions[tfBlitzState.index];
+    var isCorrect = answer === q.a;
+
+    var opts = document.querySelectorAll('.emoji-option');
+    opts.forEach(function(opt) { opt.style.pointerEvents = 'none'; });
+
+    if (isCorrect) {
+        tfBlitzState.correct++;
+        tfBlitzState.streak++;
+        tfBlitzState.score += 5 + Math.min(tfBlitzState.streak - 1, 3) * 2;
+        playCorrectSound();
+        vibrate(30);
+        companionReact(tfBlitzState.streak >= 3 ? 'streak' : 'happy');
+        opts.forEach(function(opt) { if ((answer && opt.textContent.indexOf('صح') >= 0) || (!answer && opt.textContent.indexOf('غلط') >= 0)) opt.classList.add('correct'); });
+    } else {
+        tfBlitzState.streak = 0;
+        playWrongSound();
+        vibrate([30, 20, 30]);
+        companionReact('sad');
+        opts.forEach(function(opt) { if ((!answer && opt.textContent.indexOf('صح') >= 0) || (answer && opt.textContent.indexOf('غلط') >= 0)) opt.classList.add('wrong'); });
+    }
+    updateFireBorder(tfBlitzState.streak);
+    tfBlitzState.index++;
+    setTimeout(renderTFBlitzRound, 500);
+}
+
+function renderTFBlitzResult() {
+    updateFireBorder(0);
+    var body = document.getElementById('emoji-game-body');
+    if (!body) return;
+    var earnedStars = Math.round(tfBlitzState.score / 8);
+    GameState.stars = (GameState.stars || 0) + earnedStars;
+    saveGame();
+    companionReact('celebrate');
+    if (tfBlitzState.correct >= 10) launchConfetti(1500);
+
+    var html = '<div class="emoji-result-wrap">';
+    html += '<div class="emoji-result-icon">' + (tfBlitzState.correct >= 15 ? '🏆' : tfBlitzState.correct >= 8 ? '⭐' : '💪') + '</div>';
+    html += '<div class="emoji-result-score">' + tfBlitzState.score + ' نقطة</div>';
+    html += '<div class="emoji-result-msg">' + tfBlitzState.correct + ' إجابة صح في 30 ثانية!</div>';
+    html += '<div class="emoji-result-stats">';
+    html += '<div class="emoji-result-stat"><div class="val">' + tfBlitzState.correct + '</div><div class="lbl">إجابات صح</div></div>';
+    html += '<div class="emoji-result-stat"><div class="val">' + tfBlitzState.streak + 'x</div><div class="lbl">كومبو</div></div>';
+    html += '<div class="emoji-result-stat"><div class="val">+' + earnedStars + ' ⭐</div><div class="lbl">نجوم</div></div>';
+    html += '</div>';
+    html += '<button class="btn btn-primary" onclick="startTFBlitz()" style="width:100%;margin-bottom:10px"><span>🔄 العب تاني</span></button>';
+    html += '<button class="btn btn-secondary" onclick="exitEmojiGame()" style="width:100%"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>';
+    html += '</div>';
+    body.innerHTML = html;
+    flyStarsToCounter(Math.min(earnedStars, 8));
+}
+
+// Verse Memory Game
+var VERSE_MEMORY_DATA = [
+    { verse: 'في البدء كان الكلمة والكلمة كان عند الله', missing: 'الكلمة', options: ['الكلمة', 'النور', 'الحياة', 'الروح'] },
+    { verse: 'أنا هو الطريق والحق والحياة', missing: 'الحياة', options: ['الحياة', 'النور', 'الباب', 'الكرمة'] },
+    { verse: 'أنا هو نور العالم', missing: 'نور', options: ['نور', 'ملح', 'خبز', 'راعي'] },
+    { verse: 'أحبوا بعضكم بعضاً كما أنا أحببتكم', missing: 'أحببتكم', options: ['أحببتكم', 'علمتكم', 'أرسلتكم', 'اخترتكم'] },
+    { verse: 'تعالوا إليّ يا جميع المتعبين وأنا أريحكم', missing: 'أريحكم', options: ['أريحكم', 'أعلمكم', 'أقويكم', 'أشفيكم'] },
+    { verse: 'الرب راعيّ فلا يعوزني شيء', missing: 'راعيّ', options: ['راعيّ', 'نوري', 'حصني', 'ملجئي'] },
+    { verse: 'لأن الله محبة', missing: 'محبة', options: ['محبة', 'نور', 'روح', 'حق'] },
+    { verse: 'لأنه هكذا أحب الله العالم حتى بذل ابنه الوحيد', missing: 'الوحيد', options: ['الوحيد', 'الحبيب', 'المبارك', 'القدوس'] },
+    { verse: 'أنا هو القيامة والحياة', missing: 'القيامة', options: ['القيامة', 'الطريق', 'الباب', 'الكرمة'] },
+    { verse: 'طوبى لصانعي السلام لأنهم أبناء الله يُدعَون', missing: 'السلام', options: ['السلام', 'الخير', 'الرحمة', 'البر'] },
+    { verse: 'ها أنا معكم كل الأيام إلى انقضاء الدهر', missing: 'الدهر', options: ['الدهر', 'العالم', 'الزمان', 'الأرض'] },
+    { verse: 'سراج لرجلي كلامك ونور لسبيلي', missing: 'سراج', options: ['سراج', 'نور', 'هداية', 'رجاء'] }
+];
+
+function startVerseMemory() {
+    var qs = VERSE_MEMORY_DATA.slice();
+    shuffleArray(qs);
+    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: Math.min(10, qs.length), timer: null, timeLeft: 12, questions: qs.slice(0, 10).map(function(v) { return { emojis: '', isVerse: true, verse: v.verse, answer: v.missing, options: v.options.slice() }; }), answered: false };
+    showScreen('emoji-game-screen');
+    showCompanion('thinking');
+    companionSpeak('كمّل الآية — إيه الكلمة الناقصة؟ 📖', 2500);
+    renderVerseMemoryRound();
+}
+
+function renderVerseMemoryRound() {
+    var body = document.getElementById('emoji-game-body');
+    if (!body) return;
+    if (emojiGameState.index >= emojiGameState.total) { renderEmojiResult(); return; }
+    emojiGameState.answered = false;
+    var q = emojiGameState.questions[emojiGameState.index];
+    var displayVerse = q.verse.replace(q.answer, '<span style="color:var(--gold);text-decoration:underline;font-weight:900">______</span>');
+    var opts = q.options.slice();
+    shuffleArray(opts);
+
+    var html = '<div class="emoji-game-wrap">';
+    html += '<div class="emoji-game-header">';
+    html += '<div class="emoji-game-score">⭐ ' + emojiGameState.score + '</div>';
+    html += '<div class="emoji-round-label">' + (emojiGameState.index + 1) + ' / ' + emojiGameState.total + '</div>';
+    html += '<div class="emoji-game-timer" id="emoji-timer">12</div>';
+    html += '</div>';
+    html += '<div class="emoji-hint-text">إيه الكلمة الناقصة في الآية؟</div>';
+    html += '<div class="emoji-display" style="font-size:16px;letter-spacing:0;padding:20px;line-height:1.8">📖 ' + displayVerse + '</div>';
+    html += '<div class="emoji-options-grid">';
+    opts.forEach(function(opt) {
+        html += '<button class="emoji-option" onclick="answerEmojiGame(\'' + opt.replace(/'/g, "\\'") + '\')">' + opt + '</button>';
+    });
+    html += '</div></div>';
+    body.innerHTML = html;
+
+    emojiGameState.timeLeft = 12;
+    if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+    emojiGameState.timer = setInterval(function() {
+        emojiGameState.timeLeft--;
+        var timerEl = document.getElementById('emoji-timer');
+        if (timerEl) { timerEl.textContent = Math.max(0, emojiGameState.timeLeft); if (emojiGameState.timeLeft <= 3) timerEl.classList.add('warning'); }
+        if (emojiGameState.timeLeft <= 0) { clearInterval(emojiGameState.timer); answerEmojiGame(null); }
+    }, 1000);
+    updateFireBorder(emojiGameState.streak);
+}
+
 function showScorePopup(points, isCombo, comboCount) {
     var popup = document.createElement('div');
     popup.className = 'score-popup';
@@ -7716,6 +8588,17 @@ function renderHomeHub() {
 
     // Render daily verse card
     renderTodayVerse();
+
+    // Card entrance stagger animation
+    setTimeout(function() {
+        var cards = document.querySelectorAll('#home-hub-screen .hub-card, #home-hub-screen .spiritual-card');
+        cards.forEach(function(card, i) {
+            card.classList.remove('hub-stagger-enter');
+            card.offsetHeight; // force reflow
+            card.classList.add('hub-stagger-enter');
+            card.style.animationDelay = (i * 0.08) + 's';
+        });
+    }, 50);
 
     // Daily streak
     var streakWrap = document.getElementById('hub-streak-section');
@@ -11104,9 +11987,11 @@ function startLevel2Exam(lessonIdx) {
 
 // --- Quiz Stage ---
 function renderLevel2Quiz(container, lesson, subject) {
+    showCompanion('thinking');
     var qIdx = level2State.quizIndex;
     var questions = level2State.activeQuestions || lesson.questions;
     if (qIdx >= questions.length) {
+        updateFireBorder(0);
         // Quiz finished
         level2State.currentStage = 'result';
         renderLevel2Lesson();
@@ -11309,7 +12194,10 @@ function answerLevel2Quiz(selectedIdx) {
     });
 
     // Show celebration or wrong feedback + encouraging message
+    // Fire border + companion
+    updateFireBorder(level2State.combo);
     if (isCorrect) {
+        companionReact(level2State.combo >= 3 ? 'streak' : 'happy');
         showCorrectCelebration();
         showEncourageMsg(true);
         // Auto-advance after delay for correct answers
@@ -11319,6 +12207,7 @@ function answerLevel2Quiz(selectedIdx) {
             renderLevel2Lesson();
         }, 1500);
     } else {
+        companionReact('sad');
         showWrongFeedback();
         showEncourageMsg(false);
         // Show correct answer explanation + continue button for wrong answers
@@ -11731,6 +12620,41 @@ function renderCompeteHub() {
     if (!body) return;
 
     var html = '';
+
+    // ── Active room banner ────────────────────────────────────────
+    // If the player has an active roomId (navigated away without leaving),
+    // verify the room still exists then show a re-entry banner.
+    if (competeState.roomId && competeState.status !== 'idle') {
+        html += '<div class="active-room-banner" id="active-room-banner">';
+        html += '<div class="arb-icon">🔔</div>';
+        html += '<div class="arb-info">';
+        html += '<div class="arb-title">' + (competeState.isHost ? '⚡ أنت بانيت غرفة!' : '👥 أنت في غرفة!') + '</div>';
+        html += '<div class="arb-code">كود: <strong>' + competeState.roomId + '</strong></div>';
+        html += '</div>';
+        html += '<div class="arb-actions">';
+        html += '<button class="arb-btn arb-btn-return" onclick="returnToActiveRoom()"><i class="fas fa-arrow-left"></i> رجوع للغرفة</button>';
+        if (competeState.isHost) {
+            html += '<button class="arb-btn arb-btn-close" onclick="closeCompeteRoom()"><i class="fas fa-times"></i> أغلق الغرفة</button>';
+        } else {
+            html += '<button class="arb-btn arb-btn-leave" onclick="leaveCompeteRoom()"><i class="fas fa-sign-out-alt"></i> اخرج</button>';
+        }
+        html += '</div>';
+        html += '</div>';
+        body.innerHTML = html;
+        // Verify room still exists in Firestore
+        if (firebaseDb) {
+            firebaseDb.collection('compete_rooms').doc(competeState.roomId).get().then(function(doc) {
+                if (!doc.exists || doc.data().status === 'finished') {
+                    // Room gone — reset state silently then re-render full hub
+                    if (competeState.listener) { competeState.listener(); competeState.listener = null; }
+                    if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+                    competeState.roomId = null; competeState.isHost = false; competeState.status = 'idle';
+                    renderCompeteHub();
+                }
+            }).catch(function() {});
+        }
+        return; // Don't render rest of hub while in active room
+    }
 
     // Hero section with vector decorations
     html += '<div class="compete-hero">';
@@ -12359,8 +13283,12 @@ function answerCompete(selectedIdx) {
         points = 100 + timeBonus + (competeState.streak > 1 ? competeState.streak * 20 : 0);
         playCorrectSound();
         vibrate(50);
+        companionReact(competeState.streak >= 3 ? 'streak' : 'happy');
+        updateFireBorder(competeState.streak);
     } else {
         competeState.streak = 0;
+        companionReact('sad');
+        updateFireBorder(0);
         if (room.questions && room.questions[0] && competeState.players) {
             // Sparkle mode: mark as eliminated
         }
@@ -12648,15 +13576,55 @@ function rematchCompete() {
     });
 }
 
+// Return to a room the user already belongs to
+function returnToActiveRoom() {
+    if (!competeState.roomId) return;
+    showScreen('compete-lobby-screen');
+    // Re-attach listener if it dropped
+    if (!competeState.listener) {
+        listenToRoom(competeState.roomId);
+    }
+}
+
+// Host closes (deletes) the room entirely — uses custom in-app dialog
+function closeCompeteRoom() {
+    if (!competeState.isHost || !competeState.roomId) return;
+    showCustomConfirm(
+        'هتغلق الغرفة وتحذفها؟\nكل اللاعبين هيتطردوا!',
+        '🗑️ أغلق الغرفة',
+        '← رجوع',
+        function() {
+            // Confirmed — delete room and go back
+            if (firebaseDb) {
+                firebaseDb.collection('compete_rooms').doc(competeState.roomId).delete().catch(function() {});
+            }
+            if (competeState.listener) { competeState.listener(); competeState.listener = null; }
+            if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+            competeState.roomId = null;
+            competeState.isHost = false;
+            competeState.status = 'idle';
+            competeState.players = {};
+            showToast('تم إغلاق الغرفة', 'success');
+            showScreen('compete-screen');
+        }
+    );
+}
+
 function leaveCompeteRoom() {
+    // Host pressing back → show close dialog (single confirm only)
+    if (competeState.isHost && competeState.roomId && competeState.status === 'lobby') {
+        closeCompeteRoom();
+        return;
+    }
+
+    // Member leaving — no confirmation needed
     if (competeState.listener) {
         competeState.listener();
         competeState.listener = null;
     }
     if (competeState.timerInterval) clearInterval(competeState.timerInterval);
 
-    // Remove player from room
-    if (competeState.roomId && firebaseDb) {
+    if (competeState.roomId && firebaseDb && !competeState.isHost) {
         var update = {};
         update['players.' + GameState.playerPhone] = firebase.firestore.FieldValue.delete();
         firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(update).catch(function() {});
@@ -12665,8 +13633,34 @@ function leaveCompeteRoom() {
     competeState.roomId = null;
     competeState.isHost = false;
     competeState.status = 'idle';
-    competeState.players = [];
+    competeState.players = {};
     showScreen('compete-screen');
+}
+
+// ── Custom in-app confirmation dialog ────────────────────────
+function showCustomConfirm(message, confirmLabel, cancelLabel, onConfirm) {
+    var existing = document.getElementById('custom-confirm-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'custom-confirm-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;font-family:Cairo,sans-serif;direction:rtl;animation:fadeIn 0.2s ease';
+
+    overlay.innerHTML =
+        '<div style="background:var(--bg-card);border:1px solid var(--border);border-radius:22px;padding:28px 22px;max-width:320px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.5)">' +
+            '<div style="font-size:36px;margin-bottom:12px">⚠️</div>' +
+            '<p style="color:var(--text-primary);font-size:16px;font-weight:700;margin:0 0 20px;line-height:1.6;white-space:pre-line">' + message + '</p>' +
+            '<div style="display:flex;flex-direction:column;gap:10px">' +
+                '<button onclick="document.getElementById(\'custom-confirm-overlay\').remove();(' + onConfirm.toString() + ')()" ' +
+                    'style="background:var(--danger);color:#fff;border:none;border-radius:14px;padding:14px;font-family:Cairo;font-size:15px;font-weight:800;cursor:pointer">' +
+                    (confirmLabel || 'تأكيد') + '</button>' +
+                '<button onclick="document.getElementById(\'custom-confirm-overlay\').remove()" ' +
+                    'style="background:var(--border);color:var(--text-secondary);border:none;border-radius:14px;padding:12px;font-family:Cairo;font-size:14px;font-weight:700;cursor:pointer">' +
+                    (cancelLabel || 'إلغاء') + '</button>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
 }
 
 // --- Weekly Rankings ---

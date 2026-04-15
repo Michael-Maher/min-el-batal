@@ -10995,3 +10995,597 @@ body {
 .shop-suggest-chip .ssc-icon { font-size: 22px; margin-bottom: 4px; }
 .shop-suggest-chip .ssc-name { font-size: 11px; font-weight: 700; color: var(--text-primary); display: block; }
 .shop-suggest-chip .ssc-cost { font-size: 11px; color: var(--gold); font-weight: 700; }
+
+/* ============================================
+   CHARACTER COMPANION WIDGET (v2 — Floating AssistiveTouch)
+   ============================================ */
+
+/* Main container — positioned by JS */
+.companion-widget {
+    position: fixed;
+    z-index: 9000;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+    width: 62px;
+    height: 62px;
+}
+.companion-widget.hidden { display: none !important; }
+
+/* The circular button */
+.companion-btn {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: rgba(20, 20, 46, 0.78);
+    border: 3px solid var(--gold);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.45), 0 0 18px var(--glow-gold);
+    cursor: grab;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    transition: opacity 0.4s ease, box-shadow 0.3s ease;
+    opacity: 0.58;
+    position: relative;
+    animation: companionFloat 3s ease-in-out infinite;
+    -webkit-tap-highlight-color: transparent;
+}
+.companion-widget:hover .companion-btn,
+.companion-widget.active .companion-btn { opacity: 1; }
+.companion-widget.dragging .companion-btn {
+    cursor: grabbing;
+    opacity: 0.9;
+    transform: scale(1.06);
+    animation: none !important;
+}
+.companion-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    border-radius: 50%;
+}
+
+/* Tip-number badge */
+.companion-tip-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    min-width: 20px;
+    height: 20px;
+    border-radius: 10px;
+    padding: 0 4px;
+    background: var(--gold);
+    color: #1a1a2e;
+    font-size: 10px;
+    font-weight: 900;
+    font-family: 'Cairo', sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: scale(0);
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+    border: 1.5px solid #1a1a2e;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+.companion-widget.has-tip .companion-tip-badge { transform: scale(1); }
+
+/* Speech bubble */
+.companion-bubble {
+    position: absolute;
+    bottom: 70px;
+    left: 0;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-family: 'Cairo', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 10px 14px 8px;
+    border-radius: 16px 16px 16px 4px;
+    border: 1.5px solid rgba(255,215,0,0.45);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.3), 0 0 10px rgba(255,215,0,0.08);
+    min-width: 170px;
+    max-width: 230px;
+    opacity: 0;
+    transform: translateY(8px) scale(0.85);
+    transform-origin: bottom left;
+    transition: all 0.35s cubic-bezier(0.34,1.56,0.64,1);
+    pointer-events: none;
+    line-height: 1.65;
+    text-align: right;
+    direction: rtl;
+    white-space: normal;
+    word-break: break-word;
+}
+.companion-widget.on-right .companion-bubble {
+    left: auto;
+    right: 0;
+    border-radius: 16px 16px 4px 16px;
+    transform-origin: bottom right;
+}
+.companion-bubble.show { opacity: 1; transform: translateY(0) scale(1); }
+.companion-bubble-hint {
+    display: block;
+    font-size: 10px;
+    opacity: 0.45;
+    margin-top: 5px;
+    font-weight: 600;
+    text-align: center;
+}
+.companion-bubble-progress {
+    display: block;
+    font-size: 10px;
+    opacity: 0.55;
+    margin-top: 2px;
+    font-weight: 700;
+    text-align: center;
+    letter-spacing: 0.5px;
+}
+
+/* Quick-action menu (2×2 grid above button) */
+.companion-menu {
+    position: absolute;
+    bottom: 70px;
+    left: 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px) scale(0.82);
+    transform-origin: bottom left;
+    transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.companion-widget.on-right .companion-menu {
+    left: auto;
+    right: 0;
+    transform-origin: bottom right;
+}
+.companion-menu.open {
+    pointer-events: auto;
+    opacity: 1;
+    transform: translateY(0) scale(1);
+}
+.companion-menu-item {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.35);
+    transition: transform 0.15s ease, background 0.15s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+.companion-menu-item:active { transform: scale(0.86); }
+.companion-menu-item .mi-emoji { font-size: 22px; line-height: 1; }
+.companion-menu-item .mi-label {
+    font-size: 9px;
+    font-weight: 700;
+    font-family: 'Cairo', sans-serif;
+    color: var(--text-secondary);
+    line-height: 1;
+}
+
+/* Dim overlay when menu open */
+.companion-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 8999;
+    display: none;
+    background: rgba(0,0,0,0.07);
+    backdrop-filter: blur(1px);
+    -webkit-backdrop-filter: blur(1px);
+}
+.companion-overlay.active { display: block; }
+
+/* Mood border/shadow variants */
+.companion-idle .companion-btn    { animation: companionFloat 3s ease-in-out infinite; }
+.companion-happy .companion-btn   { animation: companionHappy 0.55s ease; border-color: var(--success); box-shadow: 0 0 24px rgba(0,184,148,0.6); }
+.companion-sad .companion-btn     { animation: companionSad 0.6s ease; border-color: var(--danger); box-shadow: 0 0 16px rgba(225,112,85,0.5); }
+.companion-celebrate .companion-btn { animation: companionCelebrate 0.8s ease; border-color: var(--gold); box-shadow: 0 0 30px var(--glow-gold); }
+.companion-thinking .companion-btn { animation: companionThinking 1.5s ease-in-out infinite; border-color: var(--primary); }
+.companion-streak .companion-btn  { animation: companionStreak 0.5s ease; border-color: #ff6b35; box-shadow: 0 0 30px rgba(255,107,53,0.8); }
+
+@keyframes companionFloat {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-6px); }
+}
+@keyframes companionHappy {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.25) rotate(-10deg); }
+    60% { transform: scale(1.1) rotate(5deg); }
+    100% { transform: scale(1) rotate(0); }
+}
+@keyframes companionSad {
+    0%, 100% { transform: translateY(0) scale(1); }
+    30% { transform: translateY(4px) scale(0.92); }
+    60% { transform: translateY(2px) scale(0.95); }
+}
+@keyframes companionCelebrate {
+    0% { transform: scale(1); }
+    20% { transform: scale(1.3) rotate(-15deg) translateY(-10px); }
+    40% { transform: scale(1.2) rotate(15deg) translateY(-8px); }
+    60% { transform: scale(1.15) rotate(-5deg) translateY(-4px); }
+    100% { transform: scale(1) rotate(0) translateY(0); }
+}
+@keyframes companionThinking {
+    0%, 100% { transform: rotate(0); }
+    25% { transform: rotate(-5deg); }
+    75% { transform: rotate(5deg); }
+}
+@keyframes companionStreak {
+    0%, 100% { transform: scale(1); }
+    25% { transform: scale(1.3) translateY(-8px); }
+    50% { transform: scale(1.15); }
+}
+
+/* ============================================
+   FLYING STARS / GEMS COLLECTION
+   ============================================ */
+.flying-star {
+    position: fixed;
+    font-size: 20px;
+    z-index: 10000;
+    pointer-events: none;
+    transition: all 0.65s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    filter: drop-shadow(0 0 8px rgba(255,215,0,0.8));
+}
+.flying-star.flying {
+    transform: scale(0.4) !important;
+    opacity: 0.6 !important;
+}
+.star-counter-bounce {
+    animation: counterBounce 0.3s ease !important;
+}
+@keyframes counterBounce {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.5); color: var(--gold); }
+    100% { transform: scale(1); }
+}
+
+/* Star trail particle */
+.star-trail {
+    position: fixed;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--gold);
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0.8;
+    animation: trailFade 0.4s ease forwards;
+}
+@keyframes trailFade {
+    to { opacity: 0; transform: scale(0); }
+}
+
+/* ============================================
+   STREAK FIRE BORDER
+   ============================================ */
+.streak-fire-border {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 8000;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+.streak-fire-border.active { opacity: 1; }
+.streak-fire-border.combo-2 {
+    box-shadow: inset 0 0 30px rgba(255,165,0,0.2), inset 0 0 60px rgba(255,165,0,0.1);
+}
+.streak-fire-border.combo-3 {
+    box-shadow: inset 0 0 40px rgba(255,107,53,0.3), inset 0 0 80px rgba(255,107,53,0.15);
+}
+.streak-fire-border.combo-5 {
+    box-shadow: inset 0 0 50px rgba(255,50,0,0.4), inset 0 0 100px rgba(255,50,0,0.2);
+    animation: fireFlicker 0.3s ease-in-out infinite alternate;
+}
+@keyframes fireFlicker {
+    from { box-shadow: inset 0 0 50px rgba(255,50,0,0.35), inset 0 0 100px rgba(255,50,0,0.18); }
+    to   { box-shadow: inset 0 0 60px rgba(255,80,0,0.45), inset 0 0 120px rgba(255,80,0,0.25); }
+}
+
+/* ============================================
+   BUTTON RIPPLE EFFECT
+   ============================================ */
+.ripple-effect {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    transform: scale(0);
+    animation: rippleSpread 0.6s ease-out forwards;
+    pointer-events: none;
+}
+@keyframes rippleSpread {
+    to { transform: scale(3); opacity: 0; }
+}
+.btn, .fab, .l2-quiz-option, .mini-game-card, .hub-card, .spiritual-card, .info-activity-card {
+    position: relative;
+    overflow: hidden;
+}
+
+/* ============================================
+   CARD ENTRANCE STAGGER
+   ============================================ */
+.hub-stagger-enter {
+    opacity: 0;
+    transform: translateY(20px);
+    animation: staggerIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+@keyframes staggerIn {
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================
+   FUN ZONE / ARCADE STYLES
+   ============================================ */
+.hub-card-funzone .hub-card-bg {
+    background: linear-gradient(135deg, #2d1b4e 0%, #5b2c8a 50%, #8b5cf6 100%) !important;
+}
+.fun-zone-games-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+}
+.fz-game-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+.fz-game-card:active { transform: scale(0.96); }
+.fz-game-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, transparent 60%, rgba(255,255,255,0.05));
+    pointer-events: none;
+}
+.fz-game-icon { font-size: 40px; margin-bottom: 8px; }
+.fz-game-name { font-size: 14px; font-weight: 800; color: var(--text-primary); margin-bottom: 4px; }
+.fz-game-desc { font-size: 11px; color: var(--text-secondary); line-height: 1.4; margin-bottom: 8px; }
+.fz-game-reward { font-size: 11px; font-weight: 700; color: var(--gold); }
+.fz-daily-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 20px;
+}
+
+/* ============================================
+   EMOJI GUESS GAME
+   ============================================ */
+.emoji-game-wrap {
+    text-align: center;
+    padding: 10px 0;
+}
+.emoji-game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-secondary);
+}
+.emoji-game-score {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-weight: 800;
+}
+.emoji-game-timer {
+    background: var(--danger);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 14px;
+    font-weight: 800;
+    min-width: 50px;
+    text-align: center;
+}
+.emoji-game-timer.warning { animation: timerPulse 0.5s ease-in-out infinite; }
+.emoji-display {
+    font-size: 48px;
+    letter-spacing: 12px;
+    margin: 24px 0;
+    padding: 24px;
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    border-radius: 24px;
+    min-height: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: emojiPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+}
+@keyframes emojiPop {
+    0% { transform: scale(0.3); opacity: 0; }
+    60% { transform: scale(1.1); }
+    100% { transform: scale(1); opacity: 1; }
+}
+.emoji-hint-text {
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+}
+.emoji-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+.emoji-option {
+    background: var(--bg-card);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 10px;
+    font-family: 'Cairo', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+}
+.emoji-option:active { transform: scale(0.96); }
+.emoji-option.correct {
+    border-color: var(--success);
+    background: rgba(0,184,148,0.15);
+    color: var(--success);
+    animation: correctPop 0.4s ease;
+}
+.emoji-option.wrong {
+    border-color: var(--danger);
+    background: rgba(225,112,85,0.15);
+    color: var(--danger);
+    animation: wrongShake 0.4s ease;
+}
+@keyframes correctPop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+    100% { transform: scale(1); }
+}
+.emoji-round-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+}
+.emoji-streak-display {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 64px;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 0 0 30px var(--glow-gold);
+    z-index: 10001;
+    pointer-events: none;
+    animation: streakFlash 0.8s ease forwards;
+}
+@keyframes streakFlash {
+    0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+    40% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+    100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+}
+
+/* Result screen for emoji game */
+.emoji-result-wrap {
+    text-align: center;
+    padding: 20px 0;
+}
+.emoji-result-icon {
+    font-size: 60px;
+    animation: bounceIn 0.5s ease;
+}
+.emoji-result-score {
+    font-size: 36px;
+    font-weight: 900;
+    color: var(--gold);
+    margin: 12px 0;
+}
+.emoji-result-msg {
+    font-size: 16px;
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+.emoji-result-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+.emoji-result-stat {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+}
+.emoji-result-stat .val { font-size: 22px; font-weight: 900; color: var(--text-primary); }
+.emoji-result-stat .lbl { font-size: 11px; color: var(--text-muted); }
+
+/* ============================================
+   ACTIVE ROOM BANNER (compete hub)
+   ============================================ */
+.active-room-banner {
+    background: linear-gradient(135deg, rgba(108,92,231,0.2), rgba(0,206,201,0.1));
+    border: 2px solid var(--primary);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    animation: bounceIn 0.4s ease;
+}
+.arb-icon { font-size: 28px; flex-shrink: 0; }
+.arb-info { flex: 1; }
+.arb-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+.arb-code {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+.arb-code strong {
+    color: var(--primary);
+    font-size: 16px;
+    letter-spacing: 2px;
+}
+.arb-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.arb-btn {
+    font-family: 'Cairo', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 7px 14px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.arb-btn-return {
+    background: var(--primary);
+    color: #fff;
+}
+.arb-btn-close {
+    background: var(--danger);
+    color: #fff;
+}
+.arb-btn-leave {
+    background: var(--border);
+    color: var(--text-secondary);
+}

@@ -264,6 +264,20 @@
                     </div>
                 </div>
 
+                <!-- Fun Zone -->
+                <div class="hub-card hub-card-active hub-card-funzone" onclick="showScreen('fun-zone-screen')">
+                    <div class="hub-card-bg">
+                        <div class="hub-card-overlay hub-card-overlay-light"></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon"><i class="fas fa-dice"></i></div>
+                            <h3>ساحة المرح</h3>
+                            <p>ألعاب ممتعة وتحديات يومية</p>
+                            <div class="hub-card-tag hub-tag-active"><i class="fas fa-gamepad"></i> العب</div>
+                        </div>
+                        <div class="hub-card-shine"></div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="hub-footer-btns">
@@ -276,6 +290,28 @@
                 <button class="fab fab-info" onclick="showScreen('info-screen')" title="دليل اللعبة"><i class="fas fa-compass"></i></button>
                 <button class="fab" onclick="showScreen('settings-screen')" title="الإعدادات"><i class="fas fa-palette"></i></button>
             </div>
+        </div>
+    </div>
+
+    <!-- ============ FUN ZONE SCREEN ============ -->
+    <div id="fun-zone-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-dice"></i> ساحة المرح</h2>
+            </div>
+            <div id="fun-zone-content"></div>
+        </div>
+    </div>
+
+    <!-- ============ EMOJI GUESS GAME SCREEN ============ -->
+    <div id="emoji-game-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="exitEmojiGame()"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-masks-theater"></i> خمّن من الإيموجي</h2>
+            </div>
+            <div id="emoji-game-body"></div>
         </div>
     </div>
 

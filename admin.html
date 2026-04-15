@@ -656,12 +656,22 @@ const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️'
 const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#10b981',lessons:['اعرف نفسك','قوة الكلمة','إدارة الوقت','القيادة الخادمة','التعامل مع الضغوط','صانع السلام']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']}};
 
 // ════════════════════════════════
-//  PASSWORD HASH (simple djb2)
+//  PASSWORD HASH
 // ════════════════════════════════
+// hp() — used for admin account hashes (djb2, stored in admins collection)
 function hp(str) {
   var h=5381;
   for(var i=0;i<str.length;i++) h=((h<<5)+h)+str.charCodeAt(i)|0;
   return (h>>>0).toString(16);
+}
+// gameHp() — used for PLAYER account hashes (must match game.js hashPassword)
+function gameHp(password) {
+  var hash=0;
+  for(var i=0;i<password.length;i++){var c=password.charCodeAt(i);hash=((hash<<5)-hash)+c;hash|=0;}
+  var salted='minElBatal_'+password+'_'+hash;
+  var hash2=0;
+  for(var j=0;j<salted.length;j++){var c2=salted.charCodeAt(j);hash2=((hash2<<5)-hash2)+c2;hash2|=0;}
+  return 'h_'+Math.abs(hash).toString(36)+'_'+Math.abs(hash2).toString(36);
 }
 
 // ════════════════════════════════
@@ -1327,7 +1337,7 @@ async function resetPlayerPass(phone) {
   if(!np||np.length<6){toast('كلمة السر لازم ٦ حروف على الأقل','err');return;}
   if(np!==np2){toast('كلمة السر مش متطابقة','err');return;}
   try{
-    const newHash=hp(phone+np);
+    const newHash=gameHp(np);
     await db.collection('players').doc(p._id).update({passwordHash:newHash});
     p.passwordHash=newHash;
     document.getElementById('e-new-pass').value='';

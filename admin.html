@@ -1296,7 +1296,8 @@ function renderSpiritualTab(p) {
     eKeys.forEach(function(k){
       const e=el[k];
       const hasDaily=e.daily&&e.daily.length;
-      html+='<div class="sp-day"><span class="sp-date">'+k+'</span><div class="sp-content">'+(hasDaily?e.daily.join(' · '):'')+(e.weekly?'<div style="color:var(--muted);font-size:10px">'+esc(e.weekly.substring(0,60))+'</div>':'')+'</div><span>'+(hasDaily?'✅':'⬜')+'</span></div>';
+      var weeklyStr=e.weekly?(typeof e.weekly==='string'?e.weekly:JSON.stringify(e.weekly)):'';
+      html+='<div class="sp-day"><span class="sp-date">'+k+'</span><div class="sp-content">'+(hasDaily?e.daily.join(' · '):'')+(weeklyStr?'<div style="color:var(--muted);font-size:10px">'+esc(weeklyStr.substring(0,60))+'</div>':'')+'</div><span>'+(hasDaily?'✅':'⬜')+'</span></div>';
     });
     html+='</div>';
   } else html+='<div style="color:var(--muted);font-size:12px;padding:6px 0 12px">لا توجد بيانات</div>';
@@ -1334,6 +1335,9 @@ async function resetPlayerPass(phone) {
     toast('✅ تم تغيير كلمة السر','ok');
   }catch(e){console.error(e);toast('خطأ في تغيير كلمة السر','err');}
 }
+
+function _dgi(label,val,color){return'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;padding:9px 12px"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:.4px">'+label+'</div><div style="font-size:13px;font-weight:700;color:'+(color||'var(--text)')+'">'+val+'</div></div>';}
+function _sec(title,icon,content){return'<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:11px">'+icon+' '+title+'</div>'+content+'</div>';}
 
 function renderSummaryTab(p) {
   const subKeys=['faith','bible','life','ritual'];
@@ -1517,14 +1521,144 @@ function renderSummaryTab(p) {
     </div>
   </div>`;
 
-  // ── Raw data viewer ──
+  // ── Power-ups ──
+  var pu=p.powerUps||{};
+  var puItems=[
+    {ico:'🎯',lbl:'50/50',key:'fiftyFifty'},{ico:'⏭️',lbl:'تخطي',key:'skip'},
+    {ico:'⚡',lbl:'مضاعفة',key:'doublePoints'},{ico:'❄️',lbl:'تجميد',key:'freeze'},{ico:'💡',lbl:'تلميح',key:'hint'}
+  ];
+  var puHtml='<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px">'+
+    puItems.map(function(it){var v=pu[it.key]??0;return'<div style="background:rgba(124,106,247,.06);border:1px solid rgba(124,106,247,.18);border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px">'+it.ico+'</div><div style="font-size:18px;font-weight:900;color:var(--accent2)">'+v+'</div><div style="font-size:10px;color:var(--muted)">'+it.lbl+'</div></div>';}).join('')+'</div>';
+  html+=_sec('المساعدات (Power-ups)','⚡',puHtml);
+
+  // ── Equipment & cosmetics ──
+  var cosHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    _dgi('الدرع المجهّز',esc(p.equippedArmor||'—'))+
+    _dgi('الإطار',esc(p.equippedFrame||'—'),'var(--gold)')+
+    _dgi('اللقب',esc(p.equippedTitle||'—'),'var(--pink)')+
+    _dgi('الثيم',esc(p.theme||'—'),'var(--teal)')+
+    _dgi('ثيم الخريطة',esc(p.mapTheme||'default'))+
+    _dgi('الأفاتار',p.profileAvatar?'✅ مخصص':'لا يوجد')+'</div>';
+  if((p.ownedFrames||[]).length){cosHtml+='<div style="margin-top:10px;font-size:11px;color:var(--muted)">الإطارات: '+p.ownedFrames.map(function(f){return'<span style="background:rgba(251,191,36,.1);border-radius:4px;padding:2px 7px;margin:2px;display:inline-block;font-size:11px">'+esc(f)+'</span>';}).join('')+'</div>';}
+  if((p.ownedTitles||[]).length){cosHtml+='<div style="margin-top:6px;font-size:11px;color:var(--muted)">الألقاب: '+p.ownedTitles.map(function(t){return'<span style="background:rgba(244,114,182,.1);border-radius:4px;padding:2px 7px;margin:2px;display:inline-block;font-size:11px">'+esc(t)+'</span>';}).join('')+'</div>';}
+  if((p.armor||[]).length){cosHtml+='<div style="margin-top:6px;font-size:11px;color:var(--muted)">الدروع: '+[].concat(p.armor).map(function(a){return'<span style="background:rgba(124,106,247,.1);border-radius:4px;padding:2px 7px;margin:2px;display:inline-block;font-size:11px">'+esc(a)+'</span>';}).join('')+'</div>';}
+  html+=_sec('المظهر والتجهيزات','🎨',cosHtml);
+
+  // ── Characters & tiers ──
+  var ct=p.characterTiers||{}, selCh=p.character||'';
+  var tierColors={bronze:'#cd7f32',silver:'#c0c0c0',gold:'#fbbf24'};
+  var chKeys=typeof CHARACTERS!=='undefined'?Object.keys(CHARACTERS):Object.keys(ct);
+  if(chKeys.length){
+    var chHtml='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px">'+
+      chKeys.map(function(k){var tier=ct[k]||'bronze',tc2=tierColors[tier]||'#888';return'<div style="background:'+tc2+'15;border:1.5px solid '+tc2+'40;border-radius:10px;padding:9px;text-align:center'+(k===selCh?';box-shadow:0 0 10px '+tc2+'60':'')+'">'+(k===selCh?'<div style="font-size:9px;color:'+tc2+';font-weight:700;margin-bottom:3px">▶ مختار</div>':'')+'<div style="font-size:12px;font-weight:700">'+esc(k)+'</div><div style="font-size:11px;color:'+tc2+';font-weight:700">'+esc(tier)+'</div></div>';}).join('')+'</div>';
+    html+=_sec('الشخصيات','🦸',chHtml);
+  }
+
+  // ── Level 1 quiz progress ──
+  var ldKeys=Object.keys(ld).sort(function(a,b){return (+a)-(+b);});
+  if(ldKeys.length){
+    var l1Html='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px">'+
+      ldKeys.map(function(k){var lv=ld[k]||{},st=lv.stars||0,done=lv.completed;var c=done?'var(--green)':'var(--muted)';return'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">م '+k+'</div><div style="font-size:14px;font-weight:900;color:'+c+'">'+st+'⭐</div><div style="font-size:9px;color:'+(done?'var(--green)':'var(--muted)')+'">'+(done?'✅':'—')+'</div></div>';}).join('')+'</div>';
+    html+=_sec('مستويات المستوى ١ (الخريطة)','🗺️',l1Html);
+  }
+
+  // ── Lesson 2: all stations detail ──
+  var stHtml='';
+  subKeys.forEach(function(sk){
+    var sub=SUBJECTS[sk],done2=subjDone[sk];
+    stHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px;padding:5px 8px;background:'+subColors[sk]+'18;border-radius:6px;border-right:3px solid '+subColors[sk]+'">'+sub.icon+' '+sub.name+' ('+done2+'/6)</div>';
+    stHtml+='<div style="display:flex;flex-direction:column;gap:4px">';
+    sub.lessons.forEach(function(lname,i){
+      var sc=ss[sk+'_'+i]||{},tot=sc.total||0,pct=Math.round(tot/150*100);
+      var mg=p.miniGameScores||{},wv=p.watchedVideos||{};
+      var hasVideo=wv[sk+'_lesson_'+i+'_video'],hasShort=wv[sk+'_lesson_'+i+'_short_video'];
+      stHtml+='<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:7px;padding:7px 10px">';
+      stHtml+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">';
+      stHtml+='<span style="font-size:10px;color:var(--muted);min-width:30px">د'+(i+1)+'</span>';
+      stHtml+='<span style="flex:1;font-size:11px;font-weight:600">'+esc(lname)+'</span>';
+      stHtml+=(hasVideo?'<span title="فيديو" style="font-size:11px">🎬</span>':'');
+      stHtml+=(hasShort?'<span title="ملخص" style="font-size:11px">📹</span>':'');
+      stHtml+='<span style="font-size:11px;font-weight:700;color:'+(tot>0?subColors[sk]:'var(--muted)')+'">'+tot+'/150</span>';
+      stHtml+='</div>';
+      if(tot>0){
+        stHtml+='<div style="background:rgba(255,255,255,.04);border-radius:99px;height:5px;overflow:hidden;margin-bottom:5px"><div style="width:'+pct+'%;height:100%;background:'+subColors[sk]+';border-radius:99px"></div></div>';
+        stHtml+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;font-size:10px">';
+        stHtml+='<span style="color:#fb923c">وعظة '+(sc.sermon||0)+'/5</span><span style="color:#60a5fa">ملخص '+(sc.summary||0)+'/10</span><span style="color:#34d399">ألعاب '+(sc.games||0)+'/60</span><span style="color:#a78bfa">تفاعلي '+(sc.interactive||0)+'/75</span>';
+        stHtml+='</div>';
+        // mini game scores for this lesson
+        var mgBadges=['trueFalse','imageWord','memory','fillBlank','quiz'].filter(function(t){return mg[sk+'_'+i+'_mg_'+t]>0;}).map(function(t){return'<span style="background:rgba(255,255,255,.06);border-radius:3px;padding:1px 5px">'+t+': '+mg[sk+'_'+i+'_mg_'+t]+'</span>';});
+        if(mgBadges.length)stHtml+='<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px;font-size:9px;color:var(--muted)">'+mgBadges.join('')+'</div>';
+      }
+      stHtml+='</div>';
+    });
+    stHtml+='</div></div>';
+  });
+  html+=_sec('تفاصيل دروس المستوى ٢','📚',stHtml);
+
+  // ── Account & session details ──
+  var accHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    _dgi('التليفون',esc(p.playerPhone||'—'))+
+    _dgi('الإيميل',esc(p.email||'—'))+
+    _dgi('المستخدم','@'+esc(p.username||'—'))+
+    _dgi('النوع',p.gender==='male'?'👦 ولد':p.gender==='female'?'👧 بنت':'—')+
+    _dgi('إصحاح الكتاب الحالي',p.bibleChapter||1,'var(--teal)')+
+    _dgi('محطة رحلة بولس',p.paulJourneyStation||'—')+
+    _dgi('سلسلة الدخول اليومي',(p.loginStreak||0)+' يوم','var(--orange)')+
+    _dgi('Blitz أسبوعي',(p.blitzWeeklyScore||0)+' نقطة')+
+    _dgi('آخر سبينة يومية',p.dailySpinDate||'—')+
+    _dgi('سبينة بونص',p.dailyBonusSpin?'✅ متاحة':'لا','var(--green)')+
+    _dgi('آخر دخول',p.dailyLoginDate||'—')+
+    _dgi('آخر تحديث',p.lastUpdated?new Date(p.lastUpdated?.toDate?.()??p.lastUpdated).toLocaleString('ar-EG'):'—')+
+    _dgi('تاريخ التسجيل',p.createdAt?new Date(p.createdAt).toLocaleDateString('ar-EG'):'—')+
+    _dgi('مكافآت مسحوبة',(p.redeemedRewards||[]).length+' جائزة')+
+    _dgi('مهمات مكتملة',p.missionsCompleted||0)+
+    _dgi('مستويات مثالية',p.perfectLevels||0,'var(--gold)')+
+  '</div>';
+  if((p.claimedStreakRewards||[]).length){
+    accHtml+='<div style="margin-top:10px;font-size:11px;color:var(--muted)">مكافآت السلسلة: '+p.claimedStreakRewards.map(function(r){return'<span style="background:rgba(251,191,36,.1);border-radius:4px;padding:2px 6px;margin:2px;display:inline-block">'+esc(String(r))+'</span>';}).join('')+'</div>';
+  }
+  if((p.redeemedRewards||[]).length){
+    accHtml+='<div style="margin-top:8px"><div style="font-size:10px;color:var(--muted);margin-bottom:5px">الجوائز المستبدلة:</div>'+p.redeemedRewards.map(function(r){return'<div style="background:rgba(52,211,153,.06);border:1px solid rgba(52,211,153,.15);border-radius:7px;padding:6px 9px;margin-bottom:4px;font-size:11px">'+esc(typeof r==='string'?r:JSON.stringify(r))+'</div>';}).join('')+'</div>';
+  }
+  html+=_sec('بيانات الحساب والجلسة','📋',accHtml);
+
+  // ── Highlighted verses ──
+  var hv=p.highlightedVerses||{};
+  var hvKeys=Object.keys(hv);
+  if(hvKeys.length){
+    var hvHtml='<div style="display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto">'+
+      hvKeys.slice(0,40).map(function(k){return'<div style="background:rgba(251,191,36,.05);border-right:3px solid rgba(251,191,36,.4);border-radius:6px;padding:6px 10px;font-size:11px"><span style="color:var(--gold);font-weight:700">'+esc(k)+'</span>'+(hv[k].text?'<div style="color:var(--muted);margin-top:2px">'+esc(hv[k].text.substring(0,80))+'</div>':'')+'</div>';}).join('')+'</div>';
+    if(hvKeys.length>40)hvHtml+='<div style="font-size:11px;color:var(--muted);margin-top:6px">و '+(hvKeys.length-40)+'+ آية أخرى</div>';
+    html+=_sec('الآيات المحفوظة / المميّزة','📜',hvHtml);
+  }
+
+  // ── Lesson summaries written by player ──
+  var ls=p.lessonSummaries||{};
+  var lsKeys=Object.keys(ls);
+  if(lsKeys.length){
+    var lsHtml='<div style="display:flex;flex-direction:column;gap:5px">'+
+      lsKeys.slice(0,20).map(function(k){var v=ls[k];return'<div style="background:rgba(96,165,250,.05);border-radius:7px;padding:7px 10px;font-size:11px"><span style="color:#60a5fa;font-weight:700">'+esc(k)+'</span>'+(v?'<div style="color:var(--muted);margin-top:3px">'+esc((typeof v==='string'?v:JSON.stringify(v)).substring(0,100))+'</div>':'')+'</div>';}).join('')+'</div>';
+    html+=_sec('ملخصات الدروس المكتوبة','✍️',lsHtml);
+  }
+
+  // ── Any unknown / extra fields not covered above ──
+  var knownKeys=new Set(['playerName','playerPhone','username','email','gender','academicYear','character','profileAvatar','currentLevel','stars','gems','xp','streak','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels','missionsCompleted','powerUps','armor','equippedArmor','equippedFrame','ownedFrames','equippedTitle','ownedTitles','theme','mapTheme','team','teamLogo','teamColor','teamLastAction','characterTiers','levelsData','stationScores','miniGameScores','watchedVideos','lessonSummaries','bibleReadingLog','devotionLog','dailyVerseLog','exerciseLog','lampData','paulJourneyData','paulJourneyStation','bibleChapter','highlightedVerses','weeklyChallengeLog','dailyLoginDate','dailySpinDate','dailyBonusSpin','todayVerseSpinDate','todayVerse','blitzWeeklyScore','blitzWeeklyKey','bossFoughtDate','loginStreak','claimedStreakRewards','redeemedRewards','missionsCompleted','level2Data','passwordHash','_id','lastUpdated','createdAt','dailyBonusSpin','teamLastAction']);
+  var extraKeys=Object.keys(p).filter(function(k){return!knownKeys.has(k);});
+  if(extraKeys.length){
+    var exHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+      extraKeys.map(function(k){var v=p[k];var disp=typeof v==='object'&&v!==null?JSON.stringify(v).substring(0,60)+'…':esc(String(v??'—').substring(0,60));return _dgi(k,disp);}).join('')+'</div>';
+    html+=_sec('حقول إضافية في الداتابيز','🗄️',exHtml);
+  }
+
+  // ── Raw JSON ──
   var raw=Object.assign({},p); delete raw.passwordHash; delete raw._id;
   html+=`<details style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;padding:14px">
-    <summary style="cursor:pointer;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;list-style:none;display:flex;align-items:center;gap:6px;outline:none">
-      <i class="fas fa-database" style="color:var(--accent2)"></i> كل بيانات الداتابيز
-      <span style="margin-right:auto;font-size:10px;opacity:.5">(اضغط للعرض)</span>
+    <summary style="cursor:pointer;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;list-style:none;display:flex;align-items:center;gap:6px;outline:none">
+      <i class="fas fa-code" style="color:var(--accent2)"></i> الداتا الخام (JSON)
+      <span style="margin-right:auto;font-size:10px;opacity:.45">اضغط للعرض / النسخ</span>
     </summary>
-    <pre style="margin-top:12px;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-all;direction:ltr;text-align:left;max-height:380px;overflow-y:auto;background:rgba(0,0,0,.25);border-radius:8px;padding:12px;font-family:monospace;line-height:1.5">${esc(JSON.stringify(raw,null,2))}</pre>
+    <pre id="raw-json-pre" style="margin-top:10px;font-size:10px;color:var(--muted);white-space:pre-wrap;word-break:break-all;direction:ltr;text-align:left;max-height:400px;overflow-y:auto;background:rgba(0,0,0,.3);border-radius:8px;padding:12px;font-family:monospace;line-height:1.5">${esc(JSON.stringify(raw,null,2))}</pre>
+    <button class="btn bg bsm" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('raw-json-pre').textContent).then(function(){toast('تم النسخ ✓','ok');})"><i class="fas fa-copy"></i> نسخ JSON</button>
   </details>`;
 
   return html;

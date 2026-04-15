@@ -7695,10 +7695,10 @@ var EMOJI_PUZZLES = [
 
 var emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: 0, timer: null, timeLeft: 0, questions: [], answered: false };
 
-function startEmojiGame() {
+function startEmojiGame(fromLevel2) {
     var puzzles = EMOJI_PUZZLES.slice();
     shuffleArray(puzzles);
-    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: Math.min(12, puzzles.length), timer: null, timeLeft: 10, questions: puzzles.slice(0, 12), answered: false };
+    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: Math.min(12, puzzles.length), timer: null, timeLeft: 10, questions: puzzles.slice(0, 12), answered: false, fromLevel2: !!fromLevel2, _saveType: fromLevel2 ? 'emojiGuess' : null };
     showScreen('emoji-game-screen');
     showCompanion('idle');
     companionSpeak('يلا نشوف بتعرف القصص قد إيه! 🎭', 2500);
@@ -7707,9 +7707,14 @@ function startEmojiGame() {
 
 function exitEmojiGame() {
     if (emojiGameState.timer) clearInterval(emojiGameState.timer);
+    if (tfBlitzState.timer) clearInterval(tfBlitzState.timer);
     hideCompanion();
     updateFireBorder(0);
-    showScreen('fun-zone-screen');
+    if (emojiGameState.fromLevel2) {
+        showScreen('level2-lesson-screen');
+    } else {
+        showScreen('fun-zone-screen');
+    }
 }
 
 function renderEmojiRound() {
@@ -7821,11 +7826,23 @@ function renderEmojiResult() {
     // Award stars
     var earnedStars = Math.round(emojiGameState.score / 15);
     GameState.stars = (GameState.stars || 0) + earnedStars;
-    saveGame();
+
+    // Save station score if launched from Level 2
+    var saveType = emojiGameState._saveType;
+    var fromLevel2 = emojiGameState.fromLevel2;
+    if (fromLevel2 && saveType) {
+        saveMiniGameScore(saveType, Math.min(emojiGameState.score, 15));
+    } else {
+        saveGame();
+    }
 
     companionReact('celebrate');
     companionSpeak(msg, 3000);
     if (pct >= 50) launchConfetti(1500);
+
+    var replayFn = fromLevel2 && saveType === 'quickQuiz' ? 'startQuickQuizFromLesson()' :
+                   fromLevel2 && saveType === 'verseMemory' ? 'startVerseMemory(true)' :
+                   'startEmojiGame(' + (fromLevel2 ? 'true' : '') + ')';
 
     var html = '<div class="emoji-result-wrap">';
     html += '<div class="emoji-result-icon">' + icon + '</div>';
@@ -7836,7 +7853,7 @@ function renderEmojiResult() {
     html += '<div class="emoji-result-stat"><div class="val">' + emojiGameState.maxStreak + 'x</div><div class="lbl">أعلى كومبو</div></div>';
     html += '<div class="emoji-result-stat"><div class="val">+' + earnedStars + ' ⭐</div><div class="lbl">نجوم مكتسبة</div></div>';
     html += '</div>';
-    html += '<button class="btn btn-primary" onclick="startEmojiGame()" style="width:100%;margin-bottom:10px"><span>🔄 العب تاني</span></button>';
+    html += '<button class="btn btn-primary" onclick="' + replayFn + '" style="width:100%;margin-bottom:10px"><span>🔄 العب تاني</span></button>';
     html += '<button class="btn btn-secondary" onclick="exitEmojiGame()" style="width:100%"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>';
     html += '</div>';
     body.innerHTML = html;
@@ -7850,49 +7867,15 @@ function renderEmojiResult() {
 function renderFunZone() {
     var el = document.getElementById('fun-zone-content');
     if (!el) return;
-    var todayKey = new Date().toISOString().split('T')[0];
-    var playedToday = GameState.lastEmojiGameDate === todayKey;
 
-    var html = '<div style="text-align:center;margin-bottom:16px">';
-    html += '<div style="font-size:48px;margin-bottom:8px">🎮</div>';
-    html += '<p style="color:var(--text-secondary);font-size:13px">ألعاب ممتعة تختبر معرفتك بالكتاب المقدس!</p>';
-    html += '</div>';
-
-    html += '<div class="fun-zone-games-grid">';
-
-    // Emoji Guess Game
-    html += '<div class="fz-game-card" onclick="startEmojiGame()" style="border-color: var(--gold)">';
-    if (!playedToday) html += '<div class="fz-daily-badge">جديد!</div>';
-    html += '<div class="fz-game-icon">🎭</div>';
-    html += '<div class="fz-game-name">خمّن من الإيموجي</div>';
-    html += '<div class="fz-game-desc">شوف الإيموجي واعرف القصة الكتابية!</div>';
-    html += '<div class="fz-game-reward">⭐ حتى 20 نجمة</div>';
-    html += '</div>';
-
-    // Quick Quiz (random 10 from L2 questions)
-    html += '<div class="fz-game-card" onclick="startQuickQuiz()">';
-    html += '<div class="fz-game-icon">⚡</div>';
-    html += '<div class="fz-game-name">اختبار سريع</div>';
-    html += '<div class="fz-game-desc">10 أسئلة عشوائية — إجابة سريعة!</div>';
-    html += '<div class="fz-game-reward">⭐ حتى 15 نجمة</div>';
-    html += '</div>';
-
-    // True/False Blitz
-    html += '<div class="fz-game-card" onclick="startTFBlitz()">';
-    html += '<div class="fz-game-icon">✅</div>';
-    html += '<div class="fz-game-name">صح ولا غلط بلتز</div>';
-    html += '<div class="fz-game-desc">30 ثانية — جاوب بأسرع ما يمكن!</div>';
-    html += '<div class="fz-game-reward">⭐ حتى 10 نجوم</div>';
-    html += '</div>';
-
-    // Verse Memory
-    html += '<div class="fz-game-card" onclick="startVerseMemory()">';
-    html += '<div class="fz-game-icon">🧠</div>';
-    html += '<div class="fz-game-name">تحدي الذاكرة</div>';
-    html += '<div class="fz-game-desc">اتعرض عليك آية — اختار الكلمة اللي كانت فيها!</div>';
-    html += '<div class="fz-game-reward">⭐ حتى 12 نجمة</div>';
-    html += '</div>';
-
+    var html = '<div style="text-align:center;padding:40px 20px">';
+    html += '<div style="font-size:64px;margin-bottom:16px">🎮</div>';
+    html += '<h2 style="color:var(--gold);margin-bottom:8px">ألعاب المرح انتقلت!</h2>';
+    html += '<p style="color:var(--text-secondary);font-size:14px;line-height:1.7;margin-bottom:24px">';
+    html += 'هتلاقي ألعاب المرح دلوقتي جوّا كل درس في المستوى الثاني — الألعاب بتتواصل مع أسئلة الدرس اللي بتذاكره!';
+    html += '</p>';
+    html += '<button class="btn btn-primary" onclick="showScreen(\'level2-screen\')" style="width:100%;max-width:280px">';
+    html += '<span><i class="fas fa-gamepad"></i> روح للمستوى الثاني</span></button>';
     html += '</div>';
     el.innerHTML = html;
 }
@@ -8062,9 +8045,18 @@ function renderTFBlitzResult() {
     if (!body) return;
     var earnedStars = Math.round(tfBlitzState.score / 8);
     GameState.stars = (GameState.stars || 0) + earnedStars;
-    saveGame();
+
+    var fromLevel2 = emojiGameState && emojiGameState.fromLevel2;
+    if (fromLevel2) {
+        saveMiniGameScore('tfBlitz', Math.min(tfBlitzState.score, 10));
+    } else {
+        saveGame();
+    }
+
     companionReact('celebrate');
     if (tfBlitzState.correct >= 10) launchConfetti(1500);
+
+    var replayFn = fromLevel2 ? 'startTFBlitzFromLesson()' : 'startTFBlitz()';
 
     var html = '<div class="emoji-result-wrap">';
     html += '<div class="emoji-result-icon">' + (tfBlitzState.correct >= 15 ? '🏆' : tfBlitzState.correct >= 8 ? '⭐' : '💪') + '</div>';
@@ -8075,11 +8067,84 @@ function renderTFBlitzResult() {
     html += '<div class="emoji-result-stat"><div class="val">' + tfBlitzState.streak + 'x</div><div class="lbl">كومبو</div></div>';
     html += '<div class="emoji-result-stat"><div class="val">+' + earnedStars + ' ⭐</div><div class="lbl">نجوم</div></div>';
     html += '</div>';
-    html += '<button class="btn btn-primary" onclick="startTFBlitz()" style="width:100%;margin-bottom:10px"><span>🔄 العب تاني</span></button>';
+    html += '<button class="btn btn-primary" onclick="' + replayFn + '" style="width:100%;margin-bottom:10px"><span>🔄 العب تاني</span></button>';
     html += '<button class="btn btn-secondary" onclick="exitEmojiGame()" style="width:100%"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>';
     html += '</div>';
     body.innerHTML = html;
     flyStarsToCounter(Math.min(earnedStars, 8));
+}
+
+// Lesson-connected Quick Quiz — uses current lesson's questions
+function startQuickQuizFromLesson() {
+    var games = getMiniGamesForLesson();
+    var allQs = [];
+    // Gather questions from lesson mini-games data
+    if (games) {
+        if (games.trueFalse) {
+            games.trueFalse.forEach(function(q) {
+                allQs.push({ emojis: '❓', isQuiz: true, q: q.q, answer: q.a ? 'صح' : 'غلط', options: ['صح', 'غلط'] });
+            });
+        }
+        if (games.fillBlank) {
+            games.fillBlank.forEach(function(q) {
+                allQs.push({ emojis: '❓', isQuiz: true, q: q.q.replace('___', '______'), answer: q.answer, options: q.options ? q.options.slice() : [q.answer, '؟', '؟', '؟'] });
+            });
+        }
+        if (games.whoAmI) {
+            games.whoAmI.forEach(function(q) {
+                var clues = Array.isArray(q.clues) ? q.clues.join(' — ') : '';
+                allQs.push({ emojis: '❓', isQuiz: true, q: clues || q.q || 'من أنا؟', answer: q.answer, options: q.options ? q.options.slice() : [q.answer] });
+            });
+        }
+    }
+    // Fallback: pull from all L2 questions if lesson has no data
+    if (allQs.length < 5) {
+        var subKeys = Object.keys(LEVEL2_SUBJECTS || {});
+        subKeys.forEach(function(sk) {
+            var sub = LEVEL2_SUBJECTS[sk];
+            if (!sub || !sub.lessons) return;
+            sub.lessons.forEach(function(lesson) {
+                if (lesson && lesson.questions) {
+                    lesson.questions.forEach(function(q) { allQs.push(q); });
+                }
+            });
+        });
+    }
+    if (allQs.length < 3) { showToast('مفيش أسئلة كافية حالياً', 'warning'); return; }
+    shuffleArray(allQs);
+    var selected = allQs.slice(0, 10);
+    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: selected.length, timer: null, timeLeft: 15, questions: selected, answered: false, fromLevel2: true };
+    showScreen('emoji-game-screen');
+    showCompanion('thinking');
+    companionSpeak('أسئلة من الدرس — يلا! 🚀', 2000);
+    renderQuickQuizRound();
+    // Also save score when done via the result screen
+    emojiGameState._saveType = 'quickQuiz';
+}
+
+// Lesson-connected TF Blitz — uses lesson trueFalse data
+function startTFBlitzFromLesson() {
+    var games = getMiniGamesForLesson();
+    var qs = [];
+    if (games && games.trueFalse && games.trueFalse.length > 0) {
+        qs = games.trueFalse.map(function(q) { return { q: q.q, a: q.a }; });
+    } else {
+        // Fallback to global TF_BLITZ_DATA
+        qs = TF_BLITZ_DATA.slice();
+    }
+    shuffleArray(qs);
+    tfBlitzState = { index: 0, score: 0, streak: 0, correct: 0, timer: null, timeLeft: 30, questions: qs, answered: false };
+    emojiGameState = { fromLevel2: true, _saveType: 'tfBlitz' };
+    showScreen('emoji-game-screen');
+    showCompanion('thinking');
+    companionSpeak('30 ثانية من الدرس — صح ولا غلط! ⚡', 2000);
+    renderTFBlitzRound();
+    tfBlitzState.timer = setInterval(function() {
+        tfBlitzState.timeLeft--;
+        var timerEl = document.getElementById('emoji-timer');
+        if (timerEl) { timerEl.textContent = Math.max(0, tfBlitzState.timeLeft); if (tfBlitzState.timeLeft <= 5) timerEl.classList.add('warning'); }
+        if (tfBlitzState.timeLeft <= 0) { clearInterval(tfBlitzState.timer); renderTFBlitzResult(); }
+    }, 1000);
 }
 
 // Verse Memory Game
@@ -8098,10 +8163,10 @@ var VERSE_MEMORY_DATA = [
     { verse: 'سراج لرجلي كلامك ونور لسبيلي', missing: 'سراج', options: ['سراج', 'نور', 'هداية', 'رجاء'] }
 ];
 
-function startVerseMemory() {
+function startVerseMemory(fromLevel2) {
     var qs = VERSE_MEMORY_DATA.slice();
     shuffleArray(qs);
-    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: Math.min(10, qs.length), timer: null, timeLeft: 12, questions: qs.slice(0, 10).map(function(v) { return { emojis: '', isVerse: true, verse: v.verse, answer: v.missing, options: v.options.slice() }; }), answered: false };
+    emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: Math.min(10, qs.length), timer: null, timeLeft: 12, questions: qs.slice(0, 10).map(function(v) { return { emojis: '', isVerse: true, verse: v.verse, answer: v.missing, options: v.options.slice() }; }), answered: false, fromLevel2: !!fromLevel2, _saveType: fromLevel2 ? 'verseMemory' : null };
     showScreen('emoji-game-screen');
     showCompanion('thinking');
     companionSpeak('كمّل الآية — إيه الكلمة الناقصة؟ 📖', 2500);
@@ -10437,6 +10502,47 @@ function renderMiniGamesSection() {
         html += '</div>';
     }
 
+    // === FUN ZONE GAMES SECTION ===
+    html += '<div class="mini-games-header" style="margin-top:20px">';
+    html += '<h3><i class="fas fa-gamepad"></i> ألعاب المرح</h3>';
+    html += '<p>ألعاب سريعة وممتعة مرتبطة بالدرس!</p>';
+    html += '</div>';
+    html += '<div class="mini-games-grid">';
+
+    html += '<div class="mini-game-card mg-truefalse" onclick="startMiniGame(\'tfBlitz\')">';
+    html += '<div class="mg-card-icon"><i class="fas fa-bolt-lightning"></i></div>';
+    html += '<h4>بلتز صح/غلط</h4>';
+    html += '<p>30 ثانية من الدرس!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+    html += getMiniGameBadge('tfBlitz');
+    html += '</div>';
+
+    html += '<div class="mini-game-card mg-fill" onclick="startMiniGame(\'quickQuiz\')">';
+    html += '<div class="mg-card-icon"><i class="fas fa-bolt"></i></div>';
+    html += '<h4>اختبار سريع</h4>';
+    html += '<p>أسئلة من الدرس!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+    html += getMiniGameBadge('quickQuiz');
+    html += '</div>';
+
+    html += '<div class="mini-game-card mg-sort" onclick="startMiniGame(\'emojiGuess\')">';
+    html += '<div class="mg-card-icon">🎭</div>';
+    html += '<h4>خمّن من الإيموجي</h4>';
+    html += '<p>قصص كتابية بالإيموجي!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 20 نجمة</div>';
+    html += getMiniGameBadge('emojiGuess');
+    html += '</div>';
+
+    html += '<div class="mini-game-card mg-match" onclick="startMiniGame(\'verseMemory\')">';
+    html += '<div class="mg-card-icon">🧠</div>';
+    html += '<h4>تحدي الذاكرة</h4>';
+    html += '<p>الكلمة الناقصة من الآية!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 12 نجمة</div>';
+    html += getMiniGameBadge('verseMemory');
+    html += '</div>';
+
+    html += '</div>';
+
     html += '</div>';
     return html;
 }
@@ -10955,7 +11061,7 @@ function saveMiniGameScore(type, score) {
 
     // Calculate mini-games score (field: 'games', max 60)
     var miniScore = 0;
-    ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge'].forEach(function(gt) {
+    ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge', 'quickQuiz', 'tfBlitz', 'emojiGuess', 'verseMemory'].forEach(function(gt) {
         var s = GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
         if (gt === 'mixedChallenge') {
             miniScore = Math.max(miniScore, Math.min(s, STATION_GAMES_MAX));
@@ -11005,6 +11111,12 @@ function saveMiniGameScore(type, score) {
 // ========== START MINI GAME ==========
 function startMiniGame(type) {
     if (type === 'mixedChallenge') { startMixedChallenge(); return; }
+
+    // Fun zone games embedded in Level 2 — launched with lesson context flag
+    if (type === 'emojiGuess') { initAudio(); startEmojiGame(true); return; }
+    if (type === 'verseMemory') { initAudio(); startVerseMemory(true); return; }
+    if (type === 'quickQuiz') { initAudio(); startQuickQuizFromLesson(); return; }
+    if (type === 'tfBlitz') { initAudio(); startTFBlitzFromLesson(); return; }
 
     // New interactive game types — data is in INTERACTIVE_GAMES, not LESSON_MINI_GAMES
     var interactiveTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];

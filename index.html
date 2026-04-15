@@ -1197,13 +1197,12 @@
     <!-- ============ SHOP SCREEN (Armor of God) ============ -->
     <div id="shop-screen" class="screen">
         <div class="screen-inner">
-            <div class="shop-header">
-                <h2><i class="fas fa-shield-halved"></i> متجر سلاح الله الكامل</h2>
-                <p class="card-subtitle">"البسوا سلاح الله الكامل لكي تقدروا أن تثبتوا ضد مكايد إبليس" (أفسس 6:11)</p>
-                <div class="shop-gems">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-shield-halved"></i> متجر سلاح الله</h2>
+                <div class="shop-gems-topbar">
                     <span>💎</span>
                     <span id="shop-gems">0</span>
-                    <span>جوهرة</span>
                 </div>
             </div>
             <div class="shop-character-preview">
@@ -1211,16 +1210,15 @@
                 <p class="preview-label">شخصيتك الحالية</p>
             </div>
             <div class="shop-items-grid" id="shop-items-grid"></div>
-            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
         </div>
     </div>
 
     <!-- ============ LEADERBOARD ============ -->
     <div id="leaderboard-screen" class="screen">
         <div class="screen-inner">
-            <div class="lb-header-modern">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
                 <h2><i class="fas fa-trophy"></i> لوحة الأبطال</h2>
-                <p class="card-subtitle">شوف مين الأبطال في خدمتنا</p>
             </div>
 
             <!-- Tabs with sliding indicator -->
@@ -1247,20 +1245,17 @@
             <h3 class="lb-section-title-modern"><i class="fas fa-ranking-star"></i> الترتيب</h3>
             <div class="leaderboard-list" id="leaderboard-list"></div>
 
-            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
         </div>
     </div>
 
     <!-- ============ REWARDS SHOP ============ -->
     <div id="rewards-shop-screen" class="screen">
         <div class="screen-inner">
-            <div class="rewards-header">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
                 <h2><i class="fas fa-gift"></i> متجر الهدايا</h2>
-                <p class="card-subtitle">اجمع نجوم وجواهر واستبدلها بهدايا حقيقية!</p>
             </div>
             <div id="rewards-shop-body"></div>
-
-            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
         </div>
     </div>
 
@@ -1278,7 +1273,10 @@
     <!-- ============ SETTINGS / THEME ============ -->
     <div id="settings-screen" class="screen">
         <div class="screen-inner">
-            <h2><i class="fas fa-palette"></i> الإعدادات</h2>
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-palette"></i> الإعدادات</h2>
+            </div>
             <div class="settings-section">
                 <h3><i class="fas fa-paint-brush"></i> اختار الثيم</h3>
                 <div class="theme-grid" id="theme-grid">
@@ -1334,7 +1332,6 @@
                     <p style="margin-top:8px;font-size:12px;color:var(--text-muted)">تصميم وبرمجة لخدمة الكنيسة ❤️</p>
                 </div>
             </div>
-            <button class="btn btn-secondary" onclick="showScreen('home-hub-screen')"><span><i class="fas fa-arrow-right"></i></span></button>
             <button class="btn btn-danger" onclick="logout()" style="margin-top:10px;background:#e74c3c;"><span><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</span></button>
         </div>
     </div>

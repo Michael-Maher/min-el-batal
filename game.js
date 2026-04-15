@@ -12785,7 +12785,7 @@ function renderCompeteHub() {
 
     // Quick actions
     html += '<div class="compete-actions">';
-    html += '<button class="compete-action-btn compete-create" onclick="createCompeteRoom(\'classic\', globalCompeteFilter)">';
+    html += '<button class="compete-action-btn compete-create" onclick="selectCompeteMode(\'classic\')">';
     html += '<i class="fas fa-plus-circle"></i>';
     html += '<span>إنشاء غرفة</span>';
     html += '<small>ابدأ مسابقة جديدة</small>';
@@ -15162,6 +15162,7 @@ function startBlitz() {
     overlay.className = 'blitz-overlay';
     overlay.innerHTML = '<div class="blitz-modal">' +
         '<div class="blitz-header">' +
+        '<button class="blitz-dismiss-btn" onclick="dismissBlitz()" title="خروج"><i class="fas fa-times"></i></button>' +
         '<span class="blitz-title">⚡ تحدي الـ 30 ثانية</span>' +
         '<span class="blitz-timer" id="blitz-timer">30</span>' +
         '</div>' +
@@ -15185,6 +15186,15 @@ function startBlitz() {
             showBlitzResult();
         }
     }, 1000);
+}
+
+function dismissBlitz() {
+    if (blitzState.timer) clearInterval(blitzState.timer);
+    var overlay = document.getElementById('blitz-overlay');
+    if (overlay) {
+        overlay.classList.remove('visible');
+        setTimeout(function() { overlay.remove(); }, 300);
+    }
 }
 
 function renderBlitzQuestion() {

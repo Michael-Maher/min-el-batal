@@ -8230,8 +8230,10 @@ body {
 .blitz-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
 .blitz-overlay.visible { opacity:1; }
 .blitz-modal { background:var(--card-bg,#1a1a2e);border-radius:20px;padding:20px;max-width:360px;width:92%;animation:slideUp 0.3s ease; }
-.blitz-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:8px; }
-.blitz-title { font-size:16px;font-weight:800;color:var(--gold,#FDCB6E); }
+.blitz-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px; }
+.blitz-title { font-size:16px;font-weight:800;color:var(--gold,#FDCB6E);flex:1;text-align:center; }
+.blitz-dismiss-btn { background:none;border:none;color:var(--text-secondary,#aaa);font-size:16px;padding:4px 8px;cursor:pointer;border-radius:8px;flex-shrink:0;transition:color 0.2s; }
+.blitz-dismiss-btn:hover { color:var(--text-primary,#fff); }
 .blitz-timer { font-size:28px;font-weight:900;color:#e17055;min-width:40px;text-align:center; }
 .blitz-progress-bar { height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-bottom:14px;overflow:hidden; }
 #blitz-progress-fill { height:100%;background:linear-gradient(90deg,#6C5CE7,#e17055);border-radius:3px;transition:width 1s linear; }

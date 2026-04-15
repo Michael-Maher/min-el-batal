@@ -12605,7 +12605,8 @@ var competeState = {
     listener: null,
     timerInterval: null,
     timeLeft: 0,
-    streak: 0
+    streak: 0,
+    advancingQ: -1 // tracks which question index we've already scheduled advancement for
 };
 
 // --- Global filter panel (renders HTML, wired after insertion) ---
@@ -13129,6 +13130,8 @@ function listenToRoom(roomCode) {
                     }
                     renderCompeteQuestion(room);
                 }
+                // Host re-checks whenever any player update arrives (fixes hang when host answers before others)
+                if (competeState.isHost) checkAllAnswered();
             } else if (room.status === 'finished') {
                 competeState.status = 'results';
                 showScreen('compete-results-screen');
@@ -13472,6 +13475,10 @@ function checkAllAnswered() {
             });
 
             if (allAnswered) {
+                // Guard against double-advancing the same question
+                if (competeState.advancingQ === qIdx) return;
+                competeState.advancingQ = qIdx;
+
                 // Advance to next question or finish
                 if (qIdx + 1 >= room.questions.length) {
                     // Game over

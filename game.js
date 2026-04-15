@@ -12606,7 +12606,10 @@ var competeState = {
     timerInterval: null,
     timeLeft: 0,
     streak: 0,
-    advancingQ: -1 // tracks which question index we've already scheduled advancement for
+    advancingQ: -1,      // tracks which question index we've already scheduled advancement for
+    powerUsed: false,    // character power used this game
+    doubleSling: false,  // David power: double points on next correct answer
+    shieldActive: false  // Philomena power: protect from next wrong answer
 };
 
 // --- Global filter panel (renders HTML, wired after insertion) ---
@@ -12814,22 +12817,22 @@ function renderCompeteHub() {
     html += '<div class="compete-mode-card compete-mode-sparkle" onclick="selectCompeteMode(\'sparkle\')">';
     html += '<div class="compete-mode-icon"><i class="fas fa-star-of-life"></i></div>';
     html += '<h5>سباركل Sparkle</h5>';
-    html += '<p>سؤال وجواب سريع - اللي يغلط يطلع!</p>';
-    html += '<div class="compete-mode-badge">20 سؤال · 10 ثواني</div>';
+    html += '<p>اللي يغلط يطلع! أسئلة مختلطة وضغط عالي</p>';
+    html += '<div class="compete-mode-badge">20–60 سؤال · 10 ثواني · يصل 120 ⭐</div>';
     html += '</div>';
 
     html += '<div class="compete-mode-card compete-mode-speed" onclick="selectCompeteMode(\'speed\')">';
     html += '<div class="compete-mode-icon"><i class="fas fa-bolt"></i></div>';
     html += '<h5>سباق السرعة</h5>';
-    html += '<p>أسرع واحد يجاوب صح ياخد أكتر نقط</p>';
-    html += '<div class="compete-mode-badge">15 سؤال · 8 ثواني</div>';
+    html += '<p>أسرع واحد يجاوب صح ياخد أكتر نقط!</p>';
+    html += '<div class="compete-mode-badge">15–45 سؤال · 8 ثواني · يصل 90 ⭐</div>';
     html += '</div>';
 
     html += '<div class="compete-mode-card compete-mode-classic" onclick="selectCompeteMode(\'classic\')">';
     html += '<div class="compete-mode-icon"><i class="fas fa-trophy"></i></div>';
     html += '<h5>كلاسيك</h5>';
-    html += '<p>10 أسئلة - أكتر واحد يجاوب صح يكسب</p>';
-    html += '<div class="compete-mode-badge">10 أسئلة · 15 ثانية</div>';
+    html += '<p>أسئلة متنوعة — أكتر واحد صح يكسب!</p>';
+    html += '<div class="compete-mode-badge">10–30 سؤال · 15 ثانية · يصل 60 ⭐</div>';
     html += '</div>';
 
     html += '<div class="compete-mode-card compete-mode-team" onclick="selectCompeteMode(\'team\')">';
@@ -12904,13 +12907,34 @@ function selectCompeteMode(mode) {
         team: 'فريق ضد فريق 👥'
     };
     var modeDescs = {
-        sparkle: 'اللي يغلط يطلع! 20 سؤال، 10 ثواني لكل سؤال',
-        speed: 'أسرع واحد ياخد أكتر نقط! 15 سؤال، 8 ثواني بس',
-        classic: '10 أسئلة، 15 ثانية لكل سؤال. أكتر واحد صح يكسب',
-        team: 'اتقسموا فريقين وتنافسوا! 10 أسئلة'
+        sparkle: 'اللي يغلط يطلع! الوقت قليل والضغط عالي',
+        speed: 'أسرع واحد يجاوب صح ياخد أكتر نقط!',
+        classic: 'فكر وجاوب — أكتر واحد صح يكسب!',
+        team: 'اتقسموا فريقين وتنافسوا!'
     };
+    // base question counts per mode
+    var baseCounts = { sparkle: 20, speed: 15, classic: 10, team: 10 };
+    var base = baseCounts[mode] || 10;
 
     var filterSummary = buildCompeteFilterSummary();
+
+    // question-count options: standard=×1, double=×2 (default), triple=×3
+    var countOptions = [
+        { mult: 1, label: 'عادي',   count: base,      prize: '20 ⭐', loss: 'مكافآت عادية',         icon: '📋' },
+        { mult: 2, label: 'مضاعف',  count: base * 2,  prize: '40 ⭐', loss: 'مكافآت مضاعفة! 🔥',   icon: '⚡', default: true },
+        { mult: 3, label: 'ملحمي',  count: base * 3,  prize: '60 ⭐', loss: 'مكافآت ×3 + لقب! 👑',  icon: '💥' }
+    ];
+
+    var countHtml = '';
+    countOptions.forEach(function(opt) {
+        countHtml +=
+            '<div class="qcount-option' + (opt.default ? ' qcount-selected' : '') + '" data-mult="' + opt.mult + '" onclick="selectQCount(this,' + opt.mult + ')">' +
+                '<div class="qcount-icon">' + opt.icon + '</div>' +
+                '<div class="qcount-label">' + opt.label + '</div>' +
+                '<div class="qcount-num">' + opt.count + ' سؤال</div>' +
+                '<div class="qcount-prize">' + opt.prize + '</div>' +
+            '</div>';
+    });
 
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
@@ -12919,7 +12943,9 @@ function selectCompeteMode(mode) {
             '<div class="compete-confirm-icon"><i class="fas fa-gamepad"></i></div>' +
             '<h3>' + (modeNames[mode] || mode) + '</h3>' +
             '<p class="compete-confirm-desc">' + (modeDescs[mode] || '') + '</p>' +
-            '<div class="compete-filter-summary" style="margin:12px 0 4px">' + filterSummary + '</div>' +
+            '<div class="compete-filter-summary" style="margin:8px 0 4px">' + filterSummary + '</div>' +
+            '<p class="qcount-title"><i class="fas fa-list-ol"></i> عدد الأسئلة والجوائز</p>' +
+            '<div class="qcount-selector">' + countHtml + '</div>' +
             '<div class="compete-confirm-actions">' +
                 '<button class="btn btn-primary" id="confirm-create-room"><span><i class="fas fa-plus-circle"></i> إنشاء الغرفة</span></button>' +
                 '<button class="btn btn-secondary" id="cancel-mode-select"><span><i class="fas fa-arrow-right"></i></span></button>' +
@@ -12928,10 +12954,12 @@ function selectCompeteMode(mode) {
     document.body.appendChild(overlay);
     setTimeout(function() { overlay.classList.add('active'); }, 10);
 
+    overlay._selectedMult = 2; // default double
+
     overlay.querySelector('#confirm-create-room').onclick = function() {
         overlay.classList.remove('active');
         setTimeout(function() { overlay.remove(); }, 300);
-        createCompeteRoom(mode, globalCompeteFilter);
+        createCompeteRoom(mode, globalCompeteFilter, overlay._selectedMult);
     };
     overlay.querySelector('#cancel-mode-select').onclick = function() {
         overlay.classList.remove('active');
@@ -12939,8 +12967,18 @@ function selectCompeteMode(mode) {
     };
 }
 
+function selectQCount(el, mult) {
+    var parent = el.closest('.qcount-selector');
+    if (!parent) return;
+    parent.querySelectorAll('.qcount-option').forEach(function(o) { o.classList.remove('qcount-selected'); });
+    el.classList.add('qcount-selected');
+    // store on overlay
+    var overlay = el.closest('.modal-overlay');
+    if (overlay) overlay._selectedMult = mult;
+}
+
 // --- Create Room ---
-function createCompeteRoom(mode, filter) {
+function createCompeteRoom(mode, filter, questionMultiplier) {
     if (!firebaseDb) {
         showToast('مفيش اتصال بالسيرفر - تأكد إن الإنترنت شغال وجرب تاني', 'error');
         return;
@@ -12948,13 +12986,15 @@ function createCompeteRoom(mode, filter) {
 
     mode = mode || 'classic';
     filter = filter || { subjects: [], lessons: {} };
+    questionMultiplier = questionMultiplier || 2; // default: double
     var roomCode = generateRoomCode();
 
-    // Build question pool based on multi-select filter
+    // Build MCQ question pool based on multi-select filter
     var allQs = [];
     var subjectKeys = (filter.subjects && filter.subjects.length > 0)
         ? filter.subjects
         : ['faith', 'bible', 'life', 'ritual'];
+    var isRandom = !filter.subjects || filter.subjects.length === 0;
     subjectKeys.forEach(function(subKey) {
         var subject = LEVEL2_SUBJECTS[subKey];
         if (!subject || !subject.lessons) return;
@@ -12969,19 +13009,57 @@ function createCompeteRoom(mode, filter) {
         });
     });
 
-    // Shuffle
+    // Shuffle MCQ pool
     for (var i = allQs.length - 1; i > 0; i--) {
         var j = Math.floor(Math.random() * (i + 1));
         var temp = allQs[i]; allQs[i] = allQs[j]; allQs[j] = temp;
     }
 
-    var numQs = mode === 'sparkle' ? 20 : (mode === 'speed' ? 15 : 10);
-    var selectedQs = allQs.slice(0, Math.min(numQs, allQs.length)).map(function(q) {
-        var pq = prepareQuestion(q);
-        pq.subject = q.subject;
-        return pq;
-    });
+    var baseNumQs = mode === 'sparkle' ? 20 : (mode === 'speed' ? 15 : 10);
+    var numQs = baseNumQs * questionMultiplier;
     var timePerQ = mode === 'speed' ? 8 : (mode === 'sparkle' ? 10 : 15);
+
+    // For random rooms, mix in ~35% TrueFalse questions for variety
+    var selectedQs = [];
+    if (isRandom && typeof TRUE_FALSE_DATA !== 'undefined' && TRUE_FALSE_DATA.length > 0) {
+        var tfCount = Math.floor(numQs * 0.35);
+        var mcqCount = numQs - tfCount;
+
+        // MCQ slice
+        var mcqSlice = allQs.slice(0, Math.min(mcqCount, allQs.length)).map(function(q) {
+            var pq = prepareQuestion(q);
+            pq.subject = q.subject;
+            return pq;
+        });
+
+        // TrueFalse slice — convert to compete-compatible format
+        var tfPool = TRUE_FALSE_DATA.slice();
+        for (var ti = tfPool.length - 1; ti > 0; ti--) {
+            var tj = Math.floor(Math.random() * (ti + 1));
+            var tt = tfPool[ti]; tfPool[ti] = tfPool[tj]; tfPool[tj] = tt;
+        }
+        var tfSlice = tfPool.slice(0, Math.min(tfCount, tfPool.length)).map(function(q) {
+            return {
+                q: q.statement,
+                type: 'truefalse',
+                options: ['صح ✓', 'غلط ✗'],
+                correct: q.answer ? 0 : 1  // index 0 = صح, index 1 = غلط
+            };
+        });
+
+        // Interleave MCQ and TF for a mixed flow
+        selectedQs = mcqSlice.concat(tfSlice);
+        for (var si = selectedQs.length - 1; si > 0; si--) {
+            var sj = Math.floor(Math.random() * (si + 1));
+            var st = selectedQs[si]; selectedQs[si] = selectedQs[sj]; selectedQs[sj] = st;
+        }
+    } else {
+        selectedQs = allQs.slice(0, Math.min(numQs, allQs.length)).map(function(q) {
+            var pq = prepareQuestion(q);
+            pq.subject = q.subject;
+            return pq;
+        });
+    }
 
     // Build human-readable filter label for lobby display
     var subjectDisplayNames = { faith: 'عقيدة ولاهوت ✝️', bible: 'كتاب مقدس 📖', life: 'مهارات الحياة والقياده 🌟', ritual: 'طقس ⛪' };
@@ -13015,6 +13093,7 @@ function createCompeteRoom(mode, filter) {
         questions: selectedQs,
         currentQuestion: -1,
         timePerQuestion: timePerQ,
+        questionMultiplier: questionMultiplier,
         filter: filter,
         filterLabel: filterLabel,
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -13036,6 +13115,9 @@ function createCompeteRoom(mode, filter) {
             competeState.roomId = roomCode;
             competeState.isHost = true;
             competeState.status = 'lobby';
+            competeState.powerUsed = false;
+            competeState.doubleSling = false;
+            competeState.shieldActive = false;
             showScreen('compete-lobby-screen');
             listenToRoom(roomCode);
             showToast('تم إنشاء الغرفة! كود: ' + roomCode, 'success');
@@ -13094,6 +13176,9 @@ function joinCompeteRoom() {
                     competeState.roomId = code;
                     competeState.isHost = false;
                     competeState.status = 'lobby';
+                    competeState.powerUsed = false;
+                    competeState.doubleSling = false;
+                    competeState.shieldActive = false;
                     showScreen('compete-lobby-screen');
                     listenToRoom(code);
                     showToast('انضممت للغرفة!', 'success');
@@ -13282,6 +13367,7 @@ function renderCompeteQuestion(room) {
     var q = room.questions[qIdx];
     var totalQs = room.questions.length;
     var timePerQ = room.timePerQuestion || 15;
+    var isTrueFalse = q.type === 'truefalse';
 
     // Check if already answered this question
     var myData = room.players[GameState.playerPhone];
@@ -13292,19 +13378,24 @@ function renderCompeteQuestion(room) {
 
     var html = '';
 
-    // Streak indicator
+    // Top bar: streak + question progress
+    html += '<div class="compete-top-bar">';
     if (competeState.streak >= 2) {
-        html += '<div class="compete-streak"><span class="streak-fire">🔥</span> ' + competeState.streak + ' إجابات متتالية!</div>';
+        html += '<div class="compete-streak"><span class="streak-fire">🔥</span> ' + competeState.streak + ' متتالي!</div>';
+    } else {
+        html += '<div></div>';
     }
+    html += '<div class="compete-q-counter">س ' + (qIdx + 1) + ' / ' + totalQs + '</div>';
+    html += '</div>';
 
     // Timer bar
-    html += '<div class="compete-timer-bar"><div class="compete-timer-fill" id="compete-timer-fill" style="width:100%;background:linear-gradient(90deg,var(--primary),var(--secondary))"></div></div>';
+    html += '<div class="compete-timer-bar"><div class="compete-timer-fill" id="compete-timer-fill" style="width:100%"></div></div>';
 
     // Live player scores strip
     var playerKeys = Object.keys(room.players);
     html += '<div class="compete-live-scores">';
     playerKeys.sort(function(a, b) { return (room.players[b].score || 0) - (room.players[a].score || 0); });
-    playerKeys.forEach(function(phone, idx) {
+    playerKeys.forEach(function(phone) {
         var p = room.players[phone];
         var isMe = phone === GameState.playerPhone;
         var ch = CHARACTERS[p.character] || CHARACTERS.david;
@@ -13318,30 +13409,69 @@ function renderCompeteQuestion(room) {
     html += '</div>';
 
     if (isEliminated) {
-        html += '<div class="compete-eliminated" style="text-align:center;padding:40px 20px;">';
-        html += '<div style="font-size:60px;margin-bottom:12px;animation:flameDance 0.5s ease-in-out infinite alternate">💀</div>';
-        html += '<h3 style="color:var(--text-primary);font-size:20px;margin:0 0 6px">تم إقصاءك!</h3>';
-        html += '<p style="color:var(--text-secondary);font-size:14px">تابع المسابقة كمشاهد</p></div>';
+        html += '<div class="compete-eliminated">';
+        html += '<div class="eliminated-icon">💀</div>';
+        html += '<h3>تم إقصاءك!</h3>';
+        html += '<p>تابع المسابقة كمشاهد</p></div>';
     } else if (alreadyAnswered) {
-        html += '<div style="text-align:center;padding:40px 20px;">';
-        html += '<div class="lobby-waiting-spinner" style="margin-bottom:16px"></div>';
-        html += '<p style="color:var(--text-secondary);font-size:14px">مستنين باقي اللاعبين...</p></div>';
+        html += '<div class="compete-waiting-state">';
+        html += '<div class="lobby-waiting-spinner"></div>';
+        html += '<p>مستنين باقي اللاعبين...</p>';
+        // Show live ranking while waiting
+        html += '<div class="compete-waiting-ranks">';
+        playerKeys.forEach(function(phone, idx) {
+            var p = room.players[phone];
+            var isMe = phone === GameState.playerPhone;
+            var rankEmoji = idx === 0 ? '🥇' : (idx === 1 ? '🥈' : (idx === 2 ? '🥉' : (idx + 1) + '.'));
+            html += '<div class="compete-wait-rank-row ' + (isMe ? 'me' : '') + '">';
+            html += '<span>' + rankEmoji + '</span>';
+            html += '<span>' + (p.name || 'لاعب').substring(0, 10) + '</span>';
+            html += '<span>' + (p.score || 0) + ' ⭐</span>';
+            html += '</div>';
+        });
+        html += '</div>';
+        html += '</div>';
     } else {
-        // Question card with number
-        html += '<div class="compete-question-card">';
-        html += '<p class="compete-question-num">سؤال ' + (qIdx + 1) + ' من ' + totalQs + '</p>';
+        // Question type badge
+        if (isTrueFalse) {
+            html += '<div class="compete-type-badge compete-type-tf">⚡ صح أو غلط</div>';
+        }
+
+        // Question card
+        html += '<div class="compete-question-card' + (isTrueFalse ? ' compete-question-tf' : '') + '">';
         html += '<p class="compete-question-text">' + q.q + '</p>';
         html += '</div>';
 
-        // Kahoot-style colored options
-        html += '<div class="compete-options-grid">';
-        var optShapes = ['▲', '◆', '●', '★'];
-        q.options.forEach(function(opt, idx) {
-            html += '<button class="compete-option" onclick="answerCompete(' + idx + ')">';
-            html += '<span class="option-shape">' + optShapes[idx] + '</span> ' + opt;
+        if (isTrueFalse) {
+            // Large True/False buttons
+            html += '<div class="compete-tf-buttons">';
+            html += '<button class="compete-tf-btn compete-tf-true" onclick="answerCompete(0)"><i class="fas fa-check"></i><span>صح</span></button>';
+            html += '<button class="compete-tf-btn compete-tf-false" onclick="answerCompete(1)"><i class="fas fa-times"></i><span>غلط</span></button>';
+            html += '</div>';
+        } else {
+            // Kahoot-style colored options
+            html += '<div class="compete-options-grid">';
+            var optShapes = ['▲', '◆', '●', '★'];
+            q.options.forEach(function(opt, idx) {
+                html += '<button class="compete-option" onclick="answerCompete(' + idx + ')">';
+                html += '<span class="option-shape">' + optShapes[idx] + '</span> ' + opt;
+                html += '</button>';
+            });
+            html += '</div>';
+        }
+
+        // Character power button (once per game)
+        var chKey = GameState.character;
+        var chData = CHARACTERS[chKey];
+        if (chData && chData.power && !competeState.powerUsed) {
+            html += '<button class="compete-power-btn" id="compete-power-btn" onclick="useCompetePower()">';
+            html += '<span class="power-icon">' + chData.power.icon + '</span>';
+            html += '<span class="power-name">' + chData.power.name + '</span>';
+            html += '<span class="power-hint">قوتك الخاصة (مرة واحدة)</span>';
             html += '</button>';
-        });
-        html += '</div>';
+        } else if (competeState.powerUsed) {
+            html += '<div class="compete-power-used">✓ تم استخدام قوتك</div>';
+        }
     }
 
     body.innerHTML = html;
@@ -13393,19 +13523,33 @@ function answerCompete(selectedIdx) {
     var timeBonus = Math.max(0, competeState.timeLeft) * 2;
     var points = 0;
 
+    // Shield power: protect from wrong answer in Sparkle (don't eliminate, keep streak)
+    var shieldBlocked = false;
+    if (!isCorrect && competeState.shieldActive) {
+        competeState.shieldActive = false;
+        shieldBlocked = true;
+        showAchievement('🛡️', 'درع الإيمان!', 'حماك الدرع من الإقصاء!');
+    }
+
     if (isCorrect) {
         competeState.streak++;
-        points = 100 + timeBonus + (competeState.streak > 1 ? competeState.streak * 20 : 0);
+        var streakBonus = competeState.streak > 1 ? competeState.streak * 20 : 0;
+        points = 100 + timeBonus + streakBonus;
+        // Sling power: double points on this correct answer
+        if (competeState.doubleSling) {
+            points *= 2;
+            competeState.doubleSling = false;
+            showAchievement('🪨', 'مضاعفة!', 'نقاطك اتضاعفت! +' + points);
+        }
         playCorrectSound();
         vibrate(50);
         companionReact(competeState.streak >= 3 ? 'streak' : 'happy');
         updateFireBorder(competeState.streak);
     } else {
-        competeState.streak = 0;
-        companionReact('sad');
-        updateFireBorder(0);
-        if (room.questions && room.questions[0] && competeState.players) {
-            // Sparkle mode: mark as eliminated
+        if (!shieldBlocked) {
+            competeState.streak = 0;
+            companionReact('sad');
+            updateFireBorder(0);
         }
         playWrongSound();
         vibrate([50, 30, 50]);
@@ -13420,9 +13564,8 @@ function answerCompete(selectedIdx) {
     update['players.' + GameState.playerPhone + '.answers'] = competeState.myAnswers;
     update['players.' + GameState.playerPhone + '.streak'] = competeState.streak;
 
-    // Sparkle mode: eliminate on wrong answer
-    if (competeState.questions[0] && !isCorrect) {
-        // Check mode from room data
+    // Sparkle mode: eliminate on wrong answer (unless shield blocked it)
+    if (!isCorrect && !shieldBlocked) {
         firebaseDb.collection('compete_rooms').doc(competeState.roomId).get().then(function(doc) {
             if (doc.exists && doc.data().mode === 'sparkle') {
                 var elimUpdate = {};
@@ -13450,8 +13593,94 @@ function answerCompete(selectedIdx) {
     setTimeout(function() { feedbackEl.remove(); }, 1000);
 
     // Disable options after answering
-    var optBtns = document.querySelectorAll('.compete-option');
+    var optBtns = document.querySelectorAll('.compete-option, .compete-tf-btn');
     optBtns.forEach(function(btn) { btn.classList.add('disabled'); });
+
+    // Hide power button after answering (question is done)
+    var pwrBtn = document.getElementById('compete-power-btn');
+    if (pwrBtn) pwrBtn.style.display = 'none';
+}
+
+// --- Character Power in Compete ---
+function useCompetePower() {
+    if (competeState.powerUsed) { showToast('لقد استخدمت قوتك في هذه الجولة!', 'warning'); return; }
+    var chData = CHARACTERS[GameState.character];
+    if (!chData || !chData.power) { showToast('شخصيتك مفيهاش قوة خاصة!', 'warning'); return; }
+
+    var power = chData.power;
+    competeState.powerUsed = true;
+
+    // Disable the button immediately
+    var pwrBtn = document.getElementById('compete-power-btn');
+    if (pwrBtn) { pwrBtn.classList.add('disabled'); pwrBtn.style.opacity = '0.5'; }
+
+    if (power.id === 'sling') {
+        // David: double points on next correct answer
+        competeState.doubleSling = true;
+        showAchievement('🪨', 'ضربة المقلاع!', 'النقاط مضاعفة لو أجبت صح!');
+
+    } else if (power.id === 'shield') {
+        // Philomena: protect from one wrong / Sparkle elimination
+        competeState.shieldActive = true;
+        showAchievement('🛡️', 'درع الإيمان!', 'محمي من أول إجابة غلط!');
+
+    } else if (power.id === 'sword') {
+        // Paul: remove 2 wrong options from current question
+        var q = competeState.questions[competeState.currentQ];
+        if (q && !q.type) { // MCQ only
+            var correct = q.correct;
+            var opts = document.querySelectorAll('.compete-option');
+            var removed = 0;
+            opts.forEach(function(btn, idx) {
+                if (removed >= 2 || idx === correct) return;
+                btn.style.opacity = '0.15';
+                btn.style.pointerEvents = 'none';
+                btn.style.textDecoration = 'line-through';
+                removed++;
+            });
+        }
+        showAchievement('⚔️', 'سيف الروح!', 'شيلنا ليك إجابتين غلط!');
+
+    } else if (power.id === 'spear') {
+        // George: instant +100 points
+        competeState.myScore += 100;
+        var spearUpdate = {};
+        spearUpdate['players.' + GameState.playerPhone + '.score'] = competeState.myScore;
+        if (firebaseDb && competeState.roomId) {
+            firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(spearUpdate);
+        }
+        showAchievement('🗡️', 'رمح النصر!', '+100 نقطة إضافية فوراً!');
+
+    } else if (power.id === 'reveal') {
+        // Athanasius: highlight correct answer
+        var qR = competeState.questions[competeState.currentQ];
+        if (qR) {
+            var allOpts = document.querySelectorAll('.compete-option, .compete-tf-btn');
+            allOpts.forEach(function(btn, idx) {
+                if (idx === qR.correct) {
+                    btn.style.outline = '4px solid #00B894';
+                    btn.style.boxShadow = '0 0 24px rgba(0,184,148,0.7)';
+                    btn.style.transform = 'scale(1.04)';
+                }
+            });
+        }
+        showAchievement('📖', 'نور الحق!', 'الإجابة الصحيحة اتكشفت!');
+
+    } else if (power.id === 'grace') {
+        // Esther: +15 seconds
+        competeState.timeLeft += 15;
+        showAchievement('👑', 'نعمة الملكة!', '+15 ثانية إضافية!');
+
+    } else if (power.id === 'blessing') {
+        // Verina: instant +80 points bonus
+        competeState.myScore += 80;
+        var blessUpdate = {};
+        blessUpdate['players.' + GameState.playerPhone + '.score'] = competeState.myScore;
+        if (firebaseDb && competeState.roomId) {
+            firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(blessUpdate);
+        }
+        showAchievement('💧', 'نبع البركة!', '+80 نقطة هدية!');
+    }
 }
 
 function checkAllAnswered() {
@@ -13522,8 +13751,9 @@ function awardCompeteStars(room) {
         return (players[b].score || 0) - (players[a].score || 0);
     });
     var myRank = sorted.indexOf(GameState.playerPhone);
-    var starRewards = [20, 12, 8, 5, 3];
-    var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2;
+    var mult = room.questionMultiplier || 1;
+    var starRewards = [20 * mult, 12 * mult, 8 * mult, 5 * mult, 3 * mult];
+    var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2 * mult;
     GameState.stars += reward;
     saveToCloud();
     saveToLocalStorage();
@@ -13607,12 +13837,14 @@ function renderCompeteResults(room) {
     });
     html += '</div>';
 
-    // Stars earned
+    // Stars earned — scaled by question multiplier
     var myRank = sorted.indexOf(GameState.playerPhone);
-    var starRewards = [20, 12, 8, 5, 3];
-    var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2;
+    var mult = room.questionMultiplier || 1;
+    var multLabel = mult >= 3 ? ' 👑 ملحمي' : (mult >= 2 ? ' 🔥 مضاعف' : '');
+    var starRewards = [20 * mult, 12 * mult, 8 * mult, 5 * mult, 3 * mult];
+    var reward = myRank >= 0 && myRank < starRewards.length ? starRewards[myRank] : 2 * mult;
     html += '<div class="compete-reward-card">';
-    html += '<p>🎁 حصلت على <strong>' + reward + ' ⭐</strong> نجوم!</p>';
+    html += '<p>🎁 حصلت على <strong>' + reward + ' ⭐</strong> نجوم!' + (mult > 1 ? '<span class="reward-mult-badge">' + multLabel + '</span>' : '') + '</p>';
     html += '</div>';
 
     // Actions

@@ -8250,6 +8250,210 @@ body {
 .blitz-result-btns { display:flex;gap:8px;margin-top:14px; }
 .blitz-result-btns .btn { flex:1; }
 
+/* ===================== COMPETE ENHANCEMENTS ===================== */
+
+/* Top bar: streak + question counter */
+.compete-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0 8px;
+    min-height: 28px;
+}
+.compete-q-counter {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary, #aaa);
+    background: rgba(255,255,255,0.06);
+    border-radius: 20px;
+    padding: 3px 10px;
+}
+
+/* Question type badge */
+.compete-type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-bottom: 8px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+}
+.compete-type-tf {
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    color: #fff;
+}
+
+/* True/False buttons */
+.compete-tf-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+}
+.compete-tf-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px 16px;
+    border-radius: 20px;
+    border: none;
+    font-size: 20px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    font-family: inherit;
+}
+.compete-tf-btn i { font-size: 28px; }
+.compete-tf-btn span { font-size: 18px; }
+.compete-tf-true {
+    background: linear-gradient(135deg, #00B894, #00cec9);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0,184,148,0.35);
+}
+.compete-tf-false {
+    background: linear-gradient(135deg, #e17055, #d63031);
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(225,112,85,0.35);
+}
+.compete-tf-btn:active { transform: scale(0.94); }
+.compete-tf-btn.disabled { opacity: 0.55; pointer-events: none; }
+.compete-question-tf { border-color: rgba(108,92,231,0.3); }
+
+/* Waiting state with live ranking */
+.compete-waiting-state {
+    text-align: center;
+    padding: 20px 0 10px;
+}
+.compete-waiting-state p {
+    color: var(--text-secondary, #aaa);
+    font-size: 13px;
+    margin: 12px 0 16px;
+}
+.compete-waiting-ranks {
+    background: rgba(255,255,255,0.04);
+    border-radius: 14px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    text-align: right;
+}
+.compete-wait-rank-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+    padding: 4px 0;
+    gap: 8px;
+    color: var(--text-secondary, #aaa);
+}
+.compete-wait-rank-row.me {
+    color: var(--primary, #6c5ce7);
+    font-weight: 700;
+}
+
+/* Eliminated state */
+.compete-eliminated {
+    text-align: center;
+    padding: 36px 20px;
+}
+.compete-eliminated .eliminated-icon {
+    font-size: 58px;
+    margin-bottom: 12px;
+    animation: flameDance 0.5s ease-in-out infinite alternate;
+}
+.compete-eliminated h3 { color: #e74c3c; margin: 0 0 8px; font-size: 20px; }
+.compete-eliminated p  { color: var(--text-secondary, #aaa); font-size: 13px; margin: 0; }
+
+/* Character power button */
+.compete-power-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 14px;
+    padding: 12px 18px;
+    border-radius: 16px;
+    border: 2px solid rgba(253, 203, 110, 0.5);
+    background: linear-gradient(135deg, rgba(253,203,110,0.12), rgba(253,121,36,0.08));
+    cursor: pointer;
+    font-family: inherit;
+    text-align: right;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.compete-power-btn:hover {
+    transform: translateY(-2px);
+    border-color: rgba(253,203,110,0.8);
+    box-shadow: 0 4px 16px rgba(253,203,110,0.25);
+}
+.compete-power-btn:active { transform: scale(0.97); }
+.compete-power-btn.disabled { opacity: 0.45; pointer-events: none; }
+.power-icon { font-size: 22px; flex-shrink: 0; }
+.power-name { font-size: 14px; font-weight: 700; color: #fdcb6e; flex: 1; }
+.power-hint { font-size: 11px; color: var(--text-secondary, #aaa); flex-shrink: 0; }
+.compete-power-used {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-secondary, #aaa);
+    margin-top: 10px;
+    opacity: 0.7;
+}
+
+/* Question count selector in mode confirm modal */
+.qcount-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary, #aaa);
+    margin: 14px 0 8px;
+}
+.qcount-selector {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
+}
+.qcount-option {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 10px 6px;
+    border-radius: 14px;
+    border: 2px solid var(--border, rgba(255,255,255,0.1));
+    background: rgba(255,255,255,0.04);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, transform 0.15s;
+    text-align: center;
+}
+.qcount-option:active { transform: scale(0.95); }
+.qcount-option.qcount-selected {
+    border-color: var(--primary, #6c5ce7);
+    background: rgba(108,92,231,0.15);
+}
+.qcount-icon { font-size: 20px; }
+.qcount-label { font-size: 13px; font-weight: 800; color: var(--text-primary, #fff); }
+.qcount-num   { font-size: 11px; color: var(--text-secondary, #aaa); }
+.qcount-prize { font-size: 11px; font-weight: 700; color: #fdcb6e; margin-top: 2px; }
+
+/* Reward multiplier badge in results */
+.reward-mult-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+    color: #fff;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
 /* ===================== DUEL ===================== */
 .duel-overlay { position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s; }
 .duel-overlay.visible { opacity:1; }

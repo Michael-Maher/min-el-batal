@@ -94,6 +94,7 @@
                 </div>
 
                 <p class="login-switch-text">مش مسجّل قبل كده؟ <a href="#" onclick="showRegisterView(); return false;" class="login-switch-link">سجّل حساب جديد</a></p>
+                <button class="login-reload-btn" onclick="reloadApp()"><i class="fas fa-rotate-right"></i> تحديث التطبيق</button>
             </div>
 
             <!-- REGISTER VIEW -->
@@ -179,6 +180,7 @@
                     <div class="hub-stats">
                         <div class="stat"><span class="stat-icon">⭐</span><span id="hub-stars">0</span></div>
                         <div class="stat"><span class="stat-icon">💎</span><span id="hub-gems">0</span></div>
+                        <button class="hub-reload-btn" onclick="reloadApp()" title="تحديث"><i class="fas fa-rotate-right"></i></button>
                     </div>
                 </div>
             </div>
@@ -338,6 +340,11 @@
     <!-- ============ COMPETE GAME (live quiz) ============ -->
     <div id="compete-game-screen" class="screen">
         <div class="screen-inner compete-game-inner">
+            <div class="compete-game-exit-bar">
+                <button class="compete-exit-btn" onclick="leaveOrCloseCompeteGame()" id="compete-exit-btn">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
             <div id="compete-game-body"></div>
         </div>
     </div>

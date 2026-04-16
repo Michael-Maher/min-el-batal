@@ -11727,61 +11727,9 @@ function selectMatchRight(rightIdx) {
     setTimeout(renderMatchPairs, 500);
 }
 
-// ========== PULL TO REFRESH ==========
-var pullToRefreshState = { startY: 0, pulling: false };
-
-function initPullToRefresh() {
-    var indicator = document.createElement('div');
-    indicator.id = 'ptr-indicator';
-    indicator.style.cssText = 'position:fixed;top:0;left:0;right:0;height:0;background:linear-gradient(135deg,var(--primary),#a29bfe);z-index:9999;transition:height 0.2s;display:flex;align-items:center;justify-content:center;overflow:hidden;font-family:Cairo,sans-serif;color:#fff;font-weight:700;font-size:14px';
-    indicator.innerHTML = '<i class="fas fa-sync-alt" id="ptr-icon" style="margin-left:8px"></i> اسحب للتحديث';
-    document.body.appendChild(indicator);
-
-    document.addEventListener('touchstart', function(e) {
-        if (window.scrollY === 0) {
-            pullToRefreshState.startY = e.touches[0].clientY;
-            pullToRefreshState.pulling = true;
-        }
-    }, { passive: true });
-
-    document.addEventListener('touchmove', function(e) {
-        if (!pullToRefreshState.pulling) return;
-        var diff = e.touches[0].clientY - pullToRefreshState.startY;
-        if (diff > 0 && diff < 150) {
-            var ind = document.getElementById('ptr-indicator');
-            if (ind) {
-                ind.style.height = Math.min(diff * 0.5, 50) + 'px';
-                if (diff > 80) {
-                    ind.innerHTML = '<i class="fas fa-sync-alt fa-spin" style="margin-left:8px"></i> حرر للتحديث';
-                }
-            }
-        }
-    }, { passive: true });
-
-    document.addEventListener('touchend', function() {
-        if (!pullToRefreshState.pulling) return;
-        var ind = document.getElementById('ptr-indicator');
-        var h = ind ? parseInt(ind.style.height) : 0;
-
-        if (h >= 40) {
-            // Trigger refresh
-            if (ind) {
-                ind.innerHTML = '<i class="fas fa-sync-alt fa-spin" style="margin-left:8px"></i> جاري التحديث...';
-                ind.style.height = '40px';
-            }
-            setTimeout(function() {
-                window.location.reload();
-            }, 600);
-        } else {
-            if (ind) ind.style.height = '0';
-        }
-        pullToRefreshState.pulling = false;
-    });
-}
-
-// Init pull to refresh on load
-if ('ontouchstart' in window) {
-    document.addEventListener('DOMContentLoaded', initPullToRefresh);
+// ========== APP RELOAD ==========
+function reloadApp() {
+    window.location.reload();
 }
 
 // --- Lesson Summary Tab ---
@@ -12606,10 +12554,12 @@ var competeState = {
     timerInterval: null,
     timeLeft: 0,
     streak: 0,
-    advancingQ: -1,      // tracks which question index we've already scheduled advancement for
-    powerUsed: false,    // character power used this game
-    doubleSling: false,  // David power: double points on next correct answer
-    shieldActive: false  // Philomena power: protect from next wrong answer
+    advancingQ: -1,           // tracks which question index we've already scheduled advancement for
+    powerUsed: false,         // character power used this game
+    doubleSling: false,       // David power: double points on next correct answer
+    shieldActive: false,      // Philomena power: protect from next wrong answer
+    heartbeatInterval: null,  // host heartbeat to detect disconnection
+    currentRoomHost: null     // tracks room.host to detect host handoff
 };
 
 // --- Global filter panel (renders HTML, wired after insertion) ---
@@ -13197,12 +13147,28 @@ function listenToRoom(roomCode) {
         .onSnapshot(function(doc) {
             if (!doc.exists) {
                 showToast('الغرفة اتحذفت!', 'error');
+                cleanupCompeteState();
                 showScreen('compete-screen');
                 return;
             }
             var room = doc.data();
             competeState.players = room.players || {};
             competeState.questions = room.questions || [];
+
+            // --- Host handoff detection ---
+            // If the room's host field changed (e.g. old host left), update isHost for everyone
+            if (room.host && room.host !== competeState.currentRoomHost) {
+                competeState.currentRoomHost = room.host;
+                var iAmNewHost = (room.host === GameState.playerPhone);
+                if (iAmNewHost && !competeState.isHost) {
+                    competeState.isHost = true;
+                    showToast('أصبحت المضيف الجديد!', 'success');
+                    startHostHeartbeat(); // begin writing heartbeat as new host
+                } else if (!iAmNewHost && competeState.isHost) {
+                    competeState.isHost = false;
+                    stopHostHeartbeat();
+                }
+            }
 
             if (room.status === 'lobby') {
                 renderCompeteLobby(room);
@@ -13215,14 +13181,83 @@ function listenToRoom(roomCode) {
                     }
                     renderCompeteQuestion(room);
                 }
-                // Host re-checks whenever any player update arrives (fixes hang when host answers before others)
+                // Host re-checks whenever any player update arrives
                 if (competeState.isHost) checkAllAnswered();
+
+                // Non-host: detect host disconnection via stale heartbeat
+                if (!competeState.isHost && room.hostHeartbeat) {
+                    var hbMs = room.hostHeartbeat.toDate ? room.hostHeartbeat.toDate().getTime() : 0;
+                    if (hbMs > 0 && Date.now() - hbMs > 25000) {
+                        electNewHost(room);
+                    }
+                }
             } else if (room.status === 'finished') {
                 competeState.status = 'results';
+                stopHostHeartbeat();
                 showScreen('compete-results-screen');
                 renderCompeteResults(room);
+            } else if (room.status === 'abandoned') {
+                showToast('الغرفة اتغلقت من المضيف', 'warning');
+                cleanupCompeteState();
+                showScreen('compete-screen');
             }
         });
+}
+
+// Start writing a heartbeat every 12s so non-hosts can detect if host dies
+function startHostHeartbeat() {
+    stopHostHeartbeat();
+    if (!competeState.isHost || !competeState.roomId || !firebaseDb) return;
+    // Write immediately then repeat
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+        hostHeartbeat: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+    competeState.heartbeatInterval = setInterval(function() {
+        if (!competeState.isHost || !competeState.roomId || !firebaseDb) { stopHostHeartbeat(); return; }
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+            hostHeartbeat: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function() {});
+    }, 12000);
+}
+
+function stopHostHeartbeat() {
+    if (competeState.heartbeatInterval) {
+        clearInterval(competeState.heartbeatInterval);
+        competeState.heartbeatInterval = null;
+    }
+}
+
+// Elect the earliest-joined non-dead player as new host when host disconnects
+function electNewHost(room) {
+    var players = room.players || {};
+    var deadHost = room.host;
+    var candidates = Object.keys(players).filter(function(p) { return p !== deadHost; });
+    if (candidates.length === 0) return;
+    // Sort by joinedAt — earliest joiner becomes host (deterministic, all clients agree)
+    candidates.sort(function(a, b) {
+        return (players[a].joinedAt || 0) - (players[b].joinedAt || 0);
+    });
+    var newHost = candidates[0];
+    // Only the elected player writes to Firestore
+    if (newHost !== GameState.playerPhone) return;
+    // Guard: only elect once
+    if (competeState.currentRoomHost === GameState.playerPhone) return;
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+        host: newHost,
+        hostHeartbeat: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function() {});
+}
+
+// Shared cleanup helper
+function cleanupCompeteState() {
+    if (competeState.listener) { competeState.listener(); competeState.listener = null; }
+    if (competeState.timerInterval) clearInterval(competeState.timerInterval);
+    stopHostHeartbeat();
+    competeState.roomId = null;
+    competeState.isHost = false;
+    competeState.status = 'idle';
+    competeState.players = {};
+    competeState.currentRoomHost = null;
 }
 
 // --- Lobby ---
@@ -13348,11 +13383,13 @@ function startCompeteGame() {
     firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
         status: 'playing',
         currentQuestion: 0,
-        questionStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+        questionStartedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        hostHeartbeat: firebase.firestore.FieldValue.serverTimestamp()
     }).then(function() {
         competeState.myScore = 0;
         competeState.myAnswers = [];
         competeState.streak = 0;
+        startHostHeartbeat(); // begin heartbeat so non-hosts can detect if we go away
     });
 }
 
@@ -13746,6 +13783,7 @@ function checkAllAnswered() {
 }
 
 function awardCompeteStars(room) {
+    stopHostHeartbeat(); // game is over, no need to keep heartbeat running
     var players = room.players || {};
     var sorted = Object.keys(players).sort(function(a, b) {
         return (players[b].score || 0) - (players[a].score || 0);
@@ -13945,46 +13983,74 @@ function closeCompeteRoom() {
         '🗑️ أغلق الغرفة',
         '← رجوع',
         function() {
-            // Confirmed — delete room and go back
-            if (firebaseDb) {
-                firebaseDb.collection('compete_rooms').doc(competeState.roomId).delete().catch(function() {});
+            var roomId = competeState.roomId;
+            cleanupCompeteState();
+            if (firebaseDb && roomId) {
+                firebaseDb.collection('compete_rooms').doc(roomId).delete().catch(function() {});
             }
-            if (competeState.listener) { competeState.listener(); competeState.listener = null; }
-            if (competeState.timerInterval) clearInterval(competeState.timerInterval);
-            competeState.roomId = null;
-            competeState.isHost = false;
-            competeState.status = 'idle';
-            competeState.players = {};
             showToast('تم إغلاق الغرفة', 'success');
             showScreen('compete-screen');
         }
     );
 }
 
+// Exit during an active game — host gets a stronger warning, non-host just leaves
+function leaveOrCloseCompeteGame() {
+    if (competeState.isHost) {
+        showCustomConfirm(
+            'أنت المضيف!\nلو خرجت هتتحدد مضيف جديد، أو ممكن تغلق الغرفة للجميع.',
+            '🗑️ أغلق الغرفة للجميع',
+            '← رجوع',
+            function() {
+                var roomId = competeState.roomId;
+                cleanupCompeteState();
+                if (firebaseDb && roomId) {
+                    firebaseDb.collection('compete_rooms').doc(roomId).update({ status: 'abandoned' }).catch(function() {});
+                }
+                showScreen('compete-screen');
+            }
+        );
+    } else {
+        showCustomConfirm(
+            'تغادر المسابقة الآن؟\nستُحذف من الغرفة.',
+            '← مغادرة',
+            'رجوع',
+            function() {
+                var roomId = competeState.roomId;
+                var phone = GameState.playerPhone;
+                cleanupCompeteState();
+                if (firebaseDb && roomId && phone) {
+                    var upd = {};
+                    upd['players.' + phone] = firebase.firestore.FieldValue.delete();
+                    firebaseDb.collection('compete_rooms').doc(roomId).update(upd).catch(function() {});
+                }
+                showScreen('compete-screen');
+            }
+        );
+    }
+}
+
 function leaveCompeteRoom() {
-    // Host pressing back → show close dialog (single confirm only)
+    // Host pressing back from lobby → show close dialog
     if (competeState.isHost && competeState.roomId && competeState.status === 'lobby') {
         closeCompeteRoom();
         return;
     }
-
-    // Member leaving — no confirmation needed
-    if (competeState.listener) {
-        competeState.listener();
-        competeState.listener = null;
+    // During game — use the game-exit flow
+    if (competeState.status === 'playing') {
+        leaveOrCloseCompeteGame();
+        return;
     }
-    if (competeState.timerInterval) clearInterval(competeState.timerInterval);
 
-    if (competeState.roomId && firebaseDb && !competeState.isHost) {
+    // Member leaving lobby — no confirmation needed
+    var roomId = competeState.roomId;
+    var phone = GameState.playerPhone;
+    cleanupCompeteState();
+    if (roomId && firebaseDb && phone) {
         var update = {};
-        update['players.' + GameState.playerPhone] = firebase.firestore.FieldValue.delete();
-        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(update).catch(function() {});
+        update['players.' + phone] = firebase.firestore.FieldValue.delete();
+        firebaseDb.collection('compete_rooms').doc(roomId).update(update).catch(function() {});
     }
-
-    competeState.roomId = null;
-    competeState.isHost = false;
-    competeState.status = 'idle';
-    competeState.players = {};
     showScreen('compete-screen');
 }
 

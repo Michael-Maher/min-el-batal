@@ -224,6 +224,8 @@ body {
 .password-toggle:hover { color: var(--primary); }
 .login-switch-text { text-align: center; font-size: 13px; color: var(--text-muted); margin-top: 12px; }
 .login-switch-link { color: var(--primary); text-decoration: none; font-weight: 700; }
+.login-reload-btn { display: block; width: 100%; margin-top: 14px; padding: 10px; background: none; border: 1px solid var(--border); border-radius: 12px; color: var(--text-muted); font-family: inherit; font-size: 13px; cursor: pointer; transition: color 0.2s, border-color 0.2s; }
+.login-reload-btn:hover { color: var(--primary); border-color: var(--primary); }
 .login-switch-link:hover { text-decoration: underline; }
 
 /* ============ BUTTONS ============ */
@@ -1791,6 +1793,7 @@ body {
     display: flex;
     gap: 10px;
     flex-shrink: 0;
+    align-items: center;
 }
 .hub-title {
     text-align: center;
@@ -6135,6 +6138,10 @@ body {
     font-weight: 600;
 }
 
+.hub-reload-btn { background: none; border: none; color: var(--text-muted); font-size: 15px; cursor: pointer; padding: 6px; border-radius: 50%; transition: color 0.2s, transform 0.3s; flex-shrink: 0; }
+.hub-reload-btn:hover { color: var(--primary); }
+.hub-reload-btn:active { transform: rotate(180deg); }
+
 /* Hub Stat Items Enhanced */
 .hub-stats .stat {
     position: relative;
@@ -8251,6 +8258,30 @@ body {
 .blitz-result-reward { font-size:14px;color:#00B894;margin:6px 0; }
 .blitz-result-btns { display:flex;gap:8px;margin-top:14px; }
 .blitz-result-btns .btn { flex:1; }
+
+/* ===================== COMPETE GAME EXIT BAR ===================== */
+.compete-game-exit-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 6px 0 2px;
+}
+.compete-exit-btn {
+    background: rgba(255,255,255,0.07);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: var(--text-secondary, #aaa);
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    flex-shrink: 0;
+}
+.compete-exit-btn:hover { background: rgba(231,76,60,0.2); color: #e74c3c; border-color: rgba(231,76,60,0.4); }
 
 /* ===================== COMPETE ENHANCEMENTS ===================== */
 

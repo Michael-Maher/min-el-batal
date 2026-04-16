@@ -12558,8 +12558,9 @@ var competeState = {
     powerUsed: false,         // character power used this game
     doubleSling: false,       // David power: double points on next correct answer
     shieldActive: false,      // Philomena power: protect from next wrong answer
-    heartbeatInterval: null,  // host heartbeat to detect disconnection
-    currentRoomHost: null     // tracks room.host to detect host handoff
+    heartbeatInterval: null,   // host heartbeat to detect disconnection
+    currentRoomHost: null,     // tracks room.host to detect host handoff
+    lobbyPollInterval: null    // fallback poll so lobby always shows latest players
 };
 
 // --- Global filter panel (renders HTML, wired after insertion) ---
@@ -13070,6 +13071,7 @@ function createCompeteRoom(mode, filter, questionMultiplier) {
             competeState.shieldActive = false;
             showScreen('compete-lobby-screen');
             listenToRoom(roomCode);
+            startLobbyPoll(roomCode);
             showToast('تم إنشاء الغرفة! كود: ' + roomCode, 'success');
         })
         .catch(function(err) {
@@ -13131,6 +13133,7 @@ function joinCompeteRoom() {
                     competeState.shieldActive = false;
                     showScreen('compete-lobby-screen');
                     listenToRoom(code);
+                    startLobbyPoll(code);
                     showToast('انضممت للغرفة!', 'success');
                 });
         })
@@ -13201,7 +13204,39 @@ function listenToRoom(roomCode) {
                 cleanupCompeteState();
                 showScreen('compete-screen');
             }
+        }, function(err) {
+            // Firestore snapshot error — fall back to manual poll
+            console.warn('listenToRoom snapshot error:', err);
+            showToast('مشكلة في الاتصال، جاري إعادة المحاولة...', 'warning');
+            if (competeState.roomId) startLobbyPoll(competeState.roomId);
         });
+}
+
+// Fallback polling when onSnapshot is unreliable
+function startLobbyPoll(roomCode) {
+    stopLobbyPoll();
+    competeState.lobbyPollInterval = setInterval(function() {
+        if (!competeState.roomId || !firebaseDb) { stopLobbyPoll(); return; }
+        firebaseDb.collection('compete_rooms').doc(roomCode).get()
+            .then(function(doc) {
+                if (!doc.exists) return;
+                var room = doc.data();
+                if (room.status === 'lobby') {
+                    renderCompeteLobby(room);
+                } else {
+                    // Game started or ended — stop polling
+                    stopLobbyPoll();
+                }
+            })
+            .catch(function() {});
+    }, 5000);
+}
+
+function stopLobbyPoll() {
+    if (competeState.lobbyPollInterval) {
+        clearInterval(competeState.lobbyPollInterval);
+        competeState.lobbyPollInterval = null;
+    }
 }
 
 // Start writing a heartbeat every 12s so non-hosts can detect if host dies
@@ -13253,6 +13288,7 @@ function cleanupCompeteState() {
     if (competeState.listener) { competeState.listener(); competeState.listener = null; }
     if (competeState.timerInterval) clearInterval(competeState.timerInterval);
     stopHostHeartbeat();
+    stopLobbyPoll();
     competeState.roomId = null;
     competeState.isHost = false;
     competeState.status = 'idle';
@@ -13314,7 +13350,22 @@ function renderCompeteLobby(room) {
         html += '<div class="lobby-waiting-host"><i class="fas fa-hourglass-half"></i> مستنين المضيف يبدأ المسابقة...</div>';
     }
 
+    // Manual refresh button
+    html += '<button class="btn btn-secondary lobby-refresh-btn" onclick="refreshLobby()">';
+    html += '<span><i class="fas fa-rotate-right"></i> تحديث قائمة اللاعبين</span></button>';
+
     body.innerHTML = html;
+}
+
+function refreshLobby() {
+    if (!competeState.roomId || !firebaseDb) return;
+    firebaseDb.collection('compete_rooms').doc(competeState.roomId).get()
+        .then(function(doc) {
+            if (!doc.exists) return;
+            var room = doc.data();
+            if (room.status === 'lobby') renderCompeteLobby(room);
+        })
+        .catch(function(err) { showToast('خطأ في التحديث', 'error'); });
 }
 
 function copyRoomCode(code) {
@@ -13371,6 +13422,7 @@ function autoJoinRoom(code) {
             competeState.status = 'lobby';
             showScreen('compete-lobby-screen');
             listenToRoom(code);
+            startLobbyPoll(code);
             showToast('انضممت للغرفة! 🎉', 'success');
         });
     }).catch(function(err) { showToast('خطأ: ' + err.message, 'error'); });
@@ -13389,6 +13441,7 @@ function startCompeteGame() {
         competeState.myScore = 0;
         competeState.myAnswers = [];
         competeState.streak = 0;
+        stopLobbyPoll();
         startHostHeartbeat(); // begin heartbeat so non-hosts can detect if we go away
     });
 }

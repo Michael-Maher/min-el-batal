@@ -6290,8 +6290,12 @@ var LEVEL2_SUBJECTS = {
                 name: 'التجسد الإلهي',
                 desc: 'لماذا تجسد الله وصار إنساناً؟',
                 verse: '"والكلمة صار جسداً وحل بيننا" (يو ١: ١٤)',
-                videoId: 'Hju9WzYwkc0',
-                videoTitle: 'لماذا التجسد - أبونا لوقا ماهر',
+                shortVideoId: '8ylmwKUQWOA',
+                shortVideoTitle: 'قصير - الأنبا رفائيل',
+                videoId: 'hhbUHXPEhaA',
+                videoTitle: 'تفصيلية - أبونا داود لمعي',
+                altVideoId: 'Hju9WzYwkc0',
+                altVideoTitle: 'الأكثر تفصيلاً - أبونا لوقا',
                 content: 'بسبب سقوط آدم دخل الموت للعالم (موت أدبي وجسدي وروحي وأبدي). الله اختار أن يفدي الإنسان فتجسد أقنوم الابن من العذراء مريم بحلول الروح القدس. التجسد هو أن الله أخذ جسداً، والتأنس هو أن الجسد كان إنساناً كاملاً. المسيح طبيعة واحدة من طبيعتين (لاهوت كامل وناسوت كامل) بغير اختلاط ولا امتزاج ولا تغيير.',
                 questions: [
                     // === صح أم غلط (محوَّل لـ MC) ===
@@ -9634,6 +9638,26 @@ function renderLevel2Learn(container, lesson, subject) {
         html += '</div>';
     }
 
+    // Third (alt) detailed video — e.g. a second scholar's take
+    if (lesson.altVideoId) {
+        var altVideoKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson + '_alt_video';
+        var altVideoWatched = GameState.watchedVideos && GameState.watchedVideos[altVideoKey];
+        html += '<div class="l2-video-section">';
+        html += '<div class="l2-video-label"><i class="fas fa-play-circle"></i> ' + (lesson.altVideoTitle || 'وعظة إضافية') + ' <span class="l2-video-badge-detail">وعظة تفصيلية</span></div>';
+        html += '<div class="l2-video-wrap">';
+        html += '<iframe src="https://www.youtube.com/embed/' + lesson.altVideoId + '?rel=0&modestbranding=1" ';
+        html += 'frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ';
+        html += 'style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>';
+        html += '</div>';
+        if (!altVideoWatched) {
+            html += '<button class="btn btn-primary l2-video-done-btn" onclick="markVideoWatched(\'' + altVideoKey + '\')" style="width:100%;margin-top:10px">';
+            html += '<span><i class="fas fa-check-circle"></i> شاهدت الوعظة ✅ (+5 نجوم)</span></button>';
+        } else {
+            html += '<div class="l2-video-watched-badge"><i class="fas fa-check-circle"></i> شاهدت الوعظة وأخدت 5 نجوم ⭐</div>';
+        }
+        html += '</div>';
+    }
+
     // Lesson summary image if available
     if (lesson.summaryImage) {
         html += '<div class="l2-learn-img-wrap"><img src="' + lesson.summaryImage + '" alt="ملخص الدرس" class="l2-learn-img"></div>';
@@ -11959,13 +11983,15 @@ function markVideoWatched(videoKey) {
     var baseKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson;
     var shortKey = baseKey + '_short_video';
     var detailKey = baseKey + '_video';
-    var shortWatched = GameState.watchedVideos[shortKey] || false;
+    var altKey   = baseKey + '_alt_video';
+    var shortWatched  = GameState.watchedVideos[shortKey]  || false;
     var detailWatched = GameState.watchedVideos[detailKey] || false;
-    var totalSermon = (shortWatched ? 5 : 0) + (detailWatched ? 5 : 0);
+    var altWatched    = GameState.watchedVideos[altKey]    || false;
+    var totalSermon = (shortWatched ? 5 : 0) + (detailWatched ? 5 : 0) + (altWatched ? 5 : 0);
 
-    // If lesson has both videos, use combined score; otherwise use 10
+    // If lesson has at least one extra video slot, use the accumulated score
     var lesson = LEVEL2_SUBJECTS[level2State.currentSubject] && LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson];
-    if (lesson && lesson.shortVideoId) {
+    if (lesson && (lesson.shortVideoId || lesson.altVideoId)) {
         updateStationScore(stationKey, 'sermon', totalSermon);
     } else {
         updateStationScore(stationKey, 'sermon', STATION_SERMON_SCORE);
@@ -14285,22 +14311,22 @@ function loadRecentGames() {
 
 // --- Mark's Gospel Data (16 chapters) ---
 var MARK_CHAPTERS = [
-    { ch: 1, title: 'بداية بشارة يسوع المسيح', verses: '45 آية', summary: 'معمودية يسوع، دعوة التلاميذ الأوائل، شفاء كثيرين' },
-    { ch: 2, title: 'شفاء المفلوج ودعوة لاوي', verses: '28 آية', summary: 'شفاء المفلوج، دعوة لاوي، الصوم والسبت' },
-    { ch: 3, title: 'اختيار الاثني عشر', verses: '35 آية', summary: 'شفاء يوم السبت، اختيار الرسل، التجديف على الروح القدس' },
-    { ch: 4, title: 'أمثال الملكوت', verses: '41 آية', summary: 'مثل الزارع، السراج، حبة الخردل، تهدئة العاصفة' },
-    { ch: 5, title: 'معجزات القوة', verses: '43 آية', summary: 'مجنون كورة الجدريين، نازفة الدم، إقامة ابنة يايرس' },
-    { ch: 6, title: 'إرسال التلاميذ', verses: '56 آية', summary: 'رفض الناصرة، إرسالية الاثني عشر، إشباع الخمسة آلاف، المشي على الماء' },
-    { ch: 7, title: 'ما يُنجّس الإنسان', verses: '37 آية', summary: 'تقليد الشيوخ، شفاء ابنة المرأة الفينيقية، شفاء الأصم' },
-    { ch: 8, title: 'اعتراف بطرس', verses: '38 آية', summary: 'إشباع الأربعة آلاف، شفاء أعمى بيت صيدا، اعتراف بطرس بالمسيح' },
-    { ch: 9, title: 'التجلي', verses: '50 آية', summary: 'التجلي على الجبل، شفاء الصبي المصروع، من هو الأعظم' },
-    { ch: 10, title: 'الطريق إلى أورشليم', verses: '52 آية', summary: 'الطلاق، مباركة الأطفال، الشاب الغني، شفاء بارتيماوس' },
-    { ch: 11, title: 'دخول أورشليم', verses: '33 آية', summary: 'الدخول المظفر، لعن التينة، تطهير الهيكل' },
-    { ch: 12, title: 'أمثال وتعاليم', verses: '44 آية', summary: 'مثل الكرامين، الجزية لقيصر، القيامة، أعظم وصية، فلسا الأرملة' },
-    { ch: 13, title: 'علامات النهاية', verses: '37 آية', summary: 'خراب الهيكل، علامات الأزمنة الأخيرة، مجيء ابن الإنسان، السهر' },
-    { ch: 14, title: 'الآلام', verses: '72 آية', summary: 'سكب الطيب، العشاء الأخير، جثسيماني، القبض على يسوع، إنكار بطرس' },
-    { ch: 15, title: 'الصليب', verses: '47 آية', summary: 'المحاكمة أمام بيلاطس، الصلب، موت يسوع، الدفن' },
-    { ch: 16, title: 'القيامة', verses: '20 آية', summary: 'القيامة، ظهورات المسيح، الإرسالية العظمى، الصعود' }
+    { ch: 1,  videoId: '5F01nq755d8', title: 'بداية بشارة يسوع المسيح', verses: '45 آية', summary: 'معمودية يسوع، دعوة التلاميذ الأوائل، شفاء كثيرين' },
+    { ch: 2,  videoId: 'dpFW1pSFKGs', title: 'شفاء المفلوج ودعوة لاوي', verses: '28 آية', summary: 'شفاء المفلوج، دعوة لاوي، الصوم والسبت' },
+    { ch: 3,  videoId: 'qq1r4Et9Pi8', title: 'اختيار الاثني عشر', verses: '35 آية', summary: 'شفاء يوم السبت، اختيار الرسل، التجديف على الروح القدس' },
+    { ch: 4,  videoId: '1BRNPrnUdJw', title: 'أمثال الملكوت', verses: '41 آية', summary: 'مثل الزارع، السراج، حبة الخردل، تهدئة العاصفة' },
+    { ch: 5,  videoId: '5uJ0dvMC-3o', title: 'معجزات القوة', verses: '43 آية', summary: 'مجنون كورة الجدريين، نازفة الدم، إقامة ابنة يايرس' },
+    { ch: 6,  videoId: 'NLqD3dA0ff8', title: 'إرسال التلاميذ', verses: '56 آية', summary: 'رفض الناصرة، إرسالية الاثني عشر، إشباع الخمسة آلاف، المشي على الماء' },
+    { ch: 7,  videoId: 'HUaLDnxd_zw', title: 'ما يُنجّس الإنسان', verses: '37 آية', summary: 'تقليد الشيوخ، شفاء ابنة المرأة الفينيقية، شفاء الأصم' },
+    { ch: 8,  videoId: 'WHYmnJN7OqU', title: 'اعتراف بطرس', verses: '38 آية', summary: 'إشباع الأربعة آلاف، شفاء أعمى بيت صيدا، اعتراف بطرس بالمسيح' },
+    { ch: 9,  videoId: 'gCXBOkkWIDs', title: 'التجلي', verses: '50 آية', summary: 'التجلي على الجبل، شفاء الصبي المصروع، من هو الأعظم' },
+    { ch: 10, videoId: 'VVclepR7Hq8', title: 'الطريق إلى أورشليم', verses: '52 آية', summary: 'الطلاق، مباركة الأطفال، الشاب الغني، شفاء بارتيماوس' },
+    { ch: 11, videoId: 'inrgIe4I6Y0', title: 'دخول أورشليم', verses: '33 آية', summary: 'الدخول المظفر، لعن التينة، تطهير الهيكل' },
+    { ch: 12, videoId: '8wPqDFGcEpQ', title: 'أمثال وتعاليم', verses: '44 آية', summary: 'مثل الكرامين، الجزية لقيصر، القيامة، أعظم وصية، فلسا الأرملة' },
+    { ch: 13, videoId: 'BjMINNTw09Y', title: 'علامات النهاية', verses: '37 آية', summary: 'خراب الهيكل، علامات الأزمنة الأخيرة، مجيء ابن الإنسان، السهر' },
+    { ch: 14, videoId: 'bIfsWPqicvE', title: 'الآلام', verses: '72 آية', summary: 'سكب الطيب، العشاء الأخير، جثسيماني، القبض على يسوع، إنكار بطرس' },
+    { ch: 15, videoId: 'SsWCxa0tLfI', title: 'الصليب', verses: '47 آية', summary: 'المحاكمة أمام بيلاطس، الصلب، موت يسوع، الدفن' },
+    { ch: 16, videoId: '_d5hX206TwI', title: 'القيامة', verses: '20 آية', summary: 'القيامة، ظهورات المسيح، الإرسالية العظمى، الصعود' }
 ];
 
 // --- Daily Exercises ---
@@ -14384,6 +14410,32 @@ function renderBibleReading() {
     html += '<h4><i class="fas fa-lightbulb"></i> ملخص الأصحاح</h4>';
     html += '<p>' + chapter.summary + '</p>';
     html += '</div>';
+
+    // Video simplification for this chapter
+    if (chapter.videoId) {
+        var bvKey = 'bible_ch' + chapter.ch + '_video';
+        var bvWatched = GameState.watchedVideos && GameState.watchedVideos[bvKey];
+        html += '<div class="bible-video-section">';
+        html += '<div class="bible-video-header">';
+        html += '<div class="bible-video-icon"><i class="fas fa-play-circle"></i></div>';
+        html += '<div>';
+        html += '<div class="bible-video-title">🎬 تبسيط الأصحاح ' + chapter.ch + '</div>';
+        html += '<div class="bible-video-subtitle">شوف الفيديو واستفد — والنقط مجرد تشجيع 😊</div>';
+        html += '</div>';
+        html += '</div>';
+        html += '<div class="bible-video-wrap">';
+        html += '<iframe src="https://www.youtube.com/embed/' + chapter.videoId + '?rel=0&modestbranding=1" ';
+        html += 'frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ';
+        html += 'style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>';
+        html += '</div>';
+        if (!bvWatched) {
+            html += '<button class="btn btn-primary bible-video-btn" onclick="markBibleVideoWatched(' + chapter.ch + ', \'' + bvKey + '\')" style="width:100%;margin-top:10px">';
+            html += '<span><i class="fas fa-check-circle"></i> شاهدت الفيديو كاملاً ✅ (+5 ⭐)</span></button>';
+        } else {
+            html += '<div class="bible-video-watched"><i class="fas fa-check-circle"></i> شاهدت الفيديو وأخدت 5 نجوم ⭐</div>';
+        }
+        html += '</div>';
+    }
 
     // Full chapter text
     if (chapter.text && chapter.text.length > 0) {
@@ -14561,6 +14613,18 @@ function fetchMarkChapter(ch) {
                     showToast('خطأ في التحميل - تأكد من الاتصال بالإنترنت', 'error');
                 });
         });
+}
+
+function markBibleVideoWatched(ch, videoKey) {
+    if (GameState.watchedVideos && GameState.watchedVideos[videoKey]) return; // already rewarded
+    if (!GameState.watchedVideos) GameState.watchedVideos = {};
+    GameState.watchedVideos[videoKey] = true;
+    GameState.stars = (GameState.stars || 0) + 5;
+    GameState.gems = (GameState.gems || 0) + 2;
+    saveToLocalStorage();
+    saveToCloud();
+    showAchievement('🎬', 'شاهدت تبسيط الأصحاح ' + ch + '!', 'كسبت 5 نجوم ⭐ + 2 جواهر 💎 — بالتوفيق 🙏');
+    setTimeout(function() { renderBibleReading(); }, 1800);
 }
 
 function completeBibleReading() {

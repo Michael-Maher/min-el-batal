@@ -12560,7 +12560,8 @@ var competeState = {
     shieldActive: false,      // Philomena power: protect from next wrong answer
     heartbeatInterval: null,   // host heartbeat to detect disconnection
     currentRoomHost: null,     // tracks room.host to detect host handoff
-    lobbyPollInterval: null    // fallback poll so lobby always shows latest players
+    lobbyPollInterval: null,   // fallback poll so lobby always shows latest players
+    presenceInterval: null     // per-player lastSeen heartbeat during game
 };
 
 // --- Global filter panel (renders HTML, wired after insertion) ---
@@ -13005,11 +13006,17 @@ function createCompeteRoom(mode, filter, questionMultiplier) {
             var st = selectedQs[si]; selectedQs[si] = selectedQs[sj]; selectedQs[sj] = st;
         }
     } else {
-        selectedQs = allQs.slice(0, Math.min(numQs, allQs.length)).map(function(q) {
-            var pq = prepareQuestion(q);
-            pq.subject = q.subject;
-            return pq;
+        // Use getSmartQuestions so the host's history is respected —
+        // questions they've seen recently are deprioritised, giving variety
+        // even when the pool is small (e.g. one lesson with 10 questions).
+        var histKey = 'compete_' + subjectKeys.join('_');
+        var smartQs = getSmartQuestions(allQs, Math.min(numQs, allQs.length), histKey);
+        selectedQs = smartQs.map(function(q) {
+            q.subject = q.subject || (allQs.find(function(a) { return a.q === q.q; }) || {}).subject || subjectKeys[0];
+            return q;
         });
+        // Record history so next room creation avoids repeats
+        recordQuestionHistory(histKey, selectedQs);
     }
 
     // Build human-readable filter label for lobby display
@@ -13149,6 +13156,12 @@ function listenToRoom(roomCode) {
     competeState.listener = firebaseDb.collection('compete_rooms').doc(roomCode)
         .onSnapshot(function(doc) {
             if (!doc.exists) {
+                // If the player is already on the results screen, the room being deleted
+                // (by auto-cleanup or cleanStaleRooms) is expected — don't redirect them.
+                if (competeState.status === 'results') {
+                    cleanupCompeteState();
+                    return;
+                }
                 showToast('الغرفة اتحذفت!', 'error');
                 cleanupCompeteState();
                 showScreen('compete-screen');
@@ -13176,6 +13189,8 @@ function listenToRoom(roomCode) {
             if (room.status === 'lobby') {
                 renderCompeteLobby(room);
             } else if (room.status === 'playing') {
+                // Start presence heartbeat the moment the game begins (for any player)
+                if (!competeState.presenceInterval) startPlayerPresence();
                 if (competeState.status !== 'playing' || room.currentQuestion !== competeState.currentQ) {
                     competeState.status = 'playing';
                     competeState.currentQ = room.currentQuestion;
@@ -13190,15 +13205,22 @@ function listenToRoom(roomCode) {
                 // Non-host: detect host disconnection via stale heartbeat
                 if (!competeState.isHost && room.hostHeartbeat) {
                     var hbMs = room.hostHeartbeat.toDate ? room.hostHeartbeat.toDate().getTime() : 0;
-                    if (hbMs > 0 && Date.now() - hbMs > 25000) {
+                    if (hbMs > 0 && Date.now() - hbMs > 15000) {
                         electNewHost(room);
                     }
                 }
             } else if (room.status === 'finished') {
-                competeState.status = 'results';
-                stopHostHeartbeat();
-                showScreen('compete-results-screen');
-                renderCompeteResults(room);
+                // Guard: only process the finished transition once.
+                // Presence writes from other players can fire the snapshot repeatedly
+                // even after the game ends — without this guard stars would be double-awarded.
+                if (competeState.status !== 'results') {
+                    competeState.status = 'results';
+                    stopHostHeartbeat();
+                    stopPlayerPresence(); // stop writing lastSeen — game is over
+                    awardCompeteStars(room); // every player awards their own stars here
+                    showScreen('compete-results-screen');
+                    renderCompeteResults(room);
+                }
             } else if (room.status === 'abandoned') {
                 showToast('الغرفة اتغلقت من المضيف', 'warning');
                 cleanupCompeteState();
@@ -13252,7 +13274,7 @@ function startHostHeartbeat() {
         firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
             hostHeartbeat: firebase.firestore.FieldValue.serverTimestamp()
         }).catch(function() {});
-    }, 12000);
+    }, 6000);
 }
 
 function stopHostHeartbeat() {
@@ -13262,12 +13284,47 @@ function stopHostHeartbeat() {
     }
 }
 
-// Elect the earliest-joined non-dead player as new host when host disconnects
+// Per-player presence: write lastSeen timestamp every 8s so host can detect tab-closed players
+function startPlayerPresence() {
+    stopPlayerPresence();
+    if (!competeState.roomId || !firebaseDb) return;
+    function writePresence() {
+        if (!competeState.roomId || !firebaseDb) { stopPlayerPresence(); return; }
+        var upd = {};
+        upd['players.' + GameState.playerPhone + '.lastSeen'] = Date.now();
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(upd).catch(function() {});
+    }
+    writePresence();
+    competeState.presenceInterval = setInterval(writePresence, 4000);
+}
+
+function stopPlayerPresence() {
+    if (competeState.presenceInterval) {
+        clearInterval(competeState.presenceInterval);
+        competeState.presenceInterval = null;
+    }
+}
+
+// Elect the earliest-joined non-dead player as new host when host disconnects.
+// Prefers recently-active players (lastSeen within 35s) to avoid re-electing
+// another disconnected player.
 function electNewHost(room) {
     var players = room.players || {};
     var deadHost = room.host;
-    var candidates = Object.keys(players).filter(function(p) { return p !== deadHost; });
-    if (candidates.length === 0) return;
+    var nowMs = Date.now();
+
+    // Prefer active players; fall back to all non-host players if none have presence data
+    function isActive(phone) {
+        var lastSeen = (players[phone] && players[phone].lastSeen) || 0;
+        return lastSeen === 0 || (nowMs - lastSeen <= 35000);
+    }
+
+    var allCandidates = Object.keys(players).filter(function(p) { return p !== deadHost; });
+    if (allCandidates.length === 0) return;
+
+    var activeCandidates = allCandidates.filter(isActive);
+    var candidates = activeCandidates.length > 0 ? activeCandidates : allCandidates;
+
     // Sort by joinedAt — earliest joiner becomes host (deterministic, all clients agree)
     candidates.sort(function(a, b) {
         return (players[a].joinedAt || 0) - (players[b].joinedAt || 0);
@@ -13288,12 +13345,14 @@ function cleanupCompeteState() {
     if (competeState.listener) { competeState.listener(); competeState.listener = null; }
     if (competeState.timerInterval) clearInterval(competeState.timerInterval);
     stopHostHeartbeat();
+    stopPlayerPresence();
     stopLobbyPoll();
     competeState.roomId = null;
     competeState.isHost = false;
     competeState.status = 'idle';
     competeState.players = {};
     competeState.currentRoomHost = null;
+    competeState.advancingQ = -1;
 }
 
 // --- Lobby ---
@@ -13665,10 +13724,17 @@ function answerCompete(selectedIdx) {
         });
     }
 
-    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(update)
+    var _answerDocRef = firebaseDb.collection('compete_rooms').doc(competeState.roomId);
+    _answerDocRef.update(update)
         .then(function() {
-            // Check if all players answered - if host, advance
             checkAllAnswered();
+        })
+        .catch(function() {
+            // Retry once after 1.5s — if it still fails the force-advance timeout will unblock the game
+            setTimeout(function() {
+                if (!competeState.roomId) return;
+                firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(update).catch(function() {});
+            }, 1500);
         });
 
     // Show dramatic feedback overlay
@@ -13781,13 +13847,33 @@ function checkAllAnswered() {
             if (!doc.exists) return;
             var room = doc.data();
             var players = room.players || {};
-            var allAnswered = true;
             var qIdx = room.currentQuestion;
+
+            // Determine if the question has timed out (time + 8s grace period).
+            // If so, treat all non-responding players as having answered — prevents
+            // permanent hangs from tab-closed or network-failed players.
+            var questionStartMs = 0;
+            if (room.questionStartedAt) {
+                questionStartMs = room.questionStartedAt.toDate
+                    ? room.questionStartedAt.toDate().getTime()
+                    : (typeof room.questionStartedAt === 'number' ? room.questionStartedAt : 0);
+            }
+            var graceMs = ((room.timePerQuestion || 15) + 8) * 1000;
+            var questionTimedOut = questionStartMs > 0 && (Date.now() - questionStartMs > graceMs);
+
+            var nowMs = Date.now();
+            var allAnswered = true;
 
             Object.keys(players).forEach(function(phone) {
                 var p = players[phone];
                 // Skip eliminated players in sparkle mode
                 if (room.mode === 'sparkle' && !p.alive) return;
+                // Skip players who closed the tab — detected via lastSeen presence heartbeat
+                // (written every 8s; >35s stale means they're gone)
+                var lastSeen = p.lastSeen || 0;
+                if (lastSeen > 0 && (nowMs - lastSeen > 20000)) return;
+                // If the question already timed out, don't keep waiting for this player
+                if (questionTimedOut) return;
                 if (!p.answers || p.answers.length <= qIdx) {
                     allAnswered = false;
                 }
@@ -13798,26 +13884,7 @@ function checkAllAnswered() {
                 if (competeState.advancingQ === qIdx) return;
                 competeState.advancingQ = qIdx;
 
-                // Advance to next question or finish
-                if (qIdx + 1 >= room.questions.length) {
-                    // Game over
-                    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
-                        status: 'finished',
-                        finishedAt: firebase.firestore.FieldValue.serverTimestamp()
-                    });
-                    // Award stars to players
-                    awardCompeteStars(room);
-                } else {
-                    // Next question after brief delay
-                    setTimeout(function() {
-                        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
-                            currentQuestion: qIdx + 1,
-                            questionStartedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                    }, 2000);
-                }
-
-                // Check sparkle mode - if only 1 alive, end game
+                // Check sparkle mode - if only 1 alive, end game immediately
                 if (room.mode === 'sparkle') {
                     var aliveCount = 0;
                     Object.keys(players).forEach(function(phone) {
@@ -13827,9 +13894,28 @@ function checkAllAnswered() {
                         firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
                             status: 'finished',
                             finishedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
-                        awardCompeteStars(room);
+                        }).catch(function() {});
+                        // Stars are awarded by every client in listenToRoom's 'finished' branch
+                        return;
                     }
+                }
+
+                // Advance to next question or finish
+                if (qIdx + 1 >= room.questions.length) {
+                    // Game over — set status to finished; each client awards their own stars
+                    firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+                        status: 'finished',
+                        finishedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    }).catch(function() {});
+                } else {
+                    // Next question after brief delay
+                    setTimeout(function() {
+                        if (!competeState.isHost || !competeState.roomId) return;
+                        firebaseDb.collection('compete_rooms').doc(competeState.roomId).update({
+                            currentQuestion: qIdx + 1,
+                            questionStartedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                    }, 2000);
                 }
             }
         });
@@ -13868,7 +13954,9 @@ function cleanStaleRooms() {
             // Get creation time
             var createdMs = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate().getTime() : (r.createdAt || 0);
             var isStale = createdMs < twoHoursAgo;
-            var isFinished = r.status === 'finished';
+            // Only delete finished rooms after 5 minutes — gives players time to see results
+            var finishedMs = r.finishedAt && r.finishedAt.toDate ? r.finishedAt.toDate().getTime() : 0;
+            var isFinished = finishedMs > 0 && (Date.now() - finishedMs > 5 * 60 * 1000);
             var isEmptyLobby = r.status === 'lobby' && Object.keys(r.players || {}).length === 0;
             if (isStale || isFinished || isEmptyLobby) {
                 doc.ref.delete().catch(function() {});
@@ -14020,11 +14108,29 @@ function rematchCompete() {
 
 // Return to a room the user already belongs to
 function returnToActiveRoom() {
-    if (!competeState.roomId) return;
-    showScreen('compete-lobby-screen');
+    if (!competeState.roomId || !firebaseDb) return;
     // Re-attach listener if it dropped
-    if (!competeState.listener) {
-        listenToRoom(competeState.roomId);
+    if (!competeState.listener) listenToRoom(competeState.roomId);
+
+    // Show the correct screen and fetch fresh state
+    if (competeState.status === 'playing') {
+        showScreen('compete-game-screen');
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).get().then(function(doc) {
+            if (doc.exists) renderCompeteQuestion(doc.data());
+        }).catch(function() {});
+    } else if (competeState.status === 'results') {
+        showScreen('compete-results-screen');
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).get().then(function(doc) {
+            if (doc.exists) renderCompeteResults(doc.data());
+        }).catch(function() {});
+    } else {
+        showScreen('compete-lobby-screen');
+        // Re-arm fallback poll if it dropped
+        if (!competeState.lobbyPollInterval) startLobbyPoll(competeState.roomId);
+        // Force a fresh fetch so the lobby reflects current players
+        firebaseDb.collection('compete_rooms').doc(competeState.roomId).get().then(function(doc) {
+            if (doc.exists) renderCompeteLobby(doc.data());
+        }).catch(function() {});
     }
 }
 

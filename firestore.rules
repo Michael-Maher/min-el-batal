@@ -9,12 +9,24 @@ service cloud.firestore {
     match /leaderboard/{playerId} {
       allow read, write: if true;
     }
+    // Blitz leaderboard
+    match /blitzLeaderboard/{playerId} {
+      allow read, write: if true;
+    }
     // Competition rooms - allow read/write for multiplayer
     match /compete_rooms/{roomId} {
       allow read, write: if true;
     }
     // Weekly competition rankings
     match /compete_rankings/{rankId} {
+      allow read, write: if true;
+    }
+    // Duels (1v1)
+    match /duels/{duelId} {
+      allow read, write: if true;
+    }
+    // Boss battle (shared world state)
+    match /bossBattle/{docId} {
       allow read, write: if true;
     }
     // Lessons collection - for new lesson notifications
@@ -27,6 +39,17 @@ service cloud.firestore {
     }
     // Reward requests - for gift redemptions
     match /reward_requests/{requestId} {
+      allow read, write: if true;
+    }
+    // In-app announcements (admin-authored, shown in-app and optionally pushed)
+    match /announcements/{announcementId} {
+      allow read, write: if true;
+    }
+    // Admin accounts and access requests
+    match /admins/{adminId} {
+      allow read, write: if true;
+    }
+    match /admin_requests/{requestId} {
       allow read, write: if true;
     }
   }

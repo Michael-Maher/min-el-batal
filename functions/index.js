@@ -217,6 +217,77 @@ exports.onNewLesson = functions
     });
 
 // ============================================================
+// 2b. ADMIN ANNOUNCEMENT → Fan-out push to all users
+//     Triggered when admin creates a doc in `announcements`.
+//     Respects announcement.sendPush (defaults to true).
+//     Respects player.notifPrefs.reminders.
+//     Writes delivery stats back onto the announcement doc.
+// ============================================================
+exports.onAnnouncementCreated = functions
+    .region('europe-west1')
+    .firestore.document('announcements/{announcementId}')
+    .onCreate(async (snap, context) => {
+        var ann = snap.data() || {};
+        // Skip push if admin explicitly opted out (in-app only)
+        if (ann.sendPush === false) {
+            console.log('[Notif] Announcement', context.params.announcementId, 'is in-app only');
+            await snap.ref.update({
+                pushStatus: 'skipped_in_app_only',
+                pushSentCount: 0,
+                pushAttempted: 0,
+                pushProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+            }).catch(function() {});
+            return null;
+        }
+
+        var title = ann.title || 'مين البطل؟';
+        var body = ann.body || '';
+        var icon = ann.icon || '📢';
+
+        var playersSnap = await db.collection('players')
+            .where('fcmToken', '!=', null)
+            .get();
+
+        var sent = 0;
+        var attempted = 0;
+        var promises = [];
+
+        playersSnap.forEach(function(doc) {
+            var player = doc.data();
+            if (!player.fcmToken) return;
+            // Respect preferences — treat announcements as "reminders" category
+            if (player.notifPrefs && player.notifPrefs.reminders === false) return;
+
+            attempted++;
+            promises.push(
+                safeSend(
+                    player.fcmToken,
+                    { title: title, body: body },
+                    {
+                        type: 'announcement',
+                        announcementId: context.params.announcementId,
+                        icon: icon,
+                    },
+                    doc.id
+                ).then(function(ok) { if (ok) sent++; })
+            );
+        });
+
+        await Promise.all(promises);
+        console.log('[Notif] Announcement', context.params.announcementId, '- sent', sent, '/', attempted);
+
+        // Write delivery stats back to the announcement doc for admin visibility
+        await snap.ref.update({
+            pushStatus: 'sent',
+            pushSentCount: sent,
+            pushAttempted: attempted,
+            pushProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+        }).catch(function() {});
+
+        return null;
+    });
+
+// ============================================================
 // 3. DAILY EVENING REMINDER (8 PM Cairo)
 //    Priority: inactivity > incomplete exercises
 //    Only sends 1 notification per user (the highest priority one)

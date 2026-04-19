@@ -564,16 +564,62 @@ tbody td{padding:10px 13px;vertical-align:middle}
         <div class="card">
           <div class="ch"><h3><i class="fas fa-plus" style="color:var(--green)"></i> إعلان جديد</h3></div>
           <div class="cb" style="display:flex;flex-direction:column;gap:12px">
-            <div><div class="slbl">عنوان الإعلان</div><input type="text" class="einp" id="an-title" placeholder="مثال: درس جديد 📖" style="width:100%"></div>
-            <div><div class="slbl">نص الرسالة</div><textarea class="antxt" id="an-body" placeholder="اكتب نص الإعلان..."></textarea></div>
+            <div><div class="slbl">عنوان الإعلان</div><input type="text" class="einp" id="an-title" placeholder="مثال: درس جديد 📖" style="width:100%" oninput="updateAnnouncePreview()"></div>
+            <div><div class="slbl">نص الرسالة</div><textarea class="antxt" id="an-body" placeholder="اكتب نص الإعلان..." oninput="updateAnnouncePreview()"></textarea></div>
             <div><div class="slbl">الأيقونة</div>
-              <select class="einp" id="an-icon" style="width:100%">
+              <select class="einp" id="an-icon" style="width:100%" onchange="updateAnnouncePreview()">
                 <option value="📢">📢 إعلان عام</option><option value="📖">📖 درس جديد</option>
                 <option value="🏆">🏆 منافسة</option><option value="🎁">🎁 مكافأة</option>
                 <option value="⚔️">⚔️ تحدي جديد</option><option value="✝️">✝️ رسالة روحية</option>
                 <option value="🎉">🎉 احتفال</option>
               </select>
             </div>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--muted)">
+              <input type="checkbox" id="an-push" checked style="width:16px;height:16px;cursor:pointer" onchange="updateAnnouncePreview()">
+              <span>إرسال كإشعار Push على الموبايل (غير الظهور داخل التطبيق)</span>
+            </label>
+
+            <!-- Push config (client-side FCM) -->
+            <details style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px">
+              <summary style="cursor:pointer;font-size:12px;color:var(--muted);font-weight:700"><i class="fas fa-key"></i> إعدادات Push (مرة واحدة فقط)</summary>
+              <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+                <div style="font-size:11px;color:var(--muted2);line-height:1.7">
+                  للإرسال بدون Cloud Functions، لازم تدخل <b>Server Key</b> من Firebase Console:<br>
+                  Project Settings → Cloud Messaging → Cloud Messaging API (Legacy) → Server key.<br>
+                  <span style="color:#fbbf24">⚠️ بيتخزن في المتصفح ده بس (localStorage). متشاركوش.</span>
+                </div>
+                <input type="password" id="fcm-server-key" class="einp" placeholder="AAAA...:APA91b..." style="width:100%;font-family:monospace;font-size:11px">
+                <div style="display:flex;gap:8px">
+                  <button class="btn bg bsm" onclick="saveFcmServerKey()" style="flex:1"><i class="fas fa-save"></i> حفظ</button>
+                  <button class="btn bd bsm" onclick="clearFcmServerKey()"><i class="fas fa-trash"></i></button>
+                </div>
+                <div id="fcm-key-status" style="font-size:11px;color:var(--muted2)"></div>
+              </div>
+            </details>
+
+            <!-- Live preview -->
+            <div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.15);border-radius:10px;padding:12px">
+              <div style="font-size:11px;color:var(--muted2);margin-bottom:8px;font-weight:700"><i class="fas fa-eye"></i> معاينة مباشرة</div>
+              <!-- In-app banner preview -->
+              <div id="an-preview-inapp" style="background:#1a2040;border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:18px 14px;text-align:center;direction:rtl;font-family:Cairo,sans-serif">
+                <div id="anp-icon" style="font-size:42px;margin-bottom:6px">📢</div>
+                <div id="anp-title" style="color:#e2e8f0;font-size:15px;font-weight:900;margin-bottom:4px">عنوان الإعلان</div>
+                <div id="anp-body" style="color:rgba(226,232,240,.65);font-size:12px;line-height:1.6;margin-bottom:12px">نص الرسالة يظهر هنا</div>
+                <div style="display:inline-block;background:#7c6af7;color:#fff;border-radius:8px;padding:6px 16px;font-size:11px;font-weight:700">حسناً 👍</div>
+                <div style="font-size:10px;color:var(--muted2);margin-top:8px">داخل التطبيق (بعد تسجيل الدخول)</div>
+              </div>
+              <!-- Push preview -->
+              <div id="an-preview-push" style="margin-top:10px;background:#2a2a2e;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px;direction:rtl;font-family:Cairo,sans-serif;display:flex;gap:10px;align-items:flex-start">
+                <div style="width:32px;height:32px;border-radius:8px;background:#7c6af7;display:flex;align-items:center;justify-content:center;flex-shrink:0"><i class="fas fa-bell" style="color:#fff;font-size:14px"></i></div>
+                <div style="flex:1;min-width:0">
+                  <div style="display:flex;justify-content:space-between;font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:2px"><span>مين البطل؟</span><span>الآن</span></div>
+                  <div id="anp-push-title" style="color:#fff;font-size:13px;font-weight:700">عنوان الإعلان</div>
+                  <div id="anp-push-body" style="color:rgba(255,255,255,0.75);font-size:12px">نص الرسالة يظهر هنا</div>
+                </div>
+              </div>
+              <div id="anp-push-label" style="font-size:10px;color:var(--muted2);margin-top:4px;text-align:center">إشعار Push على الموبايل</div>
+            </div>
+
             <button class="btn bp" onclick="sendAnnounce()"><i class="fas fa-paper-plane"></i> إرسال</button>
           </div>
         </div>
@@ -1789,24 +1835,221 @@ async function deleteRoom(id){if(!confirm('تحذف الغرفة دي؟'))return
 // ════════════════════════════════
 function renderAnnounce() {
   if(!announces.length){document.getElementById('anlist').innerHTML='<div class="empty"><p>لا توجد إعلانات</p></div>';return;}
-  document.getElementById('anlist').innerHTML=announces.map(a=>`
-    <div class="rrow"><div style="font-size:24px">${a.icon||'📢'}</div>
-    <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(a.title||'—')}</div>
+  document.getElementById('anlist').innerHTML=announces.map(a=>{
+    let pushLabel='';
+    if(a.sendPush===false){pushLabel='<span style="background:rgba(255,255,255,0.08);color:var(--muted2);border-radius:8px;padding:2px 8px;font-size:10px;margin-right:6px">داخل التطبيق فقط</span>';}
+    else if(a.pushStatus==='sent'){pushLabel=`<span style="background:rgba(16,185,129,0.18);color:#34d399;border-radius:8px;padding:2px 8px;font-size:10px;margin-right:6px">📲 أُرسل إلى ${a.pushSentCount||0}/${a.pushAttempted||0}</span>`;}
+    else if(a.pushStatus==='skipped_in_app_only'){pushLabel='<span style="background:rgba(255,255,255,0.08);color:var(--muted2);border-radius:8px;padding:2px 8px;font-size:10px;margin-right:6px">داخل التطبيق فقط</span>';}
+    else if(a.pushStatus==='failed'){pushLabel=`<span style="background:rgba(239,68,68,0.18);color:#f87171;border-radius:8px;padding:2px 8px;font-size:10px;margin-right:6px" title="${esc(a.pushError||'')}">❌ فشل Push</span>`;}
+    else {pushLabel='<span style="background:rgba(250,204,21,0.18);color:#fbbf24;border-radius:8px;padding:2px 8px;font-size:10px;margin-right:6px">⏳ Push قيد الإرسال</span>';}
+    return `<div class="rrow"><div style="font-size:24px">${a.icon||'📢'}</div>
+    <div style="flex:1"><div style="font-weight:700;font-size:13px">${esc(a.title||'—')} ${pushLabel}</div>
     <div style="color:var(--muted);font-size:12px;margin:3px 0">${esc(a.body||'—')}</div>
     <div style="font-size:11px;color:var(--muted2)">${a.createdAt?new Date(a.createdAt?.toDate?.()??a.createdAt).toLocaleString('ar-EG'):'—'}</div></div>
-    <button class="btn bd bxs" onclick="deleteAnnounce('${a._id}')"><i class="fas fa-trash"></i></button></div>`).join('');
+    <button class="btn bd bxs" onclick="deleteAnnounce('${a._id}')"><i class="fas fa-trash"></i></button></div>`;
+  }).join('');
 }
+
+// ────────── Live Preview ──────────
+function updateAnnouncePreview(){
+  const t=document.getElementById('an-title');
+  const b=document.getElementById('an-body');
+  const i=document.getElementById('an-icon');
+  const p=document.getElementById('an-push');
+  if(!t||!b||!i) return;
+  const title=t.value.trim()||'عنوان الإعلان';
+  const body=b.value.trim()||'نص الرسالة يظهر هنا';
+  const icon=i.value||'📢';
+  const setText=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val;};
+  setText('anp-icon',icon);
+  setText('anp-title',title);
+  setText('anp-body',body);
+  setText('anp-push-title',title);
+  setText('anp-push-body',body);
+  const pushBox=document.getElementById('an-preview-push');
+  const pushLabel=document.getElementById('anp-push-label');
+  const willPush=p?p.checked:true;
+  if(pushBox)pushBox.style.opacity=willPush?'1':'0.35';
+  if(pushLabel)pushLabel.textContent=willPush?'إشعار Push على الموبايل':'لن يتم إرسال Push (داخل التطبيق فقط)';
+}
+
+// ────────── FCM Server Key (stored per-browser in localStorage) ──────────
+const FCM_KEY_STORAGE='minElBatal_fcmServerKey';
+function getFcmServerKey(){return localStorage.getItem(FCM_KEY_STORAGE)||'';}
+function saveFcmServerKey(){
+  const el=document.getElementById('fcm-server-key');
+  const v=(el?.value||'').trim();
+  if(!v){toast('اكتب Server Key الأول','err');return;}
+  localStorage.setItem(FCM_KEY_STORAGE,v);
+  updateFcmKeyStatus();
+  toast('✅ تم حفظ المفتاح','ok');
+  if(el)el.value='';
+}
+function clearFcmServerKey(){
+  localStorage.removeItem(FCM_KEY_STORAGE);
+  const el=document.getElementById('fcm-server-key');
+  if(el)el.value='';
+  updateFcmKeyStatus();
+  toast('تم المسح','ok');
+}
+function updateFcmKeyStatus(){
+  const s=document.getElementById('fcm-key-status');
+  if(!s)return;
+  const k=getFcmServerKey();
+  s.innerHTML=k
+    ? '<span style="color:#34d399">✅ المفتاح محفوظ (•••'+esc(k.slice(-6))+')</span>'
+    : '<span style="color:#fbbf24">⚠️ لا يوجد مفتاح — Push لن يعمل</span>';
+}
+
+// ────────── Client-side Push via FCM Legacy HTTP API ──────────
+// Sends to batches of up to 1000 registration_ids per call.
+async function sendPushToAllPlayers(title,body,icon,announcementId){
+  const key=getFcmServerKey();
+  if(!key) return {sent:0,attempted:0,error:'no_server_key'};
+
+  // Collect tokens + filter by notification prefs
+  const tokens=[];
+  const snap=await safeGet(db.collection('players'));
+  snap.forEach(d=>{
+    const p=d.data()||{};
+    if(!p.fcmToken)return;
+    if(p.notifPrefs && p.notifPrefs.reminders===false)return;
+    tokens.push({id:d.id,token:p.fcmToken});
+  });
+  if(!tokens.length) return {sent:0,attempted:0,error:'no_tokens'};
+
+  let sent=0,failed=0;
+  const invalid=[];
+  // FCM Legacy allows up to 1000 registration_ids per request
+  const CHUNK=1000;
+  for(let i=0;i<tokens.length;i+=CHUNK){
+    const batch=tokens.slice(i,i+CHUNK);
+    const regIds=batch.map(t=>t.token);
+    try{
+      const res=await fetch('https://fcm.googleapis.com/fcm/send',{
+        method:'POST',
+        headers:{
+          'Content-Type':'application/json',
+          'Authorization':'key='+key
+        },
+        body:JSON.stringify({
+          registration_ids:regIds,
+          notification:{
+            title:title,
+            body:body,
+            icon:'/images/Logo-192.png',
+            click_action:window.location.origin
+          },
+          data:{
+            type:'announcement',
+            announcementId:announcementId||'',
+            icon:icon||'📢'
+          },
+          priority:'high'
+        })
+      });
+      if(!res.ok){
+        const txt=await res.text().catch(()=> '');
+        throw new Error('HTTP '+res.status+(txt?': '+txt.slice(0,120):''));
+      }
+      const json=await res.json();
+      sent += json.success||0;
+      failed += json.failure||0;
+      // Detect invalid tokens to clean up
+      if(Array.isArray(json.results)){
+        json.results.forEach((r,idx)=>{
+          if(r && r.error && (r.error==='NotRegistered'||r.error==='InvalidRegistration')){
+            invalid.push(batch[idx].id);
+          }
+        });
+      }
+    }catch(e){
+      failed += batch.length;
+      throw e; // surface to caller so pushStatus is set to 'failed'
+    }
+  }
+
+  // Clean up invalid tokens (best-effort)
+  if(invalid.length){
+    const FieldValue=firebase.firestore.FieldValue;
+    await Promise.all(invalid.map(id=>
+      db.collection('players').doc(id).update({fcmToken:FieldValue.delete()}).catch(()=>{})
+    ));
+  }
+
+  return {sent,attempted:tokens.length,failed,invalid:invalid.length};
+}
+
 async function sendAnnounce(){
-  const title=document.getElementById('an-title').value.trim(),body=document.getElementById('an-body').value.trim(),icon=document.getElementById('an-icon').value;
+  const title=document.getElementById('an-title').value.trim();
+  const body=document.getElementById('an-body').value.trim();
+  const icon=document.getElementById('an-icon').value;
+  const pushEl=document.getElementById('an-push');
+  const sendPush=pushEl?pushEl.checked:true;
   if(!title||!body){toast('اكتب العنوان والرسالة','err');return;}
-  try{const ref=await db.collection('announcements').add({title,body,icon,createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-    const nd={_id:ref.id,title,body,icon,createdAt:new Date()};announces.unshift(nd);
-    document.getElementById('an-title').value='';document.getElementById('an-body').value='';
-    renderAnnounce();toast('📢 تم الإرسال','ok');}
-  catch(e){toast('خطأ','err');}
+
+  const btn=document.querySelector('#page-announce .bp');
+  const origBtn=btn?btn.innerHTML:'';
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';}
+
+  let docRef=null;
+  try{
+    // 1) Save announcement to Firestore (in-app display works immediately)
+    const payload={title,body,icon,sendPush,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+    if(sendPush){payload.pushStatus='pending';}else{payload.pushStatus='skipped_in_app_only';}
+    docRef=await db.collection('announcements').add(payload);
+
+    const nd={_id:docRef.id,title,body,icon,sendPush,createdAt:new Date(),pushStatus:payload.pushStatus};
+    announces.unshift(nd);
+    document.getElementById('an-title').value='';
+    document.getElementById('an-body').value='';
+    updateAnnouncePreview();
+    renderAnnounce();
+
+    if(!sendPush){
+      toast('📢 تم الإرسال كإعلان داخلي','ok');
+      return;
+    }
+
+    // 2) If sendPush enabled, fan-out via FCM Legacy API
+    if(!getFcmServerKey()){
+      await docRef.update({pushStatus:'failed',pushError:'no_server_key'}).catch(()=>{});
+      nd.pushStatus='failed';nd.pushError='no_server_key';renderAnnounce();
+      toast('📢 تم الحفظ لكن Push مش مفعّل — ادخل Server Key','err');
+      return;
+    }
+
+    if(btn)btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري إرسال Push...';
+    const result=await sendPushToAllPlayers(title,body,icon,docRef.id);
+    const upd={
+      pushStatus:'sent',
+      pushSentCount:result.sent||0,
+      pushAttempted:result.attempted||0,
+      pushProcessedAt:firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await docRef.update(upd).catch(()=>{});
+    Object.assign(nd,upd,{pushProcessedAt:new Date()});
+    renderAnnounce();
+    if(result.attempted===0){
+      toast('📢 اتحفظ — مفيش مستخدمين عندهم Push مفعّل','info');
+    }else{
+      toast('📲 أُرسل إلى '+result.sent+'/'+result.attempted,'ok');
+    }
+  }catch(e){
+    console.error('sendAnnounce error:',e);
+    const msg=e.message||e.code||'فشل الإرسال';
+    if(docRef){
+      await docRef.update({pushStatus:'failed',pushError:msg}).catch(()=>{});
+      const row=announces.find(x=>x._id===docRef.id);
+      if(row){row.pushStatus='failed';row.pushError=msg;renderAnnounce();}
+    }
+    toast('خطأ: '+msg,'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML=origBtn;}
+  }
 }
 async function deleteAnnounce(id){try{await db.collection('announcements').doc(id).delete();announces=announces.filter(a=>a._id!==id);renderAnnounce();toast('تم الحذف','ok');}catch(e){toast('خطأ','err');}}
-async function loadAnnounce(){const s=await safeGet(db.collection('announcements').limit(30));announces=[];s.forEach(d=>{const x=d.data();x._id=d.id;announces.push(x);});announces.sort((a,b)=>(b.createdAt?.toDate?.()?.getTime?.()??0)-(a.createdAt?.toDate?.()?.getTime?.()??0));renderAnnounce();}
+async function loadAnnounce(){const s=await safeGet(db.collection('announcements').limit(30));announces=[];s.forEach(d=>{const x=d.data();x._id=d.id;announces.push(x);});announces.sort((a,b)=>(b.createdAt?.toDate?.()?.getTime?.()??0)-(a.createdAt?.toDate?.()?.getTime?.()??0));renderAnnounce();updateFcmKeyStatus();updateAnnouncePreview();}
 
 // ════════════════════════════════
 //  ADMIN MANAGEMENT

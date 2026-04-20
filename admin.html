@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.quilljs.com/1.3.7/quill.snow.css">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -344,6 +345,48 @@ tbody td{padding:10px 13px;vertical-align:middle}
 .antxt{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:9px;padding:11px 13px;color:var(--text);font-family:'Cairo',sans-serif;font-size:13px;resize:vertical;min-height:90px;outline:none;width:100%;transition:border-color var(--trans)}
 .antxt:focus{border-color:var(--accent)}
 
+/* ══ QUESTIONS (Q&A) ══ */
+.nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 6px;border-radius:10px;background:#ef4444;color:#fff;font-weight:800;font-size:10px;margin-inline-start:auto}
+.qtabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.qtab{padding:7px 14px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--card);color:var(--muted);font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all var(--trans);display:inline-flex;align-items:center;gap:6px}
+.qtab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.qtab:not(.active):hover{border-color:var(--accent);color:var(--text)}
+.qtab-count{background:rgba(255,255,255,.2);color:#fff;font-size:10px;padding:1px 6px;border-radius:99px;font-weight:800}
+.qtab:not(.active) .qtab-count{background:rgba(255,255,255,.08);color:var(--muted)}
+.qinbox-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;transition:background var(--trans);border:1px solid transparent;margin-bottom:4px;position:relative}
+.qinbox-row:hover{background:rgba(255,255,255,.04);border-color:rgba(124,106,247,.25)}
+.qinbox-row-active{background:rgba(124,106,247,.1);border-color:var(--accent)!important}
+.qa-unread-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;flex-shrink:0}
+.qa-pill{display:inline-block;border-radius:8px;padding:2px 8px;font-size:10px;font-weight:700}
+.qa-pill-ok{background:rgba(16,185,129,.2);color:#34d399}
+.qa-pill-warn{background:rgba(250,204,21,.2);color:#fbbf24}
+.qa-pill-muted{background:rgba(148,163,184,.2);color:#cbd5e1}
+.qa-bub{max-width:90%;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.6;word-wrap:break-word}
+.qa-bub-user{align-self:flex-start;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--text)}
+.qa-bub-admin{align-self:flex-end;background:rgba(124,106,247,.15);border:1px solid rgba(124,106,247,.35);color:var(--text)}
+.qa-bub-head{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px}
+.qa-bub-head span:first-child{font-weight:800;color:var(--accent2)}
+.qa-bub-body p{margin:0 0 6px}
+.qa-bub-body p:last-child{margin-bottom:0}
+.qa-bub-body strong{font-weight:900}
+.qa-bub-body ul,.qa-bub-body ol{margin:4px 0;padding-inline-start:22px}
+.qa-bub-body blockquote{border-right:3px solid var(--accent);margin:6px 0;padding:2px 10px 2px 0;font-style:italic;opacity:.9}
+.qa-bub-body a{color:#60a5fa;text-decoration:underline}
+.qa-bub-videos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-top:8px}
+.qa-videocard{position:relative;display:block;border-radius:8px;overflow:hidden;background:#000}
+.qa-videocard img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
+.qa-videocard-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);color:#fff;font-size:18px}
+.qa-videocard-play i{background:rgba(239,68,68,.95);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
+/* Quill dark-friendly on admin */
+#qadmin-editor{background:#fff !important;color:#222}
+#qadmin-editor .ql-editor{min-height:140px;direction:rtl;text-align:right;font-family:'Cairo',sans-serif}
+.ql-toolbar.ql-snow{border-radius:10px 10px 0 0;border:1px solid var(--border2)!important;background:rgba(255,255,255,.95)}
+.ql-container.ql-snow{border-radius:0 0 10px 10px;border:1px solid var(--border2)!important;border-top:none!important}
+/* Read receipts */
+.qa-receipt{display:inline-flex;align-items:center;margin-inline-start:4px;font-size:10px;vertical-align:middle}
+.qa-receipt-sent{color:rgba(255,255,255,.4)}
+.qa-receipt-read{color:#34d3ff}
+
 /* ══ ADMIN MANAGEMENT ══ */
 .admgmt-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
 .amtab{padding:8px 16px;border-radius:var(--rsm);border:1px solid var(--border2);background:var(--card);color:var(--muted);font-family:'Cairo',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transition:all var(--trans);display:flex;align-items:center;gap:6px}
@@ -468,6 +511,7 @@ tbody td{padding:10px 13px;vertical-align:middle}
         <button class="nav-btn" onclick="goPage('rewards')" id="nav-rewards"><i class="fas fa-gift"></i> طلبات الجوائز</button>
         <button class="nav-btn" onclick="goPage('rooms')"><i class="fas fa-bolt"></i> غرف المنافسة</button>
         <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
+        <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
       </div>
       <div class="nav-grp" id="nav-grp-super" style="display:none">
         <div class="nav-grp-title">المسؤول الأعلى</div>
@@ -630,6 +674,58 @@ tbody td{padding:10px 13px;vertical-align:middle}
       </div>
     </div>
 
+    <!-- QUESTIONS (Q&A with players) -->
+    <div class="page" id="page-questions">
+      <div class="ph"><h2><i class="fas fa-comments" style="color:var(--primary,#7c6af7)"></i> الأسئلة</h2><p>أسئلة اللاعبين والرد عليها بنص منسّق وروابط فيديو</p></div>
+
+      <!-- Inbox tabs -->
+      <div class="qtabs">
+        <button class="qtab active" onclick="qaTab('new')" id="qtab-new"><i class="fas fa-inbox"></i> جديدة <span class="qtab-count" id="qtc-new">0</span></button>
+        <button class="qtab" onclick="qaTab('answered')" id="qtab-answered"><i class="fas fa-check-circle"></i> تم الرد عليها <span class="qtab-count" id="qtc-answered">0</span></button>
+        <button class="qtab" onclick="qaTab('all')" id="qtab-all"><i class="fas fa-list"></i> الكل <span class="qtab-count" id="qtc-all">0</span></button>
+        <button class="btn bg bsm" onclick="qaLoad()" style="margin-inline-start:auto"><i class="fas fa-rotate-right"></i></button>
+      </div>
+
+      <div class="g2" style="margin-top:14px">
+        <!-- Inbox list -->
+        <div class="card">
+          <div class="ch"><h3><i class="fas fa-list" style="color:var(--muted)"></i> صندوق الوارد</h3></div>
+          <div id="qinbox" class="cb" style="max-height:70vh;overflow-y:auto"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+        </div>
+
+        <!-- Thread view -->
+        <div class="card">
+          <div class="ch"><h3 id="qthr-title"><i class="fas fa-comment-dots" style="color:var(--muted)"></i> اختر سؤال للرد عليه</h3></div>
+          <div class="cb" id="qthr-container" style="display:none;flex-direction:column;gap:12px">
+            <div id="qthr-meta" style="background:rgba(124,106,247,0.08);border:1px solid rgba(124,106,247,0.2);border-radius:10px;padding:10px 12px;font-size:12px"></div>
+            <div id="qthr-msgs" style="display:flex;flex-direction:column;gap:10px;max-height:45vh;overflow-y:auto;padding-inline:2px"></div>
+
+            <!-- Reply composer -->
+            <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
+              <div class="slbl">الرد (يدعم Bold, Italic, قوائم، اقتباس، روابط)</div>
+              <div id="qadmin-editor" style="min-height:160px;background:#fff;border-radius:10px"></div>
+
+              <div style="margin-top:10px">
+                <div class="slbl">روابط فيديو يوتيوب (اختياري)</div>
+                <div id="qvideos-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px"></div>
+                <div style="display:flex;gap:8px">
+                  <input type="text" class="einp" id="qvideo-url" placeholder="https://youtube.com/watch?v=..." style="flex:1">
+                  <button class="btn bg bsm" onclick="qaAddVideo()"><i class="fas fa-plus"></i> إضافة</button>
+                </div>
+              </div>
+
+              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+                <button class="btn bp" onclick="qaSendReply()" style="flex:1;min-width:150px"><i class="fas fa-paper-plane"></i> إرسال الرد</button>
+                <button class="btn bg" onclick="qaMarkResolved()"><i class="fas fa-check-double"></i> تم الحل</button>
+                <button class="btn bd bsm" onclick="qaDeleteThread()"><i class="fas fa-trash"></i></button>
+              </div>
+              <div id="qreply-hint" style="font-size:11px;color:var(--muted2);margin-top:6px"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- ADMIN MANAGEMENT (superadmin only) -->
     <div class="page" id="page-admins">
       <div class="ph"><h2><i class="fas fa-user-shield" style="color:var(--gold)"></i> إدارة الأدمنز</h2><p>قبول وإدارة الأدمنز المساعدين</p></div>
@@ -675,6 +771,7 @@ tbody td{padding:10px 13px;vertical-align:middle}
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 // ════════════════════════════════
 //  FIREBASE + CONFIG
@@ -912,8 +1009,8 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',admins:'إدارة الأدمنز'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',admins:'قبول وإدارة الأدمنز'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',admins:'إدارة الأدمنز'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',admins:'قبول وإدارة الأدمنز'};
 function goPage(name) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -2169,6 +2266,368 @@ function exportCSV(){
 function closeM(id){document.getElementById(id).style.display='none';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);}
+
+// ════════════════════════════════
+//  QUESTIONS (Q&A with players)
+// ════════════════════════════════
+const QA = {
+  threads: [],        // all threads
+  activeTab: 'new',
+  currentId: null,
+  currentData: null,
+  currentMessages: [],
+  videoLinks: [],
+  quill: null,
+  threadsUnsub: null,
+  msgsUnsub: null
+};
+
+function qaParseYouTubeId(url){
+  if(!url)return null;
+  try{
+    const u=new URL(url);
+    const h=u.hostname.replace(/^www\./,'');
+    if(h==='youtu.be')return u.pathname.slice(1).split('/')[0]||null;
+    if(h==='youtube.com'||h==='m.youtube.com'){
+      if(u.pathname==='/watch')return u.searchParams.get('v');
+      const m=u.pathname.match(/^\/(shorts|embed)\/([^\/?#]+)/);
+      if(m)return m[2];
+    }
+  }catch(e){}
+  return null;
+}
+
+function qaSanitizeHtml(html){
+  if(!html)return '';
+  const ALLOWED={'P':1,'BR':1,'STRONG':1,'B':1,'EM':1,'I':1,'U':1,'OL':1,'UL':1,'LI':1,'BLOCKQUOTE':1,'A':1,'H3':1,'SPAN':1};
+  const tpl=document.createElement('div');tpl.innerHTML=html;
+  (function clean(node){
+    [...node.childNodes].forEach(c=>{
+      if(c.nodeType===1){
+        if(!ALLOWED[c.tagName]){while(c.firstChild)node.insertBefore(c.firstChild,c);node.removeChild(c);return;}
+        [...c.attributes].forEach(a=>{
+          if(c.tagName==='A'&&(a.name==='href'||a.name==='target'||a.name==='rel'))return;
+          c.removeAttribute(a.name);
+        });
+        if(c.tagName==='A'){
+          const href=c.getAttribute('href')||'';
+          if(!/^https?:\/\//i.test(href))c.removeAttribute('href');
+          c.setAttribute('target','_blank');c.setAttribute('rel','noopener noreferrer');
+        }
+        clean(c);
+      }
+    });
+  })(tpl);
+  return tpl.innerHTML;
+}
+
+function qaTimeAgo(ts){
+  if(!ts)return '';
+  const d=ts.toDate?ts.toDate():new Date(ts);
+  const diff=(Date.now()-d.getTime())/1000;
+  if(diff<60)return 'الآن';
+  if(diff<3600)return Math.floor(diff/60)+' دقيقة';
+  if(diff<86400)return Math.floor(diff/3600)+' ساعة';
+  if(diff<2592000)return Math.floor(diff/86400)+' يوم';
+  return d.toLocaleDateString('ar-EG');
+}
+
+function qaLoad(){
+  if(QA.threadsUnsub){try{QA.threadsUnsub();}catch(e){}}
+  const box=document.getElementById('qinbox');
+  if(box)box.innerHTML='<div class="loading"><i class="fas fa-spinner"></i></div>';
+  QA.threadsUnsub=db.collection('questions').onSnapshot(snap=>{
+    QA.threads=[];
+    snap.forEach(d=>{const x=d.data();x._id=d.id;QA.threads.push(x);});
+    QA.threads.sort((a,b)=>{
+      const ta=a.lastActivityAt?.toDate?.()?.getTime?.()||0;
+      const tb=b.lastActivityAt?.toDate?.()?.getTime?.()||0;
+      return tb-ta;
+    });
+    qaRenderInbox();
+    qaUpdateNavBadge();
+    // If thread view is open, re-render to update read receipts
+    if(QA.currentId&&QA.currentMessages&&QA.currentMessages.length){qaRenderMessages();}
+  },err=>{console.warn('[admin QA] threads:',err);if(box)box.innerHTML='<div class="empty"><p>تعذّر التحميل</p></div>';});
+}
+
+function qaTab(t){
+  QA.activeTab=t;
+  ['new','answered','all'].forEach(x=>{
+    const btn=document.getElementById('qtab-'+x);
+    if(btn)btn.classList.toggle('active',x===t);
+  });
+  qaRenderInbox();
+}
+
+function qaFilteredThreads(){
+  if(QA.activeTab==='new')return QA.threads.filter(t=>t.unreadForAdmin||t.status==='pending');
+  if(QA.activeTab==='answered')return QA.threads.filter(t=>t.status==='answered'||t.status==='resolved');
+  return QA.threads;
+}
+
+function qaUpdateNavBadge(){
+  const unread=QA.threads.filter(t=>t.unreadForAdmin).length;
+  const badge=document.getElementById('nav-questions-badge');
+  if(badge){
+    if(unread>0){badge.textContent=unread>99?'99+':unread;badge.style.display='inline-flex';}
+    else{badge.style.display='none';}
+  }
+  const setC=(id,n)=>{const e=document.getElementById(id);if(e)e.textContent=n;};
+  setC('qtc-new',QA.threads.filter(t=>t.unreadForAdmin||t.status==='pending').length);
+  setC('qtc-answered',QA.threads.filter(t=>t.status==='answered'||t.status==='resolved').length);
+  setC('qtc-all',QA.threads.length);
+}
+
+function qaRenderInbox(){
+  const box=document.getElementById('qinbox');
+  if(!box)return;
+  const list=qaFilteredThreads();
+  if(!list.length){box.innerHTML='<div class="empty"><p>لا توجد أسئلة في هذا القسم</p></div>';return;}
+  box.innerHTML=list.map(t=>{
+    const unread=t.unreadForAdmin?'<span class="qa-unread-dot"></span>':'';
+    const badge=t.status==='answered'?'<span class="qa-pill qa-pill-ok">✅ رد</span>':
+                t.status==='resolved'?'<span class="qa-pill qa-pill-muted">تم الحل</span>':
+                '<span class="qa-pill qa-pill-warn">⏳ جديد</span>';
+    const active=QA.currentId===t._id?'qinbox-row-active':'';
+    return `<div class="qinbox-row ${active}" onclick="qaOpenThread('${t._id}')">
+      ${unread}
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">
+          <span style="font-weight:800;font-size:13px;color:var(--text,#e5e7eb)">${esc(t.userName||'لاعب')}</span>
+          <span style="font-size:11px;color:var(--muted2)">${esc(t.userPhone||'')}</span>
+          ${badge}
+        </div>
+        <div style="font-weight:700;font-size:12px;color:var(--text,#e5e7eb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'—')}</div>
+        <div style="color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.lastSnippet||'')}</div>
+      </div>
+      <div style="font-size:10px;color:var(--muted2);flex-shrink:0">${qaTimeAgo(t.lastActivityAt||t.createdAt)}</div>
+    </div>`;
+  }).join('');
+}
+
+function qaOpenThread(id){
+  QA.currentId=id;
+  QA.videoLinks=[];
+  QA.currentData=QA.threads.find(t=>t._id===id);
+  qaRenderInbox(); // refresh active highlight
+
+  const titleEl=document.getElementById('qthr-title');
+  if(titleEl)titleEl.innerHTML='<i class="fas fa-comment-dots" style="color:var(--primary,#7c6af7)"></i> '+esc((QA.currentData&&QA.currentData.title)||'السؤال');
+
+  const container=document.getElementById('qthr-container');
+  if(container)container.style.display='flex';
+
+  const meta=document.getElementById('qthr-meta');
+  if(meta&&QA.currentData){
+    meta.innerHTML='<div><strong>👤 '+esc(QA.currentData.userName||'لاعب')+'</strong> · '+esc(QA.currentData.userPhone||'')+'</div>'+
+      '<div style="color:var(--muted);margin-top:3px">تاريخ السؤال: '+qaTimeAgo(QA.currentData.createdAt)+' · عدد الرسائل: '+(QA.currentData.messageCount||0)+'</div>';
+  }
+
+  // Mark as read for admin + stamp lastReadByAdmin (for read receipts)
+  db.collection('questions').doc(id).update({
+    unreadForAdmin:false,
+    lastReadByAdmin:firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(()=>{});
+
+  // Subscribe to messages
+  if(QA.msgsUnsub){try{QA.msgsUnsub();}catch(e){}}
+  const msgsBox=document.getElementById('qthr-msgs');
+  if(msgsBox)msgsBox.innerHTML='<div class="loading"><i class="fas fa-spinner"></i></div>';
+  QA.msgsUnsub=db.collection('questions').doc(id).collection('messages').onSnapshot(snap=>{
+    const msgs=[];
+    snap.forEach(d=>{const x=d.data();x._id=d.id;msgs.push(x);});
+    msgs.sort((a,b)=>{
+      const ta=a.createdAt?.toDate?.()?.getTime?.()||0;
+      const tb=b.createdAt?.toDate?.()?.getTime?.()||0;
+      return ta-tb;
+    });
+    QA.currentMessages=msgs;
+    qaRenderMessages();
+  },err=>{console.warn('[admin QA] msgs:',err);});
+
+  // Init / reset Quill
+  qaInitReplyEditor();
+  qaRenderVideos();
+}
+
+function qaRenderMessages(){
+  const box=document.getElementById('qthr-msgs');
+  if(!box)return;
+  if(!QA.currentMessages.length){box.innerHTML='<div class="empty"><p>لا توجد رسائل</p></div>';return;}
+  // For read receipts on admin's own messages: compare to thread.lastReadByUser
+  const thr=QA.threads.find(t=>t._id===QA.currentId)||QA.currentData||{};
+  const userLastReadMs=thr.lastReadByUser?.toDate?.()?.getTime?.()||0;
+
+  box.innerHTML=QA.currentMessages.map(m=>{
+    const isAdmin=m.authorType==='admin';
+    const bubble=isAdmin?'qa-bub-admin':'qa-bub-user';
+    const body=qaSanitizeHtml(m.contentHtml||'');
+    const videos=Array.isArray(m.videoLinks)?m.videoLinks.map(v=>{
+      if(!v||!v.videoId)return '';
+      const thumb='https://img.youtube.com/vi/'+v.videoId+'/mqdefault.jpg';
+      const href='https://www.youtube.com/watch?v='+v.videoId;
+      return '<a href="'+href+'" target="_blank" rel="noopener" class="qa-videocard"><img src="'+thumb+'" alt=""><div class="qa-videocard-play"><i class="fas fa-play"></i></div></a>';
+    }).join(''):'';
+    let receipt='';
+    if(isAdmin){
+      const ms=m.createdAt?.toDate?.()?.getTime?.()||0;
+      const isRead=ms>0&&userLastReadMs>=ms;
+      receipt=`<span class="qa-receipt ${isRead?'qa-receipt-read':'qa-receipt-sent'}" title="${isRead?'شافها اللاعب':'اتبعت'}"><i class="fas fa-${isRead?'check-double':'check'}"></i></span>`;
+    }
+    return `<div class="qa-bub ${bubble}">
+      <div class="qa-bub-head"><span>${isAdmin?'👑 ':''}${esc(m.authorName||'')}</span><span>${qaTimeAgo(m.createdAt)}${receipt}</span></div>
+      <div class="qa-bub-body">${body}</div>
+      ${videos?'<div class="qa-bub-videos">'+videos+'</div>':''}
+    </div>`;
+  }).join('');
+  box.scrollTop=box.scrollHeight;
+}
+
+function qaInitReplyEditor(){
+  const el=document.getElementById('qadmin-editor');
+  if(!el)return;
+  // Reset content
+  el.innerHTML='';
+  try{
+    QA.quill=new Quill('#qadmin-editor',{
+      theme:'snow',
+      placeholder:'اكتب ردّك بنص منسّق…',
+      modules:{
+        toolbar:[
+          [{ 'header': [3, false] }],
+          ['bold','italic','underline'],
+          [{ 'list':'ordered' },{ 'list':'bullet' }],
+          ['blockquote','link'],
+          ['clean']
+        ]
+      }
+    });
+    QA.quill.format('direction','rtl');
+    QA.quill.format('align','right');
+  }catch(e){console.warn('Quill init:',e);}
+}
+
+function qaAddVideo(){
+  const inp=document.getElementById('qvideo-url');
+  const url=(inp.value||'').trim();
+  if(!url)return;
+  const vid=qaParseYouTubeId(url);
+  if(!vid){toast('رابط يوتيوب غير صالح','err');return;}
+  QA.videoLinks.push({url:url,videoId:vid,provider:'youtube'});
+  inp.value='';
+  qaRenderVideos();
+}
+
+function qaRemoveVideo(i){QA.videoLinks.splice(i,1);qaRenderVideos();}
+
+function qaRenderVideos(){
+  const box=document.getElementById('qvideos-list');
+  if(!box)return;
+  if(!QA.videoLinks.length){box.innerHTML='';return;}
+  box.innerHTML=QA.videoLinks.map((v,i)=>`
+    <div style="display:flex;gap:8px;align-items:center;background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 8px">
+      <img src="https://img.youtube.com/vi/${v.videoId}/default.jpg" style="width:48px;height:36px;object-fit:cover;border-radius:4px">
+      <div style="flex:1;font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(v.url)}</div>
+      <button class="btn bd bxs" onclick="qaRemoveVideo(${i})"><i class="fas fa-times"></i></button>
+    </div>
+  `).join('');
+}
+
+async function qaSendReply(){
+  if(!QA.currentId||!QA.quill){toast('اختر سؤال','err');return;}
+  const html=QA.quill.root.innerHTML;
+  const text=QA.quill.getText().trim();
+  if(!text||text.length<2){toast('اكتب الرد','err');return;}
+
+  const btn=document.querySelector('#page-questions .bp');
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';}
+
+  try{
+    const clean=qaSanitizeHtml(html);
+    const me=adminMe||{};
+    const authorName=me.name||'خادم';
+    const authorId=me.phone||me.id||'admin';
+    const FieldValue=firebase.firestore.FieldValue;
+    const now=FieldValue.serverTimestamp();
+    const snippet=text.replace(/\s+/g,' ').slice(0,100);
+
+    const ref=db.collection('questions').doc(QA.currentId);
+    await ref.collection('messages').add({
+      authorType:'admin',
+      authorId:authorId,
+      authorName:authorName,
+      contentHtml:clean,
+      videoLinks:QA.videoLinks.slice(),
+      createdAt:now
+    });
+    await ref.update({
+      status:'answered',
+      lastActivityAt:now,
+      lastSnippet:snippet,
+      unreadForUser:true,
+      unreadForAdmin:false,
+      messageCount:FieldValue.increment(1),
+      lastAdminReplyAt:now
+    });
+
+    // Reset
+    QA.videoLinks=[];
+    qaRenderVideos();
+    if(QA.quill)QA.quill.setText('');
+    toast('✅ تم إرسال الرد','ok');
+  }catch(e){
+    console.error('qaSendReply:',e);
+    toast('خطأ: '+(e.message||e.code||'فشل'),'err');
+  }finally{
+    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> إرسال الرد';}
+  }
+}
+
+async function qaMarkResolved(){
+  if(!QA.currentId)return;
+  if(!confirm('تأكيد: تم حل السؤال؟'))return;
+  try{
+    await db.collection('questions').doc(QA.currentId).update({status:'resolved'});
+    toast('تم التحديد كمحلول','ok');
+  }catch(e){toast('خطأ','err');}
+}
+
+async function qaDeleteThread(){
+  if(!QA.currentId)return;
+  if(!confirm('تأكيد حذف السؤال وكل الردود عليه؟'))return;
+  try{
+    // Delete subcollection messages first (best effort)
+    const snap=await db.collection('questions').doc(QA.currentId).collection('messages').get();
+    await Promise.all(snap.docs.map(d=>d.ref.delete().catch(()=>{})));
+    await db.collection('questions').doc(QA.currentId).delete();
+    if(QA.msgsUnsub){try{QA.msgsUnsub();}catch(e){}}
+    QA.currentId=null;QA.currentData=null;
+    document.getElementById('qthr-container').style.display='none';
+    document.getElementById('qthr-title').innerHTML='<i class="fas fa-comment-dots" style="color:var(--muted)"></i> اختر سؤال للرد عليه';
+    toast('تم الحذف','ok');
+  }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+// Track admin identity for reply attribution
+var adminMe = null;
+
+// Auto-subscribe when admin enters the app
+(function(){
+  const origEnter = window.enterApp;
+  if(typeof origEnter === 'function'){
+    window.enterApp = function(){
+      const r = origEnter.apply(this, arguments);
+      // adminMe is typically set by the existing auth flow; capture from localStorage or globals
+      try{
+        const raw = localStorage.getItem('minElBatal_adminSession');
+        if(raw) adminMe = JSON.parse(raw);
+      }catch(e){}
+      setTimeout(qaLoad, 500);
+      return r;
+    };
+  }
+})();
 </script>
 </body>
 </html>

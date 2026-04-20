@@ -288,6 +288,48 @@ exports.onAnnouncementCreated = functions
     });
 
 // ============================================================
+// 2c. ADMIN REPLIED TO A QUESTION → push the author
+//     Triggers when a new message is added to questions/{qid}/messages
+//     and the authorType is 'admin'. Notifies the player who owns the thread.
+// ============================================================
+exports.onQuestionMessageCreated = functions
+    .region('europe-west1')
+    .firestore.document('questions/{qid}/messages/{mid}')
+    .onCreate(async (snap, context) => {
+        var msg = snap.data() || {};
+        if (msg.authorType !== 'admin') return null;
+
+        var qid = context.params.qid;
+        var threadSnap = await db.collection('questions').doc(qid).get();
+        if (!threadSnap.exists) return null;
+        var thread = threadSnap.data() || {};
+        var userId = thread.userId;
+        if (!userId) return null;
+
+        var playerSnap = await db.collection('players').doc(userId).get();
+        if (!playerSnap.exists) return null;
+        var player = playerSnap.data() || {};
+        if (!player.fcmToken) return null;
+
+        // Build a short body preview from HTML → text
+        var raw = msg.contentHtml || '';
+        var txt = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        if (txt.length > 90) txt = txt.slice(0, 90) + '…';
+
+        var title = 'رد جديد على سؤالك 💬';
+        var body = txt || (thread.title ? 'رد على: ' + thread.title : 'في رد جديد عليك');
+
+        var ok = await safeSend(
+            player.fcmToken,
+            { title: title, body: body },
+            { type: 'question_reply', questionId: qid, threadTitle: thread.title || '' },
+            userId
+        );
+        console.log('[Notif] question_reply to', userId, ok ? 'sent' : 'failed');
+        return null;
+    });
+
+// ============================================================
 // 3. DAILY EVENING REMINDER (8 PM Cairo)
 //    Priority: inactivity > incomplete exercises
 //    Only sends 1 notification per user (the highest priority one)

@@ -52,5 +52,12 @@ service cloud.firestore {
     match /admin_requests/{requestId} {
       allow read, write: if true;
     }
+    // Q&A — player asks questions, admins answer
+    match /questions/{questionId} {
+      allow read, write: if true;
+      match /messages/{messageId} {
+        allow read, write: if true;
+      }
+    }
   }
 }

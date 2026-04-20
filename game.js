@@ -307,6 +307,7 @@ function submitLogin() {
             syncLeaderboard();
             requestNotificationsAfterLogin();
             checkAdminAnnouncements();
+            if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
             checkPendingRoomJoin();
         })
         .catch(function(err) {
@@ -417,6 +418,7 @@ function submitRegister() {
                 showScreen('character-screen');
                 requestNotificationsAfterLogin();
             checkAdminAnnouncements();
+            if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
             })
             .catch(function(err) {
                 console.error('Registration save error:', err);
@@ -596,6 +598,7 @@ function submitOldAccountUpgrade(docId, phone) {
             syncLeaderboard();
             requestNotificationsAfterLogin();
             checkAdminAnnouncements();
+            if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
         }).catch(function(err) {
             console.error('Upgrade error:', err);
             showToast('حصل مشكلة، حاول تاني', 'error');
@@ -16276,6 +16279,16 @@ function initPushNotifications() {
             return;
         }
 
+        // Admin replied to a question
+        if (dataType === 'question_reply') {
+            showAchievement('💬', title || 'رد جديد على سؤالك', body);
+            // Refresh the questions badge if user is on home hub
+            if (typeof loadMyQuestions === 'function' && GameState.playerPhone) {
+                // passive refresh — the onSnapshot listener handles it if the screen is open
+            }
+            return;
+        }
+
         // Default → toast
         showToast(title + (body ? ': ' + body : ''), 'info');
     });
@@ -16375,6 +16388,470 @@ function dismissAnnouncement(id, rest, seen, seenKey) {
     if (rest && rest.length) {
         setTimeout(function() { showAnnouncementBanner(rest, seen, seenKey); }, 400);
     }
+}
+
+// ============================================================
+// Q&A — Player-side (questions.js inline)
+// ============================================================
+var QAState = {
+    myThreads: [],
+    currentThreadId: null,
+    messagesListener: null,
+    threadsListener: null
+};
+
+// Sanitize rich HTML produced by Quill before rendering
+function qaSanitizeHtml(html) {
+    if (!html) return '';
+    var ALLOWED_TAGS = {
+        'P': 1, 'BR': 1, 'STRONG': 1, 'B': 1, 'EM': 1, 'I': 1, 'U': 1,
+        'OL': 1, 'UL': 1, 'LI': 1, 'BLOCKQUOTE': 1, 'A': 1, 'H3': 1, 'SPAN': 1
+    };
+    var tpl = document.createElement('div');
+    tpl.innerHTML = html;
+    (function clean(node) {
+        var children = Array.prototype.slice.call(node.childNodes);
+        children.forEach(function(child) {
+            if (child.nodeType === 1) {
+                if (!ALLOWED_TAGS[child.tagName]) {
+                    // Unwrap disallowed tags but keep their text
+                    while (child.firstChild) node.insertBefore(child.firstChild, child);
+                    node.removeChild(child);
+                    return;
+                }
+                // Strip all attributes except safe href/target on A
+                var attrs = Array.prototype.slice.call(child.attributes);
+                attrs.forEach(function(a) {
+                    if (child.tagName === 'A' && (a.name === 'href' || a.name === 'target' || a.name === 'rel')) return;
+                    child.removeAttribute(a.name);
+                });
+                if (child.tagName === 'A') {
+                    var href = child.getAttribute('href') || '';
+                    if (!/^https?:\/\//i.test(href)) { child.removeAttribute('href'); }
+                    child.setAttribute('target', '_blank');
+                    child.setAttribute('rel', 'noopener noreferrer');
+                }
+                clean(child);
+            }
+        });
+    })(tpl);
+    return tpl.innerHTML;
+}
+
+// Extract YouTube video ID from a URL (supports watch, youtu.be, shorts, embed)
+function qaParseYouTubeId(url) {
+    if (!url) return null;
+    try {
+        var u = new URL(url);
+        var host = u.hostname.replace(/^www\./, '');
+        if (host === 'youtu.be') return u.pathname.slice(1).split('/')[0] || null;
+        if (host === 'youtube.com' || host === 'm.youtube.com') {
+            if (u.pathname === '/watch') return u.searchParams.get('v');
+            var m = u.pathname.match(/^\/(shorts|embed)\/([^\/?#]+)/);
+            if (m) return m[2];
+        }
+    } catch (e) {}
+    return null;
+}
+
+function qaTimeAgo(date) {
+    if (!date) return '';
+    var d = date.toDate ? date.toDate() : new Date(date);
+    var diff = (Date.now() - d.getTime()) / 1000;
+    if (diff < 60) return 'الآن';
+    if (diff < 3600) return Math.floor(diff / 60) + ' دقيقة';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' ساعة';
+    if (diff < 2592000) return Math.floor(diff / 86400) + ' يوم';
+    return d.toLocaleDateString('ar-EG');
+}
+
+function qaStatusBadge(t) {
+    if (t.unreadForUser) return '<span class="qa-badge qa-badge-new">🔔 رد جديد</span>';
+    if (t.status === 'answered') return '<span class="qa-badge qa-badge-answered">✅ تم الرد</span>';
+    if (t.status === 'resolved') return '<span class="qa-badge qa-badge-resolved">تم الحل</span>';
+    return '<span class="qa-badge qa-badge-pending">⏳ بانتظار الرد</span>';
+}
+
+function openQuestionsScreen() {
+    showScreen('questions-screen');
+    loadMyQuestions();
+}
+
+function loadMyQuestions() {
+    var body = document.getElementById('questions-list-body');
+    if (!body) return;
+    if (!firebaseDb || !GameState.playerPhone) {
+        body.innerHTML = '<div class="qa-empty"><p>لازم تسجّل دخول الأول</p></div>';
+        return;
+    }
+    body.innerHTML = '<div class="qa-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+
+    // Detach previous listener before creating a new one
+    if (QAState.threadsListener) { try { QAState.threadsListener(); } catch (e) {} QAState.threadsListener = null; }
+
+    QAState.threadsListener = firebaseDb.collection('questions')
+        .where('userId', '==', GameState.playerPhone)
+        .onSnapshot(function(snap) {
+            var threads = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                d._id = doc.id;
+                threads.push(d);
+            });
+            threads.sort(function(a, b) {
+                var ta = (a.lastActivityAt && a.lastActivityAt.toDate) ? a.lastActivityAt.toDate().getTime() : 0;
+                var tb = (b.lastActivityAt && b.lastActivityAt.toDate) ? b.lastActivityAt.toDate().getTime() : 0;
+                return tb - ta;
+            });
+            QAState.myThreads = threads;
+            renderMyQuestions();
+            updateQuestionsUnreadBadge();
+        }, function(err) {
+            console.warn('[QA] threads listener error:', err);
+            body.innerHTML = '<div class="qa-empty"><p>تعذّر تحميل الأسئلة</p></div>';
+        });
+}
+
+function renderMyQuestions() {
+    var body = document.getElementById('questions-list-body');
+    if (!body) return;
+    if (!QAState.myThreads.length) {
+        body.innerHTML = '<div class="qa-empty">' +
+            '<div class="qa-empty-icon">💭</div>' +
+            '<p>ما عندكش أسئلة لسه</p>' +
+            '<p class="qa-empty-sub">اسأل أي حاجة عن الإيمان، الكتاب، القديسين…</p>' +
+            '</div>';
+        return;
+    }
+    body.innerHTML = QAState.myThreads.map(function(t) {
+        var title = t.title || '(بدون عنوان)';
+        var snippet = t.lastSnippet || '';
+        var time = qaTimeAgo(t.lastActivityAt || t.createdAt);
+        return '<div class="qa-thread-row" onclick="openQuestionThread(\'' + t._id + '\')">' +
+            '<div class="qa-thread-main">' +
+                '<div class="qa-thread-title">' + escapeHtml(title) + '</div>' +
+                '<div class="qa-thread-snippet">' + escapeHtml(snippet) + '</div>' +
+            '</div>' +
+            '<div class="qa-thread-meta">' +
+                qaStatusBadge(t) +
+                '<div class="qa-thread-time">' + time + '</div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function updateQuestionsUnreadBadge() {
+    var badge = document.getElementById('questions-unread-badge');
+    if (!badge) return;
+    var count = QAState.myThreads.filter(function(t) { return t.unreadForUser; }).length;
+    if (count > 0) {
+        badge.textContent = count > 9 ? '9+' : count;
+        badge.style.display = 'flex';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+// Background subscription: keeps badge updated even when Qs screen isn't open
+function subscribeQuestionsBadge() {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    if (QAState.threadsListener) return; // already subscribed
+    QAState.threadsListener = firebaseDb.collection('questions')
+        .where('userId', '==', GameState.playerPhone)
+        .onSnapshot(function(snap) {
+            var threads = [];
+            snap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; threads.push(d); });
+            threads.sort(function(a, b) {
+                var ta = (a.lastActivityAt && a.lastActivityAt.toDate) ? a.lastActivityAt.toDate().getTime() : 0;
+                var tb = (b.lastActivityAt && b.lastActivityAt.toDate) ? b.lastActivityAt.toDate().getTime() : 0;
+                return tb - ta;
+            });
+            QAState.myThreads = threads;
+            updateQuestionsUnreadBadge();
+            // If the list screen is visible, re-render it too
+            var listScreen = document.getElementById('questions-screen');
+            if (listScreen && listScreen.classList.contains('active')) renderMyQuestions();
+            // If the thread screen is visible, re-render receipts (admin may have read)
+            var threadScreen = document.getElementById('question-thread-screen');
+            if (threadScreen && threadScreen.classList.contains('active') && QAState.currentThreadId) {
+                // Reuse last known messages to re-render ticks (avoids extra read)
+                var box = document.getElementById('qthread-messages');
+                if (box && QAState._lastMessages) renderThreadMessages(QAState._lastMessages);
+            }
+        }, function(err) { console.warn('[QA] badge listener:', err); });
+}
+
+// ---- Composer (new question or follow-up) ----
+var qaQuillInstance = null;
+var qaComposerMode = 'new'; // 'new' or 'followup'
+
+function openAskComposer() {
+    qaComposerMode = 'new';
+    openComposerModal('اسأل سؤال جديد', 'اكتب سؤالك بأي تفاصيل تحبها…');
+}
+
+function openFollowupComposer() {
+    if (!QAState.currentThreadId) return;
+    qaComposerMode = 'followup';
+    openComposerModal('متابعة على السؤال', 'اكتب متابعتك…');
+}
+
+function openComposerModal(titleText, placeholder) {
+    // Remove any existing modal
+    var existing = document.getElementById('qa-composer-overlay');
+    if (existing) existing.remove();
+
+    var overlay = document.createElement('div');
+    overlay.id = 'qa-composer-overlay';
+    overlay.className = 'qa-composer-overlay';
+    overlay.innerHTML =
+        '<div class="qa-composer-card">' +
+            '<div class="qa-composer-head">' +
+                '<h3>' + escapeHtml(titleText) + '</h3>' +
+                '<button class="qa-composer-close" onclick="closeComposer()"><i class="fas fa-times"></i></button>' +
+            '</div>' +
+            '<div class="qa-composer-body">' +
+                '<div id="qa-editor" style="min-height:160px"></div>' +
+                '<div class="qa-composer-hint">' + escapeHtml(placeholder) + '</div>' +
+            '</div>' +
+            '<div class="qa-composer-foot">' +
+                '<button class="btn btn-secondary" onclick="closeComposer()"><span>إلغاء</span></button>' +
+                '<button class="btn btn-primary" id="qa-send-btn" onclick="submitComposer()"><span><i class="fas fa-paper-plane"></i> إرسال</span></button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
+
+    // Initialize Quill (player-side: simpler toolbar)
+    try {
+        qaQuillInstance = new Quill('#qa-editor', {
+            theme: 'snow',
+            placeholder: placeholder,
+            modules: {
+                toolbar: [
+                    ['bold', 'italic', 'underline'],
+                    [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                    ['blockquote', 'link']
+                ]
+            }
+        });
+        // RTL
+        qaQuillInstance.format('direction', 'rtl');
+        qaQuillInstance.format('align', 'right');
+    } catch (e) {
+        console.warn('[QA] Quill init failed:', e);
+    }
+}
+
+function closeComposer() {
+    var overlay = document.getElementById('qa-composer-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(function() { overlay.remove(); }, 250);
+    }
+    qaQuillInstance = null;
+}
+
+function submitComposer() {
+    if (!qaQuillInstance) return;
+    var btn = document.getElementById('qa-send-btn');
+    var html = qaQuillInstance.root.innerHTML;
+    var text = qaQuillInstance.getText().trim();
+    if (!text || text.length < 3) {
+        showToast('اكتب سؤالك الأول', 'error');
+        return;
+    }
+
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i></span>'; }
+
+    var cleanHtml = qaSanitizeHtml(html);
+    var FieldValue = firebase.firestore.FieldValue;
+    var now = FieldValue.serverTimestamp();
+    var snippet = text.replace(/\s+/g, ' ').slice(0, 100);
+
+    if (qaComposerMode === 'new') {
+        // Rate limit — max 3 new questions per 24h per player (client-side guard)
+        var recentCount = QAState.myThreads.filter(function(t) {
+            var created = (t.createdAt && t.createdAt.toDate) ? t.createdAt.toDate().getTime() : 0;
+            return Date.now() - created < 24 * 60 * 60 * 1000;
+        }).length;
+        if (recentCount >= 3) {
+            showToast('حد أقصى 3 أسئلة في اليوم، جرب بكرا', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> إرسال</span>'; }
+            return;
+        }
+
+        var autoTitle = text.replace(/\s+/g, ' ').slice(0, 50);
+        if (text.length > 50) autoTitle += '…';
+
+        var questionData = {
+            userId: GameState.playerPhone,
+            userName: GameState.playerName || 'لاعب',
+            userPhone: GameState.playerPhone,
+            title: autoTitle,
+            status: 'pending',
+            createdAt: now,
+            lastActivityAt: now,
+            lastSnippet: snippet,
+            unreadForUser: false,
+            unreadForAdmin: true,
+            messageCount: 1
+        };
+
+        firebaseDb.collection('questions').add(questionData).then(function(ref) {
+            return ref.collection('messages').add({
+                authorType: 'user',
+                authorId: GameState.playerPhone,
+                authorName: GameState.playerName || 'لاعب',
+                contentHtml: cleanHtml,
+                videoLinks: [],
+                createdAt: now
+            }).then(function() { return ref.id; });
+        }).then(function(newId) {
+            closeComposer();
+            showToast('✅ اتبعت سؤالك — الخدّام هيردوا قريب', 'success');
+            openQuestionThread(newId);
+        }).catch(function(err) {
+            console.error('[QA] submit new error:', err);
+            showToast('تعذّر الإرسال، جرّب تاني', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> إرسال</span>'; }
+        });
+    } else {
+        // Follow-up on existing thread
+        var threadId = QAState.currentThreadId;
+        if (!threadId) { closeComposer(); return; }
+        var threadRef = firebaseDb.collection('questions').doc(threadId);
+        threadRef.collection('messages').add({
+            authorType: 'user',
+            authorId: GameState.playerPhone,
+            authorName: GameState.playerName || 'لاعب',
+            contentHtml: cleanHtml,
+            videoLinks: [],
+            createdAt: now
+        }).then(function() {
+            return threadRef.update({
+                lastActivityAt: now,
+                lastSnippet: snippet,
+                unreadForAdmin: true,
+                status: 'pending', // reopens if admin had marked answered
+                messageCount: FieldValue.increment(1)
+            });
+        }).then(function() {
+            closeComposer();
+            showToast('✅ اتبعت متابعتك', 'success');
+        }).catch(function(err) {
+            console.error('[QA] submit followup error:', err);
+            showToast('تعذّر الإرسال', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span><i class="fas fa-paper-plane"></i> إرسال</span>'; }
+        });
+    }
+}
+
+// ---- Single thread view ----
+function openQuestionThread(threadId) {
+    QAState.currentThreadId = threadId;
+    showScreen('question-thread-screen');
+
+    var thread = QAState.myThreads.find(function(t) { return t._id === threadId; });
+    var titleEl = document.getElementById('qthread-title');
+    var statusEl = document.getElementById('qthread-status');
+    if (titleEl) titleEl.innerHTML = '<i class="fas fa-comment-dots"></i> ' + escapeHtml((thread && thread.title) || 'السؤال');
+    if (statusEl) statusEl.innerHTML = thread ? qaStatusBadge(thread) : '';
+
+    // Mark as read: clear unreadForUser + stamp lastReadByUser (for read receipts)
+    var readUpdate = {
+        unreadForUser: false,
+        lastReadByUser: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    firebaseDb.collection('questions').doc(threadId).update(readUpdate).catch(function() {});
+
+    // Listen to messages
+    if (QAState.messagesListener) { try { QAState.messagesListener(); } catch (e) {} QAState.messagesListener = null; }
+    var msgsBox = document.getElementById('qthread-messages');
+    if (msgsBox) msgsBox.innerHTML = '<div class="qa-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+
+    QAState.messagesListener = firebaseDb.collection('questions').doc(threadId)
+        .collection('messages')
+        .onSnapshot(function(snap) {
+            var msgs = [];
+            snap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; msgs.push(d); });
+            msgs.sort(function(a, b) {
+                var ta = (a.createdAt && a.createdAt.toDate) ? a.createdAt.toDate().getTime() : 0;
+                var tb = (b.createdAt && b.createdAt.toDate) ? b.createdAt.toDate().getTime() : 0;
+                return ta - tb;
+            });
+            QAState._lastMessages = msgs;
+            renderThreadMessages(msgs);
+        }, function(err) {
+            console.warn('[QA] messages listener error:', err);
+            if (msgsBox) msgsBox.innerHTML = '<div class="qa-empty"><p>تعذّر التحميل</p></div>';
+        });
+}
+
+function renderThreadMessages(msgs) {
+    var box = document.getElementById('qthread-messages');
+    if (!box) return;
+    if (!msgs.length) {
+        box.innerHTML = '<div class="qa-empty"><p>لا توجد رسائل</p></div>';
+        return;
+    }
+    // Get current thread for read-receipt comparison
+    var thread = QAState.myThreads.find(function(t) { return t._id === QAState.currentThreadId; });
+    var adminLastReadMs = (thread && thread.lastReadByAdmin && thread.lastReadByAdmin.toDate)
+        ? thread.lastReadByAdmin.toDate().getTime() : 0;
+
+    box.innerHTML = msgs.map(function(m) {
+        var isAdmin = m.authorType === 'admin';
+        var time = qaTimeAgo(m.createdAt);
+        var body = qaSanitizeHtml(m.contentHtml || '');
+        var videos = '';
+        if (Array.isArray(m.videoLinks)) {
+            videos = m.videoLinks.map(function(v) {
+                if (!v || !v.videoId) return '';
+                var thumb = 'https://img.youtube.com/vi/' + v.videoId + '/hqdefault.jpg';
+                var href = 'https://www.youtube.com/watch?v=' + v.videoId;
+                return '<a class="qa-video-card" href="' + href + '" target="_blank" rel="noopener">' +
+                    '<img src="' + thumb + '" alt="فيديو">' +
+                    '<div class="qa-video-play"><i class="fas fa-play"></i></div>' +
+                    '<div class="qa-video-label">فيديو شرح على يوتيوب</div>' +
+                '</a>';
+            }).join('');
+        }
+        // Read receipts on user's own messages: ✓ delivered, ✓✓ read by admin
+        var receipt = '';
+        if (!isAdmin) {
+            var msgMs = (m.createdAt && m.createdAt.toDate) ? m.createdAt.toDate().getTime() : 0;
+            var isRead = msgMs > 0 && adminLastReadMs >= msgMs;
+            receipt = '<span class="qa-receipt ' + (isRead ? 'qa-receipt-read' : 'qa-receipt-sent') + '" title="' +
+                (isRead ? 'اتقرأ' : 'اتبعت') + '">' +
+                (isRead ? '<i class="fas fa-check-double"></i>' : '<i class="fas fa-check"></i>') +
+                '</span>';
+        }
+        return '<div class="qa-msg ' + (isAdmin ? 'qa-msg-admin' : 'qa-msg-user') + '">' +
+            '<div class="qa-msg-head">' +
+                '<span class="qa-msg-author">' + (isAdmin ? '👑 ' : '') + escapeHtml(m.authorName || (isAdmin ? 'خادم' : 'أنا')) + '</span>' +
+                '<span class="qa-msg-time">' + time + receipt + '</span>' +
+            '</div>' +
+            '<div class="qa-msg-body">' + body + '</div>' +
+            (videos ? '<div class="qa-msg-videos">' + videos + '</div>' : '') +
+        '</div>';
+    }).join('');
+    // Scroll to bottom
+    box.scrollTop = box.scrollHeight;
+}
+
+// Minimal toast fallback (in case showToast doesn't exist yet on this screen)
+if (typeof showToast !== 'function') {
+    window.showToast = function(msg, type) {
+        var t = document.createElement('div');
+        t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:' + (type === 'error' ? '#dc2626' : type === 'success' ? '#059669' : '#333') + ';color:#fff;padding:10px 16px;border-radius:10px;z-index:10000;font-family:Cairo;font-size:13px';
+        t.textContent = msg; document.body.appendChild(t);
+        setTimeout(function() { t.remove(); }, 3000);
+    };
 }
 
 function showNotificationPrompt() {

@@ -902,23 +902,11 @@ tbody td{padding:10px 13px;vertical-align:middle}
               <span>إرسال كإشعار Push على الموبايل (غير الظهور داخل التطبيق)</span>
             </label>
 
-            <!-- Push config (client-side FCM) -->
-            <details style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px 12px">
-              <summary style="cursor:pointer;font-size:12px;color:var(--muted);font-weight:700"><i class="fas fa-key"></i> إعدادات Push (مرة واحدة فقط)</summary>
-              <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
-                <div style="font-size:11px;color:var(--muted2);line-height:1.7">
-                  للإرسال بدون Cloud Functions، لازم تدخل <b>Server Key</b> من Firebase Console:<br>
-                  Project Settings → Cloud Messaging → Cloud Messaging API (Legacy) → Server key.<br>
-                  <span style="color:#fbbf24">⚠️ بيتخزن في المتصفح ده بس (localStorage). متشاركوش.</span>
-                </div>
-                <input type="password" id="fcm-server-key" class="einp" placeholder="AAAA...:APA91b..." style="width:100%;font-family:monospace;font-size:11px">
-                <div style="display:flex;gap:8px">
-                  <button class="btn bg bsm" onclick="saveFcmServerKey()" style="flex:1"><i class="fas fa-save"></i> حفظ</button>
-                  <button class="btn bd bsm" onclick="clearFcmServerKey()"><i class="fas fa-trash"></i></button>
-                </div>
-                <div id="fcm-key-status" style="font-size:11px;color:var(--muted2)"></div>
-              </div>
-            </details>
+            <!-- Push delivered via Cloud Function automatically -->
+            <div style="font-size:11px;color:var(--muted2);background:rgba(52,211,153,0.07);border:1px solid rgba(52,211,153,0.2);border-radius:8px;padding:8px 12px">
+              <i class="fas fa-cloud" style="color:#34d399;margin-left:4px"></i>
+              الإشعارات بتتوزع تلقائياً عن طريق Cloud Functions — مش محتاج تضيف أي مفتاح.
+            </div>
 
             <!-- Live preview -->
             <div style="background:rgba(255,255,255,0.03);border:1px dashed rgba(255,255,255,0.15);border-radius:10px;padding:12px">
@@ -2496,47 +2484,23 @@ async function sendAnnounce(){
 
   let docRef=null;
   try{
-    // 1) Save announcement to Firestore (in-app display works immediately)
     const segments=getSegments();
     const payload={title,body,icon,sendPush,segments,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
-    if(sendPush){payload.pushStatus='pending';}else{payload.pushStatus='skipped_in_app_only';}
+    payload.pushStatus=sendPush?'pending':'skipped_in_app_only';
     docRef=await db.collection('announcements').add(payload);
 
-    const nd={_id:docRef.id,title,body,icon,sendPush,createdAt:new Date(),pushStatus:payload.pushStatus};
+    const nd={_id:docRef.id,title,body,icon,sendPush,segments,createdAt:new Date(),pushStatus:payload.pushStatus};
     announces.unshift(nd);
     document.getElementById('an-title').value='';
     document.getElementById('an-body').value='';
     updateAnnouncePreview();
     renderAnnounce();
+    resetSegments();
 
-    if(!sendPush){
-      toast('📢 تم الإرسال كإعلان داخلي','ok');
-      return;
-    }
-
-    // 2) If sendPush enabled, fan-out via FCM Legacy API
-    if(!getFcmServerKey()){
-      await docRef.update({pushStatus:'failed',pushError:'no_server_key'}).catch(()=>{});
-      nd.pushStatus='failed';nd.pushError='no_server_key';renderAnnounce();
-      toast('📢 تم الحفظ لكن Push مش مفعّل — ادخل Server Key','err');
-      return;
-    }
-
-    if(btn)btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري إرسال Push...';
-    const result=await sendPushToAllPlayers(title,body,icon,docRef.id,segments);
-    const upd={
-      pushStatus:'sent',
-      pushSentCount:result.sent||0,
-      pushAttempted:result.attempted||0,
-      pushProcessedAt:firebase.firestore.FieldValue.serverTimestamp()
-    };
-    await docRef.update(upd).catch(()=>{});
-    Object.assign(nd,upd,{pushProcessedAt:new Date()});
-    renderAnnounce();
-    if(result.attempted===0){
-      toast('📢 اتحفظ — مفيش مستخدمين عندهم Push مفعّل','info');
-    }else{
-      toast('📲 أُرسل إلى '+result.sent+'/'+result.attempted,'ok');
+    if(sendPush){
+      toast('📲 تم الإرسال — Cloud Function بتوزع الإشعارات دلوقتي','ok');
+    } else {
+      toast('📢 تم الحفظ كإعلان داخلي فقط','ok');
     }
   }catch(e){
     console.error('sendAnnounce error:',e);

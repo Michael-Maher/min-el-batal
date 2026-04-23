@@ -758,6 +758,12 @@ tbody td{padding:10px 13px;vertical-align:middle}
       <button class="btn-ref" id="btn-ref" onclick="refreshAll()"><i class="fas fa-rotate-right"></i> تحديث</button>
     </div>
   </header>
+  <!-- Connection retry banner -->
+  <div id="conn-banner" style="display:none;background:#b45309;color:#fff;font-size:12px;font-weight:700;text-align:center;padding:7px 12px;direction:rtl;position:sticky;top:0;z-index:999">
+    <i class="fas fa-wifi" style="margin-left:6px"></i>
+    <span id="conn-msg">لا يوجد اتصال — جاري إعادة المحاولة...</span>
+    <button onclick="retryNow()" style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;border-radius:6px;padding:2px 10px;font-size:11px;cursor:pointer;margin-right:10px">إعادة المحاولة الآن</button>
+  </div>
 
   <main class="main">
 
@@ -1237,24 +1243,66 @@ async function submitRequest() {
 // ════════════════════════════════
 //  LOAD DATA — resilient (no Promise.all crashing)
 // ════════════════════════════════
+const _EMPTY_SNAP = { empty:true, docs:[], forEach:()=>{} };
 async function safeGet(query) {
-  try { return await query.get(); } catch(e) { console.warn('collection load failed:',e.message); return { empty:true, docs:[], forEach:()=>{} }; }
+  const snap = await query.get(); // let it throw on network error
+  return snap;
+}
+
+// ── Connection banner + auto-retry ──
+let _retryTimer=null, _retryAttempt=0, _loadFailed=false;
+function showConnBanner(msg){
+  const b=document.getElementById('conn-banner'), m=document.getElementById('conn-msg');
+  if(b) b.style.display='block';
+  if(m && msg) m.textContent=msg;
+}
+function hideConnBanner(){ const b=document.getElementById('conn-banner'); if(b) b.style.display='none'; }
+function scheduleRetry(){
+  if(_retryTimer) return;
+  const delays=[5,10,20,30,60]; // seconds
+  const delay=delays[Math.min(_retryAttempt,delays.length-1)];
+  let countdown=delay;
+  const m=document.getElementById('conn-msg');
+  const tick=()=>{ if(m) m.textContent='لا يوجد اتصال — إعادة المحاولة خلال '+countdown+'ث... (محاولة '+(+_retryAttempt+1)+')'; };
+  tick();
+  const interval=setInterval(()=>{ countdown--; tick(); if(countdown<=0) clearInterval(interval); },1000);
+  _retryTimer=setTimeout(()=>{ _retryTimer=null; clearInterval(interval); loadAll(); },delay*1000);
+}
+function retryNow(){
+  if(_retryTimer){ clearTimeout(_retryTimer); _retryTimer=null; }
+  _retryAttempt=0;
+  loadAll();
 }
 
 async function loadAll() {
   const btn=document.getElementById('btn-ref');
   btn.classList.add('spin');
 
-  // Load each collection independently — failures don't block others
-  const [ps,ts,rs,rms,ans,ads,arqs] = await Promise.all([
-    safeGet(db.collection('players')),
-    safeGet(db.collection('teams')),
-    safeGet(db.collection('reward_requests')),
-    safeGet(db.collection('compete_rooms').limit(60)),      // no orderBy = no index needed
-    safeGet(db.collection('announcements').limit(30)),
-    safeGet(db.collection('admins')),
-    safeGet(db.collection('admin_requests'))
-  ]);
+  let ps,ts,rs,rms,ans,ads,arqs;
+  try {
+    [ps,ts,rs,rms,ans,ads,arqs] = await Promise.all([
+      safeGet(db.collection('players')),
+      safeGet(db.collection('teams')),
+      safeGet(db.collection('reward_requests')),
+      safeGet(db.collection('compete_rooms').limit(60)),
+      safeGet(db.collection('announcements').limit(30)),
+      safeGet(db.collection('admins')),
+      safeGet(db.collection('admin_requests'))
+    ]);
+  } catch(e) {
+    console.warn('[loadAll] Firestore unreachable:', e.message);
+    btn.classList.remove('spin');
+    _loadFailed=true;
+    _retryAttempt++;
+    showConnBanner('');
+    scheduleRetry();
+    return;
+  }
+
+  // Connected — clear any retry state
+  _loadFailed=false; _retryAttempt=0;
+  if(_retryTimer){ clearTimeout(_retryTimer); _retryTimer=null; }
+  hideConnBanner();
 
   const collect = (snap, arr) => { arr.length=0; snap.forEach(d=>{const x=d.data();x._id=d.id;arr.push(x);}); };
   collect(ps,players); collect(ts,teams); collect(rs,rewards);

@@ -2,7 +2,7 @@
   "name": "min-el-batal-functions",
   "description": "Cloud Functions for مين البطل notification system",
   "engines": {
-    "node": "18"
+    "node": "22"
   },
   "main": "index.js",
   "dependencies": {

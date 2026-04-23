@@ -749,8 +749,8 @@ function loadFromCloud(phone) {
                                 }
                             });
                             GameState[key] = merged;
-                        } else if (key === 'stars' || key === 'gems' || key === 'totalCorrect' || key === 'totalAnswered' || key === 'bestStreak' || key === 'gamesPlayed') {
-                            // For numeric scores, take max of cloud and local
+                        } else if (key === 'stars' || key === 'gems' || key === 'totalCorrect' || key === 'totalAnswered' || key === 'bestStreak' || key === 'gamesPlayed' || key === 'xp') {
+                            // For numeric scores, take max of cloud and local (xp included so a stale cloud value never regresses the player's level)
                             GameState[key] = Math.max(data[key] || 0, localBackup[key] || GameState[key] || 0);
                         } else if (['lessonSummaries', 'watchedVideos', 'dailyVerseLog',
                                     'bibleReadingLog', 'devotionLog', 'exerciseLog',
@@ -13336,7 +13336,7 @@ function startPlayerPresence() {
         firebaseDb.collection('compete_rooms').doc(competeState.roomId).update(upd).catch(function() {});
     }
     writePresence();
-    competeState.presenceInterval = setInterval(writePresence, 4000);
+    competeState.presenceInterval = setInterval(writePresence, 15000);
 }
 
 function stopPlayerPresence() {
@@ -13347,7 +13347,7 @@ function stopPlayerPresence() {
 }
 
 // Elect the earliest-joined non-dead player as new host when host disconnects.
-// Prefers recently-active players (lastSeen within 35s) to avoid re-electing
+// Prefers recently-active players (lastSeen within 45s) to avoid re-electing
 // another disconnected player.
 function electNewHost(room) {
     var players = room.players || {};
@@ -13357,7 +13357,7 @@ function electNewHost(room) {
     // Prefer active players; fall back to all non-host players if none have presence data
     function isActive(phone) {
         var lastSeen = (players[phone] && players[phone].lastSeen) || 0;
-        return lastSeen === 0 || (nowMs - lastSeen <= 35000);
+        return lastSeen === 0 || (nowMs - lastSeen <= 45000);
     }
 
     var allCandidates = Object.keys(players).filter(function(p) { return p !== deadHost; });
@@ -13910,9 +13910,9 @@ function checkAllAnswered() {
                 // Skip eliminated players in sparkle mode
                 if (room.mode === 'sparkle' && !p.alive) return;
                 // Skip players who closed the tab — detected via lastSeen presence heartbeat
-                // (written every 8s; >35s stale means they're gone)
+                // (written every 15s; >45s stale means they're gone)
                 var lastSeen = p.lastSeen || 0;
-                if (lastSeen > 0 && (nowMs - lastSeen > 20000)) return;
+                if (lastSeen > 0 && (nowMs - lastSeen > 45000)) return;
                 // If the question already timed out, don't keep waiting for this player
                 if (questionTimedOut) return;
                 if (!p.answers || p.answers.length <= qIdx) {
@@ -16475,6 +16475,20 @@ function qaStatusBadge(t) {
 function openQuestionsScreen() {
     showScreen('questions-screen');
     loadMyQuestions();
+    // Restore notice collapsed state
+    var collapsed = localStorage.getItem('qaNoticeCollapsed') === '1';
+    var card = document.getElementById('qa-notice-card');
+    if (card) {
+        if (collapsed) card.classList.add('collapsed');
+        else card.classList.remove('collapsed');
+    }
+}
+
+function qaToggleNotice() {
+    var card = document.getElementById('qa-notice-card');
+    if (!card) return;
+    var isCollapsed = card.classList.toggle('collapsed');
+    localStorage.setItem('qaNoticeCollapsed', isCollapsed ? '1' : '0');
 }
 
 function loadMyQuestions() {
@@ -16517,27 +16531,51 @@ function renderMyQuestions() {
     if (!body) return;
     if (!QAState.myThreads.length) {
         body.innerHTML = '<div class="qa-empty">' +
-            '<div class="qa-empty-icon">💭</div>' +
+            '<span class="qa-empty-icon">✉️</span>' +
             '<p>ما عندكش أسئلة لسه</p>' +
-            '<p class="qa-empty-sub">اسأل أي حاجة عن الإيمان، الكتاب، القديسين…</p>' +
+            '<p class="qa-empty-sub">اسأل الخدام أي حاجة عن الإيمان،<br>الكتاب المقدس، القديسين والكنيسة…</p>' +
             '</div>';
         return;
     }
-    body.innerHTML = QAState.myThreads.map(function(t) {
-        var title = t.title || '(بدون عنوان)';
-        var snippet = t.lastSnippet || '';
-        var time = qaTimeAgo(t.lastActivityAt || t.createdAt);
-        return '<div class="qa-thread-row" onclick="openQuestionThread(\'' + t._id + '\')">' +
-            '<div class="qa-thread-main">' +
-                '<div class="qa-thread-title">' + escapeHtml(title) + '</div>' +
-                '<div class="qa-thread-snippet">' + escapeHtml(snippet) + '</div>' +
-            '</div>' +
-            '<div class="qa-thread-meta">' +
-                qaStatusBadge(t) +
-                '<div class="qa-thread-time">' + time + '</div>' +
-            '</div>' +
-        '</div>';
-    }).join('');
+    // Update hero stats
+    var total = QAState.myThreads.length;
+    var answered = QAState.myThreads.filter(function(t) { return t.status === 'answered' || t.status === 'resolved'; }).length;
+    var unread = QAState.myThreads.filter(function(t) { return t.unreadForUser; }).length;
+    var statsEl = document.getElementById('qa-hero-stats');
+    if (statsEl) {
+        statsEl.innerHTML =
+            '<span class="qa-stat-chip"><i class="fas fa-comments"></i> ' + total + ' سؤال</span>' +
+            '<span class="qa-stat-chip"><i class="fas fa-check-circle"></i> ' + answered + ' مُجاب</span>' +
+            (unread ? '<span class="qa-stat-chip" style="border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.12)"><i class="fas fa-bell" style="color:#f87171"></i> ' + unread + ' جديد</span>' : '');
+    }
+
+    var statusIcons = { answered: '✅', resolved: '✅', pending: '⏳' };
+    body.innerHTML = '<div class="qa-threads-section">' +
+        '<div class="qa-threads-label">محادثاتك مع الخدام</div>' +
+        QAState.myThreads.map(function(t) {
+            var title = t.title || '(بدون عنوان)';
+            var snippet = t.lastSnippet || '';
+            var time = qaTimeAgo(t.lastActivityAt || t.createdAt);
+            var msgCount = t.messageCount || 1;
+            var isUnread = !!t.unreadForUser;
+            var icon = isUnread ? '🔔' : (statusIcons[t.status] || '💬');
+            return '<div class="qa-thread-row' + (isUnread ? ' qa-thread-row-unread' : '') + '" onclick="openQuestionThread(\'' + t._id + '\')">' +
+                '<div class="qa-thread-icon">' + icon + '</div>' +
+                '<div class="qa-thread-main">' +
+                    '<div class="qa-thread-title">' + escapeHtml(title) + '</div>' +
+                    '<div class="qa-thread-snippet">' + escapeHtml(snippet) + '</div>' +
+                    '<div class="qa-thread-footer">' +
+                        qaStatusBadge(t) +
+                        '<span class="qa-msg-count"><i class="fas fa-comment-dots"></i> ' + msgCount + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="qa-thread-meta">' +
+                    '<div class="qa-thread-time">' + time + '</div>' +
+                    '<div class="qa-thread-arrow"><i class="fas fa-chevron-left"></i></div>' +
+                '</div>' +
+            '</div>';
+        }).join('') +
+    '</div>';
 }
 
 function escapeHtml(s) {
@@ -16831,17 +16869,216 @@ function renderThreadMessages(msgs) {
                 (isRead ? '<i class="fas fa-check-double"></i>' : '<i class="fas fa-check"></i>') +
                 '</span>';
         }
-        return '<div class="qa-msg ' + (isAdmin ? 'qa-msg-admin' : 'qa-msg-user') + '">' +
+        // ── Reactions ──
+        var reactions = m.reactions || {};
+        var myId = GameState.playerPhone;
+        var QA_EMOJIS = ['❤️','🙏','🔥','😮','💯','✝️','👍','😢'];
+        var chips = QA_EMOJIS.filter(function(e) { return (reactions[e] || []).length > 0; }).map(function(e) {
+            var users = reactions[e] || [];
+            var mine = users.indexOf(myId) >= 0;
+            return '<button class="qa-reaction-chip' + (mine ? ' qa-reacted' : '') + '" ' +
+                'onclick="qaToggleReaction(\'' + m._id + '\',\'' + e + '\')" ' +
+                'title="' + users.length + ' ' + (mine ? '(أنا)' : '') + '">' +
+                e + '<span>' + users.length + '</span></button>';
+        }).join('');
+        var pickerOpts = QA_EMOJIS.map(function(e) {
+            var mine = (reactions[e] || []).indexOf(myId) >= 0;
+            return '<button class="qa-emoji-opt' + (mine ? ' qa-emoji-active' : '') + '" ' +
+                'onclick="qaToggleReaction(\'' + m._id + '\',\'' + e + '\')">' + e + '</button>';
+        }).join('');
+        var reactRow = '<div class="qa-reactions-row">' + chips +
+            '<div class="qa-react-wrap">' +
+                '<button class="qa-react-add-btn" onclick="qaToggleReactPicker(\'' + m._id + '\',event)" title="أضف تفاعل">＋</button>' +
+                '<div class="qa-emoji-picker" id="qrp-' + m._id + '" style="display:none">' + pickerOpts + '</div>' +
+            '</div>' +
+            '<button class="qa-share-msg-btn" onclick="qaShareMessage(\'' + m._id + '\')" title="شارك هذا الرد"><i class="fas fa-share-alt"></i></button>' +
+        '</div>';
+
+        return '<div class="qa-msg ' + (isAdmin ? 'qa-msg-admin' : 'qa-msg-user') + '" id="qm-' + m._id + '">' +
             '<div class="qa-msg-head">' +
-                '<span class="qa-msg-author">' + (isAdmin ? '👑 ' : '') + escapeHtml(m.authorName || (isAdmin ? 'خادم' : 'أنا')) + '</span>' +
+                '<span class="qa-msg-author">' + (isAdmin ? '✝ رد الخدام' : escapeHtml(m.authorName || 'أنا')) + '</span>' +
                 '<span class="qa-msg-time">' + time + receipt + '</span>' +
             '</div>' +
             '<div class="qa-msg-body">' + body + '</div>' +
             (videos ? '<div class="qa-msg-videos">' + videos + '</div>' : '') +
+            reactRow +
         '</div>';
     }).join('');
     // Scroll to bottom
     box.scrollTop = box.scrollHeight;
+}
+
+// ── Reaction helpers (player side) ─────────────────────────────────────────
+var QA_EMOJIS_ALL = ['❤️','🙏','🔥','😮','💯','✝️','👍','😢'];
+
+function qaToggleReaction(msgId, emoji) {
+    if (!firebaseDb || !GameState.playerPhone || !QAState.currentThreadId) return;
+    qaHideAllReactPickers();
+    var myId = GameState.playerPhone;
+    var msg = (QAState._lastMessages || []).find(function(m) { return m._id === msgId; });
+    var reactions = (msg && msg.reactions) || {};
+    var users = reactions[emoji] || [];
+    var FieldValue = firebase.firestore.FieldValue;
+    var update = {};
+    update['reactions.' + emoji] = users.indexOf(myId) >= 0
+        ? FieldValue.arrayRemove(myId)
+        : FieldValue.arrayUnion(myId);
+    firebaseDb.collection('questions').doc(QAState.currentThreadId)
+        .collection('messages').doc(msgId)
+        .update(update)
+        .catch(function(e) { console.warn('[QA] reaction:', e); });
+}
+
+function qaToggleReactPicker(msgId, event) {
+    if (event) event.stopPropagation();
+    var picker = document.getElementById('qrp-' + msgId);
+    if (!picker) return;
+    var visible = picker.style.display !== 'none';
+    qaHideAllReactPickers();
+    if (!visible) picker.style.display = 'flex';
+}
+
+function qaHideAllReactPickers() {
+    document.querySelectorAll('.qa-emoji-picker').forEach(function(p) { p.style.display = 'none'; });
+}
+
+// Close any open picker when tapping the chat background
+(function() {
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.qa-react-wrap')) qaHideAllReactPickers();
+    });
+})();
+
+// ── Share helpers (player side) ─────────────────────────────────────────────
+
+var APP_URL = 'https://min-el-batal.web.app';
+var APP_NAME = '✝️ مين البطل؟';
+
+/** Extract plain text + all URLs (links + YouTube) from a message object */
+function qaExtractMsgContent(m) {
+    var div = document.createElement('div');
+    div.innerHTML = m.contentHtml || '';
+    var text = (div.textContent || div.innerText || '').trim();
+    var links = [];
+    div.querySelectorAll('a[href]').forEach(function(a) {
+        var h = a.getAttribute('href');
+        if (h && /^https?:\/\//i.test(h) && links.indexOf(h) < 0) links.push(h);
+    });
+    (m.videoLinks || []).forEach(function(v) {
+        var u = v && (v.url || ('https://www.youtube.com/watch?v=' + v.videoId));
+        if (u && links.indexOf(u) < 0) links.push(u);
+    });
+    return { text: text, links: links };
+}
+
+/** Build a shareable text block for one message */
+function qaBuildMsgShareText(m, threadTitle) {
+    var c = qaExtractMsgContent(m);
+    var isAdmin = m.authorType === 'admin';
+    var lines = [];
+    lines.push(APP_NAME);
+    lines.push('━━━━━━━━━━━━━━━━━━━');
+    if (threadTitle) lines.push('❓ ' + threadTitle);
+    lines.push('');
+    lines.push((isAdmin ? '👑 رد الخدام:' : '🙋 سؤال:'));
+    lines.push(c.text);
+    if (c.links.length) {
+        lines.push('');
+        lines.push('🔗 روابط:');
+        c.links.forEach(function(l) { lines.push(l); });
+    }
+    lines.push('');
+    lines.push('━━━━━━━━━━━━━━━━━━━');
+    lines.push('📱 ' + APP_URL);
+    return lines.join('\n');
+}
+
+/** Share a single message */
+function qaShareMessage(msgId) {
+    var msg = (QAState._lastMessages || []).find(function(m) { return m._id === msgId; });
+    if (!msg) return;
+    var thread = QAState.myThreads.find(function(t) { return t._id === QAState.currentThreadId; });
+    var title = thread ? (thread.title || '') : '';
+    var text = qaBuildMsgShareText(msg, title);
+    var shareTitle = msg.authorType === 'admin' ? 'رد الخدام' : title;
+    qaDoShare(shareTitle, text);
+}
+
+/** Share the entire conversation thread */
+function qaShareThread() {
+    var thread = QAState.myThreads.find(function(t) { return t._id === QAState.currentThreadId; });
+    var msgs = QAState._lastMessages || [];
+    if (!msgs.length) return;
+
+    var title = thread ? (thread.title || 'محادثة') : 'محادثة';
+    var allLinks = [];
+    var lines = [];
+    lines.push(APP_NAME);
+    lines.push('━━━━━━━━━━━━━━━━━━━');
+    lines.push('❓ ' + title);
+    lines.push('');
+
+    msgs.forEach(function(m) {
+        var c = qaExtractMsgContent(m);
+        var label = m.authorType === 'admin' ? '👑 رد الخدام' : '🙋 سؤالك';
+        lines.push(label + ':');
+        lines.push(c.text);
+        lines.push('');
+        c.links.forEach(function(l) { if (allLinks.indexOf(l) < 0) allLinks.push(l); });
+    });
+
+    if (allLinks.length) {
+        lines.push('🔗 روابط المحادثة:');
+        allLinks.forEach(function(l) { lines.push(l); });
+        lines.push('');
+    }
+    lines.push('━━━━━━━━━━━━━━━━━━━');
+    lines.push('📱 ' + APP_URL);
+
+    qaDoShare(title, lines.join('\n'));
+}
+
+/** Attempt native share → clipboard fallback */
+function qaDoShare(title, text) {
+    if (navigator.share) {
+        navigator.share({ title: title, text: text, url: APP_URL })
+            .catch(function(e) { if (e.name !== 'AbortError') qaFallbackCopy(text); });
+    } else {
+        qaFallbackCopy(text);
+    }
+}
+
+function qaFallbackCopy(text) {
+    var done = function() { qaShareToast('✅ تم النسخ! الصق في واتساب أو تيليجرام'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function() { qaLegacyCopy(text); done(); });
+    } else {
+        qaLegacyCopy(text); done();
+    }
+}
+
+function qaLegacyCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;width:1px;height:1px';
+    document.body.appendChild(ta);
+    ta.select();
+    try { document.execCommand('copy'); } catch(e) {}
+    ta.remove();
+}
+
+function qaShareToast(msg) {
+    var el = document.getElementById('qa-share-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'qa-share-toast';
+        el.className = 'qa-share-toast';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.classList.add('show');
+    clearTimeout(el._tid);
+    el._tid = setTimeout(function() { el.classList.remove('show'); }, 2800);
 }
 
 // Minimal toast fallback (in case showToast doesn't exist yet on this screen)

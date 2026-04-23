@@ -361,31 +361,258 @@ tbody td{padding:10px 13px;vertical-align:middle}
 .qa-pill-ok{background:rgba(16,185,129,.2);color:#34d399}
 .qa-pill-warn{background:rgba(250,204,21,.2);color:#fbbf24}
 .qa-pill-muted{background:rgba(148,163,184,.2);color:#cbd5e1}
-.qa-bub{max-width:90%;border-radius:12px;padding:10px 12px;font-size:13px;line-height:1.6;word-wrap:break-word}
-.qa-bub-user{align-self:flex-start;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:var(--text)}
-.qa-bub-admin{align-self:flex-end;background:rgba(124,106,247,.15);border:1px solid rgba(124,106,247,.35);color:var(--text)}
-.qa-bub-head{display:flex;justify-content:space-between;font-size:10px;color:var(--muted);margin-bottom:4px}
-.qa-bub-head span:first-child{font-weight:800;color:var(--accent2)}
+.qa-bub{max-width:88%;border-radius:14px;padding:10px 14px 8px;font-size:13px;line-height:1.65;word-wrap:break-word;position:relative}
+.qa-bub-user{align-self:flex-start;background:rgba(59,130,246,.13);border:1px solid rgba(59,130,246,.25);color:var(--text)}
+/* Admin reply — white card with purple left bar */
+.qa-bub-admin{
+  align-self:flex-end;
+  background:#ffffff;
+  color:#1a1040;
+  border:none;
+  border-left:4px solid #7c6af7;
+  border-radius:14px;
+  border-bottom-left-radius:4px;
+  box-shadow:0 3px 16px rgba(0,0,0,.25),0 1px 4px rgba(0,0,0,.12)
+}
+.qa-bub-head{display:flex;justify-content:space-between;align-items:center;font-size:10px;margin-bottom:5px;gap:6px}
+.qa-bub-user .qa-bub-head{color:rgba(255,255,255,.55)}
+.qa-bub-admin .qa-bub-head{color:#9ca3af}
+.qa-bub-head span:first-child{font-weight:800}
+.qa-bub-user .qa-bub-head span:first-child{color:rgba(147,197,253,.9)}
+.qa-bub-admin .qa-bub-head span:first-child{color:#7c3aed;display:flex;align-items:center;gap:4px}
 .qa-bub-body p{margin:0 0 6px}
 .qa-bub-body p:last-child{margin-bottom:0}
 .qa-bub-body strong{font-weight:900}
 .qa-bub-body ul,.qa-bub-body ol{margin:4px 0;padding-inline-start:22px}
-.qa-bub-body blockquote{border-right:3px solid var(--accent);margin:6px 0;padding:2px 10px 2px 0;font-style:italic;opacity:.9}
+.qa-bub-admin .qa-bub-body{color:#1e1040}
+.qa-bub-admin .qa-bub-body blockquote{border-right:3px solid #7c3aed;background:rgba(124,58,237,.06);margin:6px 0;padding:4px 10px 4px 6px;border-radius:0 8px 8px 0;font-style:italic}
+.qa-bub-admin .qa-bub-body a{color:#6d28d9;font-weight:700}
+.qa-bub-admin .qa-bub-body img{max-width:100%;border-radius:8px;margin:4px 0;display:block}
+.qa-bub-admin .qa-bub-body h1,.qa-bub-admin .qa-bub-body h2,.qa-bub-admin .qa-bub-body h3{color:#2e1065;margin:8px 0 4px}
+.qa-bub-admin .qa-bub-body code{background:rgba(124,58,237,.1);border-radius:4px;padding:1px 5px;font-size:12px;color:#4c1d95}
+.qa-bub-user .qa-bub-body blockquote{border-right:3px solid rgba(255,255,255,.4);margin:6px 0;padding:2px 10px 2px 0;font-style:italic;opacity:.9}
 .qa-bub-body a{color:#60a5fa;text-decoration:underline}
 .qa-bub-videos{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin-top:8px}
+.qa-edited-tag{font-size:10px;color:#9ca3af;font-weight:400;font-style:italic}
 .qa-videocard{position:relative;display:block;border-radius:8px;overflow:hidden;background:#000}
 .qa-videocard img{width:100%;display:block;aspect-ratio:16/9;object-fit:cover}
 .qa-videocard-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.35);color:#fff;font-size:18px}
 .qa-videocard-play i{background:rgba(239,68,68,.95);border-radius:50%;width:36px;height:36px;display:flex;align-items:center;justify-content:center}
-/* Quill dark-friendly on admin */
-#qadmin-editor{background:#fff !important;color:#222}
-#qadmin-editor .ql-editor{min-height:140px;direction:rtl;text-align:right;font-family:'Cairo',sans-serif}
-.ql-toolbar.ql-snow{border-radius:10px 10px 0 0;border:1px solid var(--border2)!important;background:rgba(255,255,255,.95)}
-.ql-container.ql-snow{border-radius:0 0 10px 10px;border:1px solid var(--border2)!important;border-top:none!important}
+/* ══ Quill rich-editor — admin panel ══════════════════════ */
+#qa-editor-wrap{
+  border-radius:14px;overflow:hidden;
+  border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 0 0 4px rgba(124,106,247,.05);
+  margin-bottom:4px;
+  background:#fff
+}
+/* Toolbar */
+#qa-editor-wrap .ql-toolbar.ql-snow{
+  border:none!important;
+  border-bottom:2px solid #e5e7eb!important;
+  background:linear-gradient(to bottom,#f8f7ff,#f1f0fa);
+  padding:6px 10px;
+  display:flex;flex-wrap:wrap;gap:2px;align-items:center
+}
+/* Group separators */
+#qa-editor-wrap .ql-toolbar.ql-snow .ql-formats{
+  border-left:1px solid #d1d5db;
+  padding-left:8px;
+  margin-left:4px;
+  display:flex;align-items:center;gap:2px
+}
+#qa-editor-wrap .ql-toolbar.ql-snow .ql-formats:first-child{border-left:none;padding-left:0;margin-left:0}
+/* Editor body */
+#qa-editor-wrap .ql-container.ql-snow{border:none!important;background:#fff}
+#qadmin-editor .ql-editor{
+  min-height:180px;max-height:42vh;overflow-y:auto;
+  direction:rtl;text-align:right;
+  font-family:'Cairo',sans-serif;font-size:14px;color:#1a1040;
+  padding:14px 18px;line-height:1.8
+}
+#qadmin-editor .ql-editor.ql-blank::before{
+  color:#b0a8d0;font-style:normal;right:18px;left:auto
+}
+/* Buttons */
+#qa-editor-wrap .ql-toolbar button{
+  width:28px;height:28px;border-radius:6px;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .14s,transform .1s
+}
+#qa-editor-wrap .ql-toolbar button:hover{background:rgba(124,106,247,.12);transform:scale(1.1)}
+#qa-editor-wrap .ql-toolbar button.ql-active{background:rgba(124,106,247,.18)}
+/* Strokes/fills */
+#qa-editor-wrap .ql-toolbar .ql-stroke{stroke:#4b5563}
+#qa-editor-wrap .ql-toolbar .ql-fill{fill:#4b5563}
+#qa-editor-wrap .ql-toolbar button:hover .ql-stroke,
+#qa-editor-wrap .ql-toolbar button.ql-active .ql-stroke{stroke:#7c6af7}
+#qa-editor-wrap .ql-toolbar button:hover .ql-fill,
+#qa-editor-wrap .ql-toolbar button.ql-active .ql-fill{fill:#7c6af7}
+/* Pickers */
+#qa-editor-wrap .ql-toolbar .ql-picker{border-radius:7px}
+#qa-editor-wrap .ql-toolbar .ql-picker-label{
+  color:#374151;border:1px solid #d1d5db!important;
+  border-radius:7px;padding:3px 8px;
+  background:#fff;font-size:12px;font-family:'Cairo',sans-serif;
+  display:flex;align-items:center;gap:4px
+}
+#qa-editor-wrap .ql-toolbar .ql-picker-label:hover{border-color:#7c6af7!important;color:#7c6af7}
+#qa-editor-wrap .ql-toolbar .ql-picker-options{
+  background:#fff;border:1px solid #e5e7eb!important;
+  border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.14);
+  padding:6px;z-index:9999;min-width:120px
+}
+#qa-editor-wrap .ql-toolbar .ql-picker-item{
+  border-radius:6px;padding:5px 10px;font-size:12px;
+  font-family:'Cairo',sans-serif;transition:background .12s
+}
+#qa-editor-wrap .ql-toolbar .ql-picker-item:hover{
+  background:rgba(124,106,247,.1);color:#7c6af7
+}
+/* Colour pickers */
+#qa-editor-wrap .ql-toolbar .ql-color-picker .ql-picker-label{
+  width:28px;height:28px;border-radius:7px;padding:0;
+  display:flex;align-items:center;justify-content:center
+}
+#qa-editor-wrap .ql-toolbar .ql-color-picker .ql-picker-options{
+  min-width:188px;padding:8px
+}
+#qa-editor-wrap .ql-toolbar .ql-color-picker .ql-picker-item{
+  width:20px;height:20px;border-radius:4px;padding:0;margin:2px;
+  border:1px solid transparent
+}
+#qa-editor-wrap .ql-toolbar .ql-color-picker .ql-picker-item:hover{border-color:#7c6af7;transform:scale(1.2)}
+/* Font names in picker */
+.ql-font-cairo{font-family:'Cairo',sans-serif}
+.ql-font-arial{font-family:Arial,sans-serif}
+.ql-font-georgia{font-family:Georgia,serif}
+.ql-font-tajawal{font-family:'Tajawal','Cairo',sans-serif}
+.ql-font-courier{font-family:'Courier New',monospace}
+/* Font picker items preview */
+#qa-editor-wrap .ql-picker.ql-font .ql-picker-item[data-value="cairo"]::before{content:'القاهرة';font-family:'Cairo',sans-serif}
+#qa-editor-wrap .ql-picker.ql-font .ql-picker-item[data-value="arial"]::before{content:'Arial';font-family:Arial}
+#qa-editor-wrap .ql-picker.ql-font .ql-picker-item[data-value="georgia"]::before{content:'Georgia';font-family:Georgia}
+#qa-editor-wrap .ql-picker.ql-font .ql-picker-item[data-value="tajawal"]::before{content:'تجوال';font-family:'Cairo'}
+#qa-editor-wrap .ql-picker.ql-font .ql-picker-item[data-value="courier"]::before{content:'Courier';font-family:'Courier New'}
+/* Size picker labels */
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-label::before{content:'الحجم'}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="10px"]::before{content:'صغير جداً';font-size:10px}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="12px"]::before{content:'صغير';font-size:12px}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="14px"]::before{content:'عادي';font-size:14px}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="16px"]::before{content:'متوسط';font-size:15px}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="20px"]::before{content:'كبير';font-size:16px}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="24px"]::before{content:'كبير جداً';font-size:17px}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="32px"]::before{content:'عنوان';font-size:18px;font-weight:700}
+#qa-editor-wrap .ql-picker.ql-size .ql-picker-item[data-value="48px"]::before{content:'عنوان كبير';font-size:20px;font-weight:900}
+/* Edit button on messages */
+.qa-edit-msg-btn{
+  background:none;border:none;padding:2px 5px;color:var(--muted2);
+  cursor:pointer;font-size:12px;border-radius:5px;line-height:1;
+  transition:color .15s,background .15s
+}
+.qa-edit-msg-btn:hover{color:var(--accent);background:rgba(124,106,247,.1)}
+/* Highlight message being edited */
+.qa-bub-editing{outline:2px solid var(--gold)!important;border-radius:12px}
+/* "edited" tag */
+.qa-edited-tag{font-size:10px;color:var(--muted2);font-weight:400}
 /* Read receipts */
 .qa-receipt{display:inline-flex;align-items:center;margin-inline-start:4px;font-size:10px;vertical-align:middle}
-.qa-receipt-sent{color:rgba(255,255,255,.4)}
-.qa-receipt-read{color:#34d3ff}
+.qa-receipt-sent{color:rgba(255,255,255,.5)}
+.qa-receipt-read{color:#34d3ff;font-size:12px}
+/* Larger visible read badge on white admin bubble */
+.qa-bub-admin .qa-receipt-read{color:#059669;font-size:12px;font-weight:800}
+.qa-bub-admin .qa-receipt-sent{color:#9ca3af}
+
+/* ── Player-read indicator in inbox row ──────────────── */
+.qa-player-read-pill{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;
+  background:rgba(52,211,153,.15);color:#34d399;
+  border:1px solid rgba(52,211,153,.25);
+}
+.qa-player-unread-pill{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px;border-radius:10px;font-size:10px;font-weight:700;
+  background:rgba(250,204,21,.12);color:#fbbf24;
+  border:1px solid rgba(250,204,21,.2);
+}
+/* Meta banner in thread view */
+.qa-read-banner{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 12px;border-radius:10px;font-size:12px;font-weight:700;
+  background:rgba(52,211,153,.1);color:var(--green);
+  border:1px solid rgba(52,211,153,.2);margin-top:6px
+}
+.qa-unread-banner{
+  display:flex;align-items:center;gap:6px;
+  padding:7px 12px;border-radius:10px;font-size:12px;font-weight:700;
+  background:rgba(250,204,21,.1);color:var(--gold);
+  border:1px solid rgba(250,204,21,.2);margin-top:6px
+}
+
+/* ── Reactions (admin panel bubbles) ─────────────────── */
+.qa-bub-reactions{
+  display:flex;align-items:center;flex-wrap:wrap;gap:4px;
+  margin-top:6px;position:relative;
+}
+.qa-bub-reaction-chip{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:3px 8px;border-radius:20px;font-size:12px;cursor:pointer;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  color:var(--text);font-family:'Cairo',sans-serif;
+  transition:transform .12s,background .12s;line-height:1;
+}
+.qa-bub-reaction-chip:active{transform:scale(.9)}
+.qa-bub-reaction-chip span{font-size:10px;font-weight:800;min-width:8px}
+.qa-bub-reaction-chip.qa-reacted{
+  background:rgba(124,106,247,.2);border-color:var(--accent);color:var(--accent2);
+}
+/* On white admin bubble */
+.qa-bub-admin .qa-bub-reaction-chip{
+  border-color:rgba(124,58,237,.2);background:rgba(124,58,237,.07);color:#4c1d95
+}
+.qa-bub-admin .qa-bub-reaction-chip.qa-reacted{
+  background:rgba(124,58,237,.18);border-color:#7c3aed;color:#4c1d95
+}
+.qa-bub-react-add{
+  width:24px;height:24px;border-radius:50%;
+  border:1px dashed rgba(255,255,255,.22);background:transparent;
+  color:rgba(255,255,255,.4);font-size:13px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .14s;flex-shrink:0;
+}
+.qa-bub-react-add:hover{border-color:rgba(255,255,255,.55);color:#fff;background:rgba(255,255,255,.08)}
+.qa-bub-admin .qa-bub-react-add{border-color:rgba(124,58,237,.25);color:rgba(124,58,237,.5)}
+.qa-bub-admin .qa-bub-react-add:hover{border-color:#7c3aed;color:#7c3aed;background:rgba(124,58,237,.08)}
+.qa-bub-react-wrap{position:relative}
+.qa-bub-emoji-picker{
+  position:absolute;bottom:calc(100% + 8px);right:0;
+  display:flex;gap:4px;background:var(--card2);
+  border:1px solid var(--border2);border-radius:16px;
+  padding:6px 8px;box-shadow:0 8px 32px rgba(0,0,0,.5);
+  z-index:600;animation:qa-picker-in .15s ease;
+}
+.qa-bub-emoji-opt{
+  font-size:18px;width:32px;height:32px;border-radius:8px;
+  border:2px solid transparent;background:transparent;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:background .12s,transform .1s,border-color .12s;
+}
+.qa-bub-emoji-opt:hover{background:rgba(255,255,255,.1);transform:scale(1.2)}
+.qa-bub-emoji-opt.qa-emoji-active{border-color:var(--accent);background:rgba(124,106,247,.2)}
+
+/* ── Share buttons (admin panel) ──────────────────────── */
+.qa-bub-share-btn{
+  width:22px;height:22px;border-radius:50%;
+  border:1px solid rgba(255,255,255,.15);background:transparent;
+  color:rgba(255,255,255,.35);font-size:11px;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:all .14s;vertical-align:middle;
+}
+.qa-bub-share-btn:hover{border-color:#22d3ee;color:#22d3ee;background:rgba(6,182,212,.1)}
+.qa-bub-admin .qa-bub-share-btn{border-color:rgba(6,182,212,.2);color:rgba(6,182,212,.45)}
+.qa-bub-admin .qa-bub-share-btn:hover{border-color:#06b6d4;color:#06b6d4;background:rgba(6,182,212,.1)}
 
 /* ══ ADMIN MANAGEMENT ══ */
 .admgmt-tabs{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap}
@@ -618,6 +845,52 @@ tbody td{padding:10px 13px;vertical-align:middle}
                 <option value="🎉">🎉 احتفال</option>
               </select>
             </div>
+            <!-- Segment targeting -->
+            <div style="background:rgba(124,106,247,0.06);border:1px solid rgba(124,106,247,0.18);border-radius:10px;padding:10px 12px">
+              <div style="font-size:12px;font-weight:700;color:#a5b4fc;margin-bottom:8px"><i class="fas fa-bullseye"></i> الجمهور المستهدف</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                <div><div class="slbl" style="font-size:11px">النوع</div>
+                  <select class="einp" id="seg-gender" onchange="updateSegmentCount()" style="width:100%">
+                    <option value="all">الكل</option><option value="male">👦 أولاد</option><option value="female">👧 بنات</option>
+                  </select></div>
+                <div><div class="slbl" style="font-size:11px">الفريق</div>
+                  <select class="einp" id="seg-team" onchange="updateSegmentCount()" style="width:100%">
+                    <option value="all">الكل</option><option value="has">عندهم فريق</option><option value="none">بدون فريق</option>
+                  </select></div>
+                <div><div class="slbl" style="font-size:11px">السنة الدراسية</div>
+                  <select class="einp" id="seg-year" onchange="updateSegmentCount()" style="width:100%">
+                    <option value="all">الكل</option><option value="prep1">أولى إعدادي</option><option value="prep2">تانية إعدادي</option><option value="prep3">تالتة إعدادي</option>
+                  </select></div>
+                <div><div class="slbl" style="font-size:11px">النشاط</div>
+                  <select class="einp" id="seg-activity" onchange="updateSegmentCount()" style="width:100%">
+                    <option value="all">الكل</option>
+                    <option value="inactive3">غير نشط 3+ أيام</option>
+                    <option value="inactive7">غير نشط أسبوع+</option>
+                    <option value="inactive30">غير نشط شهر+</option>
+                    <option value="active">نشط آخر 3 أيام</option>
+                  </select></div>
+                <div><div class="slbl" style="font-size:11px">النجوم ⭐</div>
+                  <select class="einp" id="seg-stars" onchange="updateSegmentCount()" style="width:100%">
+                    <option value="all">الكل</option>
+                    <option value="lt100">أقل من 100</option>
+                    <option value="lt500">أقل من 500</option>
+                    <option value="lt1000">أقل من 1000</option>
+                    <option value="gte1000">1000+</option>
+                  </select></div>
+                <div><div class="slbl" style="font-size:11px">إعدادات سريعة</div>
+                  <select class="einp" id="seg-preset" onchange="applySegmentPreset()" style="width:100%">
+                    <option value="">— اختر —</option>
+                    <option value="encourage_inactive">تشجيع اللي بعدوا</option>
+                    <option value="encourage_lowstars">تشجيع قليلي النجوم</option>
+                    <option value="no_team">دعوة لبدون فريق</option>
+                  </select></div>
+              </div>
+              <div style="margin-top:10px;font-size:12px;color:var(--muted);display:flex;justify-content:space-between;align-items:center">
+                <span>سيصل إلى: <b id="seg-count" style="color:#a5b4fc">—</b> لاعب</span>
+                <button type="button" class="btn bg bxs" onclick="resetSegments()"><i class="fas fa-rotate-left"></i> إعادة تعيين</button>
+              </div>
+            </div>
+
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--muted)">
               <input type="checkbox" id="an-push" checked style="width:16px;height:16px;cursor:pointer" onchange="updateAnnouncePreview()">
               <span>إرسال كإشعار Push على الموبايل (غير الظهور داخل التطبيق)</span>
@@ -702,8 +975,10 @@ tbody td{padding:10px 13px;vertical-align:middle}
 
             <!-- Reply composer -->
             <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
-              <div class="slbl">الرد (يدعم Bold, Italic, قوائم، اقتباس، روابط)</div>
-              <div id="qadmin-editor" style="min-height:160px;background:#fff;border-radius:10px"></div>
+              <div class="slbl" style="margin-bottom:6px">✍️ محرر الرد — يدعم خطوط، ألوان، صور، قوائم والمزيد</div>
+              <div id="qa-editor-wrap">
+                <div id="qadmin-editor"></div>
+              </div>
 
               <div style="margin-top:10px">
                 <div class="slbl">روابط فيديو يوتيوب (اختياري)</div>
@@ -715,8 +990,10 @@ tbody td{padding:10px 13px;vertical-align:middle}
               </div>
 
               <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                <button class="btn bp" onclick="qaSendReply()" style="flex:1;min-width:150px"><i class="fas fa-paper-plane"></i> إرسال الرد</button>
+                <button class="btn bp" id="qsend-btn" onclick="qaSendReply()" style="flex:1;min-width:150px"><i class="fas fa-paper-plane"></i> إرسال الرد</button>
+                <button class="btn bg" id="qcancel-edit-btn" onclick="qaCancelEdit()" style="display:none"><i class="fas fa-times"></i> إلغاء التعديل</button>
                 <button class="btn bg" onclick="qaMarkResolved()"><i class="fas fa-check-double"></i> تم الحل</button>
+                <button class="btn bg bsm" onclick="qaShareThreadAdmin()" title="شارك المحادثة" style="border-color:rgba(6,182,212,.4);color:#22d3ee"><i class="fas fa-share-alt"></i></button>
                 <button class="btn bd bsm" onclick="qaDeleteThread()"><i class="fas fa-trash"></i></button>
               </div>
               <div id="qreply-hint" style="font-size:11px;color:var(--muted2);margin-top:6px"></div>
@@ -999,7 +1276,7 @@ async function loadAll() {
 
   fillTeamFilter();
   try { renderInsights(); } catch(e) { console.warn('renderInsights error:', e); }
-  applyF(); renderTeams(); renderRewards(); renderRooms(); renderAnnounce(); renderAdminMgmt();
+  applyF(); renderTeams(); renderRewards(); renderRooms(); renderAnnounce(); renderAdminMgmt(); updateSegmentCount();
   updateBadges();
   btn.classList.remove('spin');
 }
@@ -1947,6 +2224,83 @@ function renderAnnounce() {
   }).join('');
 }
 
+// ────────── Segment targeting ──────────
+function getSegments(){
+  const g=document.getElementById('seg-gender'), t=document.getElementById('seg-team'),
+        y=document.getElementById('seg-year'), a=document.getElementById('seg-activity'),
+        s=document.getElementById('seg-stars');
+  return {
+    gender:  g?g.value:'all',
+    team:    t?t.value:'all',
+    year:    y?y.value:'all',
+    activity:a?a.value:'all',
+    stars:   s?s.value:'all',
+  };
+}
+function daysSince(dateStr){
+  if(!dateStr) return 99999;
+  const d=new Date(dateStr); if(isNaN(d)) return 99999;
+  return Math.floor((Date.now()-d.getTime())/86400000);
+}
+function playerMatchesSegments(p,seg){
+  if(seg.gender!=='all' && p.gender!==seg.gender) return false;
+  const hasTeam=!!(p.team && String(p.team).trim());
+  if(seg.team==='has'  && !hasTeam) return false;
+  if(seg.team==='none' &&  hasTeam) return false;
+  if(seg.year!=='all'  && p.academicYear!==seg.year) return false;
+  const last=(p.lampData&&p.lampData.lastActiveDate)||p.lastActiveDate||'';
+  const days=daysSince(last);
+  if(seg.activity==='inactive3'  && !(days>=3))  return false;
+  if(seg.activity==='inactive7'  && !(days>=7))  return false;
+  if(seg.activity==='inactive30' && !(days>=30)) return false;
+  if(seg.activity==='active'     && !(days<=3))  return false;
+  const st=+p.stars||0;
+  if(seg.stars==='lt100'   && !(st<100))    return false;
+  if(seg.stars==='lt500'   && !(st<500))    return false;
+  if(seg.stars==='lt1000'  && !(st<1000))   return false;
+  if(seg.stars==='gte1000' && !(st>=1000))  return false;
+  return true;
+}
+function updateSegmentCount(){
+  const seg=getSegments();
+  const el=document.getElementById('seg-count');
+  if(!el) return;
+  const n=(players||[]).filter(p=>playerMatchesSegments(p,seg)).length;
+  el.textContent=n.toLocaleString('ar-EG');
+}
+function resetSegments(){
+  ['seg-gender','seg-team','seg-year','seg-activity','seg-stars','seg-preset'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value=el.options[0].value;
+  });
+  updateSegmentCount();
+}
+function applySegmentPreset(){
+  const p=document.getElementById('seg-preset'); if(!p) return;
+  const v=p.value; if(!v) return;
+  const set=(id,val)=>{const el=document.getElementById(id); if(el) el.value=val;};
+  const fill=(title,body,icon)=>{
+    const t=document.getElementById('an-title'), b=document.getElementById('an-body'), i=document.getElementById('an-icon');
+    if(t&&!t.value.trim()) t.value=title;
+    if(b&&!b.value.trim()) b.value=body;
+    if(i&&icon) i.value=icon;
+    updateAnnouncePreview();
+  };
+  if(v==='encourage_inactive'){
+    set('seg-gender','all'); set('seg-team','all'); set('seg-year','all');
+    set('seg-activity','inactive3'); set('seg-stars','all');
+    fill('وحشتنا يا بطل! 🌟','تعال كمل مغامرتك في مين البطل، ربنا مستنيك','✝️');
+  } else if(v==='encourage_lowstars'){
+    set('seg-gender','all'); set('seg-team','all'); set('seg-year','all');
+    set('seg-activity','all'); set('seg-stars','lt100');
+    fill('ابدأ رحلتك! ⭐','تداريب بسيطة وهتكسب نجوم كتير، يلا ندخل سوا','🎁');
+  } else if(v==='no_team'){
+    set('seg-gender','all'); set('seg-team','none'); set('seg-year','all');
+    set('seg-activity','all'); set('seg-stars','all');
+    fill('انضم لفريق! ⚔️','الفرق بتلعب سوا وبتكسب أكتر — ادخل اختار فريقك','⚔️');
+  }
+  updateSegmentCount();
+}
+
 // ────────── Live Preview ──────────
 function updateAnnouncePreview(){
   const t=document.getElementById('an-title');
@@ -2000,17 +2354,19 @@ function updateFcmKeyStatus(){
 
 // ────────── Client-side Push via FCM Legacy HTTP API ──────────
 // Sends to batches of up to 1000 registration_ids per call.
-async function sendPushToAllPlayers(title,body,icon,announcementId){
+async function sendPushToAllPlayers(title,body,icon,announcementId,segments){
   const key=getFcmServerKey();
   if(!key) return {sent:0,attempted:0,error:'no_server_key'};
 
-  // Collect tokens + filter by notification prefs
+  const seg=segments||{gender:'all',team:'all',year:'all',activity:'all',stars:'all'};
+  // Collect tokens + filter by notification prefs + segments
   const tokens=[];
   const snap=await safeGet(db.collection('players'));
   snap.forEach(d=>{
     const p=d.data()||{};
     if(!p.fcmToken)return;
     if(p.notifPrefs && p.notifPrefs.reminders===false)return;
+    if(!playerMatchesSegments(p,seg))return;
     tokens.push({id:d.id,token:p.fcmToken});
   });
   if(!tokens.length) return {sent:0,attempted:0,error:'no_tokens'};
@@ -2092,7 +2448,8 @@ async function sendAnnounce(){
   let docRef=null;
   try{
     // 1) Save announcement to Firestore (in-app display works immediately)
-    const payload={title,body,icon,sendPush,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+    const segments=getSegments();
+    const payload={title,body,icon,sendPush,segments,createdAt:firebase.firestore.FieldValue.serverTimestamp()};
     if(sendPush){payload.pushStatus='pending';}else{payload.pushStatus='skipped_in_app_only';}
     docRef=await db.collection('announcements').add(payload);
 
@@ -2117,7 +2474,7 @@ async function sendAnnounce(){
     }
 
     if(btn)btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري إرسال Push...';
-    const result=await sendPushToAllPlayers(title,body,icon,docRef.id);
+    const result=await sendPushToAllPlayers(title,body,icon,docRef.id,segments);
     const upd={
       pushStatus:'sent',
       pushSentCount:result.sent||0,
@@ -2278,6 +2635,7 @@ const QA = {
   currentMessages: [],
   videoLinks: [],
   quill: null,
+  editingMsgId: null,
   threadsUnsub: null,
   msgsUnsub: null
 };
@@ -2299,20 +2657,50 @@ function qaParseYouTubeId(url){
 
 function qaSanitizeHtml(html){
   if(!html)return '';
-  const ALLOWED={'P':1,'BR':1,'STRONG':1,'B':1,'EM':1,'I':1,'U':1,'OL':1,'UL':1,'LI':1,'BLOCKQUOTE':1,'A':1,'H3':1,'SPAN':1};
+  const ALLOWED={
+    'P':1,'BR':1,'DIV':1,
+    'STRONG':1,'B':1,'EM':1,'I':1,'U':1,'S':1,'STRIKE':1,
+    'SUB':1,'SUP':1,
+    'OL':1,'UL':1,'LI':1,
+    'BLOCKQUOTE':1,'PRE':1,'CODE':1,
+    'A':1,
+    'H1':1,'H2':1,'H3':1,'H4':1,
+    'SPAN':1,
+    'IMG':1
+  };
+  const SAFE_STYLE_PROPS=['color','background-color','font-family','font-size','text-align','direction'];
   const tpl=document.createElement('div');tpl.innerHTML=html;
   (function clean(node){
     [...node.childNodes].forEach(c=>{
       if(c.nodeType===1){
         if(!ALLOWED[c.tagName]){while(c.firstChild)node.insertBefore(c.firstChild,c);node.removeChild(c);return;}
+        const keep=[];
         [...c.attributes].forEach(a=>{
-          if(c.tagName==='A'&&(a.name==='href'||a.name==='target'||a.name==='rel'))return;
-          c.removeAttribute(a.name);
+          if(c.tagName==='A'&&(a.name==='href'||a.name==='target'||a.name==='rel')){keep.push(a.name);return;}
+          if(c.tagName==='IMG'&&a.name==='src'){keep.push(a.name);return;}
+          if(a.name==='class'){keep.push(a.name);return;}
+          if(a.name==='style'){keep.push(a.name);return;}
         });
+        [...c.attributes].forEach(a=>{if(!keep.includes(a.name))c.removeAttribute(a.name);});
+        // Sanitize style — only allow safe properties
+        if(c.getAttribute('style')){
+          const allowed=SAFE_STYLE_PROPS;
+          const parts=c.getAttribute('style').split(';').filter(s=>{
+            const prop=(s.split(':')[0]||'').trim().toLowerCase();
+            return allowed.includes(prop);
+          });
+          if(parts.length)c.setAttribute('style',parts.join(';'));
+          else c.removeAttribute('style');
+        }
         if(c.tagName==='A'){
           const href=c.getAttribute('href')||'';
           if(!/^https?:\/\//i.test(href))c.removeAttribute('href');
           c.setAttribute('target','_blank');c.setAttribute('rel','noopener noreferrer');
+        }
+        if(c.tagName==='IMG'){
+          const src=c.getAttribute('src')||'';
+          if(!src.startsWith('data:image/')&&!/^https?:\/\//i.test(src))c.removeAttribute('src');
+          c.setAttribute('style',(c.getAttribute('style')||'')+';max-width:100%;border-radius:8px');
         }
         clean(c);
       }
@@ -2386,22 +2774,32 @@ function qaRenderInbox(){
   if(!list.length){box.innerHTML='<div class="empty"><p>لا توجد أسئلة في هذا القسم</p></div>';return;}
   box.innerHTML=list.map(t=>{
     const unread=t.unreadForAdmin?'<span class="qa-unread-dot"></span>':'';
-    const badge=t.status==='answered'?'<span class="qa-pill qa-pill-ok">✅ رد</span>':
-                t.status==='resolved'?'<span class="qa-pill qa-pill-muted">تم الحل</span>':
-                '<span class="qa-pill qa-pill-warn">⏳ جديد</span>';
+    const statusBadge=t.status==='answered'?'<span class="qa-pill qa-pill-ok">✅ رد</span>':
+                      t.status==='resolved'?'<span class="qa-pill qa-pill-muted">تم الحل</span>':
+                      '<span class="qa-pill qa-pill-warn">⏳ جديد</span>';
+    // Player-read indicator
+    const userReadMs=t.lastReadByUser?.toDate?.()?.getTime?.()||0;
+    const adminReplyMs=t.lastAdminReplyAt?.toDate?.()?.getTime?.()||0;
+    const playerReadReply=adminReplyMs>0&&userReadMs>=adminReplyMs;
+    const readPill=adminReplyMs>0
+      ? (playerReadReply
+          ? `<span class="qa-player-read-pill" title="اللاعب شاف ردك"><i class="fas fa-eye"></i> قرأ</span>`
+          : `<span class="qa-player-unread-pill" title="اللاعب لسه مشافش ردك"><i class="fas fa-eye-slash"></i> لم يقرأ</span>`)
+      : '';
     const active=QA.currentId===t._id?'qinbox-row-active':'';
     return `<div class="qinbox-row ${active}" onclick="qaOpenThread('${t._id}')">
       ${unread}
       <div style="flex:1;min-width:0">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:2px">
-          <span style="font-weight:800;font-size:13px;color:var(--text,#e5e7eb)">${esc(t.userName||'لاعب')}</span>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:2px">
+          <span style="font-weight:800;font-size:13px;color:var(--text)">${esc(t.userName||'لاعب')}</span>
           <span style="font-size:11px;color:var(--muted2)">${esc(t.userPhone||'')}</span>
-          ${badge}
+          ${statusBadge}
+          ${readPill}
         </div>
-        <div style="font-weight:700;font-size:12px;color:var(--text,#e5e7eb);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'—')}</div>
+        <div style="font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'—')}</div>
         <div style="color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.lastSnippet||'')}</div>
       </div>
-      <div style="font-size:10px;color:var(--muted2);flex-shrink:0">${qaTimeAgo(t.lastActivityAt||t.createdAt)}</div>
+      <div style="font-size:10px;color:var(--muted2);flex-shrink:0;text-align:left">${qaTimeAgo(t.lastActivityAt||t.createdAt)}</div>
     </div>`;
   }).join('');
 }
@@ -2420,8 +2818,24 @@ function qaOpenThread(id){
 
   const meta=document.getElementById('qthr-meta');
   if(meta&&QA.currentData){
-    meta.innerHTML='<div><strong>👤 '+esc(QA.currentData.userName||'لاعب')+'</strong> · '+esc(QA.currentData.userPhone||'')+'</div>'+
-      '<div style="color:var(--muted);margin-top:3px">تاريخ السؤال: '+qaTimeAgo(QA.currentData.createdAt)+' · عدد الرسائل: '+(QA.currentData.messageCount||0)+'</div>';
+    const d=QA.currentData;
+    const userReadMs=d.lastReadByUser?.toDate?.()?.getTime?.()||0;
+    const adminReplyMs=d.lastAdminReplyAt?.toDate?.()?.getTime?.()||0;
+    const playerReadReply=adminReplyMs>0&&userReadMs>=adminReplyMs;
+    const readBanner=userReadMs>0
+      ? `<div class="${playerReadReply?'qa-read-banner':'qa-unread-banner'}">
+          <i class="fas fa-${playerReadReply?'eye':'eye-slash'}"></i>
+          ${playerReadReply
+            ? 'اللاعب شاف الرد — آخر قراءة: '+qaTimeAgo(d.lastReadByUser)
+            : 'اللاعب لسه مفتحش الرد — آخر دخول: '+qaTimeAgo(d.lastReadByUser)}
+         </div>`
+      : `<div class="qa-unread-banner"><i class="fas fa-eye-slash"></i> اللاعب لم يفتح المحادثة بعد</div>`;
+    meta.innerHTML=
+      `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+        <div><strong>👤 ${esc(d.userName||'لاعب')}</strong> <span style="color:var(--muted);font-size:11px">${esc(d.userPhone||'')}</span></div>
+        <div style="color:var(--muted);font-size:11px">📩 ${d.messageCount||0} رسائل · ${qaTimeAgo(d.createdAt)}</div>
+       </div>
+       ${readBanner}`;
   }
 
   // Mark as read for admin + stamp lastReadByAdmin (for read receipts)
@@ -2470,42 +2884,254 @@ function qaRenderMessages(){
       return '<a href="'+href+'" target="_blank" rel="noopener" class="qa-videocard"><img src="'+thumb+'" alt=""><div class="qa-videocard-play"><i class="fas fa-play"></i></div></a>';
     }).join(''):'';
     let receipt='';
+    let editBtn='';
     if(isAdmin){
       const ms=m.createdAt?.toDate?.()?.getTime?.()||0;
       const isRead=ms>0&&userLastReadMs>=ms;
-      receipt=`<span class="qa-receipt ${isRead?'qa-receipt-read':'qa-receipt-sent'}" title="${isRead?'شافها اللاعب':'اتبعت'}"><i class="fas fa-${isRead?'check-double':'check'}"></i></span>`;
+      receipt=isRead
+        ? `<span class="qa-receipt qa-receipt-read" title="اللاعب شاف الرسالة"><i class="fas fa-check-double"></i> قُرئت</span>`
+        : `<span class="qa-receipt qa-receipt-sent" title="اتبعت، بستنى اللاعب يقرأها"><i class="fas fa-check"></i></span>`;
+      editBtn=`<button class="qa-edit-msg-btn" onclick="qaStartEditMessage('${m._id}')" title="تعديل الرد"><i class="fas fa-edit"></i></button>`;
     }
-    return `<div class="qa-bub ${bubble}">
-      <div class="qa-bub-head"><span>${isAdmin?'👑 ':''}${esc(m.authorName||'')}</span><span>${qaTimeAgo(m.createdAt)}${receipt}</span></div>
+
+    // Reactions
+    const QA_EMOJIS=['❤️','🙏','🔥','😮','💯','✝️','👍','😢'];
+    const reactions=m.reactions||{};
+    const adminId=(adminMe?.phone||adminMe?.id||'admin');
+    const chips=QA_EMOJIS.filter(e=>(reactions[e]||[]).length>0).map(e=>{
+      const users=reactions[e]||[];
+      const mine=users.includes(adminId);
+      return `<button class="qa-bub-reaction-chip${mine?' qa-reacted':''}" onclick="qaToggleReactionAdmin('${m._id}','${e}')" title="${users.length} تفاعل">${e}<span>${users.length}</span></button>`;
+    }).join('');
+    const pickerOpts=QA_EMOJIS.map(e=>{
+      const mine=(reactions[e]||[]).includes(adminId);
+      return `<button class="qa-bub-emoji-opt${mine?' qa-emoji-active':''}" onclick="qaToggleReactionAdmin('${m._id}','${e}')">${e}</button>`;
+    }).join('');
+    const reactRow=`<div class="qa-bub-reactions">${chips}<div class="qa-bub-react-wrap"><button class="qa-bub-react-add" onclick="qaToggleReactPickerAdmin('${m._id}',event)" title="أضف تفاعل">＋</button><div class="qa-bub-emoji-picker" id="qabp-${m._id}" style="display:none">${pickerOpts}</div></div></div>`;
+
+    const shareBtn=`<button class="qa-bub-share-btn" onclick="qaShareMsgAdmin('${m._id}')" title="شارك هذا الرد"><i class="fas fa-share-alt"></i></button>`;
+    return `<div class="qa-bub ${bubble}" id="qmsg-${m._id}">
+      <div class="qa-bub-head"><span>${isAdmin?'👑 ':''}${esc(m.authorName||'')}${m.editedAt?'<span class="qa-edited-tag"> (معدّل)</span>':''}</span><span style="display:flex;align-items:center;gap:5px">${qaTimeAgo(m.createdAt)}${receipt}${shareBtn}${editBtn}</span></div>
       <div class="qa-bub-body">${body}</div>
       ${videos?'<div class="qa-bub-videos">'+videos+'</div>':''}
+      ${reactRow}
     </div>`;
   }).join('');
   box.scrollTop=box.scrollHeight;
 }
 
 function qaInitReplyEditor(){
+  // If already created, just clear content — never create a second instance
+  if(QA.quill){
+    QA.quill.setContents([]);
+    QA.editingMsgId=null;
+    return;
+  }
   const el=document.getElementById('qadmin-editor');
   if(!el)return;
-  // Reset content
-  el.innerHTML='';
+  // Register custom fonts (must happen before new Quill)
+  try{
+    var Font=Quill.import('formats/font');
+    Font.whitelist=['cairo','arial','georgia','tajawal','courier'];
+    Quill.register(Font,true);
+    // Use style-based sizes so they render on any device
+    var Size=Quill.import('attributors/style/size');
+    Size.whitelist=['10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px'];
+    Quill.register(Size,true);
+  }catch(e){}
   try{
     QA.quill=new Quill('#qadmin-editor',{
       theme:'snow',
-      placeholder:'اكتب ردّك بنص منسّق…',
+      placeholder:'اكتب ردّك هنا…',
       modules:{
-        toolbar:[
-          [{ 'header': [3, false] }],
-          ['bold','italic','underline'],
-          [{ 'list':'ordered' },{ 'list':'bullet' }],
-          ['blockquote','link'],
-          ['clean']
-        ]
+        toolbar:{
+          container:[
+            // Row 1 – font & size
+            [{'font':['cairo','arial','georgia','tajawal','courier']},{'size':['10px','12px','14px','16px','18px','20px','24px','28px','32px','36px','48px']}],
+            // Row 2 – headings
+            [{'header':[1,2,3,4,false]}],
+            // Row 3 – inline formatting
+            ['bold','italic','underline','strike'],
+            // Row 4 – colour
+            [{'color':[]},{'background':[]}],
+            // Row 5 – script
+            [{'script':'sub'},{'script':'super'}],
+            // Row 6 – align
+            [{'align':[]}],
+            // Row 7 – lists & indent
+            [{'list':'ordered'},{'list':'bullet'},{'indent':'-1'},{'indent':'+1'}],
+            // Row 8 – block-level
+            ['blockquote','code-block'],
+            // Row 9 – media & links
+            ['link','image'],
+            // Row 10 – clean
+            ['clean']
+          ]
+        }
       }
     });
     QA.quill.format('direction','rtl');
     QA.quill.format('align','right');
   }catch(e){console.warn('Quill init:',e);}
+}
+
+function qaStartEditMessage(msgId){
+  const msg=QA.currentMessages.find(m=>m._id===msgId);
+  if(!msg||!QA.quill){toast('تعذّر تحميل الرسالة','err');return;}
+  QA.editingMsgId=msgId;
+  // Load HTML back into editor
+  QA.quill.clipboard.dangerouslyPasteHTML(msg.contentHtml||'');
+  // Load videos
+  QA.videoLinks=(msg.videoLinks||[]).slice();
+  qaRenderVideos();
+  // Update UI
+  const btn=document.getElementById('qsend-btn');
+  if(btn)btn.innerHTML='<i class="fas fa-save"></i> تحديث الرد';
+  const cancelBtn=document.getElementById('qcancel-edit-btn');
+  if(cancelBtn)cancelBtn.style.display='';
+  const hint=document.getElementById('qreply-hint');
+  if(hint)hint.innerHTML='<span style="color:var(--gold)"><i class="fas fa-pen"></i> وضع التعديل — سيتم تحديث الرد السابق</span>';
+  // Highlight the message being edited
+  document.querySelectorAll('.qa-bub').forEach(b=>b.classList.remove('qa-bub-editing'));
+  const msgEl=document.getElementById('qmsg-'+msgId);
+  if(msgEl)msgEl.classList.add('qa-bub-editing');
+  // Scroll composer into view
+  const editorEl=document.getElementById('qadmin-editor');
+  if(editorEl)editorEl.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function qaCancelEdit(){
+  QA.editingMsgId=null;
+  if(QA.quill)QA.quill.setContents([]);
+  QA.videoLinks=[];
+  qaRenderVideos();
+  const btn=document.getElementById('qsend-btn');
+  if(btn)btn.innerHTML='<i class="fas fa-paper-plane"></i> إرسال الرد';
+  const cancelBtn=document.getElementById('qcancel-edit-btn');
+  if(cancelBtn)cancelBtn.style.display='none';
+  const hint=document.getElementById('qreply-hint');
+  if(hint)hint.innerHTML='';
+  document.querySelectorAll('.qa-bub').forEach(b=>b.classList.remove('qa-bub-editing'));
+}
+
+// ── Admin reaction helpers ──────────────────────────────────────────────────
+function qaToggleReactionAdmin(msgId,emoji){
+  if(!QA.currentId||!db)return;
+  qaHideAllReactPickersAdmin();
+  const adminId=adminMe?.phone||adminMe?.id||'admin';
+  const msg=QA.currentMessages.find(m=>m._id===msgId);
+  const reactions=(msg&&msg.reactions)||{};
+  const users=reactions[emoji]||[];
+  const FieldValue=firebase.firestore.FieldValue;
+  const update={};
+  update[`reactions.${emoji}`]=users.includes(adminId)
+    ?FieldValue.arrayRemove(adminId)
+    :FieldValue.arrayUnion(adminId);
+  db.collection('questions').doc(QA.currentId).collection('messages').doc(msgId)
+    .update(update).catch(e=>console.warn('[admin] reaction:',e));
+}
+
+function qaToggleReactPickerAdmin(msgId,event){
+  event&&event.stopPropagation();
+  const picker=document.getElementById('qabp-'+msgId);
+  if(!picker)return;
+  const visible=picker.style.display!=='none';
+  qaHideAllReactPickersAdmin();
+  if(!visible)picker.style.display='flex';
+}
+
+function qaHideAllReactPickersAdmin(){
+  document.querySelectorAll('.qa-bub-emoji-picker').forEach(p=>p.style.display='none');
+}
+
+// Close pickers on outside click
+document.addEventListener('click',e=>{
+  if(!e.target.closest('.qa-bub-react-wrap'))qaHideAllReactPickersAdmin();
+});
+
+// ── Share helpers (admin panel) ────────────────────────────────────────────
+const QA_APP_URL='https://min-el-batal.web.app';
+const QA_APP_NAME='✝️ مين البطل؟';
+
+function qaExtractMsgContentAdmin(m){
+  const div=document.createElement('div');
+  div.innerHTML=m.contentHtml||'';
+  const text=(div.textContent||div.innerText||'').trim();
+  const links=[];
+  div.querySelectorAll('a[href]').forEach(a=>{
+    const h=a.getAttribute('href');
+    if(h&&/^https?:\/\//i.test(h)&&!links.includes(h))links.push(h);
+  });
+  (m.videoLinks||[]).forEach(v=>{
+    const u=v&&(v.url||('https://www.youtube.com/watch?v='+v.videoId));
+    if(u&&!links.includes(u))links.push(u);
+  });
+  return{text,links};
+}
+
+function qaShareMsgAdmin(msgId){
+  const m=QA.currentMessages.find(x=>x._id===msgId);
+  if(!m)return;
+  const thr=QA.threads.find(t=>t._id===QA.currentId)||QA.currentData||{};
+  const title=thr.title||'';
+  const c=qaExtractMsgContentAdmin(m);
+  const isAdmin=m.authorType==='admin';
+  const lines=[
+    QA_APP_NAME,'━━━━━━━━━━━━━━━━━━━',
+    title?'❓ '+title:'',
+    '',
+    isAdmin?'👑 رد الخدام:':'🙋 سؤال اللاعب:',
+    c.text,
+  ];
+  if(c.links.length){lines.push('');lines.push('🔗 روابط:');c.links.forEach(l=>lines.push(l));}
+  lines.push('','━━━━━━━━━━━━━━━━━━━','📱 '+QA_APP_URL);
+  qaDoShareAdmin(isAdmin?'رد الخدام':title,lines.filter(Boolean).join('\n'));
+}
+
+function qaShareThreadAdmin(){
+  if(!QA.currentId)return;
+  const thr=QA.threads.find(t=>t._id===QA.currentId)||QA.currentData||{};
+  const title=thr.title||'محادثة';
+  const msgs=QA.currentMessages;
+  if(!msgs.length){toast('لا توجد رسائل','err');return;}
+  const allLinks=[];
+  const lines=[QA_APP_NAME,'━━━━━━━━━━━━━━━━━━━','❓ '+title,''];
+  msgs.forEach(m=>{
+    const c=qaExtractMsgContentAdmin(m);
+    lines.push(m.authorType==='admin'?'👑 رد الخدام:':'🙋 سؤال:');
+    lines.push(c.text);
+    lines.push('');
+    c.links.forEach(l=>{if(!allLinks.includes(l))allLinks.push(l);});
+  });
+  if(allLinks.length){lines.push('🔗 روابط المحادثة:');allLinks.forEach(l=>lines.push(l));lines.push('');}
+  lines.push('━━━━━━━━━━━━━━━━━━━','📱 '+QA_APP_URL);
+  qaDoShareAdmin(title,lines.join('\n'));
+}
+
+function qaDoShareAdmin(title,text){
+  if(navigator.share){
+    navigator.share({title,text,url:QA_APP_URL}).catch(e=>{if(e.name!=='AbortError')qaFallbackCopyAdmin(text);});
+  }else{
+    qaFallbackCopyAdmin(text);
+  }
+}
+
+function qaFallbackCopyAdmin(text){
+  const done=()=>toast('✅ تم النسخ! الصق في واتساب أو غيره','ok');
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>{qaLegacyCopyAdmin(text);done();});
+  }else{
+    qaLegacyCopyAdmin(text);done();
+  }
+}
+
+function qaLegacyCopyAdmin(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.cssText='position:fixed;opacity:0;top:0;left:0;width:1px;height:1px';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');}catch(e){}
+  ta.remove();
 }
 
 function qaAddVideo(){
@@ -2540,47 +3166,58 @@ async function qaSendReply(){
   const text=QA.quill.getText().trim();
   if(!text||text.length<2){toast('اكتب الرد','err');return;}
 
-  const btn=document.querySelector('#page-questions .bp');
-  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';}
+  const btn=document.getElementById('qsend-btn');
+  const isEditing=!!QA.editingMsgId;
+  if(btn){btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin"></i> '+(isEditing?'جاري التحديث...':'جاري الإرسال...');}
 
   try{
     const clean=qaSanitizeHtml(html);
-    const me=adminMe||{};
-    const authorName=me.name||'خادم';
-    const authorId=me.phone||me.id||'admin';
     const FieldValue=firebase.firestore.FieldValue;
     const now=FieldValue.serverTimestamp();
-    const snippet=text.replace(/\s+/g,' ').slice(0,100);
 
-    const ref=db.collection('questions').doc(QA.currentId);
-    await ref.collection('messages').add({
-      authorType:'admin',
-      authorId:authorId,
-      authorName:authorName,
-      contentHtml:clean,
-      videoLinks:QA.videoLinks.slice(),
-      createdAt:now
-    });
-    await ref.update({
-      status:'answered',
-      lastActivityAt:now,
-      lastSnippet:snippet,
-      unreadForUser:true,
-      unreadForAdmin:false,
-      messageCount:FieldValue.increment(1),
-      lastAdminReplyAt:now
-    });
+    if(isEditing){
+      // ── EDIT MODE: update the existing message ──────────────────────
+      await db.collection('questions').doc(QA.currentId)
+        .collection('messages').doc(QA.editingMsgId)
+        .update({contentHtml:clean, videoLinks:QA.videoLinks.slice(), editedAt:now});
+      qaCancelEdit();
+      toast('✅ تم تحديث الرد','ok');
+    } else {
+      // ── NEW REPLY ───────────────────────────────────────────────────
+      const me=adminMe||{};
+      const authorName=me.name||'الخدام';
+      const authorId=me.phone||me.id||'admin';
+      const snippet=text.replace(/\s+/g,' ').slice(0,100);
 
-    // Reset
-    QA.videoLinks=[];
-    qaRenderVideos();
-    if(QA.quill)QA.quill.setText('');
-    toast('✅ تم إرسال الرد','ok');
+      const ref=db.collection('questions').doc(QA.currentId);
+      await ref.collection('messages').add({
+        authorType:'admin',
+        authorId:authorId,
+        authorName:authorName,
+        contentHtml:clean,
+        videoLinks:QA.videoLinks.slice(),
+        createdAt:now
+      });
+      await ref.update({
+        status:'answered',
+        lastActivityAt:now,
+        lastSnippet:snippet,
+        unreadForUser:true,
+        unreadForAdmin:false,
+        messageCount:FieldValue.increment(1),
+        lastAdminReplyAt:now
+      });
+      // Reset composer
+      QA.videoLinks=[];
+      qaRenderVideos();
+      if(QA.quill)QA.quill.setContents([]);
+      toast('✅ تم إرسال الرد','ok');
+    }
   }catch(e){
     console.error('qaSendReply:',e);
     toast('خطأ: '+(e.message||e.code||'فشل'),'err');
   }finally{
-    if(btn){btn.disabled=false;btn.innerHTML='<i class="fas fa-paper-plane"></i> إرسال الرد';}
+    if(btn){btn.disabled=false;btn.innerHTML=QA.editingMsgId?'<i class="fas fa-save"></i> تحديث الرد':'<i class="fas fa-paper-plane"></i> إرسال الرد';}
   }
 }
 

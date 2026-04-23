@@ -59,6 +59,36 @@ function pickRandom(arr) {
 }
 
 // ============================================================
+// Helper: segment filter (matches admin.html playerMatchesSegments)
+// ============================================================
+function daysSinceStr(dateStr) {
+    if (!dateStr) return 99999;
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return 99999;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+}
+function playerMatchesSegments(p, seg) {
+    if (!seg) return true;
+    if (seg.gender && seg.gender !== 'all' && p.gender !== seg.gender) return false;
+    var hasTeam = !!(p.team && String(p.team).trim());
+    if (seg.team === 'has' && !hasTeam) return false;
+    if (seg.team === 'none' && hasTeam) return false;
+    if (seg.year && seg.year !== 'all' && p.academicYear !== seg.year) return false;
+    var last = (p.lampData && p.lampData.lastActiveDate) || p.lastActiveDate || '';
+    var days = daysSinceStr(last);
+    if (seg.activity === 'inactive3' && !(days >= 3)) return false;
+    if (seg.activity === 'inactive7' && !(days >= 7)) return false;
+    if (seg.activity === 'inactive30' && !(days >= 30)) return false;
+    if (seg.activity === 'active' && !(days <= 3)) return false;
+    var st = +p.stars || 0;
+    if (seg.stars === 'lt100' && !(st < 100)) return false;
+    if (seg.stars === 'lt500' && !(st < 500)) return false;
+    if (seg.stars === 'lt1000' && !(st < 1000)) return false;
+    if (seg.stars === 'gte1000' && !(st >= 1000)) return false;
+    return true;
+}
+
+// ============================================================
 // Helper: get today's date string in Cairo timezone
 // ============================================================
 function getCairoDateStr() {
@@ -243,6 +273,7 @@ exports.onAnnouncementCreated = functions
         var title = ann.title || 'مين البطل؟';
         var body = ann.body || '';
         var icon = ann.icon || '📢';
+        var segments = ann.segments || null;
 
         var playersSnap = await db.collection('players')
             .where('fcmToken', '!=', null)
@@ -250,6 +281,7 @@ exports.onAnnouncementCreated = functions
 
         var sent = 0;
         var attempted = 0;
+        var skippedBySegment = 0;
         var promises = [];
 
         playersSnap.forEach(function(doc) {
@@ -257,6 +289,11 @@ exports.onAnnouncementCreated = functions
             if (!player.fcmToken) return;
             // Respect preferences — treat announcements as "reminders" category
             if (player.notifPrefs && player.notifPrefs.reminders === false) return;
+            // Segment filter
+            if (segments && !playerMatchesSegments(player, segments)) {
+                skippedBySegment++;
+                return;
+            }
 
             attempted++;
             promises.push(
@@ -274,13 +311,14 @@ exports.onAnnouncementCreated = functions
         });
 
         await Promise.all(promises);
-        console.log('[Notif] Announcement', context.params.announcementId, '- sent', sent, '/', attempted);
+        console.log('[Notif] Announcement', context.params.announcementId, '- sent', sent, '/', attempted, '(segment-skipped', skippedBySegment + ')');
 
         // Write delivery stats back to the announcement doc for admin visibility
         await snap.ref.update({
             pushStatus: 'sent',
             pushSentCount: sent,
             pushAttempted: attempted,
+            pushSkippedBySegment: skippedBySegment,
             pushProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
         }).catch(function() {});
 

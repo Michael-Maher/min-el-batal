@@ -1068,7 +1068,7 @@ firebase.initializeApp({
   appId:"1:743794480493:web:74c8ef6a444e29f7a4b664"
 });
 const db = firebase.firestore();
-db.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+db.settings({ experimentalForceLongPolling: true, merge: true });
 const SESSION_KEY = 'minElBatal_adminSession';
 const SUPER = { phone:'01207714622', passHash:hp('01207714622'+'123456789mI'), name:'المسؤول الأعلى', role:'superadmin' };
 

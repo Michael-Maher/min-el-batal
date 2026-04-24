@@ -3206,6 +3206,12 @@ async function qaSendReply(){
       await db.collection('questions').doc(QA.currentId)
         .collection('messages').doc(QA.editingMsgId)
         .update({contentHtml:clean, videoLinks:QA.videoLinks.slice(), editedAt:now});
+      // Also refresh lastSnippet on thread so previews stay current
+      const snippet=text.replace(/\s+/g,' ').slice(0,100);
+      await db.collection('questions').doc(QA.currentId).update({
+        lastSnippet:snippet,
+        lastActivityAt:now
+      });
       qaCancelEdit();
       toast('✅ تم تحديث الرد','ok');
     } else {

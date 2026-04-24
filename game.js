@@ -20984,6 +20984,11 @@ function loadSharedQuestions() {
         });
 }
 
+function maskSharedName(name) {
+    if (!name || name.length === 0) return 'مجهول';
+    return name.charAt(0) + '●●●';
+}
+
 function renderSharedQuestions() {
     var box = document.getElementById('shared-questions-section');
     if (!box) return;
@@ -20992,10 +20997,16 @@ function renderSharedQuestions() {
         return;
     }
     var myPhone = GameState.playerPhone || '';
-    var html = '<div class="qa-threads-section" style="margin-top:20px">';
-    html += '<div class="qa-threads-label"><i class="fas fa-users" style="color:var(--accent2)"></i> أسئلة أصحابك</div>';
-    html += '<div style="padding:0 16px 12px;font-size:12px;color:var(--muted)">أسئلة اختارها الخدام لتعم الفائدة على الجميع</div>';
 
+    var html = '<div class="shared-qa-card">';
+    html += '<div class="shared-qa-header">';
+    html += '<div class="shared-qa-header-icon">👥</div>';
+    html += '<div>';
+    html += '<div class="shared-qa-header-title">أسئلة أصحابك</div>';
+    html += '<div class="shared-qa-header-sub">أسئلة اختارها الخدام لتعم الفائدة على الجميع</div>';
+    html += '</div></div>';
+
+    html += '<div class="shared-qa-list">';
     _sharedThreads.forEach(function(t) {
         var title = t.title || '(بدون عنوان)';
         var isAnswered = t.status === 'answered' || t.status === 'resolved';
@@ -21003,27 +21014,44 @@ function renderSharedQuestions() {
         var hasSamed = sameUsers.indexOf(myPhone) !== -1;
         var sameCount = sameUsers.length;
         var isMyThread = t.userId === myPhone;
-        var statusIcon = isAnswered ? '✅' : '⏳';
         var openFn = isMyThread ? 'openQuestionThread' : 'openSharedThread';
+        var maskedName = maskSharedName(t.userName || t.userPhone || '');
+        var timeAgo = qaTimeAgo(t.lastActivityAt || t.createdAt);
 
-        html += '<div class="qa-thread-row">';
-        html += '<div class="qa-thread-icon">' + statusIcon + '</div>';
-        html += '<div class="qa-thread-main">';
-        html += '<div class="qa-thread-title">' + escapeHtml(title) + '</div>';
+        html += '<div class="shared-qa-item">';
+
+        // Question block
+        html += '<div class="shared-qa-q-block">';
+        html += '<div class="shared-qa-q-icon">❓</div>';
+        html += '<div class="shared-qa-q-body">';
+        html += '<div class="shared-qa-q-text">' + escapeHtml(title) + '</div>';
+        html += '<div class="shared-qa-q-meta">' + escapeHtml(maskedName) + (timeAgo ? ' · ' + timeAgo : '') + '</div>';
+        html += '</div></div>';
+
+        // Answer block (if answered)
         if (isAnswered && t.lastSnippet) {
-            html += '<div class="qa-thread-snippet" style="color:var(--accent2)">' + escapeHtml(t.lastSnippet) + '</div>';
+            html += '<div class="shared-qa-a-block">';
+            html += '<div class="shared-qa-a-icon">✝</div>';
+            html += '<div class="shared-qa-a-body">';
+            html += '<div class="shared-qa-a-label">رد الخدام</div>';
+            html += '<div class="shared-qa-a-text">' + escapeHtml(t.lastSnippet) + '</div>';
+            html += '</div></div>';
         }
-        html += '<div class="qa-thread-footer" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
-        html += qaStatusBadge(t);
-        html += '<button class="qa-react-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactSharedQuestion(\'' + t._id + '\');event.stopPropagation()" style="font-size:11px;padding:4px 10px">';
-        html += '🤝 عندي نفس السؤال' + (sameCount ? ' <span class="qa-react-count">' + sameCount + '</span>' : '') + '</button>';
-        if (isAnswered) {
-            html += '<button class="btn" style="font-size:11px;padding:4px 12px;border-radius:8px;border-color:rgba(124,106,247,0.4);background:rgba(124,106,247,0.08);color:var(--primary)" onclick="' + openFn + '(\'' + t._id + '\');event.stopPropagation()"><i class="fas fa-eye"></i> شاهد الإجابة</button>';
-        }
-        html += '</div></div></div>';
-    });
 
-    html += '</div>';
+        // Footer
+        html += '<div class="shared-qa-footer">';
+        html += '<button class="shared-qa-same-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactSharedQuestion(\'' + t._id + '\')">';
+        html += '🤝 عندي نفس السؤال' + (sameCount ? ' <span class="shared-qa-count">' + sameCount + '</span>' : '') + '</button>';
+        if (isAnswered) {
+            html += '<button class="shared-qa-view-btn" onclick="' + openFn + '(\'' + t._id + '\')"><i class="fas fa-eye"></i> شاهد الإجابة</button>';
+        }
+        html += '</div>';
+
+        html += '</div>'; // shared-qa-item
+    });
+    html += '</div>'; // shared-qa-list
+    html += '</div>'; // shared-qa-card
+
     box.innerHTML = html;
 }
 

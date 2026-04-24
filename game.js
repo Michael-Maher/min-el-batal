@@ -9238,7 +9238,7 @@ function renderLevel2Map() {
         if (ld && ld.stars > 0) {
             earnedStars += ld.stars;
         }
-        if (hasSm || hasQz) {
+        if (hasSm && hasQz) {
             currentStation = s + 1;
         }
     }
@@ -9744,12 +9744,6 @@ function renderLevel2Learn(container, lesson, subject) {
     }
 
     container.innerHTML = html;
-
-    // Inject Q&A section after render
-    var qaSlot = document.createElement('div');
-    qaSlot.id = 'lesson-qa-slot';
-    container.appendChild(qaSlot);
-    initLessonQA(qaSlot);
 }
 
 // Switch to the games tab
@@ -10483,7 +10477,31 @@ var miniGameState = {
 
 function getMiniGamesForLesson() {
     var key = level2State.currentSubject + '_' + level2State.currentLesson;
-    return LESSON_MINI_GAMES[key] || null;
+    if (LESSON_MINI_GAMES[key]) return LESSON_MINI_GAMES[key];
+
+    // Auto-generate from the lesson's question bank when no static entry exists
+    var subj = LEVEL2_SUBJECTS[level2State.currentSubject];
+    if (!subj) return null;
+    var lesson = subj.lessons[level2State.currentLesson];
+    if (!lesson || !lesson.questions || lesson.questions.length < 5) return null;
+
+    var qs = lesson.questions.slice();
+    var trueFalse = [];
+    for (var i = 0; i < qs.length; i++) {
+        var q = qs[i];
+        var correct = q.options[q.correct];
+        var wrongIdx = (q.correct + 1) % q.options.length;
+        var wrong = q.options[wrongIdx];
+        var stem = q.q.replace(/\.\.\./g, correct); // fill blanks with correct answer
+        trueFalse.push({ statement: stem.slice(-1) === '؟' ? stem.slice(0, -1) + ' ← ' + correct : stem + ' ← ' + correct, answer: true });
+        trueFalse.push({ statement: q.q.replace(/\.\.\./g, wrong) + ' ← ' + wrong, answer: false });
+    }
+
+    var characters = qs.slice(0, 12).map(function(q) {
+        return { q: q.q, options: q.options, correct: q.correct };
+    });
+
+    return { trueFalse: trueFalse.slice(0, 50), characters: characters };
 }
 
 // Render mini-games hub inside learn tab
@@ -16592,7 +16610,8 @@ var QAState = {
     myThreads: [],
     currentThreadId: null,
     messagesListener: null,
-    threadsListener: null
+    threadsListener: null,
+    readOnly: false
 };
 
 // Sanitize rich HTML produced by Quill before rendering
@@ -16670,6 +16689,7 @@ function qaStatusBadge(t) {
 function openQuestionsScreen() {
     showScreen('questions-screen');
     loadMyQuestions();
+    loadSharedQuestions();
     // Restore notice collapsed state
     var collapsed = localStorage.getItem('qaNoticeCollapsed') === '1';
     var card = document.getElementById('qa-notice-card');
@@ -16986,8 +17006,11 @@ function submitComposer() {
 
 // ---- Single thread view ----
 function openQuestionThread(threadId) {
+    QAState.readOnly = false;
     QAState.currentThreadId = threadId;
     showScreen('question-thread-screen');
+    var composer = document.querySelector('.qthread-composer');
+    if (composer) composer.style.display = '';
 
     var thread = QAState.myThreads.find(function(t) { return t._id === threadId; });
     var titleEl = document.getElementById('qthread-title');
@@ -20931,323 +20954,125 @@ function checkTimeline() {
 }
 
 // ============================================================
-// LESSON COMMUNITY Q&A
+// SHARED QUESTIONS (أسئلة أصحابك)
 // ============================================================
-var _qaListener = null;
-var _qaExpandedIds = {};    // tracks which question ids are expanded
-var _qaReplyOpenIds = {};   // tracks which reply forms are open
 
-function getLessonQARef() {
-    var key = level2State.currentSubject + '_' + level2State.currentLesson;
-    return firebaseDb.collection('lessonQA').doc(key).collection('questions');
-}
+var _sharedQListener = null;
+var _sharedThreads = [];
 
-function initLessonQA(container) {
-    if (_qaListener) { _qaListener(); _qaListener = null; }
-    container.innerHTML = '<div class="qa-wrap"><div class="qa-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل أسئلة الدرس...</div></div>';
-
-    try {
-        _qaListener = getLessonQARef()
-            .orderBy('createdAt', 'desc')
-            .limit(50)
-            .onSnapshot(function(snapshot) {
-                var qs = [];
-                snapshot.forEach(function(doc) {
-                    var d = doc.data();
-                    d._id = doc.id;
-                    if (d.approved !== false) qs.push(d); // hide admin-rejected questions
-                });
-                renderQASection(container, qs);
-            }, function() {
-                container.innerHTML = '<div class="qa-wrap"><div class="qa-empty"><p>تعذّر تحميل الأسئلة. تحقق من الاتصال.</p></div></div>';
+function loadSharedQuestions() {
+    if (!firebaseDb) return;
+    if (_sharedQListener) { try { _sharedQListener(); } catch (e) {} _sharedQListener = null; }
+    _sharedQListener = firebaseDb.collection('questions')
+        .where('shared', '==', true)
+        .onSnapshot(function(snap) {
+            var threads = [];
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                d._id = doc.id;
+                threads.push(d);
             });
-    } catch(e) {
-        container.innerHTML = '';
+            threads.sort(function(a, b) {
+                var ta = (a.lastActivityAt && a.lastActivityAt.toDate) ? a.lastActivityAt.toDate().getTime() : 0;
+                var tb = (b.lastActivityAt && b.lastActivityAt.toDate) ? b.lastActivityAt.toDate().getTime() : 0;
+                return tb - ta;
+            });
+            _sharedThreads = threads;
+            renderSharedQuestions();
+        }, function(err) {
+            console.warn('[QA] shared listener error:', err);
+        });
+}
+
+function renderSharedQuestions() {
+    var box = document.getElementById('shared-questions-section');
+    if (!box) return;
+    if (!_sharedThreads.length) {
+        box.innerHTML = '';
+        return;
     }
-}
-
-function maskQAName(name) {
-    if (!name || name.length === 0) return 'مجهول';
-    // Keep first character, mask rest with bullets
-    return name.charAt(0) + '●●●';
-}
-
-function getQAAvatar(name) {
-    var colors = ['#6C5CE7','#00B894','#e17055','#fdcb6e','#0984e3','#e84393','#00CEC9'];
-    var ch = name ? name.charCodeAt(0) : 77;
-    var color = colors[ch % colors.length];
-    var letter = name ? name.charAt(0) : '؟';
-    return '<div class="qa-avatar-circle" style="background:' + color + '">' + letter + '</div>';
-}
-
-function qaTimeAgo(ts) {
-    if (!ts) return '';
-    var now = Date.now();
-    var ms = ts.toDate ? ts.toDate().getTime() : (ts.seconds ? ts.seconds * 1000 : now);
-    var diff = Math.floor((now - ms) / 1000);
-    if (diff < 60) return 'الآن';
-    if (diff < 3600) return Math.floor(diff / 60) + ' دقيقة';
-    if (diff < 86400) return Math.floor(diff / 3600) + ' ساعة';
-    return Math.floor(diff / 86400) + ' يوم';
-}
-
-function safeText(s) {
-    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function renderQASection(container, questions) {
     var myPhone = GameState.playerPhone || '';
-    var expanded = _qaExpandedIds;
-    var replyOpen = _qaReplyOpenIds;
+    var html = '<div class="qa-threads-section" style="margin-top:20px">';
+    html += '<div class="qa-threads-label"><i class="fas fa-users" style="color:var(--accent2)"></i> أسئلة أصحابك</div>';
+    html += '<div style="padding:0 16px 12px;font-size:12px;color:var(--muted)">أسئلة اختارها الخدام لتعم الفائدة على الجميع</div>';
 
-    var html = '<div class="qa-wrap">';
-    html += '<div class="qa-header">';
-    html += '<div class="qa-header-title"><i class="fas fa-comments"></i> أسئلة الدرس المجتمعية</div>';
-    html += '<div class="qa-header-sub">اسأل وأجب — الأسماء مخفية 🔒</div>';
+    _sharedThreads.forEach(function(t) {
+        var title = t.title || '(بدون عنوان)';
+        var isAnswered = t.status === 'answered' || t.status === 'resolved';
+        var sameUsers = t.sameUsers || [];
+        var hasSamed = sameUsers.indexOf(myPhone) !== -1;
+        var sameCount = sameUsers.length;
+        var isMyThread = t.userId === myPhone;
+        var statusIcon = isAnswered ? '✅' : '⏳';
+        var openFn = isMyThread ? 'openQuestionThread' : 'openSharedThread';
+
+        html += '<div class="qa-thread-row">';
+        html += '<div class="qa-thread-icon">' + statusIcon + '</div>';
+        html += '<div class="qa-thread-main">';
+        html += '<div class="qa-thread-title">' + escapeHtml(title) + '</div>';
+        if (isAnswered && t.lastSnippet) {
+            html += '<div class="qa-thread-snippet" style="color:var(--accent2)">' + escapeHtml(t.lastSnippet) + '</div>';
+        }
+        html += '<div class="qa-thread-footer" style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">';
+        html += qaStatusBadge(t);
+        html += '<button class="qa-react-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactSharedQuestion(\'' + t._id + '\');event.stopPropagation()" style="font-size:11px;padding:4px 10px">';
+        html += '🤝 عندي نفس السؤال' + (sameCount ? ' <span class="qa-react-count">' + sameCount + '</span>' : '') + '</button>';
+        if (isAnswered) {
+            html += '<button class="btn" style="font-size:11px;padding:4px 12px;border-radius:8px;border-color:rgba(124,106,247,0.4);background:rgba(124,106,247,0.08);color:var(--primary)" onclick="' + openFn + '(\'' + t._id + '\');event.stopPropagation()"><i class="fas fa-eye"></i> شاهد الإجابة</button>';
+        }
+        html += '</div></div></div>';
+    });
+
     html += '</div>';
+    box.innerHTML = html;
+}
 
-    // Ask-question form toggle
-    html += '<button class="qa-ask-btn" onclick="toggleQAAskForm()"><i class="fas fa-plus-circle"></i> اسأل سؤالاً جديداً</button>';
-    html += '<div class="qa-ask-form" id="qa-ask-form" style="display:none">';
-    html += '<textarea class="qa-textarea" id="qa-ask-input" placeholder="اكتب سؤالك هنا... (حتى 300 حرف)" maxlength="300" rows="3" oninput="qaUpdateCount(this,\'qa-ask-count\')"></textarea>';
-    html += '<div class="qa-form-footer"><span class="qa-char-count" id="qa-ask-count">0/300</span>';
-    html += '<div class="qa-form-actions"><button class="qa-cancel-btn" onclick="toggleQAAskForm()">إلغاء</button>';
-    html += '<button class="qa-submit-btn" onclick="submitQAQuestion()"><i class="fas fa-paper-plane"></i> أرسل</button></div>';
-    html += '</div></div>';
+function reactSharedQuestion(qId) {
+    if (!firebaseDb || !GameState.playerPhone) { showToast('سجّل دخول الأول', 'info'); return; }
+    var myPhone = GameState.playerPhone;
+    var thread = _sharedThreads.find(function(t) { return t._id === qId; });
+    var sameUsers = (thread && thread.sameUsers) || [];
+    var isReacted = sameUsers.indexOf(myPhone) !== -1;
+    var FieldValue = firebase.firestore.FieldValue;
+    var update = isReacted
+        ? { sameUsers: FieldValue.arrayRemove(myPhone) }
+        : { sameUsers: FieldValue.arrayUnion(myPhone) };
+    firebaseDb.collection('questions').doc(qId).update(update)
+        .catch(function(e) { console.warn('[QA] react shared:', e); });
+}
 
-    if (questions.length === 0) {
-        html += '<div class="qa-empty"><div class="qa-empty-emoji">💬</div><p>لا توجد أسئلة بعد — كن أول من يسأل!</p></div>';
-    } else {
-        html += '<div class="qa-list">';
-        questions.forEach(function(q) {
-            var qId = q._id;
-            var isExpanded = !!expanded[qId];
-            var isReplyOpen = !!replyOpen[qId];
-            var sameCount = (q.sameUsers || []).length;
-            var hasSamed = (q.sameUsers || []).indexOf(myPhone) !== -1;
-            var likeCount = (q.likeUsers || []).length;
-            var hasLiked = (q.likeUsers || []).indexOf(myPhone) !== -1;
-            var replies = q.replies || [];
+function openSharedThread(threadId) {
+    QAState.readOnly = true;
+    QAState.currentThreadId = threadId;
+    showScreen('question-thread-screen');
 
-            html += '<div class="qa-card" id="qa-card-' + qId + '">';
-            // Question header
-            html += '<div class="qa-card-head">';
-            html += getQAAvatar(q.authorName);
-            html += '<div class="qa-card-meta">';
-            html += '<span class="qa-card-name">' + maskQAName(q.authorName) + '</span>';
-            html += '<span class="qa-card-time">' + qaTimeAgo(q.createdAt) + '</span>';
-            html += '</div></div>';
+    var thread = _sharedThreads.find(function(t) { return t._id === threadId; });
+    var titleEl = document.getElementById('qthread-title');
+    var statusEl = document.getElementById('qthread-status');
+    if (titleEl) titleEl.innerHTML = '<i class="fas fa-comment-dots"></i> ' + escapeHtml((thread && thread.title) || 'السؤال');
+    if (statusEl) statusEl.innerHTML = thread ? qaStatusBadge(thread) : '';
 
-            // Question text
-            html += '<div class="qa-card-text">' + safeText(q.text) + '</div>';
+    var composer = document.querySelector('.qthread-composer');
+    if (composer) composer.style.display = 'none';
 
-            // Reaction bar
-            html += '<div class="qa-reactions">';
-            html += '<button class="qa-react-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactQA(\'' + qId + '\',\'same\')">';
-            html += '❓ نفس سؤالي <span class="qa-react-count">' + sameCount + '</span></button>';
-            html += '<button class="qa-react-btn' + (hasLiked ? ' reacted' : '') + '" onclick="reactQA(\'' + qId + '\',\'like\')">';
-            html += '👍 مفيد <span class="qa-react-count">' + likeCount + '</span></button>';
-            html += '<button class="qa-react-btn' + (isExpanded ? ' active' : '') + '" onclick="toggleQAExpand(\'' + qId + '\')">';
-            html += '💬 ' + replies.length + ' ردود</button>';
-            html += '</div>';
+    if (QAState.messagesListener) { try { QAState.messagesListener(); } catch (e) {} QAState.messagesListener = null; }
+    var msgsBox = document.getElementById('qthread-messages');
+    if (msgsBox) msgsBox.innerHTML = '<div class="qa-loading"><i class="fas fa-spinner fa-spin"></i></div>';
 
-            // Replies section
-            if (isExpanded) {
-                html += '<div class="qa-replies-section">';
-                if (replies.length === 0) {
-                    html += '<div class="qa-no-replies">لا توجد ردود بعد — كن أول من يجيب!</div>';
-                } else {
-                    replies.forEach(function(r, ri) {
-                        var rLikeCount = (r.likeUsers || []).length;
-                        var rHasLiked = (r.likeUsers || []).indexOf(myPhone) !== -1;
-                        var isAuthor = r.authorId === myPhone;
-                        html += '<div class="qa-reply-card' + (r.isBest ? ' best-reply' : '') + '">';
-                        if (r.isBest) html += '<div class="qa-best-badge">✅ أفضل إجابة</div>';
-                        html += '<div class="qa-card-head">';
-                        html += getQAAvatar(r.authorName);
-                        html += '<div class="qa-card-meta">';
-                        html += '<span class="qa-card-name">' + maskQAName(r.authorName) + '</span>';
-                        html += '<span class="qa-card-time">' + qaTimeAgo(r.createdAt) + '</span>';
-                        html += '</div>';
-                        // Question author can mark as best answer
-                        if (q.authorId === myPhone && !r.isBest) {
-                            html += '<button class="qa-mark-best-btn" onclick="markQABestReply(\'' + qId + '\',' + ri + ')" title="علّم كأفضل إجابة">⭐</button>';
-                        }
-                        html += '</div>';
-                        html += '<div class="qa-reply-text">' + safeText(r.text) + '</div>';
-                        html += '<div class="qa-reply-actions">';
-                        html += '<button class="qa-react-btn sm' + (rHasLiked ? ' reacted' : '') + '" onclick="reactQAReply(\'' + qId + '\',' + ri + ')">';
-                        html += '👍 مفيد <span class="qa-react-count">' + rLikeCount + '</span></button>';
-                        html += '</div>';
-                        html += '</div>';
-                    });
-                }
-                // Reply input
-                html += '<div class="qa-reply-input-wrap' + (isReplyOpen ? ' open' : '') + '" id="qa-reply-wrap-' + qId + '">';
-                if (isReplyOpen) {
-                    html += '<textarea class="qa-textarea sm" id="qa-reply-input-' + qId + '" placeholder="اكتب ردك..." maxlength="300" rows="2" oninput="qaUpdateCount(this,\'qa-rc-' + qId + '\')"></textarea>';
-                    html += '<div class="qa-form-footer"><span class="qa-char-count" id="qa-rc-' + qId + '">0/300</span>';
-                    html += '<div class="qa-form-actions"><button class="qa-cancel-btn" onclick="closeQAReply(\'' + qId + '\')">إلغاء</button>';
-                    html += '<button class="qa-submit-btn" onclick="submitQAReply(\'' + qId + '\')"><i class="fas fa-paper-plane"></i> رد</button></div></div>';
-                } else {
-                    html += '<button class="qa-open-reply-btn" onclick="openQAReply(\'' + qId + '\')"><i class="fas fa-reply"></i> أضف رداً</button>';
-                }
-                html += '</div>';
-                html += '</div>'; // qa-replies-section
-            }
-
-            html += '</div>'; // qa-card
+    QAState.messagesListener = firebaseDb.collection('questions').doc(threadId)
+        .collection('messages')
+        .onSnapshot(function(snap) {
+            var msgs = [];
+            snap.forEach(function(doc) { var d = doc.data(); d._id = doc.id; msgs.push(d); });
+            msgs.sort(function(a, b) {
+                var ta = (a.createdAt && a.createdAt.toDate) ? a.createdAt.toDate().getTime() : 0;
+                var tb = (b.createdAt && b.createdAt.toDate) ? b.createdAt.toDate().getTime() : 0;
+                return ta - tb;
+            });
+            QAState._lastMessages = msgs;
+            renderThreadMessages(msgs);
+        }, function(err) {
+            console.warn('[QA] shared messages error:', err);
+            if (msgsBox) msgsBox.innerHTML = '<div class="qa-empty"><p>تعذّر التحميل</p></div>';
         });
-        html += '</div>'; // qa-list
-    }
-    html += '</div>'; // qa-wrap
-    container.innerHTML = html;
-}
-
-// --- Q&A interactions ---
-function toggleQAAskForm() {
-    var f = document.getElementById('qa-ask-form');
-    if (!f) return;
-    var visible = f.style.display !== 'none';
-    f.style.display = visible ? 'none' : 'block';
-    if (!visible) { var t = document.getElementById('qa-ask-input'); if (t) t.focus(); }
-}
-
-function qaUpdateCount(el, countId) {
-    var c = document.getElementById(countId); if (c) c.textContent = el.value.length + '/300';
-}
-
-function submitQAQuestion() {
-    var input = document.getElementById('qa-ask-input');
-    if (!input) return;
-    var text = input.value.trim();
-    if (text.length < 5) { showToast('اكتب سؤالاً واضحاً (5 أحرف على الأقل)', 'info'); return; }
-    var btn = document.querySelector('.qa-ask-form .qa-submit-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '...'; }
-
-    getLessonQARef().add({
-        text: text,
-        authorId: GameState.playerPhone || 'guest',
-        authorName: GameState.playerName || 'مجهول',
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        sameUsers: [],
-        likeUsers: [],
-        replies: []
-    }).then(function() {
-        showToast('تم إرسال سؤالك! 🎉', 'success');
-        toggleQAAskForm();
-        if (input) input.value = '';
-    }).catch(function() {
-        showToast('تعذّر إرسال السؤال، حاول مرة أخرى', 'error');
-        if (btn) { btn.disabled = false; btn.textContent = 'أرسل'; }
-    });
-}
-
-function toggleQAExpand(qId) {
-    _qaExpandedIds[qId] = !_qaExpandedIds[qId];
-    if (!_qaExpandedIds[qId]) delete _qaReplyOpenIds[qId];
-    var slot = document.getElementById('lesson-qa-slot');
-    if (!slot) return;
-    // Re-render with current cached data by triggering a snapshot re-read
-    // Simply toggle DOM visibility to avoid full re-fetch
-    var repliesEl = document.getElementById('qa-card-' + qId);
-    if (repliesEl) {
-        // Lightweight: just re-trigger by updating slot (listener will re-render)
-        initLessonQA(slot);
-    }
-}
-
-function openQAReply(qId) {
-    _qaReplyOpenIds[qId] = true;
-    var slot = document.getElementById('lesson-qa-slot');
-    if (slot) initLessonQA(slot);
-}
-
-function closeQAReply(qId) {
-    delete _qaReplyOpenIds[qId];
-    var slot = document.getElementById('lesson-qa-slot');
-    if (slot) initLessonQA(slot);
-}
-
-function submitQAReply(qId) {
-    var input = document.getElementById('qa-reply-input-' + qId);
-    if (!input) return;
-    var text = input.value.trim();
-    if (text.length < 2) { showToast('اكتب رداً أوضح', 'info'); return; }
-
-    var reply = {
-        text: text,
-        authorId: GameState.playerPhone || 'guest',
-        authorName: GameState.playerName || 'مجهول',
-        createdAt: { seconds: Math.floor(Date.now() / 1000) }, // local timestamp
-        likeUsers: [],
-        isBest: false
-    };
-
-    var docRef = getLessonQARef().doc(qId);
-    firebaseDb.runTransaction(function(tx) {
-        return tx.get(docRef).then(function(doc) {
-            if (!doc.exists) throw new Error('not found');
-            var replies = doc.data().replies || [];
-            replies.push(reply);
-            tx.update(docRef, { replies: replies });
-        });
-    }).then(function() {
-        delete _qaReplyOpenIds[qId];
-        showToast('تم إرسال ردك! 💬', 'success');
-    }).catch(function() {
-        showToast('تعذّر إرسال الرد', 'error');
-    });
-}
-
-function reactQA(qId, type) {
-    var myPhone = GameState.playerPhone || 'guest';
-    var field = type === 'same' ? 'sameUsers' : 'likeUsers';
-    var docRef = getLessonQARef().doc(qId);
-    firebaseDb.runTransaction(function(tx) {
-        return tx.get(docRef).then(function(doc) {
-            if (!doc.exists) throw new Error('not found');
-            var users = doc.data()[field] || [];
-            var idx = users.indexOf(myPhone);
-            var update = {};
-            if (idx === -1) { users.push(myPhone); }
-            else { users.splice(idx, 1); }
-            update[field] = users;
-            tx.update(docRef, update);
-        });
-    }).catch(function() { showToast('تعذّر التفاعل، حاول مرة أخرى', 'error'); });
-}
-
-function reactQAReply(qId, replyIdx) {
-    var myPhone = GameState.playerPhone || 'guest';
-    var docRef = getLessonQARef().doc(qId);
-    firebaseDb.runTransaction(function(tx) {
-        return tx.get(docRef).then(function(doc) {
-            if (!doc.exists) throw new Error('not found');
-            var replies = doc.data().replies || [];
-            if (!replies[replyIdx]) return;
-            var users = replies[replyIdx].likeUsers || [];
-            var idx = users.indexOf(myPhone);
-            if (idx === -1) { users.push(myPhone); } else { users.splice(idx, 1); }
-            replies[replyIdx].likeUsers = users;
-            tx.update(docRef, { replies: replies });
-        });
-    }).catch(function() { showToast('تعذّر التفاعل', 'error'); });
-}
-
-function markQABestReply(qId, replyIdx) {
-    var docRef = getLessonQARef().doc(qId);
-    firebaseDb.runTransaction(function(tx) {
-        return tx.get(docRef).then(function(doc) {
-            if (!doc.exists) throw new Error('not found');
-            var replies = doc.data().replies || [];
-            replies.forEach(function(r, i) { r.isBest = (i === replyIdx); });
-            tx.update(docRef, { replies: replies });
-        });
-    }).then(function() {
-        showToast('✅ تم تمييز أفضل إجابة!', 'success');
-    }).catch(function() { showToast('تعذّر التمييز', 'error'); });}
-
-// Firestore security rule hint: lessonQA must allow authenticated reads/writes
-// Add to firestore.rules: match /lessonQA/{key}/questions/{doc} { allow read, write: if request.auth != null; }
 }

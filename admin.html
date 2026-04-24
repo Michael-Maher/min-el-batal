@@ -739,7 +739,6 @@ tbody td{padding:10px 13px;vertical-align:middle}
         <button class="nav-btn" onclick="goPage('rooms')"><i class="fas fa-bolt"></i> غرف المنافسة</button>
         <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
-        <button class="nav-btn" onclick="goPage('lessonqa')" id="nav-lessonqa"><i class="fas fa-users-rectangle"></i> أسئلة المجتمع <span class="nav-badge" id="nav-lessonqa-badge" style="display:none">0</span></button>
       </div>
       <div class="nav-grp" id="nav-grp-super" style="display:none">
         <div class="nav-grp-title">المسؤول الأعلى</div>
@@ -995,33 +994,6 @@ tbody td{padding:10px 13px;vertical-align:middle}
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- COMMUNITY Q&A MODERATION -->
-    <div class="page" id="page-lessonqa">
-      <div class="ph"><h2><i class="fas fa-users-rectangle" style="color:var(--teal)"></i> أسئلة المجتمع</h2><p>مراجعة وتفعيل أسئلة اللاعبين المشتركة في الدروس</p></div>
-
-      <div class="fbar" style="flex-wrap:wrap;gap:8px">
-        <select class="flt" id="lqa-subject" onchange="lqaLoad()">
-          <option value="">كل المواد</option>
-          <option value="faith">الإيمان</option>
-          <option value="bible">الكتاب المقدس</option>
-          <option value="life">مهارات الحياة</option>
-          <option value="liturgy">الطقس</option>
-        </select>
-        <select class="flt" id="lqa-filter" onchange="lqaRender()">
-          <option value="pending">في انتظار الموافقة</option>
-          <option value="approved">مقبولة</option>
-          <option value="rejected">مرفوضة</option>
-          <option value="all">الكل</option>
-        </select>
-        <button class="btn bg bsm" onclick="lqaLoad()"><i class="fas fa-rotate-right"></i> تحديث</button>
-        <span class="fcnt" id="lqa-count"></span>
-      </div>
-
-      <div class="card" style="margin-top:14px">
-        <div id="lqa-list" class="cb"><div class="loading"><i class="fas fa-spinner"></i></div></div>
       </div>
     </div>
 
@@ -1351,8 +1323,8 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',lessonqa:'أسئلة المجتمع',admins:'إدارة الأدمنز'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',lessonqa:'مراجعة وتفعيل أسئلة الدروس',admins:'قبول وإدارة الأدمنز'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',admins:'إدارة الأدمنز'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',admins:'قبول وإدارة الأدمنز'};
 function goPage(name) {
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -1362,7 +1334,6 @@ function goPage(name) {
   document.getElementById('tb-title').childNodes[0].textContent=PTITLES[name]||name;
   document.getElementById('tb-sub').textContent=PSUBS[name]||'';
   document.getElementById('sidebar').classList.remove('open');
-  if(name==='lessonqa') lqaLoad();
 }
 
 // ════════════════════════════════
@@ -2841,9 +2812,22 @@ function qaRenderInbox(){
         <div style="font-weight:700;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.title||'—')}</div>
         <div style="color:var(--muted);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(t.lastSnippet||'')}</div>
       </div>
-      <div style="font-size:10px;color:var(--muted2);flex-shrink:0;text-align:left">${qaTimeAgo(t.lastActivityAt||t.createdAt)}</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0">
+        <div style="font-size:10px;color:var(--muted2)">${qaTimeAgo(t.lastActivityAt||t.createdAt)}</div>
+        <button class="btn bsm" onclick="qaToggleShare('${t._id}',${!!t.shared});event.stopPropagation()" title="${t.shared?'إلغاء المشاركة':'مشاركة مع الكل'}" style="font-size:10px;padding:3px 8px;border-radius:6px;${t.shared?'border-color:rgba(52,211,153,0.5);color:var(--green);background:rgba(52,211,153,0.1)':'border-color:rgba(255,255,255,0.15);color:var(--muted)'}">
+          <i class="fas fa-share-alt"></i> ${t.shared?'مشترك':'مشاركة'}
+        </button>
+      </div>
     </div>`;
   }).join('');
+}
+
+function qaToggleShare(id, currentlyShared) {
+  db.collection('questions').doc(id).update({ shared: !currentlyShared })
+    .then(function() {
+      showToast(currentlyShared ? '🔒 تم إلغاء المشاركة' : '✅ تم مشاركة السؤال مع اللاعبين');
+    })
+    .catch(function(e) { showToast('حدث خطأ: ' + e.message); });
 }
 
 function qaOpenThread(id){
@@ -3308,118 +3292,6 @@ var adminMe = null;
   }
 })();
 
-// ══ COMMUNITY Q&A MODERATION ══
-var _lqaAll = [];
-var _lqaUnsub = null;
-
-function lqaLoad() {
-  if (_lqaUnsub) { try { _lqaUnsub(); } catch(e) {} _lqaUnsub = null; }
-  var box = document.getElementById('lqa-list');
-  if (box) box.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
-
-  var subject = document.getElementById('lqa-subject') && document.getElementById('lqa-subject').value;
-  var subjects = subject ? [subject] : ['faith','bible','life','liturgy'];
-  _lqaAll = [];
-
-  var pending = subjects.length;
-  subjects.forEach(function(sub) {
-    // Each subject has up to 10 lessons
-    for (var i = 0; i < 10; i++) {
-      (function(key) {
-        pending++;
-        db.collection('lessonQA').doc(key).collection('questions')
-          .orderBy('createdAt','desc').limit(100)
-          .get().then(function(snap) {
-            snap.forEach(function(doc) {
-              var d = doc.data();
-              d._id = doc.id;
-              d._key = key;
-              _lqaAll.push(d);
-            });
-            pending--;
-            if (pending === 0) lqaRender();
-          }).catch(function() { pending--; if (pending === 0) lqaRender(); });
-      })(sub + '_' + i);
-    }
-    pending--;
-    if (pending === 0) lqaRender();
-  });
-}
-
-function lqaRender() {
-  var filter = (document.getElementById('lqa-filter') && document.getElementById('lqa-filter').value) || 'pending';
-  var list = _lqaAll.filter(function(q) {
-    if (filter === 'approved') return q.approved === true;
-    if (filter === 'rejected') return q.approved === false;
-    if (filter === 'pending')  return q.approved === undefined || q.approved === null;
-    return true;
-  });
-  list.sort(function(a,b) {
-    var ta = a.createdAt && a.createdAt.toDate ? a.createdAt.toDate().getTime() : 0;
-    var tb = b.createdAt && b.createdAt.toDate ? b.createdAt.toDate().getTime() : 0;
-    return tb - ta;
-  });
-
-  var cnt = document.getElementById('lqa-count');
-  if (cnt) cnt.textContent = list.length + ' سؤال';
-
-  var badge = document.getElementById('nav-lessonqa-badge');
-  var pendingCount = _lqaAll.filter(function(q) { return q.approved === undefined || q.approved === null; }).length;
-  if (badge) { badge.textContent = pendingCount > 99 ? '99+' : pendingCount; badge.style.display = pendingCount ? 'inline-flex' : 'none'; }
-
-  var box = document.getElementById('lqa-list');
-  if (!box) return;
-  if (!list.length) { box.innerHTML = '<div class="empty"><p>لا توجد أسئلة</p></div>'; return; }
-
-  var SUBJECT_LABELS = { faith:'الإيمان', bible:'الكتاب المقدس', life:'مهارات الحياة', liturgy:'الطقس' };
-  box.innerHTML = list.map(function(q) {
-    var parts = (q._key || '').split('_');
-    var subLabel = SUBJECT_LABELS[parts[0]] || parts[0];
-    var lessonNum = parts[1] !== undefined ? 'درس ' + (parseInt(parts[1]) + 1) : '';
-    var time = q.createdAt && q.createdAt.toDate ? relTime(q.createdAt.toDate()) : '';
-    var status = q.approved === true ? '<span style="color:var(--green);font-weight:700">✅ مقبول</span>'
-               : q.approved === false ? '<span style="color:var(--red);font-weight:700">🚫 مرفوض</span>'
-               : '<span style="color:var(--gold);font-weight:700">⏳ انتظار</span>';
-    var repliesHtml = '';
-    if (q.replies && q.replies.length) {
-      repliesHtml = '<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.07)">' +
-        '<div style="font-size:11px;color:var(--muted);margin-bottom:6px"><i class="fas fa-reply"></i> ' + q.replies.length + ' رد</div>' +
-        q.replies.slice(0,2).map(function(r) {
-          return '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:6px 10px;font-size:12px;margin-bottom:4px">' +
-            '<span style="color:var(--accent2);font-weight:700">' + (r.authorName || 'مجهول') + '</span>: ' + (r.text || '') + '</div>';
-        }).join('') +
-        (q.replies.length > 2 ? '<div style="font-size:11px;color:var(--muted)">+ ' + (q.replies.length - 2) + ' أكثر...</div>' : '') +
-        '</div>';
-    }
-    return '<div style="border-bottom:1px solid rgba(255,255,255,0.07);padding:14px 4px">' +
-      '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">' +
-      '<div style="flex:1;min-width:200px">' +
-      '<div style="font-size:12px;color:var(--muted);margin-bottom:4px">' +
-        '<span style="background:rgba(124,106,247,0.15);border-radius:6px;padding:2px 8px;margin-left:6px">' + subLabel + ' — ' + lessonNum + '</span>' +
-        '<span style="color:var(--accent2);font-weight:700">' + (q.authorName || 'مجهول') + '</span>' +
-        ' · ' + time + ' · ' + status +
-      '</div>' +
-      '<div style="font-size:14px;line-height:1.6">' + (q.text || '') + '</div>' +
-      repliesHtml +
-      '</div>' +
-      '<div style="display:flex;flex-direction:column;gap:6px;min-width:130px">' +
-      '<button class="btn bg bsm" onclick="lqaSetApproved(\'' + q._key + '\',\'' + q._id + '\',true)" style="border-color:rgba(52,211,153,0.4);color:var(--green)"><i class="fas fa-check"></i> قبول</button>' +
-      '<button class="btn bg bsm" onclick="lqaSetApproved(\'' + q._key + '\',\'' + q._id + '\',false)" style="border-color:rgba(248,113,113,0.4);color:var(--red)"><i class="fas fa-ban"></i> رفض</button>' +
-      '</div></div></div>';
-  }).join('');
-}
-
-function lqaSetApproved(key, id, approved) {
-  db.collection('lessonQA').doc(key).collection('questions').doc(id)
-    .update({ approved: approved })
-    .then(function() {
-      showToast(approved ? '✅ تم قبول السؤال' : '🚫 تم رفض السؤال');
-      var q = _lqaAll.find(function(x) { return x._id === id && x._key === key; });
-      if (q) q.approved = approved;
-      lqaRender();
-    })
-    .catch(function(e) { showToast('حدث خطأ: ' + e.message); });
-}
 </script>
 </body>
 </html>

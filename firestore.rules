@@ -59,9 +59,5 @@ service cloud.firestore {
         allow read, write: if true;
       }
     }
-    // Lesson Community Q&A — players ask/answer per lesson
-    match /lessonQA/{lessonKey}/questions/{questionId} {
-      allow read, write: if true;
-    }
   }
 }

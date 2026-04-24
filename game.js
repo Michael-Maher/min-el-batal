@@ -16621,9 +16621,16 @@ var QAState = {
 function qaSanitizeHtml(html) {
     if (!html) return '';
     var ALLOWED_TAGS = {
-        'P': 1, 'BR': 1, 'STRONG': 1, 'B': 1, 'EM': 1, 'I': 1, 'U': 1,
-        'OL': 1, 'UL': 1, 'LI': 1, 'BLOCKQUOTE': 1, 'A': 1, 'H3': 1, 'SPAN': 1
+        'P': 1, 'BR': 1, 'DIV': 1,
+        'STRONG': 1, 'B': 1, 'EM': 1, 'I': 1, 'U': 1, 'S': 1, 'STRIKE': 1,
+        'SUB': 1, 'SUP': 1,
+        'OL': 1, 'UL': 1, 'LI': 1,
+        'BLOCKQUOTE': 1, 'PRE': 1, 'CODE': 1,
+        'A': 1,
+        'H1': 1, 'H2': 1, 'H3': 1, 'H4': 1,
+        'SPAN': 1, 'IMG': 1
     };
+    var SAFE_STYLE_PROPS = ['color', 'background-color', 'font-family', 'font-size', 'text-align', 'direction'];
     var tpl = document.createElement('div');
     tpl.innerHTML = html;
     (function clean(node) {
@@ -16631,17 +16638,28 @@ function qaSanitizeHtml(html) {
         children.forEach(function(child) {
             if (child.nodeType === 1) {
                 if (!ALLOWED_TAGS[child.tagName]) {
-                    // Unwrap disallowed tags but keep their text
                     while (child.firstChild) node.insertBefore(child.firstChild, child);
                     node.removeChild(child);
                     return;
                 }
-                // Strip all attributes except safe href/target on A
+                var keep = [];
                 var attrs = Array.prototype.slice.call(child.attributes);
                 attrs.forEach(function(a) {
-                    if (child.tagName === 'A' && (a.name === 'href' || a.name === 'target' || a.name === 'rel')) return;
-                    child.removeAttribute(a.name);
+                    if (child.tagName === 'A' && (a.name === 'href' || a.name === 'target' || a.name === 'rel')) { keep.push(a.name); return; }
+                    if (child.tagName === 'IMG' && a.name === 'src') { keep.push(a.name); return; }
+                    if (a.name === 'class') { keep.push(a.name); return; }
+                    if (a.name === 'style') { keep.push(a.name); return; }
                 });
+                attrs.forEach(function(a) { if (keep.indexOf(a.name) < 0) child.removeAttribute(a.name); });
+                // Sanitize style — only allow safe properties
+                if (child.getAttribute('style')) {
+                    var parts = child.getAttribute('style').split(';').filter(function(s) {
+                        var prop = (s.split(':')[0] || '').trim().toLowerCase();
+                        return SAFE_STYLE_PROPS.indexOf(prop) >= 0;
+                    });
+                    if (parts.length) child.setAttribute('style', parts.join(';'));
+                    else child.removeAttribute('style');
+                }
                 if (child.tagName === 'A') {
                     var href = child.getAttribute('href') || '';
                     if (!/^https?:\/\//i.test(href)) { child.removeAttribute('href'); }

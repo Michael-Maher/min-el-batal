@@ -12568,116 +12568,224 @@ body {
     letter-spacing: .3px;
 }
 
+/* ── My Q&A section header (with badge) ─────────────────── */
+.qa-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 0 2px;
+}
+.qa-section-header-title {
+    font-size: 12px;
+    font-weight: 800;
+    color: rgba(255,255,255,.4);
+    text-transform: uppercase;
+    letter-spacing: .8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.qa-section-badge {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 900;
+    border-radius: 20px;
+    padding: 3px 10px;
+    box-shadow: 0 2px 10px rgba(239,68,68,.4);
+    animation: pulse-badge .9s ease-in-out infinite alternate;
+}
+@keyframes pulse-badge {
+    from { box-shadow: 0 2px 10px rgba(239,68,68,.4); }
+    to   { box-shadow: 0 2px 18px rgba(239,68,68,.7); }
+}
+
 /* ── Shared Q&A card (أسئلة أصحابك) ─────────────────────── */
 .shared-qa-card {
-    margin: 14px 16px 4px;
-    border-radius: 20px;
-    border: 1.5px solid rgba(108,92,231,.35);
-    background: linear-gradient(160deg, rgba(108,92,231,.1) 0%, rgba(79,70,229,.06) 50%, rgba(0,206,201,.05) 100%);
+    margin: 14px 16px 20px;
+    border-radius: 22px;
+    border: 1.5px solid rgba(108,92,231,.4);
     overflow: hidden;
-    box-shadow: 0 4px 28px rgba(108,92,231,.18), inset 0 1px 0 rgba(108,92,231,.15);
+    position: relative;
+    box-shadow: 0 6px 36px rgba(108,92,231,.22), inset 0 1px 0 rgba(108,92,231,.2);
 }
+/* Background image layer */
+.shared-qa-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: url('/images/my_friends_questions_bg-opt.jpg') center/cover no-repeat;
+    opacity: .13;
+    z-index: 0;
+    border-radius: inherit;
+}
+.shared-qa-card > * { position: relative; z-index: 1; }
+
+/* Card header */
 .shared-qa-header {
     display: flex;
     align-items: center;
     gap: 12px;
     padding: 14px 16px;
-    background: linear-gradient(135deg, rgba(108,92,231,.28) 0%, rgba(79,70,229,.18) 100%);
-    border-bottom: 1px solid rgba(108,92,231,.2);
+    background: linear-gradient(135deg, rgba(108,92,231,.45) 0%, rgba(79,70,229,.3) 100%);
+    border-bottom: 1px solid rgba(108,92,231,.25);
 }
 .shared-qa-header-icon {
-    font-size: 26px;
+    font-size: 28px;
     flex-shrink: 0;
-    filter: drop-shadow(0 2px 6px rgba(108,92,231,.5));
+    filter: drop-shadow(0 2px 8px rgba(108,92,231,.6));
 }
 .shared-qa-header-title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 900;
-    color: #c4b5fd;
+    color: #ddd6fe;
     margin-bottom: 2px;
-    text-shadow: 0 1px 6px rgba(0,0,0,.3);
+    text-shadow: 0 1px 6px rgba(0,0,0,.4);
 }
 .shared-qa-header-sub {
     font-size: 11px;
-    color: rgba(196,181,253,.55);
+    color: rgba(221,214,254,.5);
     font-weight: 600;
 }
+.shared-qa-new-badge {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 900;
+    border-radius: 20px;
+    padding: 4px 12px;
+    white-space: nowrap;
+    box-shadow: 0 2px 12px rgba(239,68,68,.5);
+    animation: pulse-badge .9s ease-in-out infinite alternate;
+}
+
+/* Privacy hint */
+.shared-qa-privacy-hint {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 14px 14px 0;
+    padding: 14px 14px;
+    background: linear-gradient(135deg, rgba(16,185,129,.12) 0%, rgba(5,150,105,.08) 100%);
+    border: 1px solid rgba(16,185,129,.25);
+    border-radius: 16px;
+}
+.sqp-hint-shield {
+    font-size: 28px;
+    flex-shrink: 0;
+    line-height: 1;
+    filter: drop-shadow(0 2px 6px rgba(16,185,129,.5));
+}
+.sqp-hint-body { flex: 1; min-width: 0; }
+.sqp-hint-title {
+    font-size: 13px;
+    font-weight: 900;
+    color: #6ee7b7;
+    margin-bottom: 5px;
+}
+.sqp-hint-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: rgba(255,255,255,.65);
+    line-height: 1.65;
+}
+
+/* Questions list */
 .shared-qa-list {
-    padding: 12px 14px 6px;
+    padding: 14px 14px 8px;
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 12px;
 }
 .shared-qa-item {
-    background: rgba(255,255,255,.04);
-    border: 1px solid rgba(108,92,231,.15);
-    border-radius: 16px;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(108,92,231,.18);
+    border-radius: 18px;
     overflow: hidden;
+    position: relative;
 }
+.shared-qa-item-new {
+    border-color: rgba(239,68,68,.35) !important;
+    background: rgba(239,68,68,.04) !important;
+}
+.shared-qa-new-dot {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239,68,68,.8);
+    animation: pulse-badge .9s ease-in-out infinite alternate;
+}
+
 /* Question block */
 .shared-qa-q-block {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 13px 14px 11px;
+    padding: 14px 14px 12px;
 }
 .shared-qa-q-icon {
-    font-size: 18px;
+    font-size: 20px;
     flex-shrink: 0;
     margin-top: 1px;
-    opacity: .85;
 }
 .shared-qa-q-body { flex: 1; min-width: 0; }
 .shared-qa-q-text {
     font-size: 14px;
     font-weight: 800;
-    color: rgba(255,255,255,.9);
-    line-height: 1.55;
-    margin-bottom: 5px;
+    color: rgba(255,255,255,.92);
+    line-height: 1.6;
+    margin-bottom: 6px;
 }
 .shared-qa-q-meta {
     font-size: 10px;
-    color: rgba(255,255,255,.3);
+    color: rgba(255,255,255,.28);
     font-weight: 600;
     letter-spacing: .2px;
 }
+
 /* Answer block */
 .shared-qa-a-block {
     display: flex;
     align-items: flex-start;
     gap: 10px;
     padding: 12px 14px;
-    background: linear-gradient(135deg, rgba(0,184,148,.1) 0%, rgba(0,206,201,.06) 100%);
-    border-top: 1px solid rgba(0,206,201,.15);
+    background: linear-gradient(135deg, rgba(0,184,148,.12) 0%, rgba(5,150,105,.07) 100%);
+    border-top: 1px solid rgba(16,185,129,.2);
 }
 .shared-qa-a-icon {
     font-size: 16px;
     flex-shrink: 0;
     margin-top: 2px;
-    color: #5eead4;
+    color: #34d399;
 }
 .shared-qa-a-body { flex: 1; min-width: 0; }
 .shared-qa-a-label {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 900;
-    color: #5eead4;
+    color: #34d399;
     text-transform: uppercase;
-    letter-spacing: .8px;
+    letter-spacing: 1px;
     margin-bottom: 5px;
 }
 .shared-qa-a-text {
     font-size: 13px;
     font-weight: 600;
-    color: rgba(255,255,255,.8);
-    line-height: 1.6;
+    color: rgba(255,255,255,.82);
+    line-height: 1.65;
 }
+
 /* Footer */
 .shared-qa-footer {
     display: flex;
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    padding: 10px 14px 12px;
+    padding: 10px 14px 13px;
     border-top: 1px solid rgba(255,255,255,.06);
 }
 .shared-qa-same-btn {
@@ -12687,9 +12795,9 @@ body {
     font-family: Cairo, sans-serif;
     font-size: 12px;
     font-weight: 700;
-    color: rgba(255,255,255,.5);
+    color: rgba(255,255,255,.45);
     background: rgba(255,255,255,.05);
-    border: 1px solid rgba(255,255,255,.12);
+    border: 1px solid rgba(255,255,255,.1);
     border-radius: 20px;
     padding: 5px 12px;
     cursor: pointer;
@@ -12698,18 +12806,17 @@ body {
 .shared-qa-same-btn:active { transform: scale(0.95); }
 .shared-qa-same-btn.reacted {
     color: #c4b5fd;
-    background: rgba(108,92,231,.18);
-    border-color: rgba(108,92,231,.4);
+    background: rgba(108,92,231,.2);
+    border-color: rgba(108,92,231,.45);
 }
 .shared-qa-count {
-    background: rgba(108,92,231,.3);
+    background: rgba(108,92,231,.35);
     border-radius: 8px;
     padding: 1px 6px;
     font-size: 10px;
     font-weight: 800;
 }
 .shared-qa-view-btn {
-    margin-right: auto;
     display: inline-flex;
     align-items: center;
     gap: 5px;
@@ -12717,15 +12824,30 @@ body {
     font-size: 12px;
     font-weight: 800;
     color: #a78bfa;
-    background: rgba(108,92,231,.12);
-    border: 1px solid rgba(108,92,231,.3);
+    background: rgba(108,92,231,.14);
+    border: 1px solid rgba(108,92,231,.35);
     border-radius: 20px;
     padding: 5px 14px;
     cursor: pointer;
     transition: all .18s;
 }
 .shared-qa-view-btn:active { transform: scale(0.95); }
-.shared-qa-view-btn:hover { background: rgba(108,92,231,.22); border-color: rgba(108,92,231,.5); }
+.shared-qa-share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    font-family: Cairo, sans-serif;
+    font-size: 13px;
+    color: rgba(255,255,255,.4);
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all .18s;
+}
+.shared-qa-share-btn:active { transform: scale(0.9); color: #a78bfa; }
 
 /* ── Thread list rows ───────────────────────────────────── */
 .qa-threads-section {

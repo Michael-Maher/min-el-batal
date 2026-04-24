@@ -16765,8 +16765,11 @@ function renderMyQuestions() {
     }
 
     var statusIcons = { answered: '✅', resolved: '✅', pending: '⏳' };
-    body.innerHTML = '<div class="qa-threads-section">' +
-        '<div class="qa-threads-label">محادثاتك مع الخدام</div>' +
+    var myLabel = '<div class="qa-section-header">' +
+        '<div class="qa-section-header-title"><i class="fas fa-comments"></i> محادثاتك مع الخدام</div>' +
+        (unread ? '<div class="qa-section-badge" id="my-qa-badge">' + unread + ' 🔔</div>' : '') +
+        '</div>';
+    body.innerHTML = '<div class="qa-threads-section">' + myLabel +
         QAState.myThreads.map(function(t) {
             var title = t.title || '(بدون عنوان)';
             var snippet = t.lastSnippet || '';
@@ -17109,7 +17112,6 @@ function renderThreadMessages(msgs) {
                 '<button class="qa-react-add-btn" onclick="qaToggleReactPicker(\'' + m._id + '\',event)" title="أضف تفاعل">＋</button>' +
                 '<div class="qa-emoji-picker" id="qrp-' + m._id + '" style="display:none">' + pickerOpts + '</div>' +
             '</div>' +
-            '<button class="qa-share-msg-btn" onclick="qaShareMessage(\'' + m._id + '\')" title="شارك هذا الرد"><i class="fas fa-share-alt"></i></button>' +
         '</div>';
 
         return '<div class="qa-msg ' + (isAdmin ? 'qa-msg-admin' : 'qa-msg-user') + '" id="qm-' + m._id + '">' +
@@ -20989,6 +20991,32 @@ function maskSharedName(name) {
     return name.charAt(0) + '●●●';
 }
 
+var _sharedSeenKey = 'sharedQSeenIds';
+
+function _getSharedSeenIds() {
+    try { return JSON.parse(localStorage.getItem(_sharedSeenKey) || '[]'); } catch(e) { return []; }
+}
+
+function _markSharedSeen() {
+    var ids = _sharedThreads.map(function(t) { return t._id; });
+    localStorage.setItem(_sharedSeenKey, JSON.stringify(ids));
+    var badge = document.getElementById('shared-qa-badge');
+    if (badge) badge.style.display = 'none';
+}
+
+function _countNewShared() {
+    var seen = _getSharedSeenIds();
+    return _sharedThreads.filter(function(t) { return seen.indexOf(t._id) < 0; }).length;
+}
+
+function updateSharedQsBadge() {
+    var count = _countNewShared();
+    var badge = document.getElementById('shared-qa-badge');
+    if (!badge) return;
+    if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = 'flex'; }
+    else { badge.style.display = 'none'; }
+}
+
 function renderSharedQuestions() {
     var box = document.getElementById('shared-questions-section');
     if (!box) return;
@@ -20997,13 +21025,30 @@ function renderSharedQuestions() {
         return;
     }
     var myPhone = GameState.playerPhone || '';
+    var newCount = _countNewShared();
 
     var html = '<div class="shared-qa-card">';
+
+    // Header with badge
     html += '<div class="shared-qa-header">';
     html += '<div class="shared-qa-header-icon">👥</div>';
-    html += '<div>';
+    html += '<div style="flex:1">';
     html += '<div class="shared-qa-header-title">أسئلة أصحابك</div>';
-    html += '<div class="shared-qa-header-sub">أسئلة اختارها الخدام لتعم الفائدة على الجميع</div>';
+    html += '<div class="shared-qa-header-sub">اختارها الخدام عشان تنفع الجميع</div>';
+    html += '</div>';
+    if (newCount > 0) {
+        html += '<div class="shared-qa-new-badge">' + (newCount > 9 ? '9+' : newCount) + ' جديد 🔔</div>';
+    }
+    html += '</div>';
+
+    // Privacy hint
+    html += '<div class="shared-qa-privacy-hint">';
+    html += '<div class="sqp-hint-shield">🛡️</div>';
+    html += '<div class="sqp-hint-body">';
+    html += '<div class="sqp-hint-title">خصوصيتك في أمان تام 🔒</div>';
+    html += '<div class="sqp-hint-text">الأسئلة دي اختارها الخدام من أسئلة الأصحاب عشان تنفع الكل وتعم الفايدة. ';
+    html += 'كل سؤال مجهول المصدر — مفيش حد يعرف مين اللي سأل! 👤✨ ';
+    html += 'اقرا واستفاد وشارك الخير مع أصحابك 🤍</div>';
     html += '</div></div>';
 
     html += '<div class="shared-qa-list">';
@@ -21017,18 +21062,21 @@ function renderSharedQuestions() {
         var openFn = isMyThread ? 'openQuestionThread' : 'openSharedThread';
         var maskedName = maskSharedName(t.userName || t.userPhone || '');
         var timeAgo = qaTimeAgo(t.lastActivityAt || t.createdAt);
+        var seenIds = _getSharedSeenIds();
+        var isNew = seenIds.indexOf(t._id) < 0;
 
-        html += '<div class="shared-qa-item">';
+        html += '<div class="shared-qa-item' + (isNew ? ' shared-qa-item-new' : '') + '">';
+        if (isNew) html += '<div class="shared-qa-new-dot"></div>';
 
         // Question block
         html += '<div class="shared-qa-q-block">';
         html += '<div class="shared-qa-q-icon">❓</div>';
         html += '<div class="shared-qa-q-body">';
         html += '<div class="shared-qa-q-text">' + escapeHtml(title) + '</div>';
-        html += '<div class="shared-qa-q-meta">' + escapeHtml(maskedName) + (timeAgo ? ' · ' + timeAgo : '') + '</div>';
+        html += '<div class="shared-qa-q-meta">👤 ' + escapeHtml(maskedName) + (timeAgo ? ' · ' + timeAgo : '') + '</div>';
         html += '</div></div>';
 
-        // Answer block (if answered)
+        // Answer block
         if (isAnswered && t.lastSnippet) {
             html += '<div class="shared-qa-a-block">';
             html += '<div class="shared-qa-a-icon">✝</div>';
@@ -21042,17 +21090,42 @@ function renderSharedQuestions() {
         html += '<div class="shared-qa-footer">';
         html += '<button class="shared-qa-same-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactSharedQuestion(\'' + t._id + '\')">';
         html += '🤝 عندي نفس السؤال' + (sameCount ? ' <span class="shared-qa-count">' + sameCount + '</span>' : '') + '</button>';
+        html += '<div style="margin-right:auto;display:flex;gap:6px">';
         if (isAnswered) {
             html += '<button class="shared-qa-view-btn" onclick="' + openFn + '(\'' + t._id + '\')"><i class="fas fa-eye"></i> شاهد الإجابة</button>';
         }
+        html += '<button class="shared-qa-share-btn" onclick="shareSharedThread(\'' + t._id + '\')" title="شارك السؤال والإجابة"><i class="fas fa-share-alt"></i></button>';
+        html += '</div>';
         html += '</div>';
 
         html += '</div>'; // shared-qa-item
     });
     html += '</div>'; // shared-qa-list
-    html += '</div>'; // shared-qa-card
 
+    // Mark all as seen when rendered
+    setTimeout(_markSharedSeen, 2000);
+
+    html += '</div>'; // shared-qa-card
     box.innerHTML = html;
+}
+
+function shareSharedThread(threadId) {
+    var thread = _sharedThreads.find(function(t) { return t._id === threadId; });
+    if (!thread) return;
+    var title = thread.title || 'سؤال';
+    var lines = [];
+    lines.push('مين البطل؟ 🏆');
+    lines.push('━━━━━━━━━━━━━━━━━━━');
+    lines.push('❓ ' + title);
+    lines.push('');
+    if (thread.lastSnippet) {
+        lines.push('✝ رد الخدام:');
+        lines.push(thread.lastSnippet);
+        lines.push('');
+    }
+    lines.push('━━━━━━━━━━━━━━━━━━━');
+    lines.push('📱 ' + (typeof APP_URL !== 'undefined' ? APP_URL : 'https://min-el-batal.web.app'));
+    qaDoShare(title, lines.join('\n'));
 }
 
 function reactSharedQuestion(qId) {

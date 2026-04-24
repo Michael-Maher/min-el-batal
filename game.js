@@ -21076,3 +21076,4 @@ function openSharedThread(threadId) {
             if (msgsBox) msgsBox.innerHTML = '<div class="qa-empty"><p>تعذّر التحميل</p></div>';
         });
 }
+}

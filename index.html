@@ -300,6 +300,21 @@
                     </div>
                 </div>
 
+                <!-- Friends Questions - OPEN -->
+                <div class="hub-card" onclick="openFriendsQuestionsScreen()">
+                    <div class="hub-card-bg" style="background: url('/images/my_friends_questions_bg-opt.jpg') center/cover no-repeat; background-color: #0d0820;">
+                        <div class="hub-card-overlay" style="background:linear-gradient(135deg,rgba(30,10,70,.82) 0%,rgba(79,70,229,.52) 55%,rgba(108,92,231,.28) 100%)"></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">👥</div>
+                            <h3 style="font-size:21px;margin-bottom:2px">أسئلة أصحابك</h3>
+                            <p style="font-size:13px;opacity:.85;margin-bottom:10px">أسئلة مجهولة مع ردود الخدام</p>
+                            <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(108,92,231,.55)"><i class="fas fa-users"></i> شوف الأسئلة</div>
+                        </div>
+                        <div class="hub-card-shine"></div>
+                        <div id="friends-qa-badge" class="questions-unread-badge" style="display:none">0</div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="hub-footer-btns">
@@ -473,7 +488,28 @@
                 </div>
             </button>
             <div id="questions-list-body"></div>
-            <div id="shared-questions-section"></div>
+        </div>
+    </div>
+
+    <!-- ============ FRIENDS QUESTIONS (أسئلة أصحابك) ============ -->
+    <div id="friends-questions-screen" class="screen">
+        <div class="screen-inner" style="padding:0">
+            <div class="fqs-hero">
+                <button class="back-btn fqs-back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <div class="fqs-hero-content">
+                    <div class="fqs-hero-icon">👥</div>
+                    <h2 class="fqs-hero-title">أسئلة أصحابك</h2>
+                    <p class="fqs-hero-sub">أسئلة مجهولة اختارها الخدام عشان تعم الفايدة على الكل</p>
+                </div>
+            </div>
+            <div class="fqs-privacy-banner">
+                <span class="fqs-privacy-icon">🛡️</span>
+                <div class="fqs-privacy-text">
+                    <strong>خصوصيتك في أمان تام 🔒</strong><br>
+                    الأسماء مخفية تماماً — محدش يعرف مين اللي سأل. الخدام اختاروا الأسئلة دي عشان الكل يستفيد منها ويعرف إجاباتها. اقرا واستفاد وشارك الخير مع أصحابك 🤍
+                </div>
+            </div>
+            <div id="friends-questions-body" class="fqs-body"></div>
         </div>
     </div>
 

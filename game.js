@@ -308,6 +308,7 @@ function submitLogin() {
             requestNotificationsAfterLogin();
             checkAdminAnnouncements();
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
+            if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
             checkPendingRoomJoin();
         })
         .catch(function(err) {
@@ -419,6 +420,7 @@ function submitRegister() {
                 requestNotificationsAfterLogin();
             checkAdminAnnouncements();
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
+            if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
             })
             .catch(function(err) {
                 console.error('Registration save error:', err);
@@ -599,6 +601,7 @@ function submitOldAccountUpgrade(docId, phone) {
             requestNotificationsAfterLogin();
             checkAdminAnnouncements();
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
+            if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
         }).catch(function(err) {
             console.error('Upgrade error:', err);
             showToast('حصل مشكلة، حاول تاني', 'error');
@@ -17116,7 +17119,7 @@ function renderThreadMessages(msgs) {
 
         return '<div class="qa-msg ' + (isAdmin ? 'qa-msg-admin' : 'qa-msg-user') + '" id="qm-' + m._id + '">' +
             '<div class="qa-msg-head">' +
-                '<span class="qa-msg-author">' + (isAdmin ? '✝ رد الخدام' : escapeHtml(m.authorName || 'أنا')) + '</span>' +
+                '<span class="qa-msg-author">' + (isAdmin ? '✝ رد الخدام' : escapeHtml(QAState.readOnly ? maskSharedName(m.authorName) : (m.authorName || 'أنا'))) + '</span>' +
                 '<span class="qa-msg-time">' + time + receipt + '</span>' +
             '</div>' +
             '<div class="qa-msg-body">' + body + '</div>' +
@@ -20962,6 +20965,12 @@ function checkTimeline() {
 var _sharedQListener = null;
 var _sharedThreads = [];
 
+function openFriendsQuestionsScreen() {
+    showScreen('friends-questions-screen');
+    loadSharedQuestions();
+    _markSharedSeen();
+}
+
 function loadSharedQuestions() {
     if (!firebaseDb) return;
     if (_sharedQListener) { try { _sharedQListener(); } catch (e) {} _sharedQListener = null; }
@@ -21011,47 +21020,27 @@ function _countNewShared() {
 
 function updateSharedQsBadge() {
     var count = _countNewShared();
-    var badge = document.getElementById('shared-qa-badge');
+    var badge = document.getElementById('friends-qa-badge');
     if (!badge) return;
     if (count > 0) { badge.textContent = count > 9 ? '9+' : count; badge.style.display = 'flex'; }
     else { badge.style.display = 'none'; }
 }
 
 function renderSharedQuestions() {
-    var box = document.getElementById('shared-questions-section');
+    updateSharedQsBadge();
+
+    var box = document.getElementById('friends-questions-body');
     if (!box) return;
+
     if (!_sharedThreads.length) {
-        box.innerHTML = '';
+        box.innerHTML = '<div class="fqs-empty"><div class="fqs-empty-icon">🕊️</div><p>مفيش أسئلة متشاركة لحد دلوقتي</p><p class="fqs-empty-sub">الخدام هيختاروا أسئلة مفيدة قريباً!</p></div>';
         return;
     }
+
     var myPhone = GameState.playerPhone || '';
-    var newCount = _countNewShared();
+    var seenIds = _getSharedSeenIds();
+    var html = '';
 
-    var html = '<div class="shared-qa-card">';
-
-    // Header with badge
-    html += '<div class="shared-qa-header">';
-    html += '<div class="shared-qa-header-icon">👥</div>';
-    html += '<div style="flex:1">';
-    html += '<div class="shared-qa-header-title">أسئلة أصحابك</div>';
-    html += '<div class="shared-qa-header-sub">اختارها الخدام عشان تنفع الجميع</div>';
-    html += '</div>';
-    if (newCount > 0) {
-        html += '<div class="shared-qa-new-badge">' + (newCount > 9 ? '9+' : newCount) + ' جديد 🔔</div>';
-    }
-    html += '</div>';
-
-    // Privacy hint
-    html += '<div class="shared-qa-privacy-hint">';
-    html += '<div class="sqp-hint-shield">🛡️</div>';
-    html += '<div class="sqp-hint-body">';
-    html += '<div class="sqp-hint-title">خصوصيتك في أمان تام 🔒</div>';
-    html += '<div class="sqp-hint-text">الأسئلة دي اختارها الخدام من أسئلة الأصحاب عشان تنفع الكل وتعم الفايدة. ';
-    html += 'كل سؤال مجهول المصدر — مفيش حد يعرف مين اللي سأل! 👤✨ ';
-    html += 'اقرا واستفاد وشارك الخير مع أصحابك 🤍</div>';
-    html += '</div></div>';
-
-    html += '<div class="shared-qa-list">';
     _sharedThreads.forEach(function(t) {
         var title = t.title || '(بدون عنوان)';
         var isAnswered = t.status === 'answered' || t.status === 'resolved';
@@ -21062,50 +21051,40 @@ function renderSharedQuestions() {
         var openFn = isMyThread ? 'openQuestionThread' : 'openSharedThread';
         var maskedName = maskSharedName(t.userName || t.userPhone || '');
         var timeAgo = qaTimeAgo(t.lastActivityAt || t.createdAt);
-        var seenIds = _getSharedSeenIds();
         var isNew = seenIds.indexOf(t._id) < 0;
 
-        html += '<div class="shared-qa-item' + (isNew ? ' shared-qa-item-new' : '') + '">';
-        if (isNew) html += '<div class="shared-qa-new-dot"></div>';
+        html += '<div class="fqs-item' + (isNew ? ' fqs-item-new' : '') + '">';
+        if (isNew) html += '<div class="fqs-new-dot"></div>';
 
-        // Question block
-        html += '<div class="shared-qa-q-block">';
-        html += '<div class="shared-qa-q-icon">❓</div>';
-        html += '<div class="shared-qa-q-body">';
-        html += '<div class="shared-qa-q-text">' + escapeHtml(title) + '</div>';
-        html += '<div class="shared-qa-q-meta">👤 ' + escapeHtml(maskedName) + (timeAgo ? ' · ' + timeAgo : '') + '</div>';
-        html += '</div></div>';
+        // Question
+        html += '<div class="fqs-q">';
+        html += '<div class="fqs-q-label"><span class="fqs-q-icon">❓</span> سؤال</div>';
+        html += '<div class="fqs-q-text">' + escapeHtml(title) + '</div>';
+        html += '<div class="fqs-q-meta">👤 ' + escapeHtml(maskedName) + (timeAgo ? ' · ' + timeAgo : '') + '</div>';
+        html += '</div>';
 
-        // Answer block
+        // Answer
         if (isAnswered && t.lastSnippet) {
-            html += '<div class="shared-qa-a-block">';
-            html += '<div class="shared-qa-a-icon">✝</div>';
-            html += '<div class="shared-qa-a-body">';
-            html += '<div class="shared-qa-a-label">رد الخدام</div>';
-            html += '<div class="shared-qa-a-text">' + escapeHtml(t.lastSnippet) + '</div>';
-            html += '</div></div>';
+            html += '<div class="fqs-a">';
+            html += '<div class="fqs-a-label"><span class="fqs-a-icon">✝</span> رد الخدام</div>';
+            html += '<div class="fqs-a-text">' + escapeHtml(t.lastSnippet) + '</div>';
+            html += '</div>';
         }
 
         // Footer
-        html += '<div class="shared-qa-footer">';
-        html += '<button class="shared-qa-same-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactSharedQuestion(\'' + t._id + '\')">';
-        html += '🤝 عندي نفس السؤال' + (sameCount ? ' <span class="shared-qa-count">' + sameCount + '</span>' : '') + '</button>';
-        html += '<div style="margin-right:auto;display:flex;gap:6px">';
+        html += '<div class="fqs-footer">';
+        html += '<button class="fqs-same-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactSharedQuestion(\'' + t._id + '\')">';
+        html += '🤝 عندي نفس السؤال' + (sameCount ? ' <span class="fqs-count">' + sameCount + '</span>' : '') + '</button>';
+        html += '<div class="fqs-footer-actions">';
         if (isAnswered) {
-            html += '<button class="shared-qa-view-btn" onclick="' + openFn + '(\'' + t._id + '\')"><i class="fas fa-eye"></i> شاهد الإجابة</button>';
+            html += '<button class="fqs-view-btn" onclick="' + openFn + '(\'' + t._id + '\')"><i class="fas fa-eye"></i> الإجابة كاملة</button>';
         }
-        html += '<button class="shared-qa-share-btn" onclick="shareSharedThread(\'' + t._id + '\')" title="شارك السؤال والإجابة"><i class="fas fa-share-alt"></i></button>';
-        html += '</div>';
-        html += '</div>';
+        html += '<button class="fqs-share-btn" onclick="shareSharedThread(\'' + t._id + '\')" title="شارك"><i class="fas fa-share-alt"></i></button>';
+        html += '</div></div>';
 
-        html += '</div>'; // shared-qa-item
+        html += '</div>';
     });
-    html += '</div>'; // shared-qa-list
 
-    // Mark all as seen when rendered
-    setTimeout(_markSharedSeen, 2000);
-
-    html += '</div>'; // shared-qa-card
     box.innerHTML = html;
 }
 

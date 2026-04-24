@@ -12601,6 +12601,237 @@ body {
     to   { box-shadow: 0 2px 18px rgba(239,68,68,.7); }
 }
 
+/* ══════════════════════════════════════════════════════════
+   FRIENDS QUESTIONS SCREEN  (أسئلة أصحابك)
+   ══════════════════════════════════════════════════════════ */
+.fqs-hero {
+    position: relative;
+    min-height: 180px;
+    display: flex;
+    align-items: flex-end;
+    padding: 0 0 22px;
+    overflow: hidden;
+    background: url('/images/my_friends_questions_bg-opt.jpg') center/cover no-repeat;
+}
+.fqs-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(10,5,30,.55) 0%, rgba(30,15,70,.75) 60%, rgba(13,8,32,1) 100%);
+}
+.fqs-back-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 2;
+    background: rgba(255,255,255,.12) !important;
+    border: 1px solid rgba(255,255,255,.18) !important;
+    backdrop-filter: blur(8px);
+}
+.fqs-hero-content {
+    position: relative;
+    z-index: 1;
+    padding: 0 20px;
+    text-align: center;
+    width: 100%;
+    padding-top: 56px;
+}
+.fqs-hero-icon { font-size: 42px; margin-bottom: 8px; filter: drop-shadow(0 4px 12px rgba(108,92,231,.7)); }
+.fqs-hero-title {
+    font-size: 22px;
+    font-weight: 900;
+    color: #fff;
+    margin: 0 0 6px;
+    text-shadow: 0 2px 12px rgba(0,0,0,.6);
+}
+.fqs-hero-sub {
+    font-size: 13px;
+    color: rgba(255,255,255,.65);
+    font-weight: 600;
+    margin: 0;
+}
+
+.fqs-privacy-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin: 14px 16px 0;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(16,185,129,.13) 0%, rgba(5,150,105,.08) 100%);
+    border: 1px solid rgba(16,185,129,.28);
+    border-radius: 18px;
+}
+.fqs-privacy-icon { font-size: 28px; flex-shrink: 0; filter: drop-shadow(0 2px 8px rgba(16,185,129,.55)); }
+.fqs-privacy-text {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: rgba(255,255,255,.7);
+    line-height: 1.65;
+}
+.fqs-privacy-text strong { color: #6ee7b7; font-size: 13px; }
+
+.fqs-body {
+    padding: 14px 16px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.fqs-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: rgba(255,255,255,.4);
+}
+.fqs-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.fqs-empty p { font-size: 15px; font-weight: 700; margin: 0 0 6px; }
+.fqs-empty-sub { font-size: 12px; color: rgba(255,255,255,.3); }
+
+/* ── Individual item ── */
+.fqs-item {
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(108,92,231,.2);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+}
+.fqs-item-new {
+    border-color: rgba(239,68,68,.4) !important;
+    box-shadow: 0 0 0 1px rgba(239,68,68,.15);
+}
+.fqs-new-dot {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239,68,68,.9);
+    animation: pulse-badge .9s ease-in-out infinite alternate;
+}
+
+/* Question block */
+.fqs-q {
+    padding: 16px 16px 12px;
+    background: linear-gradient(135deg, rgba(108,92,231,.1) 0%, transparent 100%);
+}
+.fqs-q-label {
+    font-size: 10px;
+    font-weight: 900;
+    color: #a78bfa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.fqs-q-icon { font-size: 14px; }
+.fqs-q-text {
+    font-size: 15px;
+    font-weight: 800;
+    color: rgba(255,255,255,.95);
+    line-height: 1.6;
+    margin-bottom: 8px;
+}
+.fqs-q-meta {
+    font-size: 10px;
+    color: rgba(255,255,255,.28);
+    font-weight: 600;
+}
+
+/* Answer block */
+.fqs-a {
+    padding: 14px 16px;
+    background: linear-gradient(135deg, rgba(0,184,148,.13) 0%, rgba(5,150,105,.07) 100%);
+    border-top: 1px solid rgba(16,185,129,.22);
+}
+.fqs-a-label {
+    font-size: 10px;
+    font-weight: 900;
+    color: #34d399;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.fqs-a-icon { font-size: 14px; }
+.fqs-a-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: rgba(255,255,255,.88);
+    line-height: 1.7;
+}
+
+/* Footer */
+.fqs-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 11px 16px 13px;
+    border-top: 1px solid rgba(255,255,255,.06);
+    flex-wrap: wrap;
+}
+.fqs-footer-actions { display: flex; gap: 8px; align-items: center; }
+.fqs-same-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: Cairo, sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    color: rgba(255,255,255,.45);
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: all .18s;
+}
+.fqs-same-btn:active { transform: scale(0.95); }
+.fqs-same-btn.reacted { color: #c4b5fd; background: rgba(108,92,231,.2); border-color: rgba(108,92,231,.45); }
+.fqs-count {
+    background: rgba(108,92,231,.35);
+    border-radius: 8px;
+    padding: 1px 7px;
+    font-size: 10px;
+    font-weight: 800;
+}
+.fqs-view-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: Cairo, sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    color: #a78bfa;
+    background: rgba(108,92,231,.15);
+    border: 1px solid rgba(108,92,231,.35);
+    border-radius: 20px;
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: all .18s;
+}
+.fqs-view-btn:active { transform: scale(0.95); }
+.fqs-share-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+    color: rgba(255,255,255,.35);
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.1);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all .18s;
+    font-family: Cairo, sans-serif;
+}
+.fqs-share-btn:active { transform: scale(0.9); color: #a78bfa; }
+
 /* ── Shared Q&A card (أسئلة أصحابك) ─────────────────────── */
 .shared-qa-card {
     margin: 14px 16px 20px;

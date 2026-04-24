@@ -52,6 +52,15 @@ var NEW_LESSON_MESSAGES = [
 ];
 
 // ============================================================
+// Helper: strip HTML tags for push notification body
+// ============================================================
+function stripHtml(html) {
+    if (!html) return '';
+    var text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
+    return text.length > 120 ? text.slice(0, 120) + '…' : text;
+}
+
+// ============================================================
 // Helper: pick random message from pool
 // ============================================================
 function pickRandom(arr) {
@@ -170,10 +179,8 @@ exports.onCompetitionCreated = functions
         var roomCode = room.code || '';
         var hostPhone = room.hostPhone || '';
 
-        // Get all players with FCM tokens (except the host)
-        var playersSnap = await db.collection('players')
-            .where('fcmToken', '!=', null)
-            .get();
+        // Get all players (filter for fcmToken in code to include legacy docs)
+        var playersSnap = await db.collection('players').get();
 
         var sent = 0;
         var promises = [];
@@ -218,9 +225,7 @@ exports.onNewLesson = functions
     .onCreate(async (snap, context) => {
         var lesson = snap.data();
 
-        var playersSnap = await db.collection('players')
-            .where('fcmToken', '!=', null)
-            .get();
+        var playersSnap = await db.collection('players').get();
 
         var msg = pickRandom(NEW_LESSON_MESSAGES);
         // Override body if lesson has a title
@@ -271,14 +276,16 @@ exports.onAnnouncementCreated = functions
         }
 
         var title = ann.title || 'مين البطل؟';
-        var body = ann.body || '';
+        var body = stripHtml(ann.body || '');
         var icon = ann.icon || '📢';
         var segments = ann.segments || null;
 
-        var playersSnap = await db.collection('players')
-            .where('fcmToken', '!=', null)
-            .get();
+        // Fetch all players and filter in code — Firestore `!=` excludes
+        // documents missing the field, which would drop legacy docs.
+        var playersSnap = await db.collection('players').get();
 
+        var totalPlayers = playersSnap.size;
+        var withToken = 0;
         var sent = 0;
         var attempted = 0;
         var skippedBySegment = 0;
@@ -287,6 +294,7 @@ exports.onAnnouncementCreated = functions
         playersSnap.forEach(function(doc) {
             var player = doc.data();
             if (!player.fcmToken) return;
+            withToken++;
             // Respect preferences — treat announcements as "reminders" category
             if (player.notifPrefs && player.notifPrefs.reminders === false) return;
             // Segment filter
@@ -311,7 +319,9 @@ exports.onAnnouncementCreated = functions
         });
 
         await Promise.all(promises);
-        console.log('[Notif] Announcement', context.params.announcementId, '- sent', sent, '/', attempted, '(segment-skipped', skippedBySegment + ')');
+        console.log('[Notif] Announcement', context.params.announcementId,
+            '- players:', totalPlayers, 'with-token:', withToken,
+            'sent:', sent, '/', attempted, '(segment-skipped', skippedBySegment + ')');
 
         // Write delivery stats back to the announcement doc for admin visibility
         await snap.ref.update({
@@ -319,6 +329,8 @@ exports.onAnnouncementCreated = functions
             pushSentCount: sent,
             pushAttempted: attempted,
             pushSkippedBySegment: skippedBySegment,
+            pushTotalPlayers: totalPlayers,
+            pushWithToken: withToken,
             pushProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
         }).catch(function() {});
 

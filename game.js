@@ -9238,10 +9238,11 @@ function renderLevel2Map() {
         if (ld && ld.stars > 0) {
             earnedStars += ld.stars;
         }
-        if (hasSm && hasQz) {
-            currentStation = s + 1; // Move past fully completed stations
+        if (hasSm || hasQz) {
+            currentStation = s + 1;
         }
     }
+    currentStation = Math.max(currentStation, level2State.currentLesson);
     if (currentStation >= subject.lessons.length) currentStation = subject.lessons.length - 1;
 
     var earnedEl = document.getElementById('l2-map-stars-earned');
@@ -9595,11 +9596,20 @@ function renderLevel2Learn(container, lesson, subject) {
     var summaryKey = subKey + '_' + lessonIdx;
     var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
 
+    var shortVideoKey = subKey + '_lesson_' + lessonIdx + '_short_video';
+    var videoKey = subKey + '_lesson_' + lessonIdx + '_video';
+    var altVideoKey = subKey + '_lesson_' + lessonIdx + '_alt_video';
+    var shortVideoWatched = !lesson.shortVideoId || (GameState.watchedVideos && GameState.watchedVideos[shortVideoKey]);
+    var videoWatched = !lesson.videoId || (GameState.watchedVideos && GameState.watchedVideos[videoKey]);
+    var altVideoWatched = !lesson.altVideoId || (GameState.watchedVideos && GameState.watchedVideos[altVideoKey]);
+    var allVideosWatched = shortVideoWatched && videoWatched && altVideoWatched;
+    var gamesUnlocked = hasSummary && allVideosWatched;
+
     // Tabs: تعلّم + تلخيص + ألعاب + النتيجة
     var html = '<div class="l2-stage-tabs">' +
         '<button class="l2-stage-tab active"><i class="fas fa-book-open"></i> تعلّم</button>' +
         '<button class="l2-stage-tab" onclick="showLessonSummaryTab()"><i class="fas fa-pen"></i> تلخيص' + (hasSummary ? ' ✅' : '') + '</button>' +
-        '<button class="l2-stage-tab' + (hasSummary ? '' : ' locked') + '" onclick="' + (hasSummary ? 'goToGamesTab()' : '') + '"><i class="fas fa-gamepad"></i> ألعاب</button>' +
+        '<button class="l2-stage-tab' + (gamesUnlocked ? '' : ' locked') + '" onclick="' + (gamesUnlocked ? 'goToGamesTab()' : '') + '"><i class="fas fa-gamepad"></i> ألعاب</button>' +
         '<button class="l2-stage-tab"><i class="fas fa-trophy"></i> النتيجة</button>' +
         '</div>';
 
@@ -9704,7 +9714,11 @@ function renderLevel2Learn(container, lesson, subject) {
     // Summary section - always visible
     if (!hasSummary) {
         html += '<div class="l2-summary-required">';
-        html += '<h4><i class="fas fa-pen"></i> لازم تعمل تلخيص الأول قبل ما تبدأ المسابقات</h4>';
+        if (!allVideosWatched) {
+            html += '<h4><i class="fas fa-video"></i> لازم تشوف الفيديوهات الأول قبل ما تبدأ المسابقات</h4>';
+        } else {
+            html += '<h4><i class="fas fa-pen"></i> لازم تعمل تلخيص الأول قبل ما تبدأ المسابقات</h4>';
+        }
         html += '<button class="btn btn-primary" onclick="showLessonSummaryTab()" style="width:100%;margin-top:8px;">' +
             '<span><i class="fas fa-pen"></i> اكتب تلخيص الدرس (+5 نجوم)</span></button>';
         html += '</div>';
@@ -9719,12 +9733,23 @@ function renderLevel2Learn(container, lesson, subject) {
             '<span><i class="fas fa-pen"></i> عدّل التلخيص</span></button>';
         html += '</div>';
 
-        // Button to go to games/quiz tab
-        html += '<button class="btn btn-primary" onclick="goToGamesTab()" style="width:100%;margin-top:16px;">' +
-            '<span><i class="fas fa-gamepad"></i> يلا نلعب ونتحدى! 🎮</span></button>';
+        if (gamesUnlocked) {
+            html += '<button class="btn btn-primary" onclick="goToGamesTab()" style="width:100%;margin-top:16px;">' +
+                '<span><i class="fas fa-gamepad"></i> يلا نلعب ونتحدى! 🎮</span></button>';
+        } else {
+            html += '<div class="l2-summary-required" style="margin-top:12px">';
+            html += '<h4><i class="fas fa-video"></i> لازم تشوف كل الفيديوهات الأول عشان تفتح المسابقات</h4>';
+            html += '</div>';
+        }
     }
 
     container.innerHTML = html;
+
+    // Inject Q&A section after render
+    var qaSlot = document.createElement('div');
+    qaSlot.id = 'lesson-qa-slot';
+    container.appendChild(qaSlot);
+    initLessonQA(qaSlot);
 }
 
 // Switch to the games tab
@@ -9737,8 +9762,6 @@ function goToGamesTab() {
 function renderLevel2Games(container, lesson, subject) {
     var subKey = level2State.currentSubject;
     var lessonIdx = level2State.currentLesson;
-    var summaryKey = subKey + '_' + lessonIdx;
-    var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
 
     // Tabs
     var html = '<div class="l2-stage-tabs">' +
@@ -9751,10 +9774,13 @@ function renderLevel2Games(container, lesson, subject) {
     // Global station progress
     html += getStationProgressHTML();
 
+    // Games completion map — mandatory tracker
+    html += getGamesCompletionMapHTML();
+
     // Mini-games section
     html += renderMiniGamesSection();
 
-    // Weekly exam button
+    // Weekly exam — gated behind minimum games completion
     var lessonPracticed = GameState.level2Data && GameState.level2Data[subKey] &&
         GameState.level2Data[subKey]['lesson_' + lessonIdx] &&
         GameState.level2Data[subKey]['lesson_' + lessonIdx].stars > 0;
@@ -9770,6 +9796,77 @@ function renderLevel2Games(container, lesson, subject) {
     }
 
     container.innerHTML = html;
+}
+
+// Build list of all game types that should be played for current lesson
+function getRequiredGamesForLesson() {
+    var games = getMiniGamesForLesson();
+    var required = [];
+    if (games) {
+        if (games.trueFalse)  required.push({ key: 'trueFalse',  label: 'صح/غلط',       icon: '⚡' });
+        if (games.whoAmI)     required.push({ key: 'whoAmI',     label: 'من أنا؟',       icon: '🕵️' });
+        if (games.sortVerse)  required.push({ key: 'sortVerse',  label: 'رتّب الآية',    icon: '📜' });
+        if (games.fillBlank)  required.push({ key: 'fillBlank',  label: 'الكلمة الناقصة', icon: '✏️' });
+        if (games.matchPairs) required.push({ key: 'matchPairs', label: 'وصّل الصح',    icon: '🔗' });
+        if (games.characters) required.push({ key: 'characters', label: 'شخصيات',        icon: '👥' });
+    }
+    // Interactive
+    var iGames = getInteractiveGamesForLesson ? getInteractiveGamesForLesson() : null;
+    if (iGames) {
+        if (iGames.courtOfFaith)  required.push({ key: 'courtOfFaith',  label: 'محكمة الإيمان', icon: '⚖️' });
+        if (iGames.creedBuilder)  required.push({ key: 'creedBuilder',  label: 'بناء العقيدة',  icon: '🏗️' });
+        if (iGames.councilJourney) required.push({ key: 'councilJourney', label: 'رحلة المجمع', icon: '🗺️' });
+        if (iGames.detective)     required.push({ key: 'detective',     label: 'المحقق',         icon: '🔍' });
+        if (iGames.balance)       required.push({ key: 'balance',       label: 'ميزان الإيمان',  icon: '⚖️' });
+    }
+    // Modern games — always mandatory if trueFalse data exists
+    if (games && games.trueFalse && games.trueFalse.length >= 5) {
+        required.push({ key: 'swipeTruth',    label: 'سوايب صح/غلط',     icon: '👆' });
+        required.push({ key: 'bossChallenge', label: 'تحدي الوحش',        icon: '⚔️' });
+        required.push({ key: 'spinAnswer',    label: 'دولابة الأسئلة',    icon: '🎰' });
+    }
+    required.push({ key: 'chatChoices',  label: 'اختيارات الشات', icon: '💬' });
+    required.push({ key: 'kalema',       label: 'كلمة',            icon: '🔤' });
+    return required;
+}
+
+function getGamesCompletionMapHTML() {
+    var stationKey = getStationKey();
+    var required = getRequiredGamesForLesson();
+    if (!required.length) return '';
+    if (!GameState.miniGameScores) GameState.miniGameScores = {};
+
+    var done = 0;
+    required.forEach(function(g) {
+        if ((GameState.miniGameScores[stationKey + '_mg_' + g.key] || 0) > 0) done++;
+    });
+    var total = required.length;
+    var pct = Math.round(done / total * 100);
+    var allDone = done === total;
+
+    var html = '<div class="games-map-card">';
+    html += '<div class="games-map-header">';
+    html += '<span class="games-map-title"><i class="fas fa-tasks"></i> تقدم الألعاب الإلزامية</span>';
+    html += '<span class="games-map-count' + (allDone ? ' all-done' : '') + '">' + done + ' / ' + total + (allDone ? ' ✅' : '') + '</span>';
+    html += '</div>';
+    html += '<div class="games-map-bar"><div class="games-map-fill" style="width:' + pct + '%"></div></div>';
+    html += '<div class="games-map-grid">';
+    required.forEach(function(g) {
+        var played = (GameState.miniGameScores[stationKey + '_mg_' + g.key] || 0) > 0;
+        html += '<div class="games-map-item' + (played ? ' played' : '') + '" onclick="startMiniGame(\'' + g.key + '\')">';
+        html += '<span class="gm-icon">' + g.icon + '</span>';
+        html += '<span class="gm-label">' + g.label + '</span>';
+        html += '<span class="gm-status">' + (played ? '✅' : '🔒') + '</span>';
+        html += '</div>';
+    });
+    html += '</div>';
+    if (!allDone) {
+        html += '<div class="games-map-tip">العب كل الألعاب لتحصل على أعلى نتيجة وتفتح المحطة الجاية 🏆</div>';
+    } else {
+        html += '<div class="games-map-tip all-done-tip">🎉 أنت لعبت كل الألعاب! جهز نفسك للاختبار!</div>';
+    }
+    html += '</div>';
+    return html;
 }
 
 // ============================================================
@@ -10392,11 +10489,6 @@ function getMiniGamesForLesson() {
 // Render mini-games hub inside learn tab
 function renderMiniGamesSection() {
     var games = getMiniGamesForLesson();
-    if (!games) {
-        // No mini-games data — fallback to old quiz button
-        return '<button class="btn btn-primary" onclick="startLevel2Quiz()" style="width:100%;margin-top:16px;">' +
-            '<span><i class="fas fa-play"></i> جمّع واكسب ⭐</span></button>';
-    }
 
     var html = '<div class="mini-games-section">';
 
@@ -10581,6 +10673,66 @@ function renderMiniGamesSection() {
     html += '</div>';
 
     html += '</div>';
+
+    // === MODERN GAMES — جيل Z ZONE ===
+    html += '<div class="mini-games-header modern-header" style="margin-top:24px">';
+    html += '<div class="modern-header-badge">🔥 NEW</div>';
+    html += '<h3><i class="fas fa-rocket"></i> ألعاب جيل Z</h3>';
+    html += '<p>تحديات عصرية وتفاعلية — زي ألعاب الستور!</p>';
+    html += '</div>';
+    html += '<div class="mini-games-grid modern-games-grid">';
+
+    if (games && games.trueFalse && games.trueFalse.length >= 5) {
+        html += '<div class="mini-game-card mg-swipe" onclick="startMiniGame(\'swipeTruth\')">';
+        html += '<div class="mg-card-icon">👆</div>';
+        html += '<h4>سوايب صح/غلط</h4>';
+        html += '<p>اسحب يمين أو يسار!</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+        html += getMiniGameBadge('swipeTruth');
+        html += '</div>';
+
+        html += '<div class="mini-game-card mg-boss" onclick="startMiniGame(\'bossChallenge\')">';
+        html += '<div class="mg-card-icon">⚔️</div>';
+        html += '<h4>تحدي الوحش</h4>';
+        html += '<p>أجب وهزم الوحش!</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+        html += getMiniGameBadge('bossChallenge');
+        html += '</div>';
+
+        html += '<div class="mini-game-card mg-spin" onclick="startMiniGame(\'spinAnswer\')">';
+        html += '<div class="mg-card-icon">🎰</div>';
+        html += '<h4>دولابة الأسئلة</h4>';
+        html += '<p>دوّر واكسب!</p>';
+        html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+        html += getMiniGameBadge('spinAnswer');
+        html += '</div>';
+    }
+
+    html += '<div class="mini-game-card mg-chat" onclick="startMiniGame(\'chatChoices\')">';
+    html += '<div class="mg-card-icon">💬</div>';
+    html += '<h4>اختيارات الشات</h4>';
+    html += '<p>اتخذ القرار الصح!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 15 نجمة</div>';
+    html += getMiniGameBadge('chatChoices');
+    html += '</div>';
+
+    html += '<div class="mini-game-card mg-kalema" onclick="startMiniGame(\'kalema\')">';
+    html += '<div class="mg-card-icon">🔤</div>';
+    html += '<h4>كلمة</h4>';
+    html += '<p>اكتشف الكلمة حرف بحرف!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 18 نجمة</div>';
+    html += getMiniGameBadge('kalema');
+    html += '</div>';
+
+    html += '<div class="mini-game-card mg-timeline" onclick="startMiniGame(\'timelineSort\')">';
+    html += '<div class="mg-card-icon">📅</div>';
+    html += '<h4>رتّب التاريخ</h4>';
+    html += '<p>رتّب الأحداث بالترتيب!</p>';
+    html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
+    html += getMiniGameBadge('timelineSort');
+    html += '</div>';
+
+    html += '</div>'; // modern-games-grid
 
     html += '</div>';
     return html;
@@ -10962,12 +11114,13 @@ function getMiniGameBadge(type) {
 //   🎮 games       : 60  pts  (7 standard mini-games incl. mixedChallenge)
 //   ⚡ interactive : 75  pts  (5 interactive: courtOfFaith, creedBuilder, councilJourney, detective, balance)
 // Unlock threshold = 120 / 150 — must play BOTH mini-games and interactive games well
-var STATION_MAX_SCORE = 150;
-var STATION_GAMES_MAX = 60;             // cap for the 7 standard mini-games
-var STATION_INTERACTIVE_GAMES_MAX = 75; // cap for the 5 interactive games (own field)
+var STATION_MAX_SCORE = 210;             // 5+10+60+75+60
+var STATION_GAMES_MAX = 60;             // standard mini-games bucket
+var STATION_INTERACTIVE_GAMES_MAX = 75; // interactive games bucket
+var STATION_MODERN_MAX = 60;            // 6 modern (Gen-Z) games bucket — MANDATORY
 var STATION_SERMON_SCORE = 5;
 var STATION_SUMMARY_SCORE = 10;
-var STATION_UNLOCK_THRESHOLD = 120; // 80% of 150 — visual "completed" badge
+var STATION_UNLOCK_THRESHOLD = 168;     // 80% of 210 — requires modern games to unlock
 
 // ── Lesson Schedule ────────────────────────────────────────────────────────
 // Lesson 0 is available from LESSON_SCHEDULE_START (a Tuesday at 12:00 Cairo).
@@ -11019,6 +11172,7 @@ function getStationProgressHTML() {
     html += '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + (stScore.summary||0) + '</span>';
     html += '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + (stScore.games||0) + '</span>';
     html += '<span class="sp-badge ' + ((stScore.interactive||0) > 0 ? 'done' : '') + '">⚡ ' + (stScore.interactive||0) + '</span>';
+    html += '<span class="sp-badge sp-modern ' + ((stScore.modern||0) > 0 ? 'done' : '') + '">🚀 ' + (stScore.modern||0) + '</span>';
     html += '</span>';
     html += '<span class="station-progress-score" style="color:' + scoreColor + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>';
     html += '</div>';
@@ -11042,6 +11196,7 @@ function liveRefreshStationProgress() {
         '<span class="sp-badge ' + (stScore.summary > 0 ? 'done' : '') + '">📝 ' + (stScore.summary||0) + '</span>' +
         '<span class="sp-badge ' + (stScore.games > 0 ? 'done' : '') + '">🎮 ' + (stScore.games||0) + '</span>' +
         '<span class="sp-badge ' + ((stScore.interactive||0) > 0 ? 'done' : '') + '">⚡ ' + (stScore.interactive||0) + '</span>' +
+        '<span class="sp-badge sp-modern ' + ((stScore.modern||0) > 0 ? 'done' : '') + '">🚀 ' + (stScore.modern||0) + '</span>' +
         '</span>' +
         '<span class="station-progress-score" style="color:' + scoreColor + '">' + stScore.total + '/' + STATION_MAX_SCORE + '</span>' +
         '</div>' +
@@ -11060,17 +11215,17 @@ function getStationKey() {
 
 function getStationScore(stationKey) {
     if (!GameState.stationScores) GameState.stationScores = {};
-    return GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
+    return GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, interactive: 0, modern: 0, total: 0 };
 }
 
 function updateStationScore(stationKey, field, newScore) {
     if (!GameState.stationScores) GameState.stationScores = {};
-    var current = GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
+    var current = GameState.stationScores[stationKey] || { sermon: 0, summary: 0, games: 0, interactive: 0, modern: 0, total: 0 };
 
-    // Keep best score (max) — field can be 'sermon', 'summary', 'games', or 'interactive'
-    var maxForField = field === 'sermon' ? STATION_SERMON_SCORE
-                    : field === 'summary' ? STATION_SUMMARY_SCORE
+    var maxForField = field === 'sermon'      ? STATION_SERMON_SCORE
+                    : field === 'summary'     ? STATION_SUMMARY_SCORE
                     : field === 'interactive' ? STATION_INTERACTIVE_GAMES_MAX
+                    : field === 'modern'      ? STATION_MODERN_MAX
                     : STATION_GAMES_MAX;
     var cappedScore = Math.min(newScore, maxForField);
 
@@ -11079,11 +11234,12 @@ function updateStationScore(stationKey, field, newScore) {
     }
 
     current.total = Math.min(
-        (current.sermon || 0) + (current.summary || 0) + (current.games || 0) + (current.interactive || 0),
+        (current.sermon || 0) + (current.summary || 0) + (current.games || 0) +
+        (current.interactive || 0) + (current.modern || 0),
         STATION_MAX_SCORE
     );
     GameState.stationScores[stationKey] = current;
-    saveToLocalStorage(true); // Save locally but skip cloud (callers handle cloud save)
+    saveToLocalStorage(true);
     return current;
 }
 
@@ -11098,7 +11254,7 @@ function saveMiniGameScore(type, score) {
         GameState.miniGameScores[mgKey] = score;
     }
 
-    // Calculate mini-games score (field: 'games', max 60)
+    // Standard games bucket (max 60)
     var miniScore = 0;
     ['trueFalse', 'whoAmI', 'sortVerse', 'fillBlank', 'matchPairs', 'characters', 'mixedChallenge', 'quickQuiz', 'tfBlitz', 'emojiGuess', 'verseMemory'].forEach(function(gt) {
         var s = GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
@@ -11110,16 +11266,23 @@ function saveMiniGameScore(type, score) {
     });
     miniScore = Math.min(miniScore, STATION_GAMES_MAX);
 
-    // Calculate interactive-games score (field: 'interactive', max 75)
+    // Interactive games bucket (max 75)
     var interactiveScore = 0;
     ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'].forEach(function(gt) {
         interactiveScore += GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
     });
     interactiveScore = Math.min(interactiveScore, STATION_INTERACTIVE_GAMES_MAX);
 
-    // Update each field separately so both always stay up to date
+    // Modern (Gen-Z) games bucket — MANDATORY — each game counted individually (max 60)
+    var modernScore = 0;
+    ['swipeTruth', 'bossChallenge', 'chatChoices', 'kalema', 'spinAnswer', 'timelineSort'].forEach(function(gt) {
+        modernScore += GameState.miniGameScores[stationKey + '_mg_' + gt] || 0;
+    });
+    modernScore = Math.min(modernScore, STATION_MODERN_MAX);
+
     updateStationScore(stationKey, 'games', miniScore);
-    var stScore = updateStationScore(stationKey, 'interactive', interactiveScore);
+    updateStationScore(stationKey, 'interactive', interactiveScore);
+    var stScore = updateStationScore(stationKey, 'modern', modernScore);
 
     // Live-refresh progress bar immediately
     liveRefreshStationProgress();
@@ -11156,6 +11319,14 @@ function startMiniGame(type) {
     if (type === 'verseMemory') { initAudio(); startVerseMemory(true); return; }
     if (type === 'quickQuiz') { initAudio(); startQuickQuizFromLesson(); return; }
     if (type === 'tfBlitz') { initAudio(); startTFBlitzFromLesson(); return; }
+
+    // Modern games (Gen-Z zone)
+    if (type === 'swipeTruth')    { initAudio(); startSwipeTruth();    return; }
+    if (type === 'bossChallenge') { initAudio(); startBossChallenge(); return; }
+    if (type === 'chatChoices')   { initAudio(); startChatChoices();   return; }
+    if (type === 'kalema')        { initAudio(); startKalema();        return; }
+    if (type === 'spinAnswer')    { initAudio(); startSpinAnswer();    return; }
+    if (type === 'timelineSort')  { initAudio(); startTimelineSort();  return; }
 
     // New interactive game types — data is in INTERACTIVE_GAMES, not LESSON_MINI_GAMES
     var interactiveTypes = ['courtOfFaith', 'creedBuilder', 'councilJourney', 'detective', 'balance'];
@@ -11298,6 +11469,7 @@ function showMiniGameResult(title) {
     html += '<span style="color:var(--text-muted)">📝 تلخيص</span><span style="color:' + (stScore.summary>0?'#00B894':'var(--gold)') + '">' + (stScore.summary||0) + ' / ' + STATION_SUMMARY_SCORE + '</span>';
     html += '<span style="color:var(--text-muted)">🎮 ألعاب</span><span style="color:' + (stScore.games>0?'#00B894':'var(--gold)') + '">' + (stScore.games||0) + ' / ' + STATION_GAMES_MAX + '</span>';
     html += '<span style="color:var(--text-muted)">⚡ تفاعلية</span><span style="color:' + ((stScore.interactive||0)>0?'#00B894':'var(--gold)') + '">' + (stScore.interactive||0) + ' / ' + STATION_INTERACTIVE_GAMES_MAX + '</span>';
+    html += '<span style="color:var(--text-muted)">🚀 جيل Z</span><span style="color:' + ((stScore.modern||0)>0?'#00B894':'var(--gold)') + '">' + (stScore.modern||0) + ' / ' + STATION_MODERN_MAX + '</span>';
     html += '</div>';
     if (stScore.total >= STATION_UNLOCK_THRESHOLD) {
         html += '<div style="color:#00B894;font-size:13px;margin-top:6px"><i class="fas fa-unlock"></i> المحطة الجاية مفتوحة!</div>';
@@ -16208,43 +16380,43 @@ function initPushNotifications() {
 
     var messaging = firebase.messaging();
 
-    // Request permission
+    // Request permission, then wait for service worker before calling getToken
     Notification.requestPermission().then(function(permission) {
-        if (permission === 'granted') {
-            console.log('[FCM] Notification permission granted');
-            return messaging.getToken({
-                vapidKey: 'BCK-Gml28B9WpWb_umCHAwmVqNP6FFptoLLLxWpfQwGkNc7zC_ixVRNYQL5t2Ls4lG3v_pa42WCZ9jQeCNtN3tk' // Will be set when VAPID key is generated in Firebase Console
-            });
-        } else {
-            console.log('[FCM] Notification permission denied');
+        if (permission !== 'granted') {
+            console.log('[FCM] Notification permission:', permission);
+            return Promise.resolve(null);
         }
+        console.log('[FCM] Permission granted — waiting for service worker...');
+        // Passing serviceWorkerRegistration ensures Firebase uses our sw.js, not the default firebase-messaging-sw.js
+        return navigator.serviceWorker.ready.then(function(registration) {
+            console.log('[FCM] SW ready, scope:', registration.scope);
+            return messaging.getToken({
+                vapidKey: 'BCK-Gml28B9WpWb_umCHAwmVqNP6FFptoLLLxWpfQwGkNc7zC_ixVRNYQL5t2Ls4lG3v_pa42WCZ9jQeCNtN3tk',
+                serviceWorkerRegistration: registration
+            });
+        });
     }).then(function(token) {
-        if (token) {
-            fcmToken = token;
-            console.log('[FCM] Token:', token.substring(0, 20) + '...');
-            // Save token + lastActiveDate to Firestore
-            if (firebaseDb && GameState.playerPhone) {
-                var todayStr = new Date().toISOString().split('T')[0];
-                firebaseDb.collection('players').doc(GameState.playerPhone).update({
+        if (!token) return;
+        fcmToken = token;
+        console.log('[FCM] Token obtained:', token.substring(0, 20) + '...');
+        if (firebaseDb && GameState.playerPhone) {
+            var todayStr = new Date().toISOString().split('T')[0];
+            firebaseDb.collection('players').doc(GameState.playerPhone).get().then(function(doc) {
+                var existingPrefs = (doc.exists && doc.data().notifPrefs) || {};
+                return firebaseDb.collection('players').doc(GameState.playerPhone).update({
                     fcmToken: token,
                     lastTokenUpdate: new Date().toISOString(),
                     lastActiveDate: todayStr,
-                    // Default notification preferences (all on)
                     notifPrefs: {
-                        competitions: true,
-                        lessons: true,
-                        reminders: true,
-                        streakReminder: true
+                        competitions: existingPrefs.competitions !== false,
+                        lessons:      existingPrefs.lessons      !== false,
+                        reminders:    existingPrefs.reminders     !== false,
+                        streakReminder: existingPrefs.streakReminder !== false
                     }
-                }).catch(function(err) {
-                    console.warn('[FCM] Failed to save token:', err);
                 });
-            }
-
-            // Subscribe to FCM topics
-            console.log('[FCM] Subscribing to topics...');
-            // Note: Topic subscription is managed server-side via Cloud Functions
-            // The token saved to Firestore is used by Cloud Functions to send targeted notifications
+            }).catch(function(err) {
+                console.warn('[FCM] Failed to save token:', err);
+            });
         }
     }).catch(function(err) {
         console.warn('[FCM] Token error:', err);
@@ -16330,7 +16502,7 @@ function requestNotificationsAfterLogin() {
 
 // --- Admin Announcements ---
 function checkAdminAnnouncements() {
-    if (!firebaseDb) return;
+    if (!firebaseDb) { console.warn('[Announce] firebaseDb not ready'); return; }
     // Only show announcements from the last 14 days
     var cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     var seenKey = 'minElBatal_seenAnnouncements';
@@ -16341,26 +16513,43 @@ function checkAdminAnnouncements() {
         .limit(5)
         .get()
         .then(function(snap) {
+            console.log('[Announce] fetched', snap.size, 'announcements; seen=', seen.length);
             if (snap.empty) return;
             var unseen = [];
             snap.forEach(function(doc) {
                 var d = doc.data();
                 var ts = d.createdAt && d.createdAt.toDate ? d.createdAt.toDate() : new Date(d.createdAt || 0);
-                if (!seen.includes(doc.id) && ts > cutoff) {
+                var isSeen = seen.includes(doc.id);
+                var isRecent = ts > cutoff;
+                console.log('[Announce]', doc.id, 'title:', d.title, 'ts:', ts.toISOString(), 'seen:', isSeen, 'recent:', isRecent);
+                if (!isSeen && isRecent) {
                     unseen.push({ id: doc.id, title: d.title || '', body: d.body || '', icon: d.icon || '📢' });
                 }
             });
+            console.log('[Announce] unseen to show:', unseen.length);
             if (!unseen.length) return;
             // Show after a delay so home hub renders first
             setTimeout(function() { showAnnouncementBanner(unseen, seen, seenKey); }, 2000);
         })
-        .catch(function() {});
+        .catch(function(err) { console.warn('[Announce] fetch failed:', err); });
 }
+
+// Module-level state avoids passing JSON through inline onclick attributes
+var _announceQueue = [];
+var _announceSeen = [];
+var _announceSeenKey = '';
 
 function showAnnouncementBanner(items, seen, seenKey) {
     if (!items.length) return;
-    var item = items[0];
-    var rest = items.slice(1);
+    _announceQueue = items.slice();
+    _announceSeen = seen.slice();
+    _announceSeenKey = seenKey;
+    _showNextAnnounce();
+}
+
+function _showNextAnnounce() {
+    if (!_announceQueue.length) return;
+    var item = _announceQueue[0];
 
     var el = document.createElement('div');
     el.id = 'announce-banner';
@@ -16375,18 +16564,24 @@ function showAnnouncementBanner(items, seen, seenKey) {
         '<h2 style="color:#e2e8f0;font-size:18px;font-weight:900;margin:0 0 8px">' + item.title + '</h2>' +
         '<p style="color:rgba(226,232,240,.65);font-size:14px;line-height:1.6;margin:0 0 22px">' + item.body + '</p>' +
         '<div style="display:flex;gap:10px;justify-content:center">' +
-        '<button onclick="dismissAnnouncement(\'' + item.id + '\',' + JSON.stringify(rest) + ',' + JSON.stringify(seen) + ',\'' + seenKey + '\')" style="background:var(--accent,#7c6af7);color:#fff;border:none;border-radius:10px;padding:11px 24px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer">حسناً 👍</button>' +
+        '<button id="announce-dismiss-btn" style="background:var(--accent,#7c6af7);color:#fff;border:none;border-radius:10px;padding:11px 24px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;position:relative;z-index:9001">حسناً 👍</button>' +
         '</div></div>';
     document.body.appendChild(el);
+
+    var btn = document.getElementById('announce-dismiss-btn');
+    if (btn) btn.addEventListener('click', dismissAnnouncement);
 }
 
-function dismissAnnouncement(id, rest, seen, seenKey) {
-    seen.push(id);
-    localStorage.setItem(seenKey, JSON.stringify(seen));
+function dismissAnnouncement() {
+    var item = _announceQueue.shift();
+    if (item) {
+        _announceSeen.push(item.id);
+        localStorage.setItem(_announceSeenKey, JSON.stringify(_announceSeen));
+    }
     var el = document.getElementById('announce-banner');
     if (el) el.remove();
-    if (rest && rest.length) {
-        setTimeout(function() { showAnnouncementBanner(rest, seen, seenKey); }, 400);
+    if (_announceQueue.length) {
+        setTimeout(_showNextAnnounce, 400);
     }
 }
 
@@ -19984,4 +20179,1075 @@ if (typeof renderLevel2Result === 'function') {
             }
         }
     };
+
+// ============================================================
+// MODERN GAMES DATA
+// ============================================================
+var MODERN_GAMES_DATA = {
+    chatChoices: {
+        'faith_0': [
+            {
+                avatar: '👤', sender: 'كريم',
+                messages: ['إيه الفرق بين "أسماء" و"باسم" لما بتعملوا إشارة الصليب؟ 🤔'],
+                question: 'إيه ردك على كريم؟',
+                choices: [
+                    { text: 'فرق بسيط في الكلام بس، مش مهم 😅', correct: false, reply: 'لأ! "باسم" — مش "بأسماء" — لأن الإله واحد له ثلاثة أقانيم، مش ثلاثة آلهة' },
+                    { text: 'بنقول "باسم" مش "بأسماء" لأن إلهنا واحد له ثلاثة أقانيم آب وابن وروح قدس 💡', correct: true, reply: 'ممتاز! الثالوث إله واحد في ثلاثة أقانيم — ده اللي بيوضحه كمان قانون الإيمان 🔥' },
+                    { text: 'مش فاهم الفرق بصراحة 😶', correct: false, reply: 'اتعلم دي! "باسم" = إله واحد. "بأسماء" = آلهة كتير. إحنا بنؤمن بإله واحد ✝️' }
+                ]
+            },
+            {
+                avatar: '👩', sender: 'مريم',
+                messages: ['قالولي إن الروح القدس مش إله، هو مجرد طاقة أو قوة! صح؟'],
+                question: 'هترد إيه على مريم؟',
+                choices: [
+                    { text: 'ممكن يكون صح 🤷', correct: false, reply: 'لأ! الروح القدس هو الرب المحيي — إله كامل، ثالث الثالوث القدوس ✝️' },
+                    { text: 'الروح القدس هو "الرب المحيي" — إله حقيقي مساوٍ للآب والابن في الجوهر 🙌', correct: true, reply: 'تمام! ده اتأكد في مجمع القسطنطينية — الروح القدس إله كامل لا مجرد قوة 📖' },
+                    { text: 'الموضوع صعب ومش هرد 😓', correct: false, reply: 'لازم تعرف إيمانك وتقدر تشهد له بحب ووضوح! 💡' }
+                ]
+            },
+            {
+                avatar: '👦', sender: 'سامي',
+                messages: ['قالي واحد إن الآب أكبر من الابن عشان هو الأصل. منطقي مش كده؟'],
+                question: 'إيه الرد الصح على سامي؟',
+                choices: [
+                    { text: 'أيوه منطقي فعلاً 😅', correct: false, reply: 'ده خطأ عقدي! الابن مساوٍ للآب في الجوهر — "الكلمة كان إلهاً" يو ١:١' },
+                    { text: 'الثالوث القدوس متساوٍ في الجوهر — البنوة أزلية روحية مش زمنية أو مادية 🔥', correct: true, reply: 'بالظبط! مفيش أول أو آخر في الثالوث — كلهم متساويون في الجوهر والكيان ✨' },
+                    { text: 'مش عارف أشرح كويس 😶', correct: false, reply: 'تعلم تدافع عن إيمانك بحجج واضحة! مجمع نيقية حسم الموضوع ده 📖' }
+                ]
+            },
+            {
+                avatar: '👤', sender: 'عمر',
+                messages: ['بيقولوا المسيحيين عندهم ٣ آلهة! ده صح؟'],
+                question: 'إزاي ترد على عمر بثقة؟',
+                choices: [
+                    { text: 'الموضوع معقد ربما 🙄', correct: false, reply: 'لأ! إحنا بنؤمن بإله واحد فقط — الثالوث ليس آلهة متعددة بالمرة!' },
+                    { text: 'ده سوء فهم — إله واحد له ٣ أقانيم، زي النار: قرص وضياء وحرارة وهي نار واحدة 🔥', correct: true, reply: 'عظيم! مثال النار من التعليم الكنسي ده ذكي ودقيق جداً 🌟' },
+                    { text: 'أنا مش متأكد من إيماننا 😔', correct: false, reply: 'تعلم عقيدتك وكن واثق منها — ده حقك وواجبك كمسيحي ✝️' }
+                ]
+            },
+            {
+                avatar: '👩', sender: 'سارة',
+                messages: ['ليه مهم نؤمن بالثالوث؟ مش ممكن نقول بس "ربنا واحد" وخلاص؟'],
+                question: 'إيه الرد الأعمق؟',
+                choices: [
+                    { text: 'صح، كفاية نقول واحد وخلاص 😅', correct: false, reply: 'لأ! الثالوث هو طبيعة الله نفسه — الآب مصدر الوجود، الابن الكلمة والعقل، الروح الحياة' },
+                    { text: 'الثالوث يكشف طبيعة الله الحقيقية — الآب وجوده والابن كلمته والروح حياته، وكلهم إله واحد 💡', correct: true, reply: 'ممتاز! ده تعريف عميق — الله الكامل مش بس قوة مجهولة، هو شخص نعرفه ونحبه 🙏' },
+                    { text: 'صعبة ومش قادر أشرح 😓', correct: false, reply: 'تعلم أكتر! الثالوث مش معلومة نظرية — هو جوهر علاقتنا بالله 💙' }
+                ]
+            }
+        ]
+    },
+    kalema: {
+        faith: [
+            { word: 'ثالوث', hint: 'الآب والابن والروح القدس إله واحد', letters: ['ث','ا','ل','و','ث'] },
+            { word: 'أقنوم', hint: 'الصفة الذاتية لكل شخص في الثالوث', letters: ['أ','ق','ن','و','م'] },
+            { word: 'جوهر', hint: 'اللي بيتشارك فيه الثالوث القدوس', letters: ['ج','و','ه','ر'] },
+            { word: 'إيمان', hint: 'التصديق بالقلب والعقل والحياة', letters: ['إ','ي','م','ا','ن'] },
+            { word: 'لوجوس', hint: 'كلمة يونانية معناها العقل الناطق', letters: ['ل','و','ج','و','س'] }
+        ],
+        bible: [
+            { word: 'إنجيل', hint: 'البشارة بالمسيح يسوع', letters: ['إ','ن','ج','ي','ل'] },
+            { word: 'نبوءة', hint: 'إخبار بالمستقبل بالروح القدس', letters: ['ن','ب','و','ء','ة'] },
+            { word: 'رسالة', hint: 'خطاب الرسول للكنيسة', letters: ['ر','س','ا','ل','ة'] },
+            { word: 'خلاص', hint: 'المسيح جاء يبحث عنه لنا', letters: ['خ','ل','ا','ص'] },
+            { word: 'ميثاق', hint: 'عهد الله مع شعبه', letters: ['م','ي','ث','ا','ق'] }
+        ],
+        life: [
+            { word: 'فضيلة', hint: 'السلوك الحميد الذي يرضي الله', letters: ['ف','ض','ي','ل','ة'] },
+            { word: 'توبة', hint: 'الرجوع إلى الله بعد الخطأ', letters: ['ت','و','ب','ة'] },
+            { word: 'صداقة', hint: 'علاقة قائمة على الحب والأمانة', letters: ['ص','د','ا','ق','ة'] },
+            { word: 'تضحية', hint: 'العطاء بدون مقابل', letters: ['ت','ض','ح','ي','ة'] }
+        ],
+        liturgy: [
+            { word: 'قداس', hint: 'أعظم صلوات الكنيسة', letters: ['ق','د','ا','س'] },
+            { word: 'طقوس', hint: 'الشعائر الكنسية المقدسة', letters: ['ط','ق','و','س'] },
+            { word: 'خدمة', hint: 'العمل لمجد الله وخدمة الآخرين', letters: ['خ','د','م','ة'] },
+            { word: 'صلاة', hint: 'الحديث مع الله بثقة ومحبة', letters: ['ص','ل','ا','ة'] }
+        ]
+    },
+    timelineSort: {
+        'faith_0': {
+            title: 'رتّب الأحداث من الأقدم للأحدث',
+            items: [
+                'عماد السيد المسيح — تجلّي الثالوث القدوس',
+                'القديس مرقس يكرز في الإسكندرية',
+                'مجمع نيقية — أول قانون إيمان',
+                'مجمع القسطنطينية — اكتمال قانون الإيمان',
+                'مجمع أفسس — إضافة مقدمة قانون الإيمان'
+            ]
+        }
+    }
+};
+
+// ============================================================
+// GAME 7: سوايب صح/غلط (SWIPE TRUTH) — Tinder-style
+// ============================================================
+var swipeState = { startX: 0, currentX: 0, isDragging: false, combo: 0, maxCombo: 0 };
+
+function startSwipeTruth() {
+    var games = getMiniGamesForLesson();
+    if (!games || !games.trueFalse || games.trueFalse.length < 5) {
+        showToast('مفيش بيانات كافية لهذه اللعبة في هذا الدرس', 'info'); return;
+    }
+    miniGameState = {
+        type: 'swipeTruth', index: 0, score: 0, total: 15, data: null,
+        timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
+        selectedWords: [], selectedLeft: null, matched: []
+    };
+    var shuffled = games.trueFalse.slice(); shuffleArray(shuffled);
+    miniGameState.data = shuffled.slice(0, 15);
+    swipeState.combo = 0; swipeState.maxCombo = 0;
+    renderSwipeTruthUI();
+}
+
+function renderSwipeTruthUI() {
+    var data = miniGameState.data;
+    var idx = miniGameState.index;
+    if (idx >= data.length) { showMiniGameResult('سوايب صح/غلط'); return; }
+
+    var comboHTML = swipeState.combo >= 3
+        ? '<div class="swipe-combo">🔥 كومبو ×' + Math.min(swipeState.combo, 5) + '</div>' : '';
+
+    var html = '<div class="swipe-arena">';
+    html += '<div class="swipe-stats">';
+    html += '<span class="swipe-progress">بطاقة ' + (idx + 1) + ' / ' + data.length + '</span>';
+    html += '<span class="swipe-score-badge">⭐ ' + miniGameState.score + '</span>';
+    html += '</div>';
+    html += comboHTML;
+
+    // Card stack — show up to 3 cards deep
+    html += '<div class="swipe-stack" id="swipe-stack">';
+    var end = Math.min(idx + 3, data.length) - 1;
+    for (var i = end; i >= idx; i--) {
+        var depth = i - idx;
+        html += '<div class="swipe-card' + (depth === 0 ? ' active' : ' back-' + depth) + '" id="swipe-card-top" data-idx="' + i + '">';
+        if (depth === 0) {
+            html += '<div class="swipe-overlay-yes" id="swipe-yes">✓ حقيقي</div>';
+            html += '<div class="swipe-overlay-no" id="swipe-no">✗ خطأ</div>';
+            html += '<div class="swipe-card-body">';
+            html += '<div class="swipe-card-icon">🤔</div>';
+            html += '<p class="swipe-statement">' + data[i].statement + '</p>';
+            html += '</div>';
+        }
+        html += '</div>';
+    }
+    html += '</div>';
+
+    html += '<div class="swipe-labels">';
+    html += '<div class="swipe-label-no"><i class="fas fa-times"></i> خطأ</div>';
+    html += '<div class="swipe-label-yes"><i class="fas fa-check"></i> حقيقي</div>';
+    html += '</div>';
+    html += '<p class="swipe-hint">← اسحب يسار = خطأ &nbsp;|&nbsp; يمين = حقيقي →</p>';
+    html += '<div class="swipe-tap-btns">';
+    html += '<button class="swipe-btn-no" onclick="processSwipeTruth(false)"><i class="fas fa-times"></i> خطأ</button>';
+    html += '<button class="swipe-btn-yes" onclick="processSwipeTruth(true)"><i class="fas fa-check"></i> حقيقي</button>';
+    html += '</div>';
+    html += '</div>';
+
+    renderMiniGameUI('سوايب صح/غلط', 'hand-pointer', html);
+    requestAnimationFrame(setupSwipeEvents);
+}
+
+function setupSwipeEvents() {
+    var card = document.getElementById('swipe-card-top');
+    if (!card || !card.classList.contains('active')) return;
+    swipeState.startX = 0; swipeState.currentX = 0; swipeState.isDragging = false;
+
+    function onStart(x) { swipeState.startX = x; swipeState.isDragging = true; card.style.transition = 'none'; }
+    function onMove(x) {
+        if (!swipeState.isDragging) return;
+        swipeState.currentX = x - swipeState.startX;
+        var r = swipeState.currentX * 0.07;
+        card.style.transform = 'translateX(' + swipeState.currentX + 'px) rotate(' + r + 'deg)';
+        var yes = document.getElementById('swipe-yes'), no = document.getElementById('swipe-no');
+        if (swipeState.currentX > 30) { if (yes) yes.style.opacity = Math.min(swipeState.currentX / 100, 1); if (no) no.style.opacity = 0; }
+        else if (swipeState.currentX < -30) { if (no) no.style.opacity = Math.min(-swipeState.currentX / 100, 1); if (yes) yes.style.opacity = 0; }
+        else { if (yes) yes.style.opacity = 0; if (no) no.style.opacity = 0; }
+    }
+    function onEnd() {
+        if (!swipeState.isDragging) return;
+        swipeState.isDragging = false;
+        if (Math.abs(swipeState.currentX) > 80) { processSwipeTruth(swipeState.currentX > 0); }
+        else {
+            card.style.transition = 'transform 0.3s ease';
+            card.style.transform = 'translateX(0) rotate(0deg)';
+            var yes = document.getElementById('swipe-yes'), no = document.getElementById('swipe-no');
+            if (yes) yes.style.opacity = 0; if (no) no.style.opacity = 0;
+        }
+    }
+    card.addEventListener('touchstart', function(e) { onStart(e.touches[0].clientX); }, { passive: true });
+    card.addEventListener('touchmove', function(e) { onMove(e.touches[0].clientX); }, { passive: true });
+    card.addEventListener('touchend', onEnd);
+    card.addEventListener('mousedown', function(e) { onStart(e.clientX); });
+    var moveH = function(e) { onMove(e.clientX); };
+    var upH = function() { onEnd(); document.removeEventListener('mousemove', moveH); document.removeEventListener('mouseup', upH); };
+    card.addEventListener('mousedown', function() { document.addEventListener('mousemove', moveH); document.addEventListener('mouseup', upH); });
+}
+
+function processSwipeTruth(saidTrue) {
+    var data = miniGameState.data;
+    var idx = miniGameState.index;
+    if (idx >= data.length) return;
+    var q = data[idx];
+    var isCorrect = (saidTrue === q.answer);
+    var card = document.getElementById('swipe-card-top');
+
+    if (isCorrect) {
+        swipeState.combo++; swipeState.maxCombo = Math.max(swipeState.maxCombo, swipeState.combo);
+        var mult = swipeState.combo >= 10 ? 5 : swipeState.combo >= 6 ? 3 : swipeState.combo >= 3 ? 2 : 1;
+        miniGameState.score += mult;
+        if (card) { card.style.transition = 'transform 0.4s ease, opacity 0.4s ease'; card.style.transform = 'translateX(' + (saidTrue ? 300 : -300) + 'px) rotate(' + (saidTrue ? 25 : -25) + 'deg)'; card.style.opacity = '0'; card.style.background = 'linear-gradient(135deg,#00B894,#00CEC9)'; }
+        playCorrectSound();
+        showFloatingReward(mult > 1 ? '🔥 ×' + mult + ' كومبو! +' + mult : '+1 ⭐');
+    } else {
+        swipeState.combo = 0;
+        if (card) { card.style.transition = 'transform 0.4s ease, opacity 0.4s ease'; card.style.transform = 'translateX(' + (saidTrue ? 300 : -300) + 'px) rotate(' + (saidTrue ? 25 : -25) + 'deg)'; card.style.opacity = '0'; card.style.background = 'linear-gradient(135deg,#e74c3c,#c0392b)'; }
+        playWrongSound();
+    }
+    var sc = document.getElementById('mg-score'); if (sc) sc.textContent = miniGameState.score;
+    miniGameState.index++;
+    setTimeout(renderSwipeTruthUI, 420);
+}
+
+// ============================================================
+// GAME 8: تحدي الوحش (BOSS CHALLENGE) — RPG Battle
+// ============================================================
+var bossState = { bossHp: 100, bossMaxHp: 100, playerHp: 3, playerMaxHp: 3, bossName: '', bossEmoji: '', bossColor: '' };
+var BOSS_CONFIG = {
+    faith:   { name: 'شيطان الشك',    emoji: '👹', color: '#6C5CE7' },
+    bible:   { name: 'تنين الجهل',    emoji: '🐉', color: '#e17055' },
+    life:    { name: 'وحش الغرور',    emoji: '😤', color: '#fdcb6e' },
+    liturgy: { name: 'ظلام الغفلة',   emoji: '🌑', color: '#636e72' }
+};
+
+function startBossChallenge() {
+    var games = getMiniGamesForLesson();
+    if (!games || !games.trueFalse || games.trueFalse.length < 5) {
+        showToast('مفيش بيانات كافية لهذا التحدي في هذا الدرس', 'info'); return;
+    }
+    var subject = level2State.currentSubject || 'faith';
+    var boss = BOSS_CONFIG[subject] || BOSS_CONFIG.faith;
+
+    var pool = [];
+    if (games.trueFalse) { var tf = games.trueFalse.slice(); shuffleArray(tf); tf.slice(0, 10).forEach(function(q) { pool.push({ type: 'tf', data: q }); }); }
+    if (games.fillBlank) { var fb = games.fillBlank.slice(); shuffleArray(fb); fb.slice(0, 5).forEach(function(q) { pool.push({ type: 'fb', data: q }); }); }
+    shuffleArray(pool); pool = pool.slice(0, 12);
+
+    miniGameState = {
+        type: 'bossChallenge', index: 0, score: 0, total: pool.length * 5, data: pool,
+        timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
+        selectedWords: [], selectedLeft: null, matched: []
+    };
+    bossState = { bossHp: 100, bossMaxHp: 100, playerHp: 3, playerMaxHp: 3, bossName: boss.name, bossEmoji: boss.emoji, bossColor: boss.color };
+
+    var intro = '<div class="boss-intro">';
+    intro += '<div class="boss-emoji-big">' + boss.emoji + '</div>';
+    intro += '<h2 style="color:' + boss.color + ';margin:8px 0">' + boss.name + '</h2>';
+    intro += '<p style="color:var(--text-muted);margin-bottom:16px">أجب على الأسئلة الصح وهزمه!</p>';
+    intro += '<div class="boss-rules">';
+    intro += '<div>✓ إجابة صح = ضربة للوحش 💥</div>';
+    intro += '<div>✗ إجابة غلط = الوحش يضربك</div>';
+    intro += '<div>❤️ عندك ' + bossState.playerMaxHp + ' أرواح</div>';
+    intro += '</div>';
+    intro += '<button class="btn btn-primary" onclick="renderBossQuestion()" style="margin-top:20px"><span>ابدأ المعركة! ⚔️</span></button>';
+    intro += '</div>';
+    renderMiniGameUI('تحدي الوحش', 'dragon', intro);
+}
+
+function renderBossQuestion() {
+    if (miniGameState.index >= miniGameState.data.length || bossState.bossHp <= 0) { endBossChallenge(true); return; }
+    if (bossState.playerHp <= 0) { endBossChallenge(false); return; }
+
+    var round = miniGameState.data[miniGameState.index];
+    var bossHpPct = Math.max(0, bossState.bossHp / bossState.bossMaxHp * 100);
+    var livesStr = '❤️'.repeat(bossState.playerHp) + '🖤'.repeat(Math.max(0, bossState.playerMaxHp - bossState.playerHp));
+
+    var html = '<div class="boss-battle">';
+    html += '<div class="boss-hp-section">';
+    html += '<div class="boss-avatar" id="boss-avatar">' + bossState.bossEmoji + '</div>';
+    html += '<div class="boss-hp-wrap">';
+    html += '<div class="boss-name-label">' + bossState.bossName + '</div>';
+    html += '<div class="boss-hp-bar"><div class="boss-hp-fill" style="width:' + bossHpPct + '%;background:' + bossState.bossColor + '"></div></div>';
+    html += '<div class="boss-hp-text">' + bossState.bossHp + ' / ' + bossState.bossMaxHp + '</div>';
+    html += '</div></div>';
+
+    html += '<div class="boss-player-hp">' + livesStr + '</div>';
+    html += '<div class="boss-round-label">سؤال ' + (miniGameState.index + 1) + ' / ' + miniGameState.data.length + '</div>';
+
+    if (round.type === 'tf') {
+        html += '<div class="boss-question">' + round.data.statement + '</div>';
+        html += '<div class="boss-tf-btns">';
+        html += '<button class="boss-btn-false" onclick="answerBossQ(' + JSON.stringify(!round.data.answer) + ')"><i class="fas fa-times"></i> خطأ</button>';
+        html += '<button class="boss-btn-true" onclick="answerBossQ(' + JSON.stringify(round.data.answer) + ')"><i class="fas fa-check"></i> صح</button>';
+        html += '</div>';
+    } else if (round.type === 'fb') {
+        var q = round.data; var opts = q.options.slice(); var correctText = opts[q.correct];
+        shuffleArray(opts); var nc = opts.indexOf(correctText);
+        html += '<div class="boss-question">' + q.sentence.replace('___', '<span style="color:var(--gold);font-weight:800">___</span>') + '</div>';
+        html += '<div class="boss-mcq-opts">';
+        opts.forEach(function(opt, i) { html += '<button class="boss-mcq-btn" onclick="answerBossQ(' + JSON.stringify(i === nc) + ')">' + opt + '</button>'; });
+        html += '</div>';
+    }
+    html += '</div>';
+
+    var body = document.getElementById('mg-body'); if (body) body.innerHTML = html;
+}
+
+function answerBossQ(isCorrect) {
+    // Disable buttons immediately
+    document.querySelectorAll('.boss-btn-true,.boss-btn-false,.boss-mcq-btn').forEach(function(b) { b.disabled = true; });
+    if (isCorrect) {
+        var dmg = Math.ceil(bossState.bossMaxHp / miniGameState.data.length);
+        bossState.bossHp = Math.max(0, bossState.bossHp - dmg);
+        miniGameState.score += 5;
+        playCorrectSound(); showFloatingReward('💥 ضربة! +5 ⭐');
+        var av = document.getElementById('boss-avatar'); if (av) { av.classList.add('boss-hit'); setTimeout(function() { av.classList.remove('boss-hit'); }, 500); }
+    } else {
+        bossState.playerHp = Math.max(0, bossState.playerHp - 1);
+        playWrongSound();
+        var bt = document.querySelector('.boss-battle'); if (bt) { bt.classList.add('boss-attack'); setTimeout(function() { bt.classList.remove('boss-attack'); }, 600); }
+    }
+    var sc = document.getElementById('mg-score'); if (sc) sc.textContent = miniGameState.score;
+    miniGameState.index++;
+    var delay = isCorrect ? 600 : 700;
+    if (bossState.bossHp <= 0) { setTimeout(function() { endBossChallenge(true); }, delay); }
+    else if (bossState.playerHp <= 0) { setTimeout(function() { endBossChallenge(false); }, delay); }
+    else { setTimeout(renderBossQuestion, delay); }
+}
+
+function endBossChallenge(won) {
+    saveMiniGameScore('bossChallenge', miniGameState.score);
+    var body = document.getElementById('mg-body'); if (!body) return;
+    if (won) {
+        launchConfetti(2000);
+        showCelebration('🏆', 'هزمت ' + bossState.bossName + '!', '#FDCB6E');
+        body.innerHTML = '<div class="boss-result win"><div class="boss-result-emoji">🏆</div><h2>ممتاز! هزمت الوحش!</h2><p>نقاطك: ' + miniGameState.score + '</p><div class="mg-result-btns"><button class="btn btn-primary" onclick="startMiniGame(\'bossChallenge\')"><span><i class="fas fa-redo"></i> العب تاني</span></button><button class="btn btn-secondary" onclick="level2State.currentStage=\'games\';renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i> رجوع</span></button></div></div>';
+    } else {
+        body.innerHTML = '<div class="boss-result lose"><div class="boss-result-emoji">💀</div><h2>الوحش غلبك!</h2><p>نقاطك: ' + miniGameState.score + '</p><div class="mg-result-btns"><button class="btn btn-primary" onclick="startMiniGame(\'bossChallenge\')"><span>⚔️ حاول تاني</span></button><button class="btn btn-secondary" onclick="level2State.currentStage=\'games\';renderLevel2Lesson()"><span><i class="fas fa-arrow-right"></i> رجوع</span></button></div></div>';
+    }
+}
+
+// ============================================================
+// GAME 9: اختيارات الشات (CHAT CHOICES) — WhatsApp style
+// ============================================================
+function startChatChoices() {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson;
+    var data = MODERN_GAMES_DATA.chatChoices[key];
+    if (!data || data.length === 0) {
+        showToast('هذه اللعبة ستكون متاحة قريباً في هذا الدرس 🚀', 'info'); return;
+    }
+    var shuffled = data.slice(); shuffleArray(shuffled);
+    miniGameState = {
+        type: 'chatChoices', index: 0, score: 0, total: shuffled.length * 3, data: shuffled,
+        timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
+        selectedWords: [], selectedLeft: null, matched: []
+    };
+    renderChatChoicesUI();
+}
+
+function renderChatChoicesUI() {
+    var data = miniGameState.data;
+    var idx = miniGameState.index;
+    if (idx >= data.length) { showMiniGameResult('اختيارات الشات'); return; }
+    var sc = data[idx];
+
+    var html = '<div class="chat-choices-game">';
+    html += '<div class="chat-progress">محادثة ' + (idx + 1) + ' / ' + data.length + '</div>';
+    html += '<div class="chat-window">';
+    html += '<div class="chat-header"><div class="chat-avatar-icon">' + sc.avatar + '</div><div class="chat-sender-name">' + sc.sender + '</div><div class="chat-status">متصل الآن 🟢</div></div>';
+    html += '<div class="chat-messages" id="chat-msgs">';
+    sc.messages.forEach(function(msg) {
+        html += '<div class="chat-bubble received"><span>' + msg + '</span><span class="chat-time">الآن</span></div>';
+    });
+    html += '</div>';
+    html += '<div class="chat-q-label">' + sc.question + '</div>';
+    html += '<div class="chat-choices">';
+    sc.choices.forEach(function(choice, i) {
+        html += '<button class="chat-choice-btn" onclick="answerChatChoice(' + i + ')">' + choice.text + '</button>';
+    });
+    html += '</div>';
+    html += '</div></div>';
+
+    renderMiniGameUI('اختيارات الشات', 'comments', html);
+}
+
+function answerChatChoice(choiceIdx) {
+    var sc = miniGameState.data[miniGameState.index];
+    var choice = sc.choices[choiceIdx];
+    document.querySelectorAll('.chat-choice-btn').forEach(function(b) { b.disabled = true; b.style.opacity = '0.5'; });
+
+    var msgsEl = document.getElementById('chat-msgs');
+    if (msgsEl) {
+        var sent = document.createElement('div');
+        sent.className = 'chat-bubble sent ' + (choice.correct ? 'sent-correct' : 'sent-wrong');
+        sent.innerHTML = '<span>' + choice.text + '</span><span class="chat-time">الآن ✓</span>';
+        msgsEl.appendChild(sent);
+        msgsEl.scrollTop = msgsEl.scrollHeight;
+
+        setTimeout(function() {
+            var reply = document.createElement('div');
+            reply.className = 'chat-bubble received ' + (choice.correct ? 'reply-correct' : 'reply-wrong');
+            reply.innerHTML = '<span>' + sc.avatar + ' ' + choice.reply + '</span>';
+            msgsEl.appendChild(reply);
+            msgsEl.scrollTop = msgsEl.scrollHeight;
+
+            if (choice.correct) { miniGameState.score += 3; playCorrectSound(); showFloatingReward('+3 ⭐ 💬'); }
+            else { playWrongSound(); }
+            var s = document.getElementById('mg-score'); if (s) s.textContent = miniGameState.score;
+
+            setTimeout(function() { miniGameState.index++; renderChatChoicesUI(); }, 2200);
+        }, 900);
+    }
+}
+
+// ============================================================
+// GAME 10: كلمة (KALEMA) — Arabic Hangman
+// ============================================================
+var kalemaState = { wordIndex: 0, words: [], currentWord: [], guessed: [], wrongGuesses: [], maxWrong: 6, score: 0 };
+var ARABIC_KEYS = [
+    ['ض','ص','ث','ق','ف','غ','ع','ه','خ','ح','ج','د'],
+    ['ش','س','ي','ب','ل','ا','ت','ن','م','ك','ط'],
+    ['ئ','ء','ؤ','ر','ى','ة','و','ز','ظ','آ','إ','أ']
+];
+
+function startKalema() {
+    var subject = level2State.currentSubject || 'faith';
+    var pool = MODERN_GAMES_DATA.kalema[subject];
+    if (!pool || pool.length === 0) { showToast('قريباً في هذا الموضوع! 🚀', 'info'); return; }
+    var shuffled = pool.slice(); shuffleArray(shuffled);
+    miniGameState = {
+        type: 'kalema', index: 0, score: 0, total: 18, data: shuffled,
+        timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
+        selectedWords: [], selectedLeft: null, matched: []
+    };
+    var words = shuffled.slice(0, Math.min(3, shuffled.length));
+    kalemaState = { wordIndex: 0, words: words, currentWord: words[0].letters, guessed: [], wrongGuesses: [], maxWrong: 6, score: 0 };
+    renderKalemaUI();
+}
+
+function renderKalemaUI() {
+    var wd = kalemaState.words[kalemaState.wordIndex];
+    var wrong = kalemaState.wrongGuesses.length;
+    var livesLeft = kalemaState.maxWrong - wrong;
+
+    var html = '<div class="kalema-game">';
+    html += '<div class="kalema-header">';
+    html += '<span>كلمة ' + (kalemaState.wordIndex + 1) + ' / ' + kalemaState.words.length + '</span>';
+    html += '<span style="color:var(--gold)">⭐ ' + kalemaState.score + '</span>';
+    html += '</div>';
+
+    // Lives as hearts
+    var heartsHTML = '';
+    for (var h = 0; h < kalemaState.maxWrong; h++) heartsHTML += h < livesLeft ? '❤️' : '🖤';
+    html += '<div class="kalema-hearts">' + heartsHTML + '</div>';
+
+    // Hint
+    html += '<div class="kalema-hint">💡 ' + wd.hint + '</div>';
+
+    // Word boxes
+    html += '<div class="kalema-word">';
+    kalemaState.currentWord.forEach(function(letter) {
+        var rev = kalemaState.guessed.indexOf(letter) !== -1;
+        html += '<div class="kalema-box' + (rev ? ' revealed' : '') + '">' + (rev ? letter : '') + '</div>';
+    });
+    html += '</div>';
+
+    // Wrong letters
+    if (kalemaState.wrongGuesses.length > 0) {
+        html += '<div class="kalema-wrong">خطأ: ';
+        kalemaState.wrongGuesses.forEach(function(l) { html += '<span class="wrong-letter">' + l + '</span>'; });
+        html += '</div>';
+    }
+
+    // Arabic keyboard
+    html += '<div class="kalema-keyboard">';
+    ARABIC_KEYS.forEach(function(row) {
+        html += '<div class="kalema-row">';
+        row.forEach(function(letter) {
+            var usedG = kalemaState.guessed.indexOf(letter) !== -1;
+            var usedW = kalemaState.wrongGuesses.indexOf(letter) !== -1;
+            var cls = usedG ? ' key-correct' : usedW ? ' key-wrong' : '';
+            html += '<button class="kalema-key' + cls + '"' + (usedG || usedW ? ' disabled' : '') + ' onclick="guessKalema(\'' + letter + '\')">' + letter + '</button>';
+        });
+        html += '</div>';
+    });
+    html += '</div>';
+    html += '</div>';
+
+    renderMiniGameUI('كلمة 🔤', 'keyboard', html);
+}
+
+function guessKalema(letter) {
+    var inWord = kalemaState.currentWord.indexOf(letter) !== -1;
+    if (kalemaState.guessed.indexOf(letter) !== -1 || kalemaState.wrongGuesses.indexOf(letter) !== -1) return;
+
+    if (inWord) {
+        kalemaState.guessed.push(letter); playCorrectSound();
+        var allDone = kalemaState.currentWord.every(function(l) { return kalemaState.guessed.indexOf(l) !== -1; });
+        if (allDone) {
+            var pts = Math.max(1, kalemaState.maxWrong - kalemaState.wrongGuesses.length + 1);
+            kalemaState.score += pts; miniGameState.score = kalemaState.score;
+            showFloatingReward('كلمة صح! +' + pts + ' ⭐ 🎉');
+            setTimeout(function() { advanceKalema(); }, 1300);
+        } else { renderKalemaUI(); }
+    } else {
+        kalemaState.wrongGuesses.push(letter); playWrongSound();
+        if (kalemaState.wrongGuesses.length >= kalemaState.maxWrong) {
+            var wd = kalemaState.words[kalemaState.wordIndex];
+            showToast('الكلمة كانت: ' + wd.word + ' 💡', 'info');
+            setTimeout(function() { advanceKalema(); }, 1800);
+        } else { renderKalemaUI(); }
+    }
+}
+
+function advanceKalema() {
+    kalemaState.wordIndex++;
+    if (kalemaState.wordIndex >= kalemaState.words.length) { showMiniGameResult('كلمة 🔤'); return; }
+    var next = kalemaState.words[kalemaState.wordIndex];
+    kalemaState.currentWord = next.letters; kalemaState.guessed = []; kalemaState.wrongGuesses = [];
+    renderKalemaUI();
+}
+
+// ============================================================
+// GAME 11: دولابة الأسئلة (SPIN & ANSWER)
+// ============================================================
+var spinState = { spinning: false, currentAngle: 0, round: 0, totalRounds: 5, categories: [], games: null };
+
+function startSpinAnswer() {
+    var games = getMiniGamesForLesson();
+    if (!games || !games.trueFalse) { showToast('مفيش بيانات كافية لهذا الدرس', 'info'); return; }
+
+    var cats = [];
+    if (games.trueFalse && games.trueFalse.length > 0) cats.push({ name: 'صح/خطأ', color: '#6C5CE7', icon: '⚡', type: 'tf' });
+    if (games.fillBlank && games.fillBlank.length > 0) cats.push({ name: 'كلمة ناقصة', color: '#00B894', icon: '✏️', type: 'fb' });
+    if (games.whoAmI && games.whoAmI.length > 0) cats.push({ name: 'من أنا؟', color: '#e17055', icon: '🕵️', type: 'wai' });
+    if (games.characters && games.characters.length > 0) cats.push({ name: 'شخصيات', color: '#fdcb6e', icon: '👤', type: 'chars' });
+    cats.push({ name: 'سؤال مفاجأة', color: '#FF6B6B', icon: '🎲', type: 'surprise' });
+    // Ensure at least 4 for wheel aesthetics
+    while (cats.length < 4) { cats.push(cats[Math.floor(Math.random() * (cats.length))]); }
+    cats = cats.slice(0, 6);
+
+    miniGameState = {
+        type: 'spinAnswer', index: 0, score: 0, total: 10, data: games,
+        timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
+        selectedWords: [], selectedLeft: null, matched: []
+    };
+    spinState = { spinning: false, currentAngle: 0, round: 0, totalRounds: 5, categories: cats, games: games };
+    renderSpinWheelUI();
+}
+
+function renderSpinWheelUI() {
+    var cats = spinState.categories;
+    var n = cats.length;
+    var gradParts = cats.map(function(c, i) { var s = i * 360/n; var e = (i+1) * 360/n; return c.color + ' ' + s + 'deg ' + e + 'deg'; });
+    var grad = 'conic-gradient(' + gradParts.join(', ') + ')';
+
+    var html = '<div class="spin-game">';
+    html += '<div class="spin-header"><span>جولة ' + spinState.round + ' / ' + spinState.totalRounds + '</span><span style="color:var(--gold)">⭐ ' + miniGameState.score + '</span></div>';
+
+    html += '<div class="spin-wheel-wrap">';
+    html += '<div class="spin-pointer">▼</div>';
+    html += '<div class="spin-wheel" id="spin-wheel" style="background:' + grad + ';transform:rotate(' + spinState.currentAngle + 'deg)">';
+    // Center dot
+    html += '<div class="spin-center-dot"></div>';
+    html += '</div>';
+    html += '</div>';
+
+    // Category legend
+    html += '<div class="spin-legend">';
+    cats.filter(function(c, i, a) { return a.findIndex(function(x) { return x.name === c.name; }) === i; }).forEach(function(cat) {
+        html += '<div class="spin-leg-item"><span class="spin-leg-dot" style="background:' + cat.color + '"></span>' + cat.icon + ' ' + cat.name + '</div>';
+    });
+    html += '</div>';
+
+    if (spinState.round < spinState.totalRounds) {
+        html += '<button class="spin-btn" id="spin-btn" onclick="doSpin()">🎰 دوّر الدولابة!</button>';
+    } else {
+        html += '<div style="text-align:center;margin-top:16px"><button class="btn btn-primary" onclick="showMiniGameResult(\'دولابة الأسئلة\')"><span>🏆 النتيجة النهائية</span></button></div>';
+    }
+    html += '</div>';
+
+    renderMiniGameUI('دولابة الأسئلة', 'circle-notch', html);
+}
+
+function doSpin() {
+    if (spinState.spinning) return;
+    spinState.spinning = true; spinState.round++;
+    var btn = document.getElementById('spin-btn'); if (btn) btn.disabled = true;
+    var wheel = document.getElementById('spin-wheel'); if (!wheel) return;
+
+    var n = spinState.categories.length;
+    var sectorAngle = 360 / n;
+    var targetIdx = Math.floor(Math.random() * n);
+    var offset = (n - targetIdx) * sectorAngle + sectorAngle / 2;
+    if (offset > 360) offset -= 360;
+    var finalAngle = spinState.currentAngle + 1440 + offset;
+
+    wheel.style.transition = 'transform 2.8s cubic-bezier(0.17,0.67,0.15,0.99)';
+    wheel.style.transform = 'rotate(' + finalAngle + 'deg)';
+    spinState.currentAngle = finalAngle;
+
+    setTimeout(function() {
+        spinState.spinning = false;
+        showSpinQuestion(spinState.categories[targetIdx]);
+    }, 3000);
+}
+
+function showSpinQuestion(cat) {
+    var games = spinState.games;
+    var question = null;
+    var pool;
+
+    if (cat.type === 'tf' || cat.type === 'surprise') {
+        pool = games.trueFalse.slice(); shuffleArray(pool);
+        question = { type: 'tf', data: pool[0] };
+    } else if (cat.type === 'fb' && games.fillBlank) {
+        pool = games.fillBlank.slice(); shuffleArray(pool);
+        question = { type: 'fb', data: pool[0] };
+    } else if (cat.type === 'chars' && games.characters) {
+        pool = games.characters.slice(); shuffleArray(pool);
+        question = { type: 'chars', data: pool[0] };
+    } else if (cat.type === 'wai' && games.whoAmI) {
+        pool = games.trueFalse.slice(); shuffleArray(pool);
+        question = { type: 'tf', data: pool[0] };
+    } else {
+        pool = games.trueFalse.slice(); shuffleArray(pool);
+        question = { type: 'tf', data: pool[0] };
+    }
+
+    var body = document.getElementById('mg-body'); if (!body) return;
+    var html = '<div class="spin-question-panel">';
+    html += '<div class="spin-q-category" style="color:' + cat.color + '">' + cat.icon + ' ' + cat.name + '</div>';
+    html += '<div class="spin-q-round">جولة ' + spinState.round + ' / ' + spinState.totalRounds + '</div>';
+
+    if (question.type === 'tf') {
+        html += '<div class="boss-question">' + question.data.statement + '</div>';
+        html += '<div class="boss-tf-btns">';
+        html += '<button class="boss-btn-false" onclick="answerSpinQ(' + JSON.stringify(!question.data.answer) + ')">✗ خطأ</button>';
+        html += '<button class="boss-btn-true" onclick="answerSpinQ(' + JSON.stringify(question.data.answer) + ')">✓ صح</button>';
+        html += '</div>';
+    } else if (question.type === 'fb') {
+        var q = question.data; var opts = q.options.slice(); var ct = opts[q.correct];
+        shuffleArray(opts); var nc = opts.indexOf(ct);
+        html += '<div class="boss-question">' + q.sentence.replace('___', '<strong style="color:var(--gold)">___</strong>') + '</div>';
+        html += '<div class="boss-mcq-opts">';
+        opts.forEach(function(o, i) { html += '<button class="boss-mcq-btn" onclick="answerSpinQ(' + JSON.stringify(i === nc) + ')">' + o + '</button>'; });
+        html += '</div>';
+    } else if (question.type === 'chars') {
+        var cq = question.data; var co = cq.options.slice(); var cct = co[cq.correct];
+        shuffleArray(co); var cnc = co.indexOf(cct);
+        html += '<div class="boss-question">' + cq.q + '</div>';
+        html += '<div class="boss-mcq-opts">';
+        co.forEach(function(o, i) { html += '<button class="boss-mcq-btn" onclick="answerSpinQ(' + JSON.stringify(i === cnc) + ')">' + o + '</button>'; });
+        html += '</div>';
+    }
+    html += '</div>';
+    body.innerHTML = html;
+}
+
+function answerSpinQ(isCorrect) {
+    document.querySelectorAll('.boss-btn-true,.boss-btn-false,.boss-mcq-btn').forEach(function(b) { b.disabled = true; });
+    if (isCorrect) { miniGameState.score += 2; playCorrectSound(); showFloatingReward('+2 ⭐ 🎯'); }
+    else { playWrongSound(); }
+    var sc = document.getElementById('mg-score'); if (sc) sc.textContent = miniGameState.score;
+    setTimeout(renderSpinWheelUI, 1100);
+}
+
+// ============================================================
+// GAME 12: رتّب التاريخ (TIMELINE SORT)
+// ============================================================
+var timelineState = { items: [], order: [], selected: -1, attempts: 0 };
+
+function startTimelineSort() {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson;
+    var data = MODERN_GAMES_DATA.timelineSort[key];
+    if (!data) { showToast('هذه اللعبة ستكون متاحة قريباً في هذا الدرس 🚀', 'info'); return; }
+    miniGameState = {
+        type: 'timelineSort', index: 0, score: 0, total: 10, data: data,
+        timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
+        selectedWords: [], selectedLeft: null, matched: []
+    };
+    var shuffled = data.items.slice(); shuffleArray(shuffled);
+    timelineState = { items: data.items, order: shuffled, selected: -1, attempts: 0 };
+    renderTimelineUI();
+}
+
+function renderTimelineUI() {
+    var order = timelineState.order;
+    var sel = timelineState.selected;
+
+    var html = '<div class="timeline-game">';
+    html += '<div class="timeline-header"><h4>' + miniGameState.data.title + '</h4>';
+    html += '<p class="tl-sub">اضغط على حدثين لتبادل ترتيبهما ↕️</p></div>';
+    html += '<div class="timeline-list">';
+    order.forEach(function(item, i) {
+        var isSel = (i === sel);
+        html += '<div class="timeline-item' + (isSel ? ' tl-selected' : '') + '" onclick="selectTLItem(' + i + ')">';
+        html += '<div class="tl-num">' + (i + 1) + '</div>';
+        html += '<div class="tl-text">' + item + '</div>';
+        html += '<div class="tl-icon">' + (isSel ? '📌' : '↕️') + '</div>';
+        html += '</div>';
+    });
+    html += '</div>';
+    html += '<button class="btn btn-primary" onclick="checkTimeline()" style="width:100%;margin-top:14px"><span>✅ تحقق من الترتيب</span></button>';
+    html += '</div>';
+
+    renderMiniGameUI('رتّب التاريخ', 'sort-amount-down', html);
+}
+
+function selectTLItem(idx) {
+    if (timelineState.selected === -1) { timelineState.selected = idx; }
+    else if (timelineState.selected === idx) { timelineState.selected = -1; }
+    else {
+        var a = timelineState.selected, b = idx;
+        var tmp = timelineState.order[a]; timelineState.order[a] = timelineState.order[b]; timelineState.order[b] = tmp;
+        timelineState.selected = -1;
+    }
+    renderTimelineUI();
+}
+
+function checkTimeline() {
+    var correct = timelineState.items, current = timelineState.order;
+    var hits = 0;
+    current.forEach(function(item, i) { if (item === correct[i]) hits++; });
+    timelineState.attempts++;
+    if (hits === correct.length) {
+        var pts = Math.max(2, 10 - (timelineState.attempts - 1) * 2);
+        miniGameState.score = pts;
+        playCorrectSound(); launchConfetti(1500);
+        showCelebration('🏆', 'رتبت الأحداث صح!', '#00B894');
+        setTimeout(function() { showMiniGameResult('رتّب التاريخ'); }, 1600);
+    } else {
+        playWrongSound();
+        showToast(hits + ' من ' + correct.length + ' في المكان الصح — كمّل! 💪', 'info');
+        // Highlight correct positions
+        var els = document.querySelectorAll('.timeline-item');
+        els.forEach(function(el, i) {
+            if (current[i] === correct[i]) { el.style.borderColor = '#00B894'; el.style.background = 'rgba(0,184,148,0.12)'; }
+            else { el.style.borderColor = ''; el.style.background = ''; }
+        });
+    }
+}
+
+// ============================================================
+// LESSON COMMUNITY Q&A
+// ============================================================
+var _qaListener = null;
+var _qaExpandedIds = {};    // tracks which question ids are expanded
+var _qaReplyOpenIds = {};   // tracks which reply forms are open
+
+function getLessonQARef() {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson;
+    return firebaseDb.collection('lessonQA').doc(key).collection('questions');
+}
+
+function initLessonQA(container) {
+    if (_qaListener) { _qaListener(); _qaListener = null; }
+    container.innerHTML = '<div class="qa-wrap"><div class="qa-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل أسئلة الدرس...</div></div>';
+
+    try {
+        _qaListener = getLessonQARef()
+            .orderBy('createdAt', 'desc')
+            .limit(50)
+            .onSnapshot(function(snapshot) {
+                var qs = [];
+                snapshot.forEach(function(doc) {
+                    var d = doc.data();
+                    d._id = doc.id;
+                    if (d.approved !== false) qs.push(d); // hide admin-rejected questions
+                });
+                renderQASection(container, qs);
+            }, function() {
+                container.innerHTML = '<div class="qa-wrap"><div class="qa-empty"><p>تعذّر تحميل الأسئلة. تحقق من الاتصال.</p></div></div>';
+            });
+    } catch(e) {
+        container.innerHTML = '';
+    }
+}
+
+function maskQAName(name) {
+    if (!name || name.length === 0) return 'مجهول';
+    // Keep first character, mask rest with bullets
+    return name.charAt(0) + '●●●';
+}
+
+function getQAAvatar(name) {
+    var colors = ['#6C5CE7','#00B894','#e17055','#fdcb6e','#0984e3','#e84393','#00CEC9'];
+    var ch = name ? name.charCodeAt(0) : 77;
+    var color = colors[ch % colors.length];
+    var letter = name ? name.charAt(0) : '؟';
+    return '<div class="qa-avatar-circle" style="background:' + color + '">' + letter + '</div>';
+}
+
+function qaTimeAgo(ts) {
+    if (!ts) return '';
+    var now = Date.now();
+    var ms = ts.toDate ? ts.toDate().getTime() : (ts.seconds ? ts.seconds * 1000 : now);
+    var diff = Math.floor((now - ms) / 1000);
+    if (diff < 60) return 'الآن';
+    if (diff < 3600) return Math.floor(diff / 60) + ' دقيقة';
+    if (diff < 86400) return Math.floor(diff / 3600) + ' ساعة';
+    return Math.floor(diff / 86400) + ' يوم';
+}
+
+function safeText(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderQASection(container, questions) {
+    var myPhone = GameState.playerPhone || '';
+    var expanded = _qaExpandedIds;
+    var replyOpen = _qaReplyOpenIds;
+
+    var html = '<div class="qa-wrap">';
+    html += '<div class="qa-header">';
+    html += '<div class="qa-header-title"><i class="fas fa-comments"></i> أسئلة الدرس المجتمعية</div>';
+    html += '<div class="qa-header-sub">اسأل وأجب — الأسماء مخفية 🔒</div>';
+    html += '</div>';
+
+    // Ask-question form toggle
+    html += '<button class="qa-ask-btn" onclick="toggleQAAskForm()"><i class="fas fa-plus-circle"></i> اسأل سؤالاً جديداً</button>';
+    html += '<div class="qa-ask-form" id="qa-ask-form" style="display:none">';
+    html += '<textarea class="qa-textarea" id="qa-ask-input" placeholder="اكتب سؤالك هنا... (حتى 300 حرف)" maxlength="300" rows="3" oninput="qaUpdateCount(this,\'qa-ask-count\')"></textarea>';
+    html += '<div class="qa-form-footer"><span class="qa-char-count" id="qa-ask-count">0/300</span>';
+    html += '<div class="qa-form-actions"><button class="qa-cancel-btn" onclick="toggleQAAskForm()">إلغاء</button>';
+    html += '<button class="qa-submit-btn" onclick="submitQAQuestion()"><i class="fas fa-paper-plane"></i> أرسل</button></div>';
+    html += '</div></div>';
+
+    if (questions.length === 0) {
+        html += '<div class="qa-empty"><div class="qa-empty-emoji">💬</div><p>لا توجد أسئلة بعد — كن أول من يسأل!</p></div>';
+    } else {
+        html += '<div class="qa-list">';
+        questions.forEach(function(q) {
+            var qId = q._id;
+            var isExpanded = !!expanded[qId];
+            var isReplyOpen = !!replyOpen[qId];
+            var sameCount = (q.sameUsers || []).length;
+            var hasSamed = (q.sameUsers || []).indexOf(myPhone) !== -1;
+            var likeCount = (q.likeUsers || []).length;
+            var hasLiked = (q.likeUsers || []).indexOf(myPhone) !== -1;
+            var replies = q.replies || [];
+
+            html += '<div class="qa-card" id="qa-card-' + qId + '">';
+            // Question header
+            html += '<div class="qa-card-head">';
+            html += getQAAvatar(q.authorName);
+            html += '<div class="qa-card-meta">';
+            html += '<span class="qa-card-name">' + maskQAName(q.authorName) + '</span>';
+            html += '<span class="qa-card-time">' + qaTimeAgo(q.createdAt) + '</span>';
+            html += '</div></div>';
+
+            // Question text
+            html += '<div class="qa-card-text">' + safeText(q.text) + '</div>';
+
+            // Reaction bar
+            html += '<div class="qa-reactions">';
+            html += '<button class="qa-react-btn' + (hasSamed ? ' reacted' : '') + '" onclick="reactQA(\'' + qId + '\',\'same\')">';
+            html += '❓ نفس سؤالي <span class="qa-react-count">' + sameCount + '</span></button>';
+            html += '<button class="qa-react-btn' + (hasLiked ? ' reacted' : '') + '" onclick="reactQA(\'' + qId + '\',\'like\')">';
+            html += '👍 مفيد <span class="qa-react-count">' + likeCount + '</span></button>';
+            html += '<button class="qa-react-btn' + (isExpanded ? ' active' : '') + '" onclick="toggleQAExpand(\'' + qId + '\')">';
+            html += '💬 ' + replies.length + ' ردود</button>';
+            html += '</div>';
+
+            // Replies section
+            if (isExpanded) {
+                html += '<div class="qa-replies-section">';
+                if (replies.length === 0) {
+                    html += '<div class="qa-no-replies">لا توجد ردود بعد — كن أول من يجيب!</div>';
+                } else {
+                    replies.forEach(function(r, ri) {
+                        var rLikeCount = (r.likeUsers || []).length;
+                        var rHasLiked = (r.likeUsers || []).indexOf(myPhone) !== -1;
+                        var isAuthor = r.authorId === myPhone;
+                        html += '<div class="qa-reply-card' + (r.isBest ? ' best-reply' : '') + '">';
+                        if (r.isBest) html += '<div class="qa-best-badge">✅ أفضل إجابة</div>';
+                        html += '<div class="qa-card-head">';
+                        html += getQAAvatar(r.authorName);
+                        html += '<div class="qa-card-meta">';
+                        html += '<span class="qa-card-name">' + maskQAName(r.authorName) + '</span>';
+                        html += '<span class="qa-card-time">' + qaTimeAgo(r.createdAt) + '</span>';
+                        html += '</div>';
+                        // Question author can mark as best answer
+                        if (q.authorId === myPhone && !r.isBest) {
+                            html += '<button class="qa-mark-best-btn" onclick="markQABestReply(\'' + qId + '\',' + ri + ')" title="علّم كأفضل إجابة">⭐</button>';
+                        }
+                        html += '</div>';
+                        html += '<div class="qa-reply-text">' + safeText(r.text) + '</div>';
+                        html += '<div class="qa-reply-actions">';
+                        html += '<button class="qa-react-btn sm' + (rHasLiked ? ' reacted' : '') + '" onclick="reactQAReply(\'' + qId + '\',' + ri + ')">';
+                        html += '👍 مفيد <span class="qa-react-count">' + rLikeCount + '</span></button>';
+                        html += '</div>';
+                        html += '</div>';
+                    });
+                }
+                // Reply input
+                html += '<div class="qa-reply-input-wrap' + (isReplyOpen ? ' open' : '') + '" id="qa-reply-wrap-' + qId + '">';
+                if (isReplyOpen) {
+                    html += '<textarea class="qa-textarea sm" id="qa-reply-input-' + qId + '" placeholder="اكتب ردك..." maxlength="300" rows="2" oninput="qaUpdateCount(this,\'qa-rc-' + qId + '\')"></textarea>';
+                    html += '<div class="qa-form-footer"><span class="qa-char-count" id="qa-rc-' + qId + '">0/300</span>';
+                    html += '<div class="qa-form-actions"><button class="qa-cancel-btn" onclick="closeQAReply(\'' + qId + '\')">إلغاء</button>';
+                    html += '<button class="qa-submit-btn" onclick="submitQAReply(\'' + qId + '\')"><i class="fas fa-paper-plane"></i> رد</button></div></div>';
+                } else {
+                    html += '<button class="qa-open-reply-btn" onclick="openQAReply(\'' + qId + '\')"><i class="fas fa-reply"></i> أضف رداً</button>';
+                }
+                html += '</div>';
+                html += '</div>'; // qa-replies-section
+            }
+
+            html += '</div>'; // qa-card
+        });
+        html += '</div>'; // qa-list
+    }
+    html += '</div>'; // qa-wrap
+    container.innerHTML = html;
+}
+
+// --- Q&A interactions ---
+function toggleQAAskForm() {
+    var f = document.getElementById('qa-ask-form');
+    if (!f) return;
+    var visible = f.style.display !== 'none';
+    f.style.display = visible ? 'none' : 'block';
+    if (!visible) { var t = document.getElementById('qa-ask-input'); if (t) t.focus(); }
+}
+
+function qaUpdateCount(el, countId) {
+    var c = document.getElementById(countId); if (c) c.textContent = el.value.length + '/300';
+}
+
+function submitQAQuestion() {
+    var input = document.getElementById('qa-ask-input');
+    if (!input) return;
+    var text = input.value.trim();
+    if (text.length < 5) { showToast('اكتب سؤالاً واضحاً (5 أحرف على الأقل)', 'info'); return; }
+    var btn = document.querySelector('.qa-ask-form .qa-submit-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+
+    getLessonQARef().add({
+        text: text,
+        authorId: GameState.playerPhone || 'guest',
+        authorName: GameState.playerName || 'مجهول',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        sameUsers: [],
+        likeUsers: [],
+        replies: []
+    }).then(function() {
+        showToast('تم إرسال سؤالك! 🎉', 'success');
+        toggleQAAskForm();
+        if (input) input.value = '';
+    }).catch(function() {
+        showToast('تعذّر إرسال السؤال، حاول مرة أخرى', 'error');
+        if (btn) { btn.disabled = false; btn.textContent = 'أرسل'; }
+    });
+}
+
+function toggleQAExpand(qId) {
+    _qaExpandedIds[qId] = !_qaExpandedIds[qId];
+    if (!_qaExpandedIds[qId]) delete _qaReplyOpenIds[qId];
+    var slot = document.getElementById('lesson-qa-slot');
+    if (!slot) return;
+    // Re-render with current cached data by triggering a snapshot re-read
+    // Simply toggle DOM visibility to avoid full re-fetch
+    var repliesEl = document.getElementById('qa-card-' + qId);
+    if (repliesEl) {
+        // Lightweight: just re-trigger by updating slot (listener will re-render)
+        initLessonQA(slot);
+    }
+}
+
+function openQAReply(qId) {
+    _qaReplyOpenIds[qId] = true;
+    var slot = document.getElementById('lesson-qa-slot');
+    if (slot) initLessonQA(slot);
+}
+
+function closeQAReply(qId) {
+    delete _qaReplyOpenIds[qId];
+    var slot = document.getElementById('lesson-qa-slot');
+    if (slot) initLessonQA(slot);
+}
+
+function submitQAReply(qId) {
+    var input = document.getElementById('qa-reply-input-' + qId);
+    if (!input) return;
+    var text = input.value.trim();
+    if (text.length < 2) { showToast('اكتب رداً أوضح', 'info'); return; }
+
+    var reply = {
+        text: text,
+        authorId: GameState.playerPhone || 'guest',
+        authorName: GameState.playerName || 'مجهول',
+        createdAt: { seconds: Math.floor(Date.now() / 1000) }, // local timestamp
+        likeUsers: [],
+        isBest: false
+    };
+
+    var docRef = getLessonQARef().doc(qId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(docRef).then(function(doc) {
+            if (!doc.exists) throw new Error('not found');
+            var replies = doc.data().replies || [];
+            replies.push(reply);
+            tx.update(docRef, { replies: replies });
+        });
+    }).then(function() {
+        delete _qaReplyOpenIds[qId];
+        showToast('تم إرسال ردك! 💬', 'success');
+    }).catch(function() {
+        showToast('تعذّر إرسال الرد', 'error');
+    });
+}
+
+function reactQA(qId, type) {
+    var myPhone = GameState.playerPhone || 'guest';
+    var field = type === 'same' ? 'sameUsers' : 'likeUsers';
+    var docRef = getLessonQARef().doc(qId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(docRef).then(function(doc) {
+            if (!doc.exists) throw new Error('not found');
+            var users = doc.data()[field] || [];
+            var idx = users.indexOf(myPhone);
+            var update = {};
+            if (idx === -1) { users.push(myPhone); }
+            else { users.splice(idx, 1); }
+            update[field] = users;
+            tx.update(docRef, update);
+        });
+    }).catch(function() { showToast('تعذّر التفاعل، حاول مرة أخرى', 'error'); });
+}
+
+function reactQAReply(qId, replyIdx) {
+    var myPhone = GameState.playerPhone || 'guest';
+    var docRef = getLessonQARef().doc(qId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(docRef).then(function(doc) {
+            if (!doc.exists) throw new Error('not found');
+            var replies = doc.data().replies || [];
+            if (!replies[replyIdx]) return;
+            var users = replies[replyIdx].likeUsers || [];
+            var idx = users.indexOf(myPhone);
+            if (idx === -1) { users.push(myPhone); } else { users.splice(idx, 1); }
+            replies[replyIdx].likeUsers = users;
+            tx.update(docRef, { replies: replies });
+        });
+    }).catch(function() { showToast('تعذّر التفاعل', 'error'); });
+}
+
+function markQABestReply(qId, replyIdx) {
+    var docRef = getLessonQARef().doc(qId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(docRef).then(function(doc) {
+            if (!doc.exists) throw new Error('not found');
+            var replies = doc.data().replies || [];
+            replies.forEach(function(r, i) { r.isBest = (i === replyIdx); });
+            tx.update(docRef, { replies: replies });
+        });
+    }).then(function() {
+        showToast('✅ تم تمييز أفضل إجابة!', 'success');
+    }).catch(function() { showToast('تعذّر التمييز', 'error'); });}
+
+// Firestore security rule hint: lessonQA must allow authenticated reads/writes
+// Add to firestore.rules: match /lessonQA/{key}/questions/{doc} { allow read, write: if request.auth != null; }
 }

@@ -8416,7 +8416,7 @@ function startTFBlitz() {
     tfBlitzState = { index: 0, score: 0, streak: 0, correct: 0, timer: null, timeLeft: 30, questions: qs, answered: false };
     showScreen('emoji-game-screen');
     var h2 = document.querySelector('#emoji-game-screen .top-bar h2');
-    if (h2) h2.innerHTML = '<i class="fas fa-bolt"></i> بلتز صح/غلط';
+    if (h2) h2.innerHTML = '<i class="fas fa-bolt"></i> تحدي ٣٠ ثانية ⚡';
     showCompanion('thinking');
     companionSpeak('30 ثانية — صح ولا غلط! ⚡', 2000);
     renderTFBlitzRound();
@@ -8523,7 +8523,9 @@ function startQuickQuizFromLesson() {
     if (games) {
         if (games.trueFalse) {
             games.trueFalse.forEach(function(q) {
-                allQs.push({ emojis: '❓', isQuiz: true, q: q.q, answer: q.a ? 'صح' : 'غلط', options: ['صح', 'غلط'] });
+                var txt = q.statement || q.q || '';
+                var ans = q.answer !== undefined ? q.answer : q.a;
+                allQs.push({ emojis: '❓', isQuiz: true, q: txt, answer: ans ? 'صح' : 'غلط', options: ['صح', 'غلط'] });
             });
         }
         if (games.fillBlank) {
@@ -8570,7 +8572,7 @@ function startTFBlitzFromLesson() {
     var games = getMiniGamesForLesson();
     var qs = [];
     if (games && games.trueFalse && games.trueFalse.length > 0) {
-        qs = games.trueFalse.map(function(q) { return { q: q.q, a: q.a }; });
+        qs = games.trueFalse.map(function(q) { return { q: q.statement || q.q || '', a: q.answer !== undefined ? q.answer : q.a }; });
     } else {
         // Fallback to global TF_BLITZ_DATA
         qs = TF_BLITZ_DATA.slice();
@@ -8580,7 +8582,7 @@ function startTFBlitzFromLesson() {
     emojiGameState = { fromLevel2: true, _saveType: 'tfBlitz' };
     showScreen('emoji-game-screen');
     var _h2 = document.querySelector('#emoji-game-screen .top-bar h2');
-    if (_h2) _h2.innerHTML = '<i class="fas fa-bolt"></i> بلتز صح/غلط';
+    if (_h2) _h2.innerHTML = '<i class="fas fa-bolt"></i> تحدي ٣٠ ثانية ⚡';
     showCompanion('thinking');
     companionSpeak('30 ثانية من الدرس — صح ولا غلط! ⚡', 2000);
     renderTFBlitzRound();
@@ -11086,7 +11088,7 @@ function renderMiniGamesSection() {
 
     html += '<div class="mini-game-card mg-truefalse" onclick="startMiniGame(\'tfBlitz\')">';
     html += '<div class="mg-card-icon"><i class="fas fa-bolt-lightning"></i></div>';
-    html += '<h4>بلتز صح/غلط</h4>';
+    html += '<h4>تحدي ٣٠ ثانية ⚡</h4>';
     html += '<p>30 ثانية من الدرس!</p>';
     html += '<div class="mg-card-reward"><i class="fas fa-star"></i> حتى 10 نجوم</div>';
     html += getMiniGameBadge('tfBlitz');

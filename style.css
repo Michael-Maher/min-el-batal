@@ -13337,6 +13337,42 @@ body {
 }
 
 /* Video card in message */
+/* Full-width layout when viewing a shared/friends thread */
+.shared-view .qthread-messages { gap: 16px; padding: 12px 0 90px; }
+.shared-view .qa-msg {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 14px;
+    align-self: stretch;
+    box-sizing: border-box;
+}
+.shared-view .qa-msg-user {
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1e3a5f 0%, #1e40af 100%);
+}
+.shared-view .qa-msg-admin {
+    border-radius: 14px;
+    border-left: 4px solid #7c3aed;
+}
+.shared-view .qa-msg-user::before {
+    content: '❓ السؤال';
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    opacity: .7;
+    margin-bottom: 6px;
+    letter-spacing: .5px;
+}
+.shared-view .qa-msg-admin::before {
+    content: '✝ رد الخدام';
+    display: block;
+    font-size: 10px;
+    font-weight: 900;
+    color: #7c3aed;
+    margin-bottom: 6px;
+    letter-spacing: .5px;
+}
+
 .qa-msg-videos { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
 .qa-video-card {
     position: relative;

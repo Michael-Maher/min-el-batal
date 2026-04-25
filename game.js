@@ -92,7 +92,12 @@ const GameState = {
     mapTheme: 'default',      // 'default', 'space', 'underwater', 'sky'
     loginStreak: 0,           // consecutive daily login days
     claimedStreakRewards: [], // ['streak7', 'streak14', 'streak30']
-    questionHistory: {}       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
+    questionHistory: {},       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
+    consumableWeapons: {},     // { 'sling': 2, 'scroll': 1 }
+    weaponTimedEffects: {},    // { 'doubleSword': expiry_ms }
+    dailyDealDate: '',
+    dailyDealClaimed: false,
+    claimedBundles: []
 };
 
 // --- Firebase Initialization ---
@@ -685,6 +690,11 @@ function saveToCloud() {
         mapTheme: GameState.mapTheme || 'default',
         loginStreak: GameState.loginStreak || 0,
         claimedStreakRewards: GameState.claimedStreakRewards || [],
+        consumableWeapons: GameState.consumableWeapons || {},
+        weaponTimedEffects: GameState.weaponTimedEffects || {},
+        dailyDealDate: GameState.dailyDealDate || '',
+        dailyDealClaimed: GameState.dailyDealClaimed || false,
+        claimedBundles: GameState.claimedBundles || [],
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -961,48 +971,64 @@ function useCharacterPower() {
         GameState.gems -= power.cost;
     }
 
-    // Activate power based on type
+    var _tier = getCharacterTier(GameState.character);
+
+    // Activate power based on type — effects scale with tier (bronze/silver/gold)
     if (power.id === 'sling') {
-        activePowers.doublePoints = true;
-        showAchievement('🪨', 'ضربة المقلاع!', 'النقاط مضاعفة للسؤال الجاي!');
+        if (_tier === 'gold') {
+            quizState._goldSling = true; // double points whole round, cleared in showResults
+            showAchievement('🪨', 'ضربة المقلاع الذهبية!', 'النقاط مضاعفة لباقي الجولة كلها! 🥇');
+        } else if (_tier === 'silver') {
+            quizState._silverSlingRemaining = 2;
+            activePowers.doublePoints = true;
+            showAchievement('🪨', 'ضربة المقلاع الفضية!', 'النقاط مضاعفة للسؤالين الجايين! 🥈');
+        } else {
+            activePowers.doublePoints = true;
+            showAchievement('🪨', 'ضربة المقلاع!', 'النقاط مضاعفة للسؤال الجاي!');
+        }
     } else if (power.id === 'shield') {
-        activePowers.shield = true;
-        showAchievement('🛡️', 'درع الإيمان!', 'محمي من إجابة غلط واحدة!');
+        var _shieldCount = _tier === 'gold' ? 3 : _tier === 'silver' ? 2 : 1;
+        quizState.armorShieldsLeft = (quizState.armorShieldsLeft || 0) + _shieldCount;
+        showAchievement('🛡️', 'درع الإيمان!', 'محمي من ' + _shieldCount + ' إجابة غلط' + (_tier !== 'bronze' ? ' 🥈' : '') + '!');
     } else if (power.id === 'sword') {
-        // Eliminate 2 wrong options
-        activateSwordOfSpirit();
-        showAchievement('⚔️', 'سيف الروح!', 'تم شيل إجابتين غلط!');
+        activateSwordOfSpirit(_tier);
+        var _removedCount = _tier === 'gold' ? 'كل الإجابات الغلط' : _tier === 'silver' ? '3 إجابات غلط' : 'إجابتين غلط';
+        showAchievement('⚔️', 'سيف الروح!', 'تم شيل ' + _removedCount + '!');
     } else if (power.id === 'spear') {
-        miniGameState.score = (miniGameState.score || 0) + 5;
+        var _spearPts = _tier === 'gold' ? 15 : _tier === 'silver' ? 10 : 5;
+        miniGameState.score = (miniGameState.score || 0) + _spearPts;
+        quizState.score = (quizState.score || 0) + _spearPts;
         var scoreEl = document.getElementById('mg-score');
         if (scoreEl) scoreEl.textContent = miniGameState.score;
-        showAchievement('🗡️', 'رمح النصر!', '+5 نقاط إضافية!');
+        showAchievement('🗡️', 'رمح النصر!', '+' + _spearPts + ' نقاط إضافية!');
     } else if (power.id === 'reveal') {
-        activateRevealTruth();
-        showAchievement('📖', 'نور الحق!', 'الإجابة الصحيحة اتكشفت!');
+        activateRevealTruth(_tier);
+        var _revealMsg = _tier === 'gold' ? 'اتحددت الإجابة تلقائياً!' : 'الإجابة الصحيحة اتكشفت!';
+        showAchievement('📖', 'نور الحق!', _revealMsg);
     } else if (power.id === 'grace') {
-        activateQueenGrace();
-        showAchievement('👑', 'نعمة الملكة!', '+15 ثانية إضافية!');
+        var _graceTime = _tier === 'gold' ? 30 : _tier === 'silver' ? 25 : 15;
+        activateQueenGrace(_graceTime, _tier === 'gold');
+        showAchievement('👑', 'نعمة الملكة!', '+' + _graceTime + ' ثانية' + (_tier === 'gold' ? ' + تجميد! 🥇' : '') + '!');
     } else if (power.id === 'blessing') {
-        activateDivineBlessing();
-        showAchievement('💧', 'نبع البركة!', '+30 نجمة هدية!');
+        var _blessingStars = _tier === 'gold' ? 50 : _tier === 'silver' ? 50 : 30;
+        var _blessingGems  = _tier === 'gold' ? 5 : 0;
+        activateDivineBlessing(_blessingStars, _blessingGems);
+        showAchievement('💧', 'نبع البركة!', '+' + _blessingStars + ' نجمة' + (_blessingGems ? ' +' + _blessingGems + '💎' : '') + '!');
     }
 
     saveToLocalStorage();
     updatePowerButton();
 }
 
-function activateSwordOfSpirit() {
-    // Remove 2 wrong options from current question
-    var options = document.querySelectorAll('.mg-fb-option, .option-btn, .mg-tf-btn');
+function activateSwordOfSpirit(tier) {
+    var maxRemove = tier === 'gold' ? 99 : tier === 'silver' ? 3 : 2;
+    var options = document.querySelectorAll('.mg-fb-option, .answer-btn, .option-btn, .mg-tf-btn');
     var removed = 0;
     options.forEach(function(btn) {
-        if (removed >= 2) return;
-        // Check if this is a wrong answer by checking its onclick
-        var text = btn.textContent.trim();
+        if (removed >= maxRemove) return;
         var isWrong = !btn.classList.contains('correct') && !btn.dataset.correct;
-        if (isWrong && removed < 2) {
-            btn.style.opacity = '0.2';
+        if (isWrong) {
+            btn.style.opacity = '0.15';
             btn.style.pointerEvents = 'none';
             btn.style.textDecoration = 'line-through';
             removed++;
@@ -1064,8 +1090,10 @@ function applyRevealGlow(el) {
     }, 2500);
 }
 
-function activateDivineBlessing() {
-    GameState.stars = (GameState.stars || 0) + 30;
+function activateDivineBlessing(stars, gems) {
+    stars = stars || 30; gems = gems || 0;
+    GameState.stars = (GameState.stars || 0) + stars;
+    if (gems > 0) GameState.gems = (GameState.gems || 0) + gems;
     var starsEl = document.getElementById('mg-stars') || document.getElementById('hub-stars');
     if (starsEl) {
         starsEl.style.color = '#7EC8E3';
@@ -1075,19 +1103,17 @@ function activateDivineBlessing() {
     saveToLocalStorage();
 }
 
-function activateQueenGrace() {
-    // Add 15 seconds to the active quiz timer
-    if (quizState.timeLeft !== undefined && quizState.timer) {
-        quizState.timeLeft += 15;
+function activateQueenGrace(seconds, withFreeze) {
+    seconds = seconds || 15;
+    if (quizState.timeLeft !== undefined) {
+        quizState.timeLeft += seconds;
+        if (withFreeze) { quizState.frozen = true; setTimeout(function() { quizState.frozen = false; }, 5000); }
         var timerEl = document.getElementById('timer-value');
         if (timerEl) {
             timerEl.textContent = quizState.timeLeft;
             timerEl.style.color = '#C39BD3';
             timerEl.style.transform = 'scale(1.3)';
-            setTimeout(function() {
-                timerEl.style.color = '';
-                timerEl.style.transform = '';
-            }, 1000);
+            setTimeout(function() { timerEl.style.color = ''; timerEl.style.transform = ''; }, 1000);
         }
     }
 }
@@ -1241,6 +1267,130 @@ const ARMOR_ITEMS = {
         effect: { attackPower: 2 }
     }
 };
+
+// ── Consumable & Timed Weapons ────────────────────────────────────────────────
+const WEAPONS = {
+    sling:       { name: 'مقلاع داود',           icon: '🪨', cost: 25, type: 'consumable', desc: 'تخطي سؤال صعب بدون خسارة نقاط أو حياة',       effect: 'skipNoPenalty' },
+    scroll:      { name: 'لفافة الحكمة',          icon: '📜', cost: 40, type: 'consumable', desc: 'اكشف الإجابة الصحيحة مرة واحدة في الكويز',       effect: 'revealAnswer' },
+    doubleSword: { name: 'سيف الروح المضاعف',    icon: '⚔️', cost: 60, type: 'timed',      desc: '+20% ضرر إضافي في معارك الوحش لمدة 7 أيام',    effect: 'bossBoost', duration: 7, boost: 0.20 },
+    holyBreath:  { name: 'نسمة الروح القدس',     icon: '🕊️', cost: 80, type: 'consumable', desc: 'أحيا مرة واحدة في معركة الوحش لو خسرت كل أرواحك', effect: 'bossRevive' }
+};
+
+// ── Shop Bundles ──────────────────────────────────────────────────────────────
+const SHOP_BUNDLES = [
+    {
+        id: 'starter', name: 'باقة البداية 🚀', icon: '🎁', oneTime: true,
+        desc: 'للمبتدئين: خوذة الخلاص + إطار الصليب + مقلاع داود',
+        originalCost: 90, cost: 55,
+        items: [
+            { type: 'armor', key: 'helmet', label: 'خوذة الخلاص ⛑️' },
+            { type: 'frame', key: 'cross',  label: 'إطار الصليب ✝️' },
+            { type: 'weapon', key: 'sling', label: 'مقلاع داود 🪨' }
+        ]
+    },
+    {
+        id: 'warrior', name: 'باقة المحارب ⚔️', icon: '⚔️', oneTime: false,
+        desc: 'درع البر + منطقة الحق + سيف الروح الروح + لقب محارب الإيمان',
+        originalCost: 250, cost: 170,
+        items: [
+            { type: 'armor',  key: 'breastplate', label: 'درع البر 🛡️' },
+            { type: 'armor',  key: 'belt',         label: 'منطقة الحق 📿' },
+            { type: 'armor',  key: 'sword',        label: 'سيف الروح 🗡️' },
+            { type: 'title',  key: 'warrior',      label: 'لقب محارب الإيمان ⚔️' }
+        ]
+    }
+];
+
+// ── Armor Effect Helpers ──────────────────────────────────────────────────────
+function getArmorEffect(effectKey) {
+    var equipped = GameState.equippedArmor || {};
+    for (var slot in equipped) {
+        var item = ARMOR_ITEMS[equipped[slot]];
+        if (item && item.effect && item.effect[effectKey] !== undefined) return item.effect[effectKey];
+    }
+    return null;
+}
+
+function getEquippedArmorCount() {
+    return Object.keys(GameState.equippedArmor || {}).length;
+}
+
+function getArmorSetBonus() {
+    var n = getEquippedArmorCount();
+    if (n >= 6) return 'full';
+    if (n >= 5) return 'five';
+    if (n >= 3) return 'three';
+    return 'none';
+}
+
+// ── Weapon Helpers ────────────────────────────────────────────────────────────
+function getConsumableWeaponCount(key) {
+    return (GameState.consumableWeapons || {})[key] || 0;
+}
+
+function consumeWeapon(key) {
+    if (!GameState.consumableWeapons) GameState.consumableWeapons = {};
+    if ((GameState.consumableWeapons[key] || 0) > 0) {
+        GameState.consumableWeapons[key]--;
+        saveToLocalStorage();
+        return true;
+    }
+    return false;
+}
+
+function isTimedWeaponActive(key) {
+    var expiry = (GameState.weaponTimedEffects || {})[key];
+    return expiry && Date.now() < expiry;
+}
+
+// ── Frame / Title Passive Helpers ─────────────────────────────────────────────
+var FRAME_PASSIVES = {
+    cross:  { bibleBonus: 0.07 },
+    dove:   { extraChallengeAttempt: 1 },
+    church: { sundayStarBonus: 12 },
+    flame:  { streakShield: true }
+};
+
+var TITLE_PASSIVES = {
+    scholar: { extraHints: 1 },
+    warrior: { bossExtraAttack: 1 }
+};
+
+function getFramePassive(key) {
+    var p = FRAME_PASSIVES[GameState.equippedFrame || ''];
+    return p ? (p[key] !== undefined ? p[key] : null) : null;
+}
+
+function getTitlePassive(key) {
+    var p = TITLE_PASSIVES[GameState.equippedTitle || ''];
+    return p ? (p[key] !== undefined ? p[key] : null) : null;
+}
+
+// ── Daily Deal Helper ─────────────────────────────────────────────────────────
+function getDailyDeal() {
+    var today = new Date().toISOString().split('T')[0];
+    if (GameState.dailyDealDate === today) return GameState._dailyDealCache || null;
+    var candidates = [];
+    Object.keys(ARMOR_ITEMS).forEach(function(k) {
+        if ((GameState.armor || []).indexOf(k) < 0) {
+            var it = ARMOR_ITEMS[k];
+            candidates.push({ type: 'armor', key: k, name: it.name, icon: it.icon, fullCost: it.cost });
+        }
+    });
+    Object.keys(WEAPONS).forEach(function(k) {
+        var it = WEAPONS[k];
+        candidates.push({ type: 'weapon', key: k, name: it.name, icon: it.icon, fullCost: it.cost });
+    });
+    if (!candidates.length) return null;
+    var seed = parseInt(today.replace(/-/g, ''), 10);
+    var deal = candidates[seed % candidates.length];
+    deal.discountedCost = Math.ceil(deal.fullCost * 0.5);
+    GameState.dailyDealDate = today;
+    GameState.dailyDealClaimed = false;
+    GameState._dailyDealCache = deal;
+    saveToLocalStorage();
+    return deal;
+}
 
 // ============================================================
 // CHARACTER EVOLUTION TIERS
@@ -2431,6 +2581,15 @@ function startQuiz(catId, level) {
     quizState.frozen = false;
     quizState.timeLeft = level ? (level.timePerQ || 30) : 30;
     quizState.currentCategory = catId;
+    // Armor shield — initialize protected wrong-answer charges
+    quizState.armorShieldsLeft = getArmorEffect('errorShield') || 0;
+    // 5-piece or full set bonus: inject a free fiftyFifty for this quiz
+    var _setBonus = getArmorSetBonus();
+    if (_setBonus === 'five' || _setBonus === 'full') quizState.bonusFiftyFifty = 1;
+    else quizState.bonusFiftyFifty = 0;
+    // Scholar title: +1 hint per quiz
+    var _extraHints = getTitlePassive('extraHints');
+    if (_extraHints) GameState.powerUps.hint = (GameState.powerUps.hint || 0) + _extraHints;
     var catObj = CATEGORIES.find(function(c) { return c.id === catId; });
     document.getElementById('quiz-category-label').textContent = catObj ? catObj.icon + ' ' + catObj.name : '';
     showScreen('quiz-screen');
@@ -2460,8 +2619,10 @@ function showQuestion() {
         (function(i) { btn.onclick = function() { selectAnswer(i); }; })(idx);
         grid.appendChild(btn);
     });
-    // Timer
+    // Timer — base time + helmet armor bonus
     quizState.timeLeft = LEVELS[quizState.currentLevel-1] ? (LEVELS[quizState.currentLevel-1].timePerQ || 30) : 30;
+    var _helmetBonus = getArmorEffect('extraTime');
+    if (_helmetBonus) quizState.timeLeft += _helmetBonus;
     startTimer();
 }
 
@@ -2497,13 +2658,33 @@ function selectAnswer(idx) {
     GameState.totalAnswered++;
     if (idx === q.correct) {
         btns[idx].classList.add('correct');
-        var pts = quizState.doublePoints ? 20 : 10;
+        var pts = (quizState.doublePoints || quizState._goldSling || quizState._silverSlingRemaining > 0) ? 20 : 10;
+        if (quizState._silverSlingRemaining > 0) {
+            quizState._silverSlingRemaining--;
+            if (quizState._silverSlingRemaining === 0) activePowers.doublePoints = false;
+        }
+        // Belt: score multiplier
+        var _beltMult = getArmorEffect('scoreMultiplier');
+        if (_beltMult) pts = Math.round(pts * _beltMult);
+        // Cross frame: +7% bonus for bible category questions
+        if (getFramePassive('bibleBonus') && quizState.currentCategory === 'bible') pts = Math.round(pts * (1 + getFramePassive('bibleBonus')));
         quizState.score += pts;
         quizState.correctCount++;
         GameState.streak++;
         if (GameState.streak > GameState.bestStreak) GameState.bestStreak = GameState.streak;
         GameState.totalCorrect++;
     } else {
+        // Armor shield: absorb one wrong answer silently
+        if ((quizState.armorShieldsLeft || 0) > 0) {
+            quizState.armorShieldsLeft--;
+            btns[idx].classList.add('wrong');
+            btns[q.correct].classList.add('correct');
+            showAchievement('🔰', 'ترس الإيمان!', 'الدرع حماك من الخطأ ده!');
+            // Don't break streak or count wrong
+            quizState.doublePoints = false;
+            setTimeout(function() { quizState.currentIndex++; showQuestion(); }, 1400);
+            return;
+        }
         btns[idx].classList.add('wrong');
         btns[q.correct].classList.add('correct');
         GameState.streak = 0;
@@ -2567,10 +2748,24 @@ function usePowerUp(type) {
 // --- Results ---
 function showResults() {
     clearInterval(quizState.timer);
+    quizState._goldSling = false;
+    quizState._silverSlingRemaining = 0;
     var total = quizState.questions.length;
     var pct = total > 0 ? Math.round((quizState.correctCount / total) * 100) : 0;
     var stars = pct >= 90 ? 3 : pct >= 60 ? 2 : pct >= 30 ? 1 : 0;
     var gemsEarned = stars * 5 + quizState.correctCount * 2;
+    // 3-piece set bonus: +10% gems
+    var _setBonus = getArmorSetBonus();
+    if (_setBonus !== 'none' && gemsEarned > 0) {
+        var _gemBonus = Math.ceil(gemsEarned * 0.10 * (['three','five','full'].indexOf(_setBonus) + 1));
+        gemsEarned += _gemBonus;
+    }
+    // Church frame: +12⭐ bonus on Sundays
+    var _sundayBonus = getFramePassive('sundayStarBonus');
+    if (_sundayBonus && new Date().getDay() === 0) {
+        GameState.stars = (GameState.stars || 0) + _sundayBonus;
+        showAchievement('⛪', 'بركة الأحد!', '+' + _sundayBonus + ' نجمة هدية ليكم النهارده!');
+    }
     
     document.getElementById('result-icon').innerHTML = stars >= 3 ? '🏆' : stars >= 2 ? '⭐' : stars >= 1 ? '👍' : '😢';
     document.getElementById('result-title').textContent = stars >= 3 ? 'ممتاز يا بطل!' : stars >= 2 ? 'أحسنت!' : stars >= 1 ? 'محتاج تحاول أكتر' : 'حاول مرة تانية';
@@ -3531,11 +3726,13 @@ function renderShop() {
 
     // Tabs
     var tabs = [
-        { id: 'armor',  label: '🛡️ السلاح',   icon: 'fa-shield-halved' },
-        { id: 'frames', label: '🖼️ إطارات',   icon: 'fa-image' },
-        { id: 'titles', label: '🏅 ألقاب',    icon: 'fa-medal' },
-        { id: 'themes', label: '🗺️ خرائط',   icon: 'fa-map' },
-        { id: 'streak', label: '🔥 المداومة', icon: 'fa-fire' }
+        { id: 'armor',   label: '🛡️ السلاح',   icon: 'fa-shield-halved' },
+        { id: 'weapons', label: '⚔️ أسلحة',    icon: 'fa-sword' },
+        { id: 'bundles', label: '🎁 باقات',    icon: 'fa-gift' },
+        { id: 'frames',  label: '🖼️ إطارات',   icon: 'fa-image' },
+        { id: 'titles',  label: '🏅 ألقاب',    icon: 'fa-medal' },
+        { id: 'themes',  label: '🗺️ خرائط',   icon: 'fa-map' },
+        { id: 'streak',  label: '🔥 المداومة', icon: 'fa-fire' }
     ];
     var tabsHtml = '<div class="shop-tabs">';
     tabs.forEach(function(t) {
@@ -3568,6 +3765,12 @@ function renderShop() {
     var itemsHtml = '<div class="shop-grid-items">';
 
     if (shopActiveTab === 'armor') {
+        // Set bonus status bar
+        var _ac = getEquippedArmorCount();
+        var _bonusTxt = _ac >= 6 ? '🏆 +30% جواهر بعد كل كويز!' : _ac >= 5 ? '🏅 +20% جواهر. جهّز قطعة واحدة للمجموعة الكاملة!' : _ac >= 3 ? '✅ +10% جواهر. أضف 2 قطع لمكافأة 5 قطع!' : 'جمّع 3 قطع أو أكثر للحصول على بونص جواهر!';
+        itemsHtml += '<div style="grid-column:1/-1;text-align:center;padding:10px 14px;background:rgba(124,58,237,.15);border-radius:12px;margin-bottom:6px;font-size:13px;color:#c4b5fd;font-weight:700">';
+        itemsHtml += '🛡️ ' + _ac + '/6 مجهّز — ' + _bonusTxt;
+        itemsHtml += '</div>';
         itemsHtml += '<div class="armor-verse-banner">' +
             '<div class="armor-verse-cross">✝</div>' +
             '<div class="armor-verse-lines">' +
@@ -3585,9 +3788,16 @@ function renderShop() {
             var owned = GameState.armor.indexOf(key) >= 0;
             var equipped = GameState.equippedArmor[item.slot] === key;
             itemsHtml += '<div class="shop-item-card' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '') + '">';
+            var _effectLabel = item.effect.extraTime ? '⏰ +' + item.effect.extraTime + ' ث لكل سؤال'
+                : item.effect.extraLife    ? '❤️ +' + item.effect.extraLife + ' حياة في الوحش'
+                : item.effect.scoreMultiplier ? '📈 ×' + item.effect.scoreMultiplier + ' مضاعفة النقاط'
+                : item.effect.speedBoost   ? '⚡ سرعة تحرك أعلى'
+                : item.effect.errorShield  ? '🔰 تحمي من ' + item.effect.errorShield + ' إجابة غلط'
+                : item.effect.attackPower  ? '⚔️ ×' + item.effect.attackPower + ' قوة الهجوم في الوحش' : '';
             itemsHtml += '<div class="shop-item-icon">' + item.icon + '</div>';
             itemsHtml += '<h3>' + item.name + '</h3>';
             itemsHtml += '<p class="shop-item-desc">' + item.desc + '</p>';
+            if (_effectLabel) itemsHtml += '<p style="background:rgba(124,58,237,.18);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#c4b5fd;margin:4px 0">' + _effectLabel + '</p>';
             itemsHtml += '<p class="shop-item-verse">"' + item.verse + '"</p>';
             if (owned && equipped) {
                 itemsHtml += '<span class="shop-badge equipped-badge">مُجهّز ✓</span>';
@@ -3595,6 +3805,81 @@ function renderShop() {
                 itemsHtml += '<button class="btn btn-small btn-primary equip-btn" data-key="' + key + '" data-action="equip-armor">تجهيز</button>';
             } else {
                 itemsHtml += '<button class="btn btn-small btn-gold buy-btn" data-key="' + key + '" data-action="buy-armor">💎 ' + item.cost + ' شراء</button>';
+            }
+            itemsHtml += '</div>';
+        });
+    } else if (shopActiveTab === 'weapons') {
+        // ── Armor Effects Banner ──────────────────────────────────────
+        var _armorCount = getEquippedArmorCount();
+        var _setLabel = _armorCount >= 6 ? 'مجموعة كاملة 🏆 (+30% جواهر)' : _armorCount >= 5 ? '5 قطع (+20% جواهر)' : _armorCount >= 3 ? '3 قطع (+10% جواهر)' : 'جمّع الدرع الكامل!';
+        itemsHtml += '<div class="armor-set-banner" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(124,58,237,.18),rgba(79,70,229,.12));border:1px solid rgba(124,58,237,.3);border-radius:14px;padding:12px 16px;margin-bottom:8px;text-align:center">';
+        itemsHtml += '<div style="font-size:20px;margin-bottom:4px">🛡️ ' + _armorCount + ' / 6 قطع مجهّزة</div>';
+        itemsHtml += '<div style="font-size:12px;color:var(--accent,#7c6af7)">' + _setLabel + '</div>';
+        itemsHtml += '</div>';
+        // ── Weapon Cards ──────────────────────────────────────────────
+        Object.entries(WEAPONS).forEach(function(entry) {
+            var key = entry[0], w = entry[1];
+            var count = getConsumableWeaponCount(key);
+            var isActive = w.type === 'timed' && isTimedWeaponActive(key);
+            var expiry = (GameState.weaponTimedEffects || {})[key];
+            var expiryLabel = isActive ? ('نشط حتى ' + new Date(expiry).toLocaleDateString('ar-EG')) : '';
+            itemsHtml += '<div class="shop-item-card' + (count > 0 || isActive ? ' owned' : '') + '">';
+            itemsHtml += '<div class="shop-item-icon">' + w.icon + '</div>';
+            itemsHtml += '<h3>' + w.name + '</h3>';
+            itemsHtml += '<p class="shop-item-desc">' + w.desc + '</p>';
+            if (w.type === 'timed') {
+                itemsHtml += '<p class="shop-item-verse" style="color:#FDCB6E">⏳ ' + w.duration + ' أيام</p>';
+                if (isActive) {
+                    itemsHtml += '<span class="shop-badge equipped-badge">✅ ' + expiryLabel + '</span>';
+                } else {
+                    itemsHtml += '<button class="btn btn-small btn-gold buy-btn" data-key="' + key + '" data-action="buy-weapon">💎 ' + w.cost + ' شراء</button>';
+                }
+            } else {
+                itemsHtml += '<p class="shop-item-verse" style="color:#74b9ff">عندك: ' + count + ' قطعة</p>';
+                itemsHtml += '<button class="btn btn-small btn-gold buy-btn" data-key="' + key + '" data-action="buy-weapon">💎 ' + w.cost + ' شراء</button>';
+            }
+            itemsHtml += '</div>';
+        });
+    } else if (shopActiveTab === 'bundles') {
+        // ── Daily Deal ────────────────────────────────────────────────
+        var _deal = getDailyDeal();
+        if (_deal) {
+            var _dealClaimed = GameState.dailyDealClaimed;
+            itemsHtml += '<div class="shop-item-card daily-deal-card" style="grid-column:1/-1;background:linear-gradient(135deg,rgba(253,203,110,.15),rgba(255,107,53,.1));border:2px solid #FDCB6E;border-radius:16px;position:relative">';
+            itemsHtml += '<div style="position:absolute;top:-10px;right:16px;background:#FDCB6E;color:#1a0a00;font-size:10px;font-weight:900;padding:3px 10px;border-radius:8px">⏰ عرض اليوم</div>';
+            itemsHtml += '<div class="shop-item-icon" style="font-size:44px">' + _deal.icon + '</div>';
+            itemsHtml += '<h3 style="color:#FDCB6E">' + _deal.name + '</h3>';
+            itemsHtml += '<p class="shop-item-desc">خصم 50% لمدة 24 ساعة!</p>';
+            itemsHtml += '<div style="display:flex;gap:12px;justify-content:center;align-items:center;margin:8px 0">';
+            itemsHtml += '<span style="text-decoration:line-through;color:var(--muted);font-size:13px">💎 ' + _deal.fullCost + '</span>';
+            itemsHtml += '<span style="color:#FDCB6E;font-size:18px;font-weight:900">💎 ' + _deal.discountedCost + '</span>';
+            itemsHtml += '</div>';
+            if (_dealClaimed) {
+                itemsHtml += '<span class="shop-badge equipped-badge">تم الاستلام ✓</span>';
+            } else {
+                itemsHtml += '<button class="btn btn-small btn-gold buy-btn" data-key="deal" data-action="buy-daily-deal">💎 ' + _deal.discountedCost + ' اشتري</button>';
+            }
+            itemsHtml += '</div>';
+        }
+        // ── Bundle Cards ──────────────────────────────────────────────
+        SHOP_BUNDLES.forEach(function(bundle) {
+            var claimed = (GameState.claimedBundles || []).indexOf(bundle.id) >= 0;
+            if (bundle.oneTime && claimed) return;
+            itemsHtml += '<div class="shop-item-card" style="grid-column:1/-1;border:1px solid rgba(253,203,110,.4)">';
+            itemsHtml += '<div class="shop-item-icon" style="font-size:40px">' + bundle.icon + '</div>';
+            itemsHtml += '<h3 style="color:#FDCB6E">' + bundle.name + '</h3>';
+            itemsHtml += '<p class="shop-item-desc">' + bundle.desc + '</p>';
+            itemsHtml += '<div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0">';
+            bundle.items.forEach(function(it) { itemsHtml += '<span style="background:rgba(255,255,255,.08);border-radius:8px;padding:3px 8px;font-size:11px">' + it.label + '</span>'; });
+            itemsHtml += '</div>';
+            itemsHtml += '<div style="display:flex;gap:12px;justify-content:center;align-items:center;margin:8px 0">';
+            itemsHtml += '<span style="text-decoration:line-through;color:var(--muted);font-size:13px">💎 ' + bundle.originalCost + '</span>';
+            itemsHtml += '<span style="color:#FDCB6E;font-size:18px;font-weight:900">💎 ' + bundle.cost + '</span>';
+            itemsHtml += '</div>';
+            if (claimed) {
+                itemsHtml += '<span class="shop-badge equipped-badge">تم الشراء ✓</span>';
+            } else {
+                itemsHtml += '<button class="btn btn-small btn-gold buy-btn" data-key="' + bundle.id + '" data-action="buy-bundle">💎 ' + bundle.cost + ' اشتري الباقة</button>';
             }
             itemsHtml += '</div>';
         });
@@ -3612,8 +3897,14 @@ function renderShop() {
             itemsHtml += '</div>';
             itemsHtml += '<div class="frame-deco-dots" style="color:' + frame.accentColor + '">✦ ✦ ✦</div>';
             itemsHtml += '</div>';
+            var _fp = FRAME_PASSIVES[key];
+            var _fpLabel = _fp ? (_fp.bibleBonus ? '📖 +' + Math.round(_fp.bibleBonus*100) + '% نقاط أسئلة الكتاب المقدس'
+                : _fp.extraChallengeAttempt ? '🎯 +1 محاولة تحدٍّ يومي إضافية'
+                : _fp.sundayStarBonus ? '⛪ +' + _fp.sundayStarBonus + ' نجمة هدية كل أحد'
+                : _fp.streakShield ? '🔥 حماية يوم واحد في سلسلة الدخول' : '') : '';
             itemsHtml += '<h3 style="color:' + frame.accentColor + '">' + frame.name + '</h3>';
             itemsHtml += '<p class="shop-item-desc">' + frame.desc + '</p>';
+            if (_fpLabel) itemsHtml += '<p style="background:rgba(124,58,237,.18);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#c4b5fd;margin:4px 0">' + _fpLabel + '</p>';
             if (owned && equipped) {
                 itemsHtml += '<span class="shop-badge equipped-badge">مُجهّز ✓</span>';
             } else if (owned) {
@@ -3629,10 +3920,14 @@ function renderShop() {
             var owned = (GameState.ownedTitles || []).indexOf(key) >= 0;
             var canEarn = !owned && title.cost === 0 && title.earned();
             var equipped = GameState.equippedTitle === key;
+            var _tp = TITLE_PASSIVES[key];
+            var _tpLabel = _tp ? (_tp.extraHints ? '💡 +' + _tp.extraHints + ' تلميح مجاني في كل كويز'
+                : _tp.bossExtraAttack ? '⚔️ +' + _tp.bossExtraAttack + ' أرواح في معارك الوحش' : '') : '';
             itemsHtml += '<div class="shop-item-card shop-title-card' + (owned ? ' owned' : '') + (equipped ? ' equipped' : '') + (canEarn ? ' earnable' : '') + '">';
             itemsHtml += '<div class="shop-item-icon" style="font-size:40px">' + title.icon + '</div>';
             itemsHtml += '<h3>' + title.name + '</h3>';
             itemsHtml += '<p class="shop-item-desc">' + title.desc + '</p>';
+            if (_tpLabel) itemsHtml += '<p style="background:rgba(124,58,237,.18);border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#c4b5fd;margin:4px 0">' + _tpLabel + '</p>';
             if (owned && equipped) {
                 itemsHtml += '<span class="shop-badge equipped-badge">مُفعّل ✓</span>';
             } else if (owned) {
@@ -3721,6 +4016,9 @@ function handleShopClick(e) {
     else if (action === 'buy-theme') buyMapTheme(key);
     else if (action === 'set-theme') setMapTheme(key);
     else if (action === 'claim-streak') claimStreakReward(key);
+    else if (action === 'buy-weapon') buyWeapon(key);
+    else if (action === 'buy-bundle') buyBundle(key);
+    else if (action === 'buy-daily-deal') buyDailyDeal();
 }
 
 function claimStreakReward(id) {
@@ -3766,6 +4064,78 @@ function equipArmor(key) {
     var item = ARMOR_ITEMS[key];
     GameState.equippedArmor[item.slot] = key;
     showToast('تم تجهيز ' + item.name);
+    renderShop();
+    saveGame();
+}
+
+function buyWeapon(key) {
+    var w = WEAPONS[key];
+    if (!w) return;
+    if ((GameState.gems || 0) < w.cost) { showToast('محتاج ' + w.cost + ' 💎 لشراء ' + w.name, 'warning'); return; }
+    GameState.gems -= w.cost;
+    if (w.type === 'timed') {
+        if (!GameState.weaponTimedEffects) GameState.weaponTimedEffects = {};
+        var existing = GameState.weaponTimedEffects[key] || 0;
+        var base = Math.max(existing, Date.now());
+        GameState.weaponTimedEffects[key] = base + w.duration * 24 * 3600 * 1000;
+        showToast(w.icon + ' تم تفعيل ' + w.name + ' لمدة ' + w.duration + ' أيام!');
+    } else {
+        if (!GameState.consumableWeapons) GameState.consumableWeapons = {};
+        GameState.consumableWeapons[key] = (GameState.consumableWeapons[key] || 0) + 1;
+        showToast(w.icon + ' اشتريت ' + w.name + '! عندك ' + GameState.consumableWeapons[key]);
+    }
+    launchConfetti(1500);
+    renderShop();
+    saveGame();
+}
+
+function buyBundle(id) {
+    var bundle = SHOP_BUNDLES.find(function(b) { return b.id === id; });
+    if (!bundle) return;
+    if ((GameState.gems || 0) < bundle.cost) { showToast('محتاج ' + bundle.cost + ' 💎 للباقة دي', 'warning'); return; }
+    if (bundle.oneTime && (GameState.claimedBundles || []).indexOf(id) >= 0) { showToast('اشتريت الباقة دي قبل كده!', 'warning'); return; }
+    GameState.gems -= bundle.cost;
+    if (!GameState.claimedBundles) GameState.claimedBundles = [];
+    GameState.claimedBundles.push(id);
+    // Apply each item in bundle
+    bundle.items.forEach(function(it) {
+        if (it.type === 'armor' && (GameState.armor || []).indexOf(it.key) < 0) {
+            if (!GameState.armor) GameState.armor = [];
+            GameState.armor.push(it.key);
+        } else if (it.type === 'frame') {
+            if (!GameState.ownedFrames) GameState.ownedFrames = [];
+            if (GameState.ownedFrames.indexOf(it.key) < 0) GameState.ownedFrames.push(it.key);
+        } else if (it.type === 'title') {
+            if (!GameState.ownedTitles) GameState.ownedTitles = [];
+            if (GameState.ownedTitles.indexOf(it.key) < 0) GameState.ownedTitles.push(it.key);
+        } else if (it.type === 'weapon') {
+            if (!GameState.consumableWeapons) GameState.consumableWeapons = {};
+            GameState.consumableWeapons[it.key] = (GameState.consumableWeapons[it.key] || 0) + 1;
+        } else if (it.type === 'stars') {
+            GameState.stars = (GameState.stars || 0) + (it.count || 0);
+        }
+    });
+    showAchievement('🎁', bundle.name, 'تم فتح كل محتوى الباقة!');
+    launchConfetti(2500);
+    renderShop();
+    saveGame();
+}
+
+function buyDailyDeal() {
+    var deal = getDailyDeal();
+    if (!deal || GameState.dailyDealClaimed) { showToast('العرض انتهى أو تم الشراء بالفعل!', 'warning'); return; }
+    if ((GameState.gems || 0) < deal.discountedCost) { showToast('محتاج ' + deal.discountedCost + ' 💎!', 'warning'); return; }
+    GameState.gems -= deal.discountedCost;
+    GameState.dailyDealClaimed = true;
+    if (deal.type === 'armor' && (GameState.armor || []).indexOf(deal.key) < 0) {
+        if (!GameState.armor) GameState.armor = [];
+        GameState.armor.push(deal.key);
+    } else if (deal.type === 'weapon') {
+        if (!GameState.consumableWeapons) GameState.consumableWeapons = {};
+        GameState.consumableWeapons[deal.key] = (GameState.consumableWeapons[deal.key] || 0) + 1;
+    }
+    showAchievement('⏰', 'عرض اليوم!', 'اشتريت ' + deal.name + ' بنص السعر!');
+    launchConfetti(1800);
     renderShop();
     saveGame();
 }
@@ -13924,6 +14294,9 @@ function answerCompete(selectedIdx) {
             competeState.doubleSling = false;
             showAchievement('🪨', 'مضاعفة!', 'نقاطك اتضاعفت! +' + points);
         }
+        // Belt armor: score multiplier in compete rooms
+        var _competeBelt = getArmorEffect('scoreMultiplier');
+        if (_competeBelt) points = Math.round(points * _competeBelt);
         playCorrectSound();
         vibrate(50);
         companionReact(competeState.streak >= 3 ? 'streak' : 'happy');
@@ -17033,6 +17406,8 @@ function openQuestionThread(threadId) {
     QAState.readOnly = false;
     QAState.currentThreadId = threadId;
     showScreen('question-thread-screen');
+    var ts = document.getElementById('question-thread-screen');
+    if (ts) ts.classList.remove('shared-view');
     var composer = document.querySelector('.qthread-composer');
     if (composer) composer.style.display = '';
 
@@ -20485,7 +20860,8 @@ function startBossChallenge() {
         timer: null, timeLeft: 0, answers: [], clueIndex: 0, maxPoints: 0,
         selectedWords: [], selectedLeft: null, matched: []
     };
-    bossState = { bossHp: 100, bossMaxHp: 100, playerHp: 3, playerMaxHp: 3, bossName: boss.name, bossEmoji: boss.emoji, bossColor: boss.color };
+    var _bossMaxHp = 3 + (getArmorEffect('extraLife') || 0) + (getTitlePassive('bossExtraAttack') || 0);
+    bossState = { bossHp: 100, bossMaxHp: 100, playerHp: _bossMaxHp, playerMaxHp: _bossMaxHp, bossName: boss.name, bossEmoji: boss.emoji, bossColor: boss.color, reviveAvailable: getConsumableWeaponCount('holyBreath') > 0 };
 
     var intro = '<div class="boss-intro">';
     intro += '<div class="boss-emoji-big">' + boss.emoji + '</div>';
@@ -20544,13 +20920,21 @@ function answerBossQ(isCorrect) {
     // Disable buttons immediately
     document.querySelectorAll('.boss-btn-true,.boss-btn-false,.boss-mcq-btn').forEach(function(b) { b.disabled = true; });
     if (isCorrect) {
-        var dmg = Math.ceil(bossState.bossMaxHp / miniGameState.data.length);
+        var _swordMult = 1 + (getArmorEffect('attackPower') ? (getArmorEffect('attackPower') - 1) * 0.5 : 0);
+        if (isTimedWeaponActive('doubleSword')) _swordMult += WEAPONS.doubleSword.boost;
+        var dmg = Math.ceil((bossState.bossMaxHp / miniGameState.data.length) * _swordMult);
         bossState.bossHp = Math.max(0, bossState.bossHp - dmg);
         miniGameState.score += 5;
         playCorrectSound(); showFloatingReward('💥 ضربة! +5 ⭐');
         var av = document.getElementById('boss-avatar'); if (av) { av.classList.add('boss-hit'); setTimeout(function() { av.classList.remove('boss-hit'); }, 500); }
     } else {
         bossState.playerHp = Math.max(0, bossState.playerHp - 1);
+        // holyBreath weapon: auto-revive when hp hits 0
+        if (bossState.playerHp <= 0 && bossState.reviveAvailable && consumeWeapon('holyBreath')) {
+            bossState.playerHp = 1;
+            bossState.reviveAvailable = false;
+            showAchievement('🕊️', 'نسمة الروح القدس!', 'تم إحياؤك بنسمة الروح المقدس!');
+        }
         playWrongSound();
         var bt = document.querySelector('.boss-battle'); if (bt) { bt.classList.add('boss-attack'); setTimeout(function() { bt.classList.remove('boss-attack'); }, 600); }
     }
@@ -21143,6 +21527,8 @@ function openSharedThread(threadId) {
     QAState.readOnly = true;
     QAState.currentThreadId = threadId;
     showScreen('question-thread-screen');
+    var ts = document.getElementById('question-thread-screen');
+    if (ts) ts.classList.add('shared-view');
 
     var thread = _sharedThreads.find(function(t) { return t._id === threadId; });
     var titleEl = document.getElementById('qthread-title');

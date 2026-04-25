@@ -8158,16 +8158,23 @@ body {
 .chat-choice-btn:active:not(:disabled) { transform: scale(0.98); }
 
 /* ─── KALEMA (HANGMAN) ─── */
-.kalema-game { display: flex; flex-direction: column; gap: 10px; }
-.kalema-header { display: flex; justify-content: space-between; font-size: 13px; }
-.kalema-hearts { text-align: center; font-size: 22px; letter-spacing: 4px; }
+.kalema-game { display: flex; flex-direction: column; gap: 8px; }
+.kalema-header { display: flex; justify-content: space-between; align-items: center; }
+.kalema-word-badge { background: rgba(108,92,231,0.15); border: 1px solid rgba(108,92,231,0.3); border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+.kalema-score-badge { background: rgba(253,203,110,0.15); border: 1px solid rgba(253,203,110,0.3); border-radius: 20px; padding: 3px 12px; font-size: 12px; font-weight: 800; color: var(--gold); }
+.kalema-figure { text-align: center; font-size: 32px; line-height: 1; min-height: 40px; }
+.kalema-lives { display: flex; justify-content: center; gap: 4px; }
+.kalema-life { font-size: 18px; transition: opacity 0.3s, filter 0.3s; }
+.kalema-life.lost { opacity: 0.3; filter: grayscale(1); }
 .kalema-hint { background: rgba(253,203,110,0.12); border: 1px solid rgba(253,203,110,0.3); border-radius: 12px; padding: 8px 12px; font-size: 13px; color: var(--gold); text-align: center; }
-.kalema-word { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 6px 0; }
-.kalema-box { width: 36px; height: 42px; border-radius: 8px; border: 2px solid rgba(108,92,231,0.5); background: rgba(108,92,231,0.08); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 800; color: var(--text-primary); transition: background 0.3s, transform 0.2s; }
-.kalema-box.revealed { background: linear-gradient(135deg,rgba(0,184,148,0.25),rgba(0,206,201,0.25)); border-color: #00B894; animation: box-pop 0.35s ease; }
+.kalema-progress-bar { height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+.kalema-progress-fill { height: 100%; background: linear-gradient(90deg,#6C5CE7,#00B894); border-radius: 3px; transition: width 0.4s ease; }
+.kalema-word { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 4px 0; }
+.kalema-box { width: 36px; height: 44px; border-radius: 8px; border: 2px solid rgba(108,92,231,0.5); background: rgba(108,92,231,0.08); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 800; color: var(--text-primary); transition: background 0.3s, transform 0.2s; }
+.kalema-box.revealed { background: linear-gradient(135deg,rgba(0,184,148,0.3),rgba(0,206,201,0.2)); border-color: #00B894; animation: box-pop 0.35s ease; }
 @keyframes box-pop { 0%{transform:scale(0.7)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
-.kalema-wrong { font-size: 13px; color: var(--text-muted); text-align: center; }
-.wrong-letter { display: inline-block; margin: 0 3px; padding: 1px 6px; background: rgba(231,76,60,0.2); border-radius: 6px; color: #e74c3c; font-weight: 700; }
+.kalema-wrong { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.wrong-letter { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; background: rgba(231,76,60,0.2); border: 1px solid rgba(231,76,60,0.4); border-radius: 6px; color: #e74c3c; font-weight: 800; font-size: 14px; }
 .kalema-keyboard { display: flex; flex-direction: column; gap: 5px; align-items: center; }
 .kalema-row { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
 .kalema-key { width: 30px; height: 34px; border: none; border-radius: 7px; background: rgba(255,255,255,0.08); color: var(--text-primary); font-size: 14px; font-weight: 700; cursor: pointer; transition: background 0.15s, transform 0.1s; font-family: inherit; }

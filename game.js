@@ -261,6 +261,22 @@ function submitLogin() {
             ['stars', 'gems', 'totalCorrect', 'totalAnswered', 'bestStreak', 'gamesPlayed', 'xp'].forEach(function(k) {
                 GameState[k] = Math.max(GameState[k] || 0, localBackup[k] || 0);
             });
+            // Merge powerUps per-key with Math.max so locally earned powerUps are never lost
+            var cPU = existingData.powerUps || {}, lPU = localBackup.powerUps || {};
+            GameState.powerUps = {
+                fiftyFifty:   Math.max(cPU.fiftyFifty   || 0, lPU.fiftyFifty   || 0),
+                skip:         Math.max(cPU.skip         || 0, lPU.skip         || 0),
+                doublePoints: Math.max(cPU.doublePoints || 0, lPU.doublePoints || 0),
+                freeze:       Math.max(cPU.freeze       || 0, lPU.freeze       || 0),
+                hint:         Math.max(cPU.hint         || 0, lPU.hint         || 0)
+            };
+            // Merge consumableWeapons per-key with Math.max
+            var cCW = existingData.consumableWeapons || {}, lCW = localBackup.consumableWeapons || {};
+            var cwMerged = {};
+            Object.keys(cCW).concat(Object.keys(lCW)).forEach(function(k) {
+                cwMerged[k] = Math.max(cCW[k] || 0, lCW[k] || 0);
+            });
+            GameState.consumableWeapons = cwMerged;
             // Merge all object maps — cloud wins for same keys, local-only entries preserved
             ['watchedVideos', 'lessonSummaries', 'dailyVerseLog', 'bibleReadingLog',
              'devotionLog', 'exerciseLog', 'paulJourneyData', 'highlightedVerses',
@@ -285,8 +301,8 @@ function submitLogin() {
                 lastActiveDate:  cLamp.lastActiveDate  || lLamp.lastActiveDate  || '',
                 dailyLog: Object.assign({}, lLamp.dailyLog || {}, cLamp.dailyLog || {})
             };
-            // Array fields: union unique values
-            ['redeemedRewards', 'claimedStreakRewards', 'ownedFrames', 'ownedTitles'].forEach(function(k) {
+            // Array fields: union unique values (armor/claimedBundles included so locally owned items are never lost)
+            ['redeemedRewards', 'claimedStreakRewards', 'ownedFrames', 'ownedTitles', 'armor', 'claimedBundles'].forEach(function(k) {
                 var cArr = GameState[k] || [], lArr = localBackup[k] || [];
                 if (!Array.isArray(cArr) || !Array.isArray(lArr)) return;
                 var merged = cArr.slice();
@@ -762,6 +778,29 @@ function loadFromCloud(phone) {
                                 }
                             });
                             GameState[key] = merged;
+                        } else if (key === 'powerUps') {
+                            var cPU2 = data[key] || {}, lPU2 = localBackup[key] || GameState[key] || {};
+                            GameState[key] = {
+                                fiftyFifty:   Math.max(cPU2.fiftyFifty   || 0, lPU2.fiftyFifty   || 0),
+                                skip:         Math.max(cPU2.skip         || 0, lPU2.skip         || 0),
+                                doublePoints: Math.max(cPU2.doublePoints || 0, lPU2.doublePoints || 0),
+                                freeze:       Math.max(cPU2.freeze       || 0, lPU2.freeze       || 0),
+                                hint:         Math.max(cPU2.hint         || 0, lPU2.hint         || 0)
+                            };
+                        } else if (key === 'consumableWeapons') {
+                            var cCW2 = data[key] || {}, lCW2 = localBackup[key] || GameState[key] || {};
+                            var cwM2 = {};
+                            Object.keys(cCW2).concat(Object.keys(lCW2)).forEach(function(k) {
+                                cwM2[k] = Math.max(cCW2[k] || 0, lCW2[k] || 0);
+                            });
+                            GameState[key] = cwM2;
+                        } else if (key === 'armor' || key === 'claimedBundles' || key === 'ownedFrames' || key === 'ownedTitles' || key === 'redeemedRewards' || key === 'claimedStreakRewards') {
+                            var cArr2 = data[key] || [], lArr2 = localBackup[key] || GameState[key] || [];
+                            if (Array.isArray(cArr2) && Array.isArray(lArr2)) {
+                                var unionArr = cArr2.slice();
+                                lArr2.forEach(function(v) { if (unionArr.indexOf(v) < 0) unionArr.push(v); });
+                                GameState[key] = unionArr;
+                            } else { GameState[key] = cArr2; }
                         } else if (key === 'stars' || key === 'gems' || key === 'totalCorrect' || key === 'totalAnswered' || key === 'bestStreak' || key === 'gamesPlayed' || key === 'xp') {
                             // For numeric scores, take max of cloud and local (xp included so a stale cloud value never regresses the player's level)
                             GameState[key] = Math.max(data[key] || 0, localBackup[key] || GameState[key] || 0);
@@ -1388,7 +1427,7 @@ function getDailyDeal() {
     GameState.dailyDealDate = today;
     GameState.dailyDealClaimed = false;
     GameState._dailyDealCache = deal;
-    saveToLocalStorage();
+    saveToLocalStorage(true);
     return deal;
 }
 
@@ -2324,7 +2363,10 @@ function showScreen(id) {
     if (id === 'character-screen') { renderCharacters(); renderCharSuggestions(); }
     if (id === 'info-screen') { _infoTab = 0; renderInfoScreen(); }
     if (id === 'fun-zone-screen') { renderFunZone(); showCompanion('idle'); companionSpeak('اختار لعبة واستمتع! 🎮', 2500); }
-    if (id === 'emoji-game-screen') { /* rendered by game start functions */ }
+    if (id === 'emoji-game-screen') {
+        var _h2 = document.querySelector('#emoji-game-screen .top-bar h2');
+        if (_h2) _h2.innerHTML = '<i class="fas fa-masks-theater"></i> خمّن من الإيموجي';
+    }
     if (id === 'shop-screen') renderShop();
     if (id === 'leaderboard-screen') renderLeaderboard();
     if (id === 'settings-screen') renderSettings();
@@ -2565,7 +2607,7 @@ function renderCategories(level) {
 }
 
 // --- Quiz Engine ---
-var quizState = { questions:[], currentIndex:0, score:0, correctCount:0, timer:null, timeLeft:30, currentLevel:null, currentCategory:null, answered:false, doublePoints:false, frozen:false };
+var quizState = { questions:[], currentIndex:0, score:0, correctCount:0, timer:null, timeLeft:30, currentLevel:null, currentCategory:null, answered:false, doublePoints:false, frozen:false, scholarHints:0 };
 
 function startQuiz(catId, level) {
     var pool = QUESTIONS[catId] || [];
@@ -2587,9 +2629,9 @@ function startQuiz(catId, level) {
     var _setBonus = getArmorSetBonus();
     if (_setBonus === 'five' || _setBonus === 'full') quizState.bonusFiftyFifty = 1;
     else quizState.bonusFiftyFifty = 0;
-    // Scholar title: +1 hint per quiz
+    // Scholar title: +1 hint per quiz (temporary — stored in quizState, not GameState, to prevent cloud inflation)
     var _extraHints = getTitlePassive('extraHints');
-    if (_extraHints) GameState.powerUps.hint = (GameState.powerUps.hint || 0) + _extraHints;
+    quizState.scholarHints = _extraHints || 0;
     var catObj = CATEGORIES.find(function(c) { return c.id === catId; });
     document.getElementById('quiz-category-label').textContent = catObj ? catObj.icon + ' ' + catObj.name : '';
     showScreen('quiz-screen');
@@ -2701,7 +2743,7 @@ function renderPowerUps() {
         {key:'skip', icon:'fa-forward', label:'تخطي', count: GameState.powerUps.skip},
         {key:'doublePoints', icon:'fa-star', label:'مضاعفة', count: GameState.powerUps.doublePoints},
         {key:'freeze', icon:'fa-snowflake', label:'تجميد', count: GameState.powerUps.freeze},
-        {key:'hint', icon:'fa-lightbulb', label:'تلميح', count: GameState.powerUps.hint}
+        {key:'hint', icon:'fa-lightbulb', label:'تلميح', count: (GameState.powerUps.hint || 0) + (quizState.scholarHints || 0)}
     ];
     items.forEach(function(item) {
         var btn = document.createElement('button');
@@ -2715,8 +2757,11 @@ function renderPowerUps() {
 
 function usePowerUp(type) {
     if (quizState.answered) return;
-    if (GameState.powerUps[type] <= 0) return;
-    GameState.powerUps[type]--;
+    // Scholar title grants temporary per-quiz hints stored in quizState.scholarHints
+    var hasScholarHint = type === 'hint' && (quizState.scholarHints || 0) > 0;
+    if (!hasScholarHint && GameState.powerUps[type] <= 0) return;
+    if (!hasScholarHint) GameState.powerUps[type]--;
+    else quizState.scholarHints--;
     var q = quizState.questions[quizState.currentIndex];
     if (type === 'fiftyFifty') {
         var btns = document.querySelectorAll('.answer-btn');
@@ -8274,6 +8319,8 @@ function renderFunZone() {
 
 // Quick Quiz — pulls random L2 questions
 function startQuickQuiz() {
+    var h2 = document.querySelector('#emoji-game-screen .top-bar h2');
+    if (h2) h2.innerHTML = '<i class="fas fa-question-circle"></i> اختبار سريع';
     var allQs = [];
     var subKeys = Object.keys(LEVEL2_SUBJECTS || {});
     subKeys.forEach(function(sk) {
@@ -8368,6 +8415,8 @@ function startTFBlitz() {
     shuffleArray(qs);
     tfBlitzState = { index: 0, score: 0, streak: 0, correct: 0, timer: null, timeLeft: 30, questions: qs, answered: false };
     showScreen('emoji-game-screen');
+    var h2 = document.querySelector('#emoji-game-screen .top-bar h2');
+    if (h2) h2.innerHTML = '<i class="fas fa-bolt"></i> بلتز صح/غلط';
     showCompanion('thinking');
     companionSpeak('30 ثانية — صح ولا غلط! ⚡', 2000);
     renderTFBlitzRound();
@@ -8507,6 +8556,8 @@ function startQuickQuizFromLesson() {
     var selected = allQs.slice(0, 10);
     emojiGameState = { index: 0, score: 0, streak: 0, maxStreak: 0, correct: 0, total: selected.length, timer: null, timeLeft: 15, questions: selected, answered: false, fromLevel2: true };
     showScreen('emoji-game-screen');
+    var _h2 = document.querySelector('#emoji-game-screen .top-bar h2');
+    if (_h2) _h2.innerHTML = '<i class="fas fa-question-circle"></i> اختبار سريع';
     showCompanion('thinking');
     companionSpeak('أسئلة من الدرس — يلا! 🚀', 2000);
     renderQuickQuizRound();
@@ -8528,6 +8579,8 @@ function startTFBlitzFromLesson() {
     tfBlitzState = { index: 0, score: 0, streak: 0, correct: 0, timer: null, timeLeft: 30, questions: qs, answered: false };
     emojiGameState = { fromLevel2: true, _saveType: 'tfBlitz' };
     showScreen('emoji-game-screen');
+    var _h2 = document.querySelector('#emoji-game-screen .top-bar h2');
+    if (_h2) _h2.innerHTML = '<i class="fas fa-bolt"></i> بلتز صح/غلط';
     showCompanion('thinking');
     companionSpeak('30 ثانية من الدرس — صح ولا غلط! ⚡', 2000);
     renderTFBlitzRound();
@@ -11732,7 +11785,10 @@ function startMiniGame(type) {
     }
 
     var games = getMiniGamesForLesson();
-    if (!games || !games[type]) return;
+    if (!games || !games[type]) {
+        showToast('هذه اللعبة هتكون متاحة قريباً في هذا الدرس! 🚀', 'info');
+        return;
+    }
 
     miniGameState = {
         type: type,
@@ -16292,6 +16348,18 @@ function cancelDuel() {
     if (overlay) overlay.remove();
 }
 
+function abandonDuel() {
+    if (duelState.unsubscribe) { duelState.unsubscribe(); duelState.unsubscribe = null; }
+    if (duelState.code && firebaseDb) {
+        var upd = {}; upd[duelState.role + 'Done'] = true; upd[duelState.role + 'Score'] = duelState.score;
+        firebaseDb.collection('duels').doc(duelState.code).update(upd).catch(function(){});
+    }
+    var go = document.getElementById('duel-game-overlay');
+    if (go) go.remove();
+    duelState = { code: null, role: null, unsubscribe: null, questions: [], index: 0, score: 0, opponentScore: 0, done: false };
+    showToast('خرجت من المبارزة', 'info');
+}
+
 function startDuelGame() {
     var overlay = document.createElement('div');
     overlay.id = 'duel-game-overlay';
@@ -16304,6 +16372,7 @@ function startDuelGame() {
         '</div>' +
         '<div class="duel-progress">س <span id="duel-q-num">1</span> من 10</div>' +
         '<div id="duel-game-body"></div>' +
+        '<button onclick="abandonDuel()" style="margin-top:10px;width:100%;background:rgba(231,76,60,0.15);border:1px solid rgba(231,76,60,0.3);border-radius:10px;padding:8px;color:#e74c3c;font-family:Cairo,sans-serif;font-size:13px;cursor:pointer">✕ خروج من المبارزة</button>' +
         '</div>';
     document.body.appendChild(overlay);
     setTimeout(function() { overlay.classList.add('visible'); }, 10);
@@ -16361,6 +16430,15 @@ function finishDuel() {
 
     var body = document.getElementById('duel-game-body');
     if (body) body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> بنستنى المنافس يخلص...</div>';
+    // Auto-close after 2 minutes if opponent never finishes
+    setTimeout(function() {
+        var go = document.getElementById('duel-game-overlay');
+        if (go) {
+            if (duelState.unsubscribe) { duelState.unsubscribe(); duelState.unsubscribe = null; }
+            go.remove();
+            showToast('انتهى وقت انتظار المنافس', 'info');
+        }
+    }, 120000);
 }
 
 function showDuelResult(myScore, theirScore, theirName) {
@@ -19550,7 +19628,10 @@ function finishCouncilJourney() {
 // ============================================================
 function startDetective() {
     var games = getInteractiveGamesForLesson();
-    if (!games || !games.detective) return;
+    if (!games || !games.detective) {
+        showToast('لعبة المحقق هتكون متاحة قريباً في هذا الدرس! 🕵️', 'info');
+        return;
+    }
     var data = games.detective;
 
     miniGameState = {
@@ -21060,32 +21141,47 @@ function renderKalemaUI() {
     var wd = kalemaState.words[kalemaState.wordIndex];
     var wrong = kalemaState.wrongGuesses.length;
     var livesLeft = kalemaState.maxWrong - wrong;
+    var revealedCount = kalemaState.currentWord.filter(function(l) { return kalemaState.guessed.indexOf(l) !== -1; }).length;
+    var totalLetters = kalemaState.currentWord.length;
+    var progressPct = totalLetters > 0 ? Math.round((revealedCount / totalLetters) * 100) : 0;
 
     var html = '<div class="kalema-game">';
+
+    // Header row
     html += '<div class="kalema-header">';
-    html += '<span>كلمة ' + (kalemaState.wordIndex + 1) + ' / ' + kalemaState.words.length + '</span>';
-    html += '<span style="color:var(--gold)">⭐ ' + kalemaState.score + '</span>';
+    html += '<span class="kalema-word-badge">كلمة ' + (kalemaState.wordIndex + 1) + ' / ' + kalemaState.words.length + '</span>';
+    html += '<span class="kalema-score-badge">⭐ ' + kalemaState.score + '</span>';
     html += '</div>';
 
-    // Lives as hearts
-    var heartsHTML = '';
-    for (var h = 0; h < kalemaState.maxWrong; h++) heartsHTML += h < livesLeft ? '❤️' : '🖤';
-    html += '<div class="kalema-hearts">' + heartsHTML + '</div>';
+    // Hangman figure — drawn with emojis based on wrong guesses
+    var figures = ['🧍', '🧍‍♂️💭', '😅', '😰', '😱', '😵', '💀'];
+    var figureIdx = Math.min(wrong, figures.length - 1);
+    html += '<div class="kalema-figure">' + figures[figureIdx] + '</div>';
+
+    // Lives bar
+    html += '<div class="kalema-lives">';
+    for (var h = 0; h < kalemaState.maxWrong; h++) {
+        html += '<span class="kalema-life' + (h >= livesLeft ? ' lost' : '') + '">❤️</span>';
+    }
+    html += '</div>';
 
     // Hint
     html += '<div class="kalema-hint">💡 ' + wd.hint + '</div>';
 
-    // Word boxes
-    html += '<div class="kalema-word">';
+    // Progress bar for word completion
+    html += '<div class="kalema-progress-bar"><div class="kalema-progress-fill" style="width:' + progressPct + '%"></div></div>';
+
+    // Word boxes (RTL — reversed for Arabic right-to-left reading)
+    html += '<div class="kalema-word" dir="rtl">';
     kalemaState.currentWord.forEach(function(letter) {
         var rev = kalemaState.guessed.indexOf(letter) !== -1;
         html += '<div class="kalema-box' + (rev ? ' revealed' : '') + '">' + (rev ? letter : '') + '</div>';
     });
     html += '</div>';
 
-    // Wrong letters
+    // Wrong letters shown compactly
     if (kalemaState.wrongGuesses.length > 0) {
-        html += '<div class="kalema-wrong">خطأ: ';
+        html += '<div class="kalema-wrong">';
         kalemaState.wrongGuesses.forEach(function(l) { html += '<span class="wrong-letter">' + l + '</span>'; });
         html += '</div>';
     }

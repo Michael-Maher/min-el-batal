@@ -877,7 +877,6 @@ function loadLeaderboardFromCloud() {
     if (!firebaseDb) return Promise.resolve([]);
     return firebaseDb.collection('leaderboard')
         .orderBy('stars', 'desc')
-        .limit(50)
         .get()
         .then(snapshot => {
             const players = [];
@@ -9091,6 +9090,8 @@ function renderHomeHub() {
     if (starsEl) starsEl.textContent = GameState.stars;
     var gemsEl = document.getElementById('hub-gems');
     if (gemsEl) gemsEl.textContent = GameState.gems;
+    var streakNumEl = document.getElementById('hub-streak-num');
+    if (streakNumEl) streakNumEl.textContent = calculateLoginStreak();
 
     // Team badge in hub
     updateHubTeamBadge();
@@ -9940,6 +9941,7 @@ function startLevel2Lesson(lessonIdx) {
     level2State.quizIndex = 0;
     level2State.quizScore = 0;
     level2State.quizAnswers = [];
+    level2State.activeQuestions = null;
 
     showScreen('level2-lesson-screen');
     renderLevel2Lesson();
@@ -10903,6 +10905,24 @@ var miniGameState = {
     matched: []
 };
 
+// Convert a question-style MCQ into a readable True/False statement in Arabic
+function questionToStatement(q, answer) {
+    var text = q.replace(/[؟?]$/, '').trim();
+    var m;
+    if (m = text.match(/^ما هو\s+(.+)/))    return m[1] + ' هو ' + answer;
+    if (m = text.match(/^ما هي\s+(.+)/))    return m[1] + ' هي ' + answer;
+    if (m = text.match(/^من هو\s+(.+)/))    return m[1] + ' هو ' + answer;
+    if (m = text.match(/^من هي\s+(.+)/))    return m[1] + ' هي ' + answer;
+    if (m = text.match(/^أين\s+(.+)/))      return m[1] + ' في ' + answer;
+    if (m = text.match(/^متى\s+(.+)/))      return m[1] + ' في ' + answer;
+    if (m = text.match(/^كم عدد\s+(.+)/))  return 'عدد ' + m[1] + ' هو ' + answer;
+    if (m = text.match(/^كم\s+(.+)/))       return answer + ' ' + m[1];
+    if (m = text.match(/^ما معنى\s+(.+)/))  return 'معنى ' + m[1] + ' هو ' + answer;
+    if (m = text.match(/^ماذا\s+(.+)/))     return m[1] + ' ' + answer;
+    if (m = text.match(/^من\s+(.+)/))       return answer + ' ' + m[1];
+    return text + ' — ' + answer;
+}
+
 function getMiniGamesForLesson() {
     var key = level2State.currentSubject + '_' + level2State.currentLesson;
     if (LESSON_MINI_GAMES[key]) return LESSON_MINI_GAMES[key];
@@ -10920,9 +10940,18 @@ function getMiniGamesForLesson() {
         var correct = q.options[q.correct];
         var wrongIdx = (q.correct + 1) % q.options.length;
         var wrong = q.options[wrongIdx];
-        var stem = q.q.replace(/\.\.\./g, correct); // fill blanks with correct answer
-        trueFalse.push({ statement: stem.slice(-1) === '؟' ? stem.slice(0, -1) + ' ← ' + correct : stem + ' ← ' + correct, answer: true });
-        trueFalse.push({ statement: q.q.replace(/\.\.\./g, wrong) + ' ← ' + wrong, answer: false });
+        var trueStmt, falseStmt;
+        if (q.q.indexOf('...') >= 0) {
+            // fill-in-the-blank style
+            trueStmt  = q.q.replace(/\.\.\./g, correct).replace(/؟$/, '').trim();
+            falseStmt = q.q.replace(/\.\.\./g, wrong).replace(/؟$/, '').trim();
+        } else {
+            // question-style — convert to a proper Arabic statement
+            trueStmt  = questionToStatement(q.q, correct);
+            falseStmt = questionToStatement(q.q, wrong);
+        }
+        trueFalse.push({ statement: trueStmt,  answer: true });
+        trueFalse.push({ statement: falseStmt, answer: false });
     }
 
     var characters = qs.slice(0, 12).map(function(q) {

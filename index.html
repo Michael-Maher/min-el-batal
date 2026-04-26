@@ -169,19 +169,54 @@
     <div id="home-hub-screen" class="screen">
         <div class="screen-inner hub-screen-inner">
             <div class="hub-header">
-                <div class="hub-player-row">
-                    <div class="hub-avatar-wrap" onclick="showScreen('character-screen')">
-                        <img id="hub-avatar-img" class="avatar-img" src="" alt="avatar">
+                <div class="hub-player-row player-id-card">
+                    <!-- Animated rainbow top bar -->
+                    <div class="pic-top-bar"></div>
+                    <!-- Avatar + Name/Rank -->
+                    <div class="pic-body">
+                        <div class="pic-avatar-outer" onclick="showScreen('character-screen')">
+                            <div class="pic-avatar-ring"></div>
+                            <div class="hub-avatar-wrap">
+                                <img id="hub-avatar-img" class="avatar-img" src="" alt="avatar">
+                            </div>
+                        </div>
+                        <div class="pic-info" onclick="showProfileEdit()">
+                            <div class="pic-name-row">
+                                <h3 id="hub-player-name"></h3>
+                                <span class="edit-name-hint"><i class="fas fa-pen"></i></span>
+                            </div>
+                            <div class="pic-rank-pill">
+                                <p class="hub-rank" id="hub-rank"></p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="hub-player-info" onclick="showProfileEdit()">
-                        <h3 id="hub-player-name"></h3>
-                        <p class="hub-rank" id="hub-rank"></p>
+                    <!-- Stat chips: Stars · Gems · Streak -->
+                    <div class="pic-chips">
+                        <div class="pic-chip pic-chip--stars">
+                            <span class="pic-chip-icon">⭐</span>
+                            <div>
+                                <div class="pic-chip-val" id="hub-stars">0</div>
+                                <div class="pic-chip-lbl">نجوم</div>
+                            </div>
+                        </div>
+                        <div class="pic-chip pic-chip--gems">
+                            <span class="pic-chip-icon">💎</span>
+                            <div>
+                                <div class="pic-chip-val" id="hub-gems">0</div>
+                                <div class="pic-chip-lbl">جواهر</div>
+                            </div>
+                        </div>
+                        <div class="pic-chip pic-chip--streak">
+                            <span class="pic-chip-icon">🔥</span>
+                            <div>
+                                <div class="pic-chip-val" id="hub-streak-num">0</div>
+                                <div class="pic-chip-lbl">يوم</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Team badge -->
+                    <div class="pic-team-row">
                         <div class="hub-team-badge" id="hub-team-badge" onclick="event.stopPropagation(); showScreen('teams-screen')"></div>
-                        <span class="edit-name-hint"><i class="fas fa-pen"></i></span>
-                    </div>
-                    <div class="hub-stats">
-                        <div class="stat"><span class="stat-icon">⭐</span><span id="hub-stars">0</span></div>
-                        <div class="stat"><span class="stat-icon">💎</span><span id="hub-gems">0</span></div>
                     </div>
                 </div>
             </div>

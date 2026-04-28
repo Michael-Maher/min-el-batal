@@ -97,7 +97,14 @@ const GameState = {
     weaponTimedEffects: {},    // { 'doubleSword': expiry_ms }
     dailyDealDate: '',
     dailyDealClaimed: false,
-    claimedBundles: []
+    claimedBundles: [],
+    // Account moderation
+    status: 'active',           // 'active' | 'suspended' | 'blocked'
+    statusReason: '',
+    statusMessage: '',
+    suspendedUntil: 0,
+    // Live content locks (subscribed from Firestore)
+    contentLocks: {}
 };
 
 // --- Firebase Initialization ---
@@ -218,6 +225,23 @@ function submitLogin() {
                 return;
             }
 
+            // Check suspended/blocked status
+            var st = existingData.status || 'active';
+            if (st === 'blocked' || st === 'suspended') {
+                // If suspended with an expiry that has passed, auto-clear
+                var until = existingData.suspendedUntil || 0;
+                if (st === 'suspended' && until > 0 && Date.now() > until) {
+                    var clearDocId = doc.id || (snapshot._phoneDoc ? usernameOrEmail : doc.ref ? doc.ref.id : usernameOrEmail);
+                    firebaseDb.collection('players').doc(clearDocId).update({
+                        status: 'active', suspendedUntil: 0, statusReason: '', statusMessage: ''
+                    }).catch(function(){});
+                } else {
+                    resetLoginBtn(btn);
+                    showSuspendedScreen(existingData);
+                    return;
+                }
+            }
+
             // Login success — load all data
             Object.keys(existingData).forEach(function(key) {
                 if (key in GameState && key !== 'lastUpdated') {
@@ -331,6 +355,8 @@ function submitLogin() {
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
             if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
             checkPendingRoomJoin();
+            try { subscribeContentLocks(); } catch(e){}
+            try { logPlayerEvent('login', { device: navigator.userAgent.slice(0,80) }); } catch(e){}
         })
         .catch(function(err) {
             console.error('Login error:', err);
@@ -345,6 +371,248 @@ function resetLoginBtn(btn) {
         btn.disabled = false;
         btn.innerHTML = '<span>دخول <i class="fas fa-arrow-left"></i></span>';
     }
+}
+
+// ════════════════════════════════
+//  PLAYER REPORT-A-PLAYER
+// ════════════════════════════════
+function openReportPlayerDialog(reportedPhone, reportedName) {
+    if (!reportedPhone) return;
+    if (reportedPhone === GameState.playerPhone) { showToast('مش هتبلّغ عن نفسك 😅', 'warning'); return; }
+    var existing = document.getElementById('report-player-overlay');
+    if (existing) existing.remove();
+    var ov = document.createElement('div');
+    ov.id = 'report-player-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,8,3,.78);z-index:99997;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(5px)';
+    ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+    ov.innerHTML =
+        '<div style="background:#fff8e8;border:2px solid #dc2626;border-radius:18px;padding:22px 20px;max-width:400px;width:100%;direction:rtl;font-family:Cairo,sans-serif;box-shadow:0 14px 44px rgba(0,0,0,.55)">'+
+        '<div style="text-align:center;margin-bottom:14px"><div style="font-size:42px">🚩</div>'+
+        '<h2 style="color:#7f1d1d;font-size:18px;margin:6px 0 4px;font-weight:900">إبلاغ عن لاعب</h2>'+
+        '<p style="color:#3a2a14;font-size:13px;margin:0">'+escapeHtmlSimple(reportedName||reportedPhone)+'</p></div>'+
+        '<label style="display:block;font-size:13px;font-weight:700;color:#3a2a14;margin-bottom:6px">سبب البلاغ</label>'+
+        '<select id="rp-reason" style="width:100%;padding:9px 11px;border-radius:9px;border:1px solid #c8a14a;font-family:Cairo,sans-serif;font-size:13px;margin-bottom:11px;background:#fff">'+
+        '<option value="ألفاظ غير لائقة">ألفاظ غير لائقة</option>'+
+        '<option value="غش/تلاعب">غش أو تلاعب</option>'+
+        '<option value="انتحال شخصية">انتحال شخصية</option>'+
+        '<option value="محتوى مسيء">محتوى مسيء</option>'+
+        '<option value="إزعاج متكرر">إزعاج متكرر</option>'+
+        '<option value="أخرى">أخرى</option>'+
+        '</select>'+
+        '<label style="display:block;font-size:13px;font-weight:700;color:#3a2a14;margin-bottom:6px">تفاصيل (اختياري)</label>'+
+        '<textarea id="rp-desc" placeholder="اكتب تفاصيل اللي حصل..." maxlength="300" style="width:100%;min-height:80px;padding:9px 11px;border-radius:9px;border:1px solid #c8a14a;font-family:Cairo,sans-serif;font-size:13px;resize:vertical;background:#fff;direction:rtl"></textarea>'+
+        '<div style="display:flex;gap:9px;margin-top:14px">'+
+        '<button onclick="submitPlayerReport(\''+reportedPhone+'\',\''+escapeHtmlSimple(reportedName||'').replace(/'/g,"\\'")+'\')" style="flex:1;background:#dc2626;color:#fff;border:none;border-radius:10px;padding:10px;font-weight:900;font-family:Cairo,sans-serif;cursor:pointer">إرسال البلاغ</button>'+
+        '<button onclick="document.getElementById(\'report-player-overlay\').remove()" style="background:rgba(0,0,0,.08);color:#3a2a14;border:1px solid #c8a14a;border-radius:10px;padding:10px 16px;font-weight:700;font-family:Cairo,sans-serif;cursor:pointer">إلغاء</button>'+
+        '</div></div>';
+    document.body.appendChild(ov);
+}
+
+function submitPlayerReport(reportedPhone, reportedName) {
+    if (!firebaseDb || !GameState.playerPhone) { showToast('مفيش اتصال', 'error'); return; }
+    var reason = (document.getElementById('rp-reason')||{}).value || 'أخرى';
+    var desc = ((document.getElementById('rp-desc')||{}).value || '').trim().slice(0, 500);
+    firebaseDb.collection('playerReports').add({
+        reporterPhone: GameState.playerPhone,
+        reporterName: GameState.playerName || '',
+        reportedPhone: reportedPhone,
+        reportedName: reportedName || '',
+        reason: reason,
+        description: desc,
+        status: 'pending',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        ts: Date.now()
+    }).then(function(){
+        var ov = document.getElementById('report-player-overlay');
+        if (ov) ov.remove();
+        showToast('تم إرسال البلاغ، الخدّام هيراجعوه ✓', 'success');
+        try { logPlayerEvent('player_report_submitted', { reportedPhone: reportedPhone, reason: reason }); } catch(e){}
+    }).catch(function(e){
+        console.error('report submit', e);
+        showToast('حصل خطأ، حاول تاني', 'error');
+    });
+}
+
+// ════════════════════════════════
+//  PLAYER EVENT LOGGING (audit / engagement / suspicion)
+// ════════════════════════════════
+function logPlayerEvent(type, data) {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    try {
+        // Don't await — fire and forget
+        firebaseDb.collection('playerEvents').add({
+            playerPhone: GameState.playerPhone,
+            playerName: GameState.playerName || '',
+            team: GameState.team || '',
+            gender: GameState.gender || '',
+            academicYear: GameState.academicYear || '',
+            type: String(type || 'unknown'),
+            data: data || {},
+            ts: Date.now(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        }).catch(function(){}); // ignore errors silently
+    } catch(e){}
+}
+
+// ════════════════════════════════
+//  CONTENT LOCKS — live subscription + helpers
+// ════════════════════════════════
+var _locksUnsub = null;
+function subscribeContentLocks() {
+    if (!firebaseDb) return;
+    if (_locksUnsub) { try { _locksUnsub(); } catch(e){} _locksUnsub = null; }
+    try {
+        _locksUnsub = firebaseDb.collection('gameContent').doc('locks').onSnapshot(function(snap){
+            GameState.contentLocks = (snap && snap.exists) ? (snap.data() || {}) : {};
+        }, function(err){ console.warn('locks snap err', err); });
+    } catch(e) { console.warn('subscribeContentLocks failed', e); }
+}
+
+function isContentLocked(key) {
+    var s = (GameState.contentLocks || {})[key];
+    return !!(s && s.locked);
+}
+function lockedMessage(key) {
+    var s = (GameState.contentLocks || {})[key];
+    return (s && s.message) ? s.message : 'هذا القسم مغلق مؤقتاً، ترقّب فتحه قريباً 🔒';
+}
+
+// Show a centered modal popup with the admin's message
+function showLockedPopup(title, message) {
+    var existing = document.getElementById('locked-popup-overlay');
+    if (existing) existing.remove();
+    var ov = document.createElement('div');
+    ov.id = 'locked-popup-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,8,3,.78);z-index:99998;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(5px);animation:lkFadeIn .2s ease-out';
+    ov.onclick = function(e){ if(e.target===ov) ov.remove(); };
+    ov.innerHTML =
+        '<div style="background:linear-gradient(140deg,#fff8e8,#fde9c8);border:2px solid #c8a14a;border-radius:18px;padding:24px 22px;max-width:380px;width:100%;text-align:center;direction:rtl;font-family:Cairo,sans-serif;box-shadow:0 14px 44px rgba(0,0,0,.55);animation:lkPop .25s cubic-bezier(.2,.9,.4,1.2)">'+
+        '<div style="font-size:54px;margin-bottom:6px">🔒</div>'+
+        '<h2 style="color:#7c5a18;font-size:18px;margin:0 0 10px;font-weight:900">'+escapeHtmlSimple(title||'مغلق مؤقتاً')+'</h2>'+
+        '<p style="color:#3a2a14;font-size:14px;line-height:1.7;margin:0 0 16px">'+escapeHtmlSimple(message||'')+'</p>'+
+        '<button onclick="document.getElementById(\'locked-popup-overlay\').remove();" style="background:linear-gradient(135deg,#c8a14a,#daa520);color:#fff;border:none;border-radius:10px;padding:10px 28px;font-weight:900;font-size:14px;cursor:pointer;font-family:Cairo,sans-serif;box-shadow:0 4px 14px rgba(200,161,74,.5)">حسناً</button>'+
+        '</div>';
+    document.body.appendChild(ov);
+}
+
+// Returns true if locked (caller should bail). Also shows popup.
+function checkLockOrPopup(key, title) {
+    if (isContentLocked(key)) {
+        showLockedPopup(title || 'مغلق مؤقتاً', lockedMessage(key));
+        return true;
+    }
+    return false;
+}
+
+// Inject animation keyframes once
+(function(){
+    if (document.getElementById('lk-popup-style')) return;
+    var s = document.createElement('style');
+    s.id = 'lk-popup-style';
+    s.textContent = '@keyframes lkFadeIn{from{opacity:0}to{opacity:1}}@keyframes lkPop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}';
+    document.head.appendChild(s);
+})();
+
+// Apply lock interception to dashboard cards once renderHomeHub runs
+function applyDashboardLockUI() {
+    var hub = document.getElementById('home-hub-screen');
+    if (!hub) return;
+    // Map of card selector → { key, title }
+    var map = [
+        { sel: '.hub-card-locked',                        key: 'card_level1',           title: 'المستوى الأول' },
+        { sel: '[onclick*="level2-subjects-screen"]',     key: 'card_level2',           title: 'المستوى الثاني' },
+        { sel: '[onclick*="compete-screen"]',             key: 'card_compete',          title: 'المنافسات الجماعية' },
+        { sel: '[onclick*="openQuestionsScreen"]',        key: 'card_myQuestions',      title: 'اسأل الخدّام' },
+        { sel: '[onclick*="openFriendsQuestionsScreen"]', key: 'card_friendsQuestions', title: 'أسئلة أصحابك' }
+    ];
+    map.forEach(function(m){
+        var card = hub.querySelector(m.sel);
+        if (!card) return;
+        // Save original onclick once
+        if (!card._origOnclickStr) {
+            card._origOnclickStr = card.getAttribute('onclick') || '';
+        }
+        // For card_level1 we KEEP its original behavior unless admin explicitly unlocks
+        if (m.key === 'card_level1') {
+            if (!isContentLocked(m.key)) {
+                // admin unlocked it — but level1 isn't built yet; show admin's message if any, else default
+                var st = (GameState.contentLocks||{})[m.key];
+                if (st && st.message) {
+                    card.onclick = (function(msg, title){
+                        return function(){ showLockedPopup(title, msg); };
+                    })(st.message, m.title);
+                } else {
+                    // Restore original locked-toast behavior
+                    var orig = card._origOnclickStr;
+                    card.onclick = function(){ try { eval(orig); } catch(e){} };
+                }
+            } else {
+                // Use admin lock message
+                card.onclick = (function(key, title){
+                    return function(){ showLockedPopup(title, lockedMessage(key)); };
+                })(m.key, m.title);
+            }
+            return;
+        }
+        if (isContentLocked(m.key)) {
+            card.onclick = (function(key, title){
+                return function(){ showLockedPopup(title, lockedMessage(key)); };
+            })(m.key, m.title);
+            card.style.opacity = '0.7';
+            card.style.cursor = 'pointer';
+            // Add small lock badge if not already present
+            if (!card.querySelector('.dyn-lock-badge')) {
+                var b = document.createElement('div');
+                b.className = 'dyn-lock-badge';
+                b.style.cssText = 'position:absolute;top:10px;right:10px;background:rgba(220,38,38,.95);color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;z-index:10;box-shadow:0 3px 10px rgba(0,0,0,.3)';
+                b.innerHTML = '<i class="fas fa-lock"></i>';
+                var bg = card.querySelector('.hub-card-bg');
+                if (bg) bg.appendChild(b);
+            }
+        } else {
+            // Restore original onclick
+            var orig2 = card._origOnclickStr;
+            card.onclick = function(ev){ try { eval(orig2); } catch(e){} };
+            card.style.opacity = '';
+            var ex = card.querySelector('.dyn-lock-badge');
+            if (ex) ex.remove();
+        }
+    });
+}
+
+// --- Suspended/Blocked Screen ---
+function showSuspendedScreen(data) {
+    var st = data.status || 'suspended';
+    var msg = data.statusMessage || (st === 'blocked'
+        ? 'حسابك تم حظره. للاستفسار كلّم الخدّام.'
+        : 'حسابك تم إيقافه مؤقتاً. للاستفسار كلّم الخدّام.');
+    var reason = data.statusReason || '';
+    var untilStr = '';
+    if (st === 'suspended' && data.suspendedUntil) {
+        var d = new Date(data.suspendedUntil);
+        if (!isNaN(d)) untilStr = d.toLocaleString('ar-EG');
+    }
+    var existing = document.getElementById('suspended-overlay');
+    if (existing) existing.remove();
+    var ov = document.createElement('div');
+    ov.id = 'suspended-overlay';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(15,8,3,.92);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(8px)';
+    var color = st === 'blocked' ? '#dc2626' : '#f59e0b';
+    var icon = st === 'blocked' ? '⛔' : '⏸️';
+    var title = st === 'blocked' ? 'الحساب محظور' : 'الحساب موقوف مؤقتاً';
+    ov.innerHTML =
+        '<div style="background:#fff8e8;border:2px solid '+color+';border-radius:18px;padding:24px 22px;max-width:420px;width:100%;text-align:center;direction:rtl;font-family:Cairo,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.5)">'+
+        '<div style="font-size:54px;margin-bottom:6px">'+icon+'</div>'+
+        '<h2 style="color:'+color+';font-size:20px;margin:0 0 10px;font-weight:900">'+title+'</h2>'+
+        '<p style="color:#1f1611;font-size:14px;line-height:1.7;margin:0 0 12px">'+escapeHtmlSimple(msg)+'</p>'+
+        (reason ? '<div style="background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.25);border-radius:10px;padding:9px 12px;font-size:12px;color:#7f1d1d;margin-bottom:10px"><strong>السبب:</strong> '+escapeHtmlSimple(reason)+'</div>' : '')+
+        (untilStr ? '<div style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:9px 12px;font-size:12px;color:#92400e;margin-bottom:14px"><strong>ينتهي:</strong> '+escapeHtmlSimple(untilStr)+'</div>' : '')+
+        '<button onclick="document.getElementById(\'suspended-overlay\').remove();" style="background:'+color+';color:#fff;border:none;border-radius:10px;padding:10px 26px;font-weight:900;font-size:14px;cursor:pointer;font-family:Cairo,sans-serif">حسناً</button>'+
+        '</div>';
+    document.body.appendChild(ov);
+}
+function escapeHtmlSimple(s) {
+    return String(s||'').replace(/[&<>"']/g, function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});
 }
 
 // --- Registration ---
@@ -711,6 +979,8 @@ function saveToCloud() {
         dailyDealDate: GameState.dailyDealDate || '',
         dailyDealClaimed: GameState.dailyDealClaimed || false,
         claimedBundles: GameState.claimedBundles || [],
+        gender: GameState.gender || '',
+        questionHistory: GameState.questionHistory || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -826,6 +1096,11 @@ function loadFromCloud(phone) {
                                 lastActiveDate: cL.lastActiveDate  || lL.lastActiveDate  || '',
                                 dailyLog: Object.assign({}, lL.dailyLog || {}, cL.dailyLog || {})
                             };
+                        } else if (['playerName', 'gender', 'team', 'teamLogo', 'teamColor', 'equippedFrame', 'equippedTitle', 'notifPrefs'].indexOf(key) >= 0) {
+                            // Prefer local value for profile fields — cloud may have stale data
+                            // if the user updated their profile and cloud hadn't synced yet
+                            var localVal = localBackup[key] !== undefined ? localBackup[key] : GameState[key];
+                            GameState[key] = localVal !== undefined && localVal !== null && localVal !== '' ? localVal : data[key];
                         } else {
                             GameState[key] = data[key];
                         }
@@ -2574,6 +2849,8 @@ function renderMap() {
 function startLevel(num) {
     var lv = LEVELS[num-1];
     if (!lv) return;
+    // Admin lock check (per-level 1-5)
+    if (checkLockOrPopup('level_' + num, 'المرحلة ' + num + (lv.name?' — '+lv.name:''))) return;
     if (GameState.stars < lv.starsNeeded) { showToast('محتاج ' + lv.starsNeeded + ' نجمة لفتح المرحلة دي'); return; }
     quizState.currentLevel = num;
     var t = lv.type;
@@ -2697,6 +2974,9 @@ function selectAnswer(idx) {
     var q = quizState.questions[quizState.currentIndex];
     var btns = document.querySelectorAll('.answer-btn');
     GameState.totalAnswered++;
+    var _wasCorrect = (idx === q.correct);
+    var _timeUsed = 30 - (quizState.timeLeft||0);
+    try { logPlayerEvent('answer', { correct: _wasCorrect, level: quizState.currentLevel, cat: quizState.currentCategory, t: _timeUsed }); } catch(e){}
     if (idx === q.correct) {
         btns[idx].classList.add('correct');
         var pts = (quizState.doublePoints || quizState._goldSling || quizState._silverSlingRemaining > 0) ? 20 : 10;
@@ -5532,6 +5812,7 @@ function redeemReward(rewardId) {
         }).catch(function(e) { console.error('Reward request save error:', e); });
     }
 
+    try { logPlayerEvent('reward_redeem', { rewardId: reward.id, name: reward.name, cost: reward.cost }); } catch(e){}
     saveToCloud();
     syncLeaderboard();
     showToast('تم طلب ' + reward.name + ' بنجاح! 🎉', 'success');
@@ -9113,6 +9394,9 @@ function renderHomeHub() {
         });
     }, 50);
 
+    // Apply lock state to dashboard cards (admin can lock/unlock live)
+    try { applyDashboardLockUI(); } catch(e){ console.warn('applyDashboardLockUI error', e); }
+
     // Daily streak
     var streakWrap = document.getElementById('hub-streak-section');
     if (!streakWrap) {
@@ -9412,10 +9696,13 @@ window.addEventListener('beforeunload', function(e) {
 
 // --- Open Subject Map ---
 function openLevel2Subject(subjectKey) {
+    // Admin lock check (subject)
+    if (checkLockOrPopup('subject_' + subjectKey, ((LEVEL2_SUBJECTS[subjectKey]||{}).name)||'المادة')) return;
     level2State.currentSubject = subjectKey;
     showScreen('level2-map-screen');
     // Force landscape hint
     enterMapLandscape();
+    try { logPlayerEvent('subject_open', { subject: subjectKey }); } catch(e){}
 }
 
 // --- Landscape & Fullscreen for Map ---
@@ -9936,6 +10223,10 @@ function startLevel2Lesson(lessonIdx) {
     var subject = LEVEL2_SUBJECTS[subKey];
     if (!subject || !subject.lessons[lessonIdx]) return;
 
+    // Admin lock check (per-lesson and per-subject)
+    if (checkLockOrPopup('subject_' + subKey, subject.name || 'المادة')) return;
+    if (checkLockOrPopup('lesson_' + subKey + '_' + lessonIdx, 'الدرس ' + (lessonIdx+1) + ' — ' + (subject.lessons[lessonIdx].name||''))) return;
+
     level2State.currentLesson = lessonIdx;
     level2State.currentStage = 'learn';
     level2State.quizIndex = 0;
@@ -9945,6 +10236,7 @@ function startLevel2Lesson(lessonIdx) {
 
     showScreen('level2-lesson-screen');
     renderLevel2Lesson();
+    try { logPlayerEvent('lesson_start', { subject: subKey, lesson: lessonIdx }); } catch(e){}
 }
 
 // --- Render Level 2 Lesson ---
@@ -21609,6 +21901,9 @@ function renderSharedQuestions() {
             html += '<button class="fqs-view-btn" onclick="' + openFn + '(\'' + t._id + '\')"><i class="fas fa-eye"></i> الإجابة كاملة</button>';
         }
         html += '<button class="fqs-share-btn" onclick="shareSharedThread(\'' + t._id + '\')" title="شارك"><i class="fas fa-share-alt"></i></button>';
+        if (!isMyThread && t.userId) {
+            html += '<button class="fqs-share-btn" onclick="openReportPlayerDialog(\'' + escapeHtml(t.userId) + '\',\'' + escapeHtml(maskedName) + '\')" title="إبلاغ" style="color:#dc2626"><i class="fas fa-flag"></i></button>';
+        }
         html += '</div></div>';
 
         html += '</div>';

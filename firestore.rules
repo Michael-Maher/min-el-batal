@@ -59,5 +59,17 @@ service cloud.firestore {
         allow read, write: if true;
       }
     }
+    // Admin-managed content locks (cards / levels / subjects / lessons)
+    match /gameContent/{docId} {
+      allow read, write: if true;
+    }
+    // Player audit/event log (writes from game, reads from admin)
+    match /playerEvents/{eventId} {
+      allow read, write: if true;
+    }
+    // Player-on-player reports (writes from game, reads/updates from admin)
+    match /playerReports/{reportId} {
+      allow read, write: if true;
+    }
   }
 }

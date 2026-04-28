@@ -4,6 +4,22 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>لوحة الإدارة — مين البطل؟</title>
+<link rel="manifest" href="/admin-manifest.json">
+<meta name="theme-color" content="#c8a14a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="أدمن البطل">
+<link rel="apple-touch-icon" sizes="180x180" href="/images/admin-logo-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="/images/admin-logo-192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/images/admin-logo-512.png">
+<!-- Open Graph / web thumbnail -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="لوحة الإدارة — مين البطل">
+<meta property="og:description" content="لوحة تحكم إدارة لعبة مين البطل — مرحلة إعدادي">
+<meta property="og:image" content="/images/adminLogo.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="/images/adminLogo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -11,15 +27,34 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0b0f1a; --bg2:#111827; --bg3:#1a2235;
-  --card:#161d2e; --card2:#1e2740;
-  --border:rgba(255,255,255,.07); --border2:rgba(255,255,255,.13);
-  --accent:#7c6af7; --accent2:#a78bfa;
-  --teal:#22d3ee; --gold:#fbbf24; --red:#f87171;
-  --green:#34d399; --pink:#f472b6; --orange:#fb923c;
-  --text:#e2e8f0; --muted:rgba(226,232,240,.45); --muted2:rgba(226,232,240,.22);
+  /* ── White + Gold theme ─────────────── */
+  --bg:#fdfaf2;            /* cream-white background */
+  --bg2:#f7f1e1;           /* light gold tint */
+  --bg3:#fff8e6;           /* page section background */
+  --card:#ffffff;          /* white cards */
+  --card2:#fffaee;         /* slightly warm white */
+  --border:rgba(184,134,11,.10);    /* soft gold border */
+  --border2:rgba(184,134,11,.22);   /* stronger gold border */
+  --accent:#c8a14a;        /* primary gold */
+  --accent2:#daa520;       /* deep gold (goldenrod) */
+  --gold:#d4a017;          /* rich gold */
+  --gold-light:#f4d56b;    /* light gold accent */
+  --gold-dark:#9c7e1a;     /* dark gold for text on gold */
+  --teal:#0891b2;          /* darker teal for white bg */
+  --red:#dc2626;
+  --green:#059669;
+  --pink:#db2777;
+  --orange:#ea580c;
+  --blue:#1e6fd9;
+  --purple:#7c3aed;
+  --text:#1f1611;          /* near-black warm */
+  --text2:#3a2e21;         /* secondary */
+  --muted:rgba(31,22,17,.55);
+  --muted2:rgba(31,22,17,.32);
+  --shadow-gold:0 4px 18px rgba(212,160,23,.18);
+  --shadow-gold-lg:0 10px 32px rgba(212,160,23,.22);
   --radius:14px; --rsm:8px;
-  --sw:230px; --th:58px; --trans:.17s ease;
+  --sw:240px; --th:60px; --trans:.18s ease;
 }
 body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
 button{font-family:'Cairo',sans-serif;cursor:pointer}
@@ -665,10 +700,27 @@ tbody td{padding:10px 13px;vertical-align:middle}
 .toast.err{border-color:var(--red);color:var(--red)}
 .toast.info{border-color:var(--accent);color:var(--accent2)}
 
+/* Picker on-state for team logo/color and lock state */
+.logo-pick.on{border-color:var(--accent2)!important;background:rgba(200,161,74,.18)!important;transform:scale(1.08)}
+.color-pick.on{outline:3px solid var(--accent2);outline-offset:2px;transform:scale(1.12)}
+
+/* Lock rows */
+.lock-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;background:rgba(255,255,255,.6)}
+.lock-row.locked{background:rgba(220,38,38,.06);border-color:rgba(220,38,38,.25)}
+.lock-row .lk-name{flex:1;font-weight:700;font-size:13px}
+.lock-row .lk-msg{font-size:11px;color:var(--muted);margin-top:3px;display:block;direction:rtl}
+.lock-row .lk-state{padding:3px 9px;border-radius:8px;font-size:11px;font-weight:700}
+.lock-row .lk-state.open{background:rgba(5,150,105,.15);color:var(--green)}
+.lock-row .lk-state.shut{background:rgba(220,38,38,.15);color:var(--red)}
+
+/* Player status badge */
+.b-suspended{background:rgba(245,158,11,.18);color:#d97706;border:1px solid rgba(245,158,11,.35)}
+.b-blocked{background:rgba(220,38,38,.18);color:var(--red);border:1px solid rgba(220,38,38,.4)}
+
 /* RESPONSIVE */
 @media(max-width:760px){
   :root{--sw:0px}
-  .sidebar{transform:translateX(100%);width:230px}
+  .sidebar{transform:translateX(100%);width:240px}
   .sidebar.open{transform:translateX(0)}
   .hamburger{display:block}
   .topbar{right:0}
@@ -677,6 +729,610 @@ tbody td{padding:10px 13px;vertical-align:middle}
   .g2,.g3{grid-template-columns:1fr}
   .dg{grid-template-columns:1fr}
 }
+
+/* ═════════════════════════════════════════════════════════
+   ✨ WHITE + GOLD GAMIFIED OVERLAY ✨
+   Overrides dark-theme idioms to suit the new theme
+   ═════════════════════════════════════════════════════════ */
+
+/* SIDEBAR OVERLAY */
+#sidebar-overlay{
+  display:none;position:fixed;inset:0;z-index:199;
+  background:rgba(31,22,17,.45);backdrop-filter:blur(2px);
+}
+
+::-webkit-scrollbar-thumb{background:rgba(184,134,11,.30)!important}
+::-webkit-scrollbar-thumb:hover{background:rgba(184,134,11,.55)!important}
+body{
+  background:linear-gradient(180deg,#fdfaf2 0%,#faf3df 100%)!important;
+  background-attachment:fixed;
+}
+body::before{
+  content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;
+  background:
+    radial-gradient(ellipse 600px 300px at 90% 0%, rgba(212,160,23,.10), transparent 70%),
+    radial-gradient(ellipse 500px 400px at 0% 100%, rgba(212,160,23,.07), transparent 70%);
+}
+
+/* AUTH SCREENS */
+.auth-screen{
+  background:
+    radial-gradient(ellipse at 50% 0%, rgba(212,160,23,.20) 0%, transparent 65%),
+    linear-gradient(180deg, #fdfaf2 0%, #faf0d6 100%)!important;
+}
+.auth-card{
+  border:2px solid rgba(212,160,23,.30)!important;
+  box-shadow:0 24px 80px rgba(184,134,11,.20),0 0 0 1px rgba(255,255,255,.6) inset!important;
+  position:relative;
+  background:linear-gradient(180deg,#ffffff 0%,#fffbed 100%)!important;
+}
+.auth-card::before{
+  content:'';position:absolute;inset:-2px;border-radius:24px;z-index:-1;
+  background:linear-gradient(135deg,#f4d56b,#d4a017,#daa520,#9c7e1a);
+  filter:blur(.5px);opacity:.55;
+}
+.auth-icon{filter:drop-shadow(0 0 18px rgba(212,160,23,.6))!important}
+.inp{
+  background:#fefcf5!important;
+  border:1px solid rgba(184,134,11,.22)!important;
+  color:var(--text)!important;
+}
+.inp::placeholder{color:rgba(31,22,17,.38)}
+.inp:focus{
+  border-color:var(--accent)!important;
+  box-shadow:0 0 0 3px rgba(212,160,23,.18)!important;
+  background:#fff!important;
+}
+.btn-auth{
+  background:linear-gradient(135deg,#daa520 0%,#c8a14a 60%,#9c7e1a 100%)!important;
+  color:#fff!important;
+  box-shadow:0 6px 20px rgba(212,160,23,.35),inset 0 1px 0 rgba(255,255,255,.4)!important;
+  letter-spacing:.4px;
+}
+.btn-auth:hover{box-shadow:0 8px 26px rgba(212,160,23,.45),inset 0 1px 0 rgba(255,255,255,.4)!important}
+.auth-link a{color:var(--accent2)!important}
+.divider::before,.divider::after{background:rgba(184,134,11,.22)!important}
+.check-row input[type=checkbox]{accent-color:var(--accent)!important}
+
+/* SIDEBAR */
+.sidebar{
+  background:linear-gradient(180deg,#ffffff 0%,#fffaee 100%)!important;
+  border-left:1px solid rgba(184,134,11,.18)!important;
+  box-shadow:-8px 0 28px rgba(184,134,11,.06);
+}
+.sidebar-logo{border-bottom:1px solid rgba(184,134,11,.15)!important}
+.sidebar-logo-icon{filter:drop-shadow(0 0 8px rgba(212,160,23,.55))!important}
+.who-badge{
+  background:linear-gradient(135deg,rgba(212,160,23,.10),rgba(244,213,107,.18))!important;
+  border:1px solid rgba(212,160,23,.30)!important;
+  box-shadow:0 2px 8px rgba(212,160,23,.10);
+}
+.role-super{color:var(--gold)}
+.role-admin{color:var(--accent2)}
+.nav-btn{color:var(--muted)!important}
+.nav-btn:hover{background:rgba(212,160,23,.08)!important;color:var(--text)!important}
+.nav-btn.active{
+  background:linear-gradient(135deg,rgba(212,160,23,.18),rgba(244,213,107,.12))!important;
+  color:var(--gold-dark)!important;
+  border:1px solid rgba(212,160,23,.30);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.6),0 1px 4px rgba(212,160,23,.10);
+}
+.sidebar-foot{border-top:1px solid rgba(184,134,11,.15)!important}
+.btn-logout:hover{background:rgba(220,38,38,.08)!important}
+
+/* TOPBAR */
+.topbar{
+  background:rgba(255,251,237,.88)!important;
+  border-bottom:1px solid rgba(184,134,11,.18)!important;
+  box-shadow:0 2px 12px rgba(184,134,11,.06);
+}
+.btn-ref{
+  background:rgba(212,160,23,.08)!important;
+  border:1px solid rgba(184,134,11,.25)!important;
+  color:var(--text2)!important;
+}
+.btn-ref:hover{color:var(--gold-dark)!important;border-color:var(--accent)!important;background:rgba(212,160,23,.14)!important}
+
+/* CARDS / KPI */
+.card,.kpi{
+  background:#ffffff!important;
+  border:1px solid rgba(184,134,11,.15)!important;
+  box-shadow:0 2px 8px rgba(184,134,11,.06);
+}
+.kpi{position:relative;overflow:hidden}
+.kpi::after{
+  content:'';position:absolute;inset:-2px;border-radius:14px;z-index:-1;opacity:0;
+  background:linear-gradient(135deg,#f4d56b,#d4a017);transition:opacity .25s;
+}
+.kpi:hover{
+  transform:translateY(-3px);
+  box-shadow:0 12px 28px rgba(212,160,23,.20)!important;
+  border-color:rgba(212,160,23,.35)!important;
+}
+.kpi:hover::after{opacity:.5}
+.kpi-val{filter:none}
+/* Dashboard chart track: was near-invisible on dark bg, needs visible track on white */
+.bartrack{background:rgba(31,22,17,.09)!important}
+.ch{border-bottom:1px solid rgba(184,134,11,.12)!important}
+
+/* TABLE */
+thead th{
+  background:linear-gradient(180deg,#fff8e6,#fff2cf)!important;
+  color:var(--gold-dark)!important;
+  border-bottom:2px solid rgba(212,160,23,.30)!important;
+  font-weight:800!important;
+}
+thead th:hover{color:var(--text)!important}
+thead th.sorted{color:var(--gold)!important;background:linear-gradient(180deg,#fff5d8,#ffe9a8)!important}
+tbody tr{border-bottom:1px solid rgba(184,134,11,.08)!important}
+tbody tr:hover{background:rgba(244,213,107,.10)!important}
+
+/* BADGES — keep semantic colors but lighten background for white bg */
+.b-male{background:rgba(8,145,178,.10);color:#0e7490}
+.b-female{background:rgba(219,39,119,.10);color:#be185d}
+.b-p1{background:rgba(124,58,237,.10);color:#6d28d9}
+.b-p2{background:rgba(8,145,178,.10);color:#0e7490}
+.b-p3{background:rgba(212,160,23,.16);color:var(--gold-dark)}
+.b-team{background:rgba(5,150,105,.10);color:#047857}
+.b-noteam{background:rgba(31,22,17,.05);color:var(--muted)}
+.b-pending{background:rgba(212,160,23,.16);color:var(--gold-dark)}
+.b-done{background:rgba(5,150,105,.10);color:#047857}
+.b-rejected{background:rgba(220,38,38,.10);color:#b91c1c}
+.b-super{background:linear-gradient(135deg,rgba(212,160,23,.22),rgba(244,213,107,.30));color:var(--gold-dark);border:1px solid rgba(212,160,23,.4)}
+.b-admin{background:rgba(124,58,237,.10);color:#6d28d9}
+
+/* BUTTONS */
+.btn{box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.bp{
+  background:linear-gradient(135deg,#daa520,#c8a14a 60%,#9c7e1a)!important;
+  color:#fff!important;
+  box-shadow:0 4px 14px rgba(212,160,23,.30),inset 0 1px 0 rgba(255,255,255,.35)!important;
+  font-weight:800!important;
+}
+.bp:hover{box-shadow:0 6px 18px rgba(212,160,23,.42),inset 0 1px 0 rgba(255,255,255,.35)!important;opacity:1!important}
+.bs{background:linear-gradient(135deg,#10b981,#059669)!important;color:#fff!important;box-shadow:0 3px 10px rgba(5,150,105,.28)!important}
+.bs:hover{opacity:1!important;box-shadow:0 5px 14px rgba(5,150,105,.38)!important}
+.bd{background:rgba(220,38,38,.08)!important;color:#b91c1c!important;border:1px solid rgba(220,38,38,.30)!important}
+.bd:hover{background:rgba(220,38,38,.14)!important;opacity:1!important}
+.bg{background:#fffbed!important;color:var(--text)!important;border:1px solid rgba(184,134,11,.28)!important}
+.bg:hover{background:#fff5d8!important;border-color:var(--accent)!important;opacity:1!important}
+
+/* FILTERS */
+.flt{
+  background:#fff!important;
+  border:1px solid rgba(184,134,11,.25)!important;
+  color:var(--text)!important;
+  box-shadow:0 1px 3px rgba(184,134,11,.06);
+}
+.flt:focus{border-color:var(--accent)!important;box-shadow:0 0 0 3px rgba(212,160,23,.15)!important}
+
+/* RANK LIST */
+.rankrow{
+  background:linear-gradient(135deg,#fffaee,#fff5d8)!important;
+  border:1px solid rgba(212,160,23,.15);
+  transition:all var(--trans);
+}
+.rankrow:hover{transform:translateX(-3px);border-color:rgba(212,160,23,.4);box-shadow:var(--shadow-gold)}
+.rankscore{color:var(--gold)!important;text-shadow:0 1px 0 rgba(255,255,255,.8)}
+
+/* MODAL */
+.modal-ov{background:rgba(31,22,17,.55)!important;backdrop-filter:blur(6px)}
+.modal{
+  background:linear-gradient(180deg,#ffffff 0%,#fffbed 100%)!important;
+  border:2px solid rgba(212,160,23,.30)!important;
+  box-shadow:0 32px 100px rgba(184,134,11,.30),0 0 0 1px rgba(255,255,255,.6) inset!important;
+}
+.mhead{
+  background:linear-gradient(180deg,#fff8e6,#fff2cf)!important;
+  border-bottom:1px solid rgba(212,160,23,.28)!important;
+}
+.btnx{background:rgba(31,22,17,.08)!important;color:var(--text)!important}
+.btnx:hover{background:rgba(220,38,38,.12)!important;color:#b91c1c!important}
+.dgi{background:linear-gradient(135deg,#fffaee,#fff5d8)!important;border:1px solid rgba(212,160,23,.15)}
+.dgv.lg{text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.einp,.puinp,.antxt{
+  background:#fff!important;
+  border:1px solid rgba(184,134,11,.25)!important;
+  color:var(--text)!important;
+}
+.einp:focus,.puinp:focus,.antxt:focus{border-color:var(--accent)!important;box-shadow:0 0 0 2px rgba(212,160,23,.15)!important}
+.pubox{background:linear-gradient(135deg,#fffbed,#fff5d8)!important;border:1px solid rgba(212,160,23,.20)!important}
+.pb-t{background:rgba(184,134,11,.10)!important}
+
+/* PM TABS */
+.pm-tabs{background:#fffbed!important;border-bottom:1px solid rgba(212,160,23,.18)!important}
+.pm-tab{color:var(--muted)!important}
+.pm-tab.active{background:linear-gradient(135deg,#daa520,#9c7e1a)!important;color:#fff!important}
+.pm-tab:hover:not(.active){background:rgba(212,160,23,.10)!important;color:var(--text)!important}
+.lesson-row{background:#fffbed!important;border:1px solid rgba(184,134,11,.10)!important}
+.subj-hdr{font-weight:800}
+.st-cell{background:rgba(212,160,23,.06)!important}
+.mg-badge{background:rgba(212,160,23,.10)!important;color:var(--gold-dark)!important}
+.pts-total{background:linear-gradient(135deg,rgba(212,160,23,.12),rgba(244,213,107,.20))!important;border:2px solid rgba(212,160,23,.35)!important}
+.pts-total-num{filter:drop-shadow(0 2px 0 rgba(255,255,255,.6))}
+.pts-row{border-bottom:1px solid rgba(184,134,11,.10)!important}
+.pts-val{color:var(--gold-dark)!important;font-weight:800!important}
+.sp-day{background:#fffbed!important;border:1px solid rgba(184,134,11,.10)!important}
+
+/* TEAM ASSIGN */
+.tarow{background:#fffbed!important;border:1px solid rgba(184,134,11,.18)!important}
+.tarow:hover{border-color:var(--accent)!important;background:rgba(212,160,23,.10)!important}
+.tcard{background:#fff!important;border:1px solid rgba(184,134,11,.15)!important;transition:all var(--trans)}
+.tcard:hover{border-color:rgba(212,160,23,.45)!important;box-shadow:var(--shadow-gold);transform:translateY(-2px)}
+.tsb{background:linear-gradient(135deg,#fffbed,#fff5d8)!important;border:1px solid rgba(212,160,23,.12)}
+.mrow{background:rgba(212,160,23,.06)!important}
+.admbdg{color:var(--gold-dark)!important}
+
+/* TABS (Q&A, admin mgmt) */
+.qtab,.amtab{background:#fff!important;border:1px solid rgba(184,134,11,.25)!important;color:var(--muted)!important}
+.qtab.active,.amtab.active{
+  background:linear-gradient(135deg,#daa520,#9c7e1a)!important;
+  color:#fff!important;border-color:var(--accent2)!important;
+  box-shadow:0 4px 14px rgba(212,160,23,.30)!important;
+}
+.qtab:not(.active):hover,.amtab:not(.active):hover{border-color:var(--accent)!important;color:var(--text)!important;background:rgba(212,160,23,.06)!important}
+.qtab-count,.amcnt{background:rgba(255,255,255,.30)!important;color:#fff!important}
+.qtab:not(.active) .qtab-count,.amtab:not(.active) .amcnt{background:rgba(212,160,23,.14)!important;color:var(--gold-dark)!important}
+
+/* Q&A bubbles */
+.qa-bub-user{background:rgba(30,111,217,.10)!important;border:1px solid rgba(30,111,217,.25)!important;color:var(--text)!important}
+.qa-bub-user .qa-bub-head{color:rgba(31,22,17,.55)!important}
+.qa-bub-user .qa-bub-head span:first-child{color:#1e6fd9!important}
+.qa-bub-admin{
+  background:linear-gradient(135deg,#fffbed,#fff5d8)!important;
+  color:var(--text)!important;
+  border:none!important;
+  border-left:4px solid var(--accent)!important;
+  box-shadow:0 3px 12px rgba(212,160,23,.18)!important;
+}
+.qa-bub-admin .qa-bub-head span:first-child{color:var(--gold-dark)!important}
+.qinbox-row:hover{background:rgba(212,160,23,.06)!important;border-color:rgba(212,160,23,.30)!important}
+.qinbox-row-active{background:rgba(212,160,23,.12)!important;border-color:var(--accent)!important}
+
+/* ADMIN MANAGEMENT */
+.areqcard{border-bottom:1px solid rgba(184,134,11,.10)!important}
+.areqcard .av{
+  background:linear-gradient(135deg,rgba(212,160,23,.22),rgba(244,213,107,.32))!important;
+  border:2px solid rgba(212,160,23,.4)!important;color:var(--gold-dark)!important;
+}
+.superbox{
+  background:linear-gradient(135deg,rgba(212,160,23,.10),rgba(244,213,107,.20))!important;
+  border:2px solid rgba(212,160,23,.40)!important;
+  box-shadow:0 4px 18px rgba(212,160,23,.18)!important;
+  position:relative;overflow:hidden;
+}
+.superbox::after{
+  content:'👑';position:absolute;left:-20px;top:-20px;font-size:120px;opacity:.04;transform:rotate(-15deg);pointer-events:none
+}
+.superbox .sbico{filter:drop-shadow(0 0 14px rgba(212,160,23,.55))!important}
+
+/* GAMIFIED ENHANCEMENTS */
+.kpi-icon{filter:drop-shadow(0 2px 4px rgba(212,160,23,.20))}
+.live-dot{box-shadow:0 0 8px var(--green)!important}
+.toast{
+  background:linear-gradient(180deg,#ffffff,#fffaee)!important;
+  border:1px solid rgba(184,134,11,.30)!important;
+  color:var(--text)!important;
+  box-shadow:0 8px 28px rgba(184,134,11,.20)!important;
+}
+.toast.ok{border-color:var(--green)!important;color:#047857!important;background:linear-gradient(180deg,#ecfdf5,#d1fae5)!important}
+.toast.err{border-color:var(--red)!important;color:#b91c1c!important;background:linear-gradient(180deg,#fef2f2,#fee2e2)!important}
+.toast.info{border-color:var(--accent)!important;color:var(--gold-dark)!important;background:linear-gradient(180deg,#fffbed,#fff2cf)!important}
+
+/* Connection banner */
+#conn-banner{background:linear-gradient(90deg,#92400e,#b45309)!important}
+
+/* PERMISSION MATRIX */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:6px}
+.perm-chip{
+  display:flex;align-items:center;gap:8px;padding:9px 11px;
+  background:#fffbed;border:1.5px solid rgba(184,134,11,.20);
+  border-radius:10px;cursor:pointer;transition:all var(--trans);
+  font-size:12px;font-weight:600;
+}
+.perm-chip:hover{border-color:var(--accent);background:rgba(212,160,23,.08)}
+.perm-chip input{width:16px;height:16px;accent-color:var(--gold);cursor:pointer;flex-shrink:0}
+.perm-chip.checked{
+  background:linear-gradient(135deg,rgba(212,160,23,.14),rgba(244,213,107,.18));
+  border-color:var(--accent2);color:var(--gold-dark);
+}
+.perm-chip i{color:var(--gold);width:14px;text-align:center;flex-shrink:0}
+
+/* CREATE-ADMIN HEADER ACTION */
+.am-header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.btn-create-admin{
+  background:linear-gradient(135deg,#daa520,#9c7e1a)!important;color:#fff!important;
+  padding:10px 18px!important;font-weight:800!important;
+  box-shadow:0 4px 14px rgba(212,160,23,.32),inset 0 1px 0 rgba(255,255,255,.35)!important;
+  display:inline-flex;align-items:center;gap:7px;font-size:13px;border:none;border-radius:10px;
+}
+.btn-create-admin:hover{transform:translateY(-1px);box-shadow:0 6px 20px rgba(212,160,23,.42),inset 0 1px 0 rgba(255,255,255,.35)!important}
+
+/* PERMISSION BADGES (in admin list) */
+.perm-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+.perm-tag{
+  display:inline-flex;align-items:center;gap:3px;padding:2px 7px;
+  background:rgba(212,160,23,.10);border:1px solid rgba(212,160,23,.22);
+  border-radius:99px;font-size:10px;font-weight:700;color:var(--gold-dark);
+}
+.perm-tag i{font-size:9px}
+
+/* MOBILE PLAYERS CARD VIEW */
+.player-cards{display:none;flex-direction:column;gap:10px}
+.player-card{
+  background:#fff;border:1.5px solid rgba(184,134,11,.18);border-radius:14px;
+  padding:14px;box-shadow:0 2px 6px rgba(184,134,11,.06);
+  position:relative;overflow:hidden;
+}
+.player-card::before{
+  content:'';position:absolute;top:0;right:0;width:60px;height:60px;
+  background:radial-gradient(circle at top right,rgba(212,160,23,.18),transparent 70%);
+  pointer-events:none;
+}
+.player-card-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.player-card-av{
+  width:42px;height:42px;border-radius:50%;
+  background:linear-gradient(135deg,#daa520,#9c7e1a);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:900;flex-shrink:0;
+  box-shadow:0 2px 8px rgba(212,160,23,.30);
+}
+.player-card-name{flex:1;min-width:0}
+.player-card-name h4{font-size:14px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.player-card-name p{font-size:11px;color:var(--muted);direction:ltr}
+.player-card-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:10px}
+.pcs{
+  background:linear-gradient(135deg,#fffaee,#fff5d8);
+  border-radius:8px;padding:7px;text-align:center;border:1px solid rgba(212,160,23,.12);
+}
+.pcs-val{font-size:14px;font-weight:900;line-height:1.1}
+.pcs-lbl{font-size:9px;color:var(--muted);margin-top:2px}
+.player-card-meta{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.player-card-acts{display:flex;gap:6px;flex-wrap:wrap}
+.player-card-acts .btn{flex:1;justify-content:center;min-width:60px}
+
+/* ══ INVENTORY & ACTIVITY TABS ══ */
+.inv-section{margin-bottom:18px}
+.inv-section-title{
+  font-size:13px;font-weight:900;color:var(--gold-dark);
+  margin:0 0 10px;padding:8px 12px;
+  background:linear-gradient(135deg,rgba(212,160,23,.10),rgba(244,213,107,.06));
+  border-right:3px solid var(--accent);border-radius:8px;
+  display:flex;align-items:center;gap:8px
+}
+.inv-kpis{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:8px;margin-bottom:14px
+}
+.inv-kpi{
+  background:linear-gradient(135deg,#fffbed,#fff5d8);
+  border:1.5px solid rgba(212,160,23,.20);
+  border-radius:12px;padding:10px 8px;text-align:center;
+  transition:all var(--trans);position:relative;overflow:hidden
+}
+.inv-kpi:hover{border-color:var(--accent);transform:translateY(-1px);box-shadow:0 4px 12px rgba(212,160,23,.18)}
+.inv-kpi-icon{font-size:22px;line-height:1;margin-bottom:4px}
+.inv-kpi-val{font-size:18px;font-weight:900;color:var(--gold-dark);line-height:1.1}
+.inv-kpi-lbl{font-size:10px;color:var(--muted);margin-top:3px;font-weight:700}
+.inv-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));
+  gap:8px;margin-bottom:6px
+}
+.inv-card{
+  background:#fff;border:1.5px solid rgba(184,134,11,.14);
+  border-radius:12px;padding:10px 8px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  position:relative;transition:all var(--trans);min-height:96px
+}
+.inv-card:hover{border-color:rgba(212,160,23,.40);transform:translateY(-1px);box-shadow:0 4px 12px rgba(212,160,23,.14)}
+.inv-card.eq{
+  background:linear-gradient(135deg,#fffbed,#fff5d8);
+  border:2px solid var(--accent);
+  box-shadow:0 4px 14px rgba(212,160,23,.25)
+}
+.inv-card.lock{opacity:.55;background:rgba(31,22,17,.03)}
+.inv-card.lock .inv-icon{filter:grayscale(.7)}
+.inv-icon{font-size:30px;line-height:1}
+.inv-name{font-size:12px;font-weight:800;color:var(--text);line-height:1.2;word-break:break-word}
+.inv-meta{font-size:10px;color:var(--muted);font-weight:700}
+.inv-status{margin-top:auto;padding-top:4px}
+.inv-pill{
+  font-size:9px;font-weight:900;padding:3px 8px;
+  border-radius:99px;display:inline-block;letter-spacing:.3px
+}
+.inv-pill-eq{background:linear-gradient(135deg,#daa520,#9c7e1a);color:#fff}
+.inv-pill-own{background:rgba(5,150,105,.14);color:#047857}
+.inv-pill-lock{background:rgba(31,22,17,.06);color:var(--muted)}
+.inv-empty{
+  text-align:center;padding:22px;color:var(--muted);
+  background:rgba(31,22,17,.02);border-radius:10px;
+  border:1px dashed rgba(184,134,11,.20);font-size:12px
+}
+.inv-showcase{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px;margin-bottom:14px
+}
+.inv-show-card{
+  background:linear-gradient(135deg,#fffbed,#fff5d8);
+  border:2px solid rgba(212,160,23,.25);border-radius:14px;
+  padding:14px 10px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:6px
+}
+.inv-show-card .inv-icon{font-size:38px}
+.inv-show-lbl{
+  font-size:10px;font-weight:800;color:var(--gold-dark);
+  text-transform:uppercase;letter-spacing:.5px
+}
+.inv-slot-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:8px;margin-bottom:14px
+}
+.inv-slot{
+  background:#fff;border:1.5px solid rgba(184,134,11,.14);
+  border-radius:10px;padding:9px 7px;text-align:center
+}
+.inv-slot-lbl{font-size:10px;font-weight:800;color:var(--muted);margin-bottom:4px}
+.inv-slot-val{font-size:12px;font-weight:800;color:var(--text)}
+.inv-slot.empty .inv-slot-val{color:rgba(31,22,17,.30);font-style:italic}
+.inv-collapsible{
+  background:#fff;border:1px solid rgba(184,134,11,.14);
+  border-radius:10px;margin-bottom:8px;overflow:hidden
+}
+.inv-collapsible summary{
+  padding:10px 14px;cursor:pointer;font-weight:800;
+  font-size:12px;color:var(--text);user-select:none;
+  display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(135deg,rgba(212,160,23,.05),transparent)
+}
+.inv-collapsible summary:hover{background:rgba(212,160,23,.08)}
+.inv-collapsible[open] summary{border-bottom:1px solid rgba(184,134,11,.10)}
+.inv-collapsible-body{padding:12px}
+.act-day-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:8px;margin-bottom:14px
+}
+.act-day{
+  background:#fff;border:1.5px solid rgba(184,134,11,.14);
+  border-radius:10px;padding:9px 7px;text-align:center
+}
+.act-day.done{
+  background:linear-gradient(135deg,rgba(5,150,105,.10),rgba(5,150,105,.04));
+  border-color:rgba(5,150,105,.30)
+}
+.act-day-icon{font-size:18px;line-height:1;margin-bottom:3px}
+.act-day-lbl{font-size:10px;font-weight:800;color:var(--muted)}
+.act-day-val{font-size:11px;font-weight:800;color:var(--text);margin-top:2px}
+.act-log-row{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:7px 10px;background:#fff;
+  border:1px solid rgba(184,134,11,.10);border-radius:8px;margin-bottom:4px;
+  font-size:12px
+}
+.act-log-date{font-weight:800;color:var(--gold-dark);direction:ltr}
+.act-log-val{color:var(--text)}
+.act-verse{
+  background:linear-gradient(135deg,#fffbed,#fff5d8);
+  border:1.5px solid rgba(212,160,23,.20);border-radius:12px;
+  padding:14px;margin-bottom:14px;text-align:center
+}
+.act-verse-text{
+  font-size:14px;font-weight:700;color:var(--text);
+  line-height:1.6;margin-bottom:6px
+}
+.act-verse-ref{font-size:11px;color:var(--gold-dark);font-weight:800}
+
+/* RESPONSIVE — gamified mobile-first */
+@media(max-width:760px){
+  body{font-size:14px}
+  .auth-card{padding:30px 22px;border-radius:20px}
+  .auth-icon{font-size:46px}
+  .auth-card h1{font-size:20px}
+  .topbar{padding:0 14px;height:56px}
+  .topbar-title{font-size:14px}
+  .topbar-title small{display:none}
+  .live-dot{display:none}
+  .btn-ref{padding:6px 10px;font-size:12px}
+  .btn-ref span,.btn-ref::after{display:none}
+  .page{padding:14px 12px}
+  .ph h2{font-size:16px}
+  .ph p{font-size:12px}
+  .kpi{padding:13px 11px}
+  .kpi-val{font-size:22px}
+  .kpi-icon{font-size:22px}
+  .kpi-lbl{font-size:10px}
+  .fbar{gap:7px}
+  .flt{min-width:0;width:calc(50% - 4px);font-size:12px;padding:7px 10px}
+  /* Convert players table to cards */
+  .tbl-wrap table{display:none}
+  .player-cards{display:flex}
+  /* Modals fill more of the screen */
+  .modal-ov{padding:8px}
+  .modal{max-height:96vh;border-radius:16px}
+  .mhead{padding:14px 14px 12px}
+  .mhead h2{font-size:14px}
+  .mbody{padding:14px}
+  .pm-tabs{padding:8px 12px 0;gap:2px;top:54px}
+  .pm-tab{padding:6px 10px;font-size:11px}
+  .dg{grid-template-columns:1fr 1fr;gap:6px}
+  .dgi{padding:8px 10px}
+  .dgv.lg{font-size:18px}
+  .erow{flex-wrap:wrap;gap:6px}
+  .elbl{width:100%;margin-bottom:2px}
+  .pugrid{grid-template-columns:repeat(2,1fr);gap:7px}
+  .pubox{padding:9px}
+  .station-grid{grid-template-columns:repeat(2,1fr)}
+  .tgrid{grid-template-columns:1fr}
+  /* Tabs on mobile — wrap nicely */
+  .qtabs,.admgmt-tabs{gap:6px;flex-wrap:wrap}
+  .qtab,.amtab{padding:7px 11px;font-size:11px;flex:1;min-width:0;justify-content:center}
+  .qtab span,.amtab span{font-size:10px}
+  /* Questions page: complete mobile fit */
+  #page-questions{overflow-x:hidden;max-width:100vw}
+  #page-questions .card{min-width:0;width:100%;overflow:hidden}
+  #page-questions .cb{padding:12px;min-width:0}
+  #page-questions .ch{padding:11px 13px}
+  #page-questions .ch h3{font-size:12px}
+  #qinbox{padding:8px;max-height:50vh}
+  .qinbox-row{flex-wrap:wrap;gap:6px;padding:8px;min-width:0}
+  .qinbox-row > div:first-of-type{flex:1 1 100%;min-width:0}
+  .qinbox-row > div:last-of-type{flex:1 1 100%;flex-direction:row!important;align-items:center!important;justify-content:space-between!important}
+  #qa-editor-wrap{max-width:100%;width:100%;overflow:hidden;min-width:0}
+  #qa-editor-wrap *{max-width:100%}
+  #qa-editor-wrap .ql-toolbar.ql-snow{flex-wrap:wrap;padding:4px 6px;gap:1px}
+  #qa-editor-wrap .ql-toolbar.ql-snow .ql-formats{flex-wrap:wrap;border:none!important;padding:0!important;margin:0!important;gap:0}
+  #qa-editor-wrap .ql-toolbar button{width:26px!important;height:26px!important}
+  #qa-editor-wrap .ql-toolbar .ql-picker-label{font-size:11px;padding:2px 5px}
+  #qadmin-editor .ql-editor{min-height:120px;max-height:30vh;font-size:13px;padding:10px 12px}
+  #qthr-msgs{max-height:35vh;padding-inline:0!important;min-width:0}
+  #qthr-msgs .qa-bub{max-width:100%;font-size:12px;padding:8px 10px;word-break:break-word;overflow-wrap:anywhere}
+  #qthr-msgs .qa-bub img,#qthr-msgs .qa-bub video,#qthr-msgs .qa-bub iframe{max-width:100%;height:auto}
+  #qthr-msgs pre,#qthr-msgs code{white-space:pre-wrap;word-break:break-all;max-width:100%}
+  #qthr-meta{font-size:11px!important;padding:8px 10px!important;word-break:break-word}
+  /* Video URL row: input shrinks instead of pushing out */
+  #qvideo-url{min-width:0;flex:1 1 0%;width:0}
+  #qvideos-list{min-width:0}
+  /* Sidebar wider w/ overlay (old pseudo-element removed — real overlay now handles it) */
+  .sidebar{width:260px;box-shadow:-12px 0 40px rgba(0,0,0,.20)}
+  /* Admin mgmt: more breathing room */
+  .areqcard{flex-wrap:wrap;padding:12px 13px}
+  .areqact{width:100%;justify-content:flex-end;margin-top:6px}
+  .am-header{flex-direction:column;align-items:stretch}
+  .btn-create-admin{justify-content:center}
+  /* Touch targets */
+  .btn{min-height:36px}
+  .nav-btn{padding:11px 12px;font-size:14px}
+  .nav-btn i{font-size:14px}
+  /* Inventory & activity tabs */
+  .inv-kpis{grid-template-columns:repeat(3,1fr);gap:6px}
+  .inv-kpi{padding:8px 5px}
+  .inv-kpi-icon{font-size:18px}
+  .inv-kpi-val{font-size:15px}
+  .inv-kpi-lbl{font-size:9px}
+  .inv-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .inv-card{padding:8px 5px;min-height:88px}
+  .inv-icon{font-size:26px}
+  .inv-name{font-size:11px}
+  .inv-showcase{grid-template-columns:repeat(2,1fr);gap:7px}
+  .inv-show-card{padding:10px 6px}
+  .inv-show-card .inv-icon{font-size:30px}
+  .inv-slot-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .act-day-grid{grid-template-columns:repeat(2,1fr);gap:6px}
+  .inv-section-title{font-size:12px;padding:7px 10px}
+}
+@media(max-width:420px){
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi{padding:11px 9px}
+  .kpi-val{font-size:19px}
+  .player-card-stats{gap:5px}
+  .pcs-val{font-size:13px}
+  .flt{width:100%}
+  .inv-kpis{grid-template-columns:repeat(2,1fr)}
+  .inv-grid{grid-template-columns:repeat(2,1fr)}
+}
+
+/* Subtle gold animation on KPI icons */
+@keyframes goldShimmer{0%,100%{filter:drop-shadow(0 1px 3px rgba(212,160,23,.20))}50%{filter:drop-shadow(0 2px 8px rgba(212,160,23,.45))}}
+.kpi-icon{animation:goldShimmer 4s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -739,6 +1395,8 @@ tbody td{padding:10px 13px;vertical-align:middle}
         <button class="nav-btn" onclick="goPage('rooms')"><i class="fas fa-bolt"></i> غرف المنافسة</button>
         <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
+        <button class="nav-btn" onclick="goPage('locks')" id="nav-locks"><i class="fas fa-lock"></i> الإقفال والإتاحة</button>
+        <button class="nav-btn" onclick="goPage('reports')" id="nav-reports"><i class="fas fa-flag"></i> التقارير <span class="nav-badge" id="nav-reports-badge" style="display:none">0</span></button>
       </div>
       <div class="nav-grp" id="nav-grp-super" style="display:none">
         <div class="nav-grp-title">المسؤول الأعلى</div>
@@ -750,8 +1408,10 @@ tbody td{padding:10px 13px;vertical-align:middle}
     </div>
   </aside>
 
+  <div id="sidebar-overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.style.display='none'"></div>
+
   <header class="topbar">
-    <button class="hamburger" onclick="document.getElementById('sidebar').classList.toggle('open')"><i class="fas fa-bars"></i></button>
+    <button class="hamburger" onclick="var s=document.getElementById('sidebar');var o=s.classList.toggle('open');document.getElementById('sidebar-overlay').style.display=o?'block':'none'"><i class="fas fa-bars"></i></button>
     <div class="topbar-title" id="tb-title">الإحصائيات <small id="tb-sub">نظرة عامة</small></div>
     <div class="topbar-right">
       <div class="live-dot" title="متصل بـ Firebase"></div>
@@ -787,6 +1447,7 @@ tbody td{padding:10px 13px;vertical-align:middle}
         <select class="flt" id="f-gender" onchange="applyF()"><option value="">النوع (الكل)</option><option value="male">👦 ولد</option><option value="female">👧 بنت</option></select>
         <select class="flt" id="f-year"   onchange="applyF()"><option value="">السنة (الكل)</option><option value="prep1">أولى إعدادي</option><option value="prep2">تانية إعدادي</option><option value="prep3">تالتة إعدادي</option></select>
         <select class="flt" id="f-team"   onchange="applyF()"><option value="">الفريق (الكل)</option><option value="__none__">بدون فريق</option></select>
+        <select class="flt" id="f-status" onchange="applyF()"><option value="">الحالة (الكل)</option><option value="active">✅ نشط</option><option value="suspended">⏸️ موقوف</option><option value="blocked">⛔ محظور</option></select>
         <button class="btn bg bsm" onclick="clearF()"><i class="fas fa-times"></i> مسح</button>
         <span class="fcnt" id="fcnt"></span>
         <button class="btn bg bsm" onclick="exportCSV()"><i class="fas fa-file-csv"></i> تصدير CSV</button>
@@ -805,13 +1466,38 @@ tbody td{padding:10px 13px;vertical-align:middle}
           </tr></thead>
           <tbody id="ptbody"><tr><td colspan="9" class="loading"><i class="fas fa-spinner"></i></td></tr></tbody>
         </table>
+        <div id="pcards-list" class="player-cards"></div>
       </div>
     </div>
 
     <!-- TEAMS -->
     <div class="page" id="page-teams">
-      <div class="ph"><h2><i class="fas fa-shield-halved" style="color:var(--accent2)"></i> الفرق</h2><p>إدارة الفرق وأعضائها</p></div>
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px">
+        <div><h2><i class="fas fa-shield-halved" style="color:var(--accent2)"></i> الفرق</h2><p>إدارة الفرق وأعضائها</p></div>
+        <button class="btn bp" onclick="openCreateTeamModal()"><i class="fas fa-plus"></i> فريق جديد</button>
+      </div>
       <div class="tgrid" id="tgrid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- LOCKS -->
+    <div class="page" id="page-locks">
+      <div class="ph"><h2><i class="fas fa-lock" style="color:var(--accent2)"></i> الإقفال والإتاحة</h2><p>افتح أو اقفل المراحل والمواد والدروس وكروت الـ Dashboard مع رسالة مخصصة</p></div>
+      <div class="card" style="margin-bottom:14px"><div class="ch"><h3><i class="fas fa-th-large" style="color:var(--teal)"></i> كروت الشاشة الرئيسية</h3></div><div class="cb" id="locks-cards"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="ch"><h3><i class="fas fa-layer-group" style="color:var(--gold)"></i> المراحل (Level 1 → 5)</h3></div><div class="cb" id="locks-levels"></div></div>
+      <div class="card" style="margin-bottom:14px"><div class="ch"><h3><i class="fas fa-book" style="color:var(--green)"></i> المواد</h3></div><div class="cb" id="locks-subjects"></div></div>
+      <div class="card"><div class="ch"><h3><i class="fas fa-graduation-cap" style="color:var(--pink)"></i> الدروس</h3></div><div class="cb" id="locks-lessons"></div></div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="page" id="page-reports">
+      <div class="ph"><h2><i class="fas fa-flag" style="color:var(--red)"></i> التقارير والسلوكيات</h2><p>سجلّ النشاط، الحالات المريبة، التفاعل، وبلاغات اللاعبين</p></div>
+      <div class="rpt-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+        <button class="btn bg bsm rpt-tab active" data-rt="audit"      onclick="rptTab('audit')"><i class="fas fa-list"></i> سجلّ النشاط</button>
+        <button class="btn bg bsm rpt-tab"        data-rt="suspicion"  onclick="rptTab('suspicion')"><i class="fas fa-triangle-exclamation"></i> سلوك مريب</button>
+        <button class="btn bg bsm rpt-tab"        data-rt="engagement" onclick="rptTab('engagement')"><i class="fas fa-chart-line"></i> التفاعل</button>
+        <button class="btn bg bsm rpt-tab"        data-rt="reports"    onclick="rptTab('reports')"><i class="fas fa-bullhorn"></i> بلاغات اللاعبين</button>
+      </div>
+      <div class="card" id="rpt-body"><div class="loading"><i class="fas fa-spinner"></i></div></div>
     </div>
 
     <!-- REWARDS -->
@@ -968,7 +1654,7 @@ tbody td{padding:10px 13px;vertical-align:middle}
             <div id="qthr-msgs" style="display:flex;flex-direction:column;gap:10px;max-height:45vh;overflow-y:auto;padding-inline:2px"></div>
 
             <!-- Reply composer -->
-            <div style="border-top:1px solid rgba(255,255,255,0.08);padding-top:12px">
+            <div style="border-top:1px solid rgba(31,22,17,0.10);padding-top:12px">
               <div class="slbl" style="margin-bottom:6px">✍️ محرر الرد — يدعم خطوط، ألوان، صور، قوائم والمزيد</div>
               <div id="qa-editor-wrap">
                 <div id="qadmin-editor"></div>
@@ -1007,10 +1693,11 @@ tbody td{padding:10px 13px;vertical-align:middle}
           <p id="super-info">جاري التحميل...</p>
         </div>
       </div>
-      <div class="admgmt-tabs">
+      <div class="admgmt-tabs" style="align-items:center">
         <button class="amtab active" onclick="amTab('pending')" id="amt-pending"><i class="fas fa-clock"></i> طلبات جديدة <span class="amcnt" id="am-pcount">0</span></button>
         <button class="amtab" onclick="amTab('active')" id="amt-active"><i class="fas fa-users"></i> الأدمنز الحاليين <span class="amcnt" id="am-acount">0</span></button>
         <button class="amtab" onclick="amTab('rejected')" id="amt-rejected"><i class="fas fa-ban"></i> المرفوضون <span class="amcnt" id="am-rcount">0</span></button>
+        <button class="btn-create-admin" onclick="openCreateAdmin()" style="margin-right:auto"><i class="fas fa-user-plus"></i> إضافة أدمن</button>
       </div>
       <div class="card" id="ampanel-pending"><div class="loading"><i class="fas fa-spinner"></i></div></div>
       <div class="card" id="ampanel-active" style="display:none"><div class="loading"><i class="fas fa-spinner"></i></div></div>
@@ -1038,6 +1725,26 @@ tbody td{padding:10px 13px;vertical-align:middle}
   <div class="modal" style="max-width:420px" id="madmin-box"></div>
 </div>
 
+<!-- CREATE / EDIT TEAM MODAL -->
+<div id="modal-team" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-team')">
+  <div class="modal" style="max-width:480px" id="mteam-box"></div>
+</div>
+
+<!-- SUSPEND / BLOCK PLAYER MODAL -->
+<div id="modal-suspend" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-suspend')">
+  <div class="modal" style="max-width:480px" id="msuspend-box"></div>
+</div>
+
+<!-- LOCK EDIT MODAL -->
+<div id="modal-lock" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-lock')">
+  <div class="modal" style="max-width:520px" id="mlock-box"></div>
+</div>
+
+<!-- REPORT DETAIL MODAL -->
+<div id="modal-report" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-report')">
+  <div class="modal" style="max-width:560px" id="mreport-box"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1061,11 +1768,44 @@ const SESSION_KEY = 'minElBatal_adminSession';
 const SUPER = { phone:'01207714622', passHash:hp('01207714622'+'123456789mI'), name:'المسؤول الأعلى', role:'superadmin' };
 
 // ════════════════════════════════
+//  PERMISSIONS — pages each admin can access
+// ════════════════════════════════
+const PAGES = [
+  { key:'insights', label:'الإحصائيات',     icon:'fa-chart-pie' },
+  { key:'players',  label:'اللاعبين',        icon:'fa-users' },
+  { key:'teams',    label:'الفرق',           icon:'fa-shield-halved' },
+  { key:'rewards',  label:'طلبات الجوائز',   icon:'fa-gift' },
+  { key:'rooms',    label:'غرف المنافسة',    icon:'fa-bolt' },
+  { key:'announce', label:'الإعلانات',       icon:'fa-bullhorn' },
+  { key:'questions',label:'الأسئلة',         icon:'fa-comments' },
+  { key:'locks',    label:'الإقفال والإتاحة', icon:'fa-lock' },
+  { key:'reports',  label:'التقارير',         icon:'fa-flag' }
+];
+function defaultPerms(){ var p={}; PAGES.forEach(function(x){ p[x.key]=true; }); return p; }
+function hasPerm(key){
+  if(!me) return false;
+  if(me.role==='superadmin') return true;
+  return !!(me.perms && me.perms[key]);
+}
+function applyNavPermissions(){
+  if(!me) return;
+  PAGES.forEach(function(p){
+    var btn = document.querySelector('button[onclick="goPage(\''+p.key+'\')"]');
+    if(btn) btn.style.display = hasPerm(p.key) ? '' : 'none';
+  });
+  // Hide superadmin-only group
+  var sup=document.getElementById('nav-grp-super');
+  if(sup) sup.style.display = me.role==='superadmin' ? 'block' : 'none';
+}
+
+// ════════════════════════════════
 //  STATE
 // ════════════════════════════════
 let me = null; // current logged-in admin
 let players=[], teams=[], rewards=[], rooms=[], announces=[], admins=[], adminReqs=[];
 let filtered=[], sortField='stars', sortDir='desc', pendingAssignPhone=null;
+let contentLocks = {}; // { card_level1:{locked,message}, level_1:{...}, subject_faith:{...}, lesson_faith_0:{...} }
+let playerEvents = [], playerReports = [];
 const YR = {prep1:'أولى إعدادي',prep2:'تانية إعدادي',prep3:'تالتة إعدادي'};
 const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
 const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#10b981',lessons:['اعرف نفسك','قوة الكلمة','إدارة الوقت','القيادة الخادمة','التعامل مع الضغوط','صانع السلام']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']}};
@@ -1104,6 +1844,7 @@ function showScreen(id) {
 // ════════════════════════════════
 function saveSession(admin, keep) {
   const data = { phone:admin.phone, name:admin.name, role:admin.role, _id:admin._id||'super',
+                 perms: admin.perms || (admin.role==='superadmin' ? null : defaultPerms()),
                  expires: Date.now() + (keep ? 30*86400000 : 8*3600000) };
   localStorage.setItem(SESSION_KEY, JSON.stringify(data));
 }
@@ -1145,7 +1886,7 @@ async function tryLogin() {
       const d = snap.docs[0].data();
       if (d.passwordHash !== hash) { showErr('l-err','كلمة السر غلط'); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return; }
       if (d.status !== 'active')   { showErr('l-err','حسابك لسه تحت المراجعة أو تم رفضه'); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return; }
-      me = { phone:d.phone, name:d.name, role:d.role||'admin', _id:snap.docs[0].id };
+      me = { phone:d.phone, name:d.name, role:d.role||'admin', _id:snap.docs[0].id, perms: d.perms || defaultPerms() };
       saveSession(me, keep);
       enterApp(); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return;
     }
@@ -1166,9 +1907,14 @@ function enterApp() {
   document.getElementById('wb-name').textContent = me.name;
   document.getElementById('wb-role').textContent = me.role==='superadmin'?'👑 المسؤول الأعلى':'🛡️ أدمن';
   document.getElementById('wb-ico').textContent  = me.role==='superadmin'?'👑':'🛡️';
-  // Show superadmin nav
-  if (me.role==='superadmin') document.getElementById('nav-grp-super').style.display='block';
+  // Apply permissions to nav buttons (superadmin sees everything)
+  applyNavPermissions();
   document.getElementById('super-info').textContent = SUPER.name+' · '+SUPER.phone;
+  // Land on first allowed page if current default isn't permitted
+  if(!hasPerm('insights')){
+    var first = PAGES.find(function(p){ return hasPerm(p.key); });
+    if(first) goPage(first.key);
+  }
   loadAll();
 }
 
@@ -1269,15 +2015,22 @@ async function loadAll() {
 
   let ps,ts,rs,rms,ans,ads,arqs;
   try {
-    [ps,ts,rs,rms,ans,ads,arqs] = await Promise.all([
+    var locksDoc, eventsSnap, reportsSnap;
+    [ps,ts,rs,rms,ans,ads,arqs,locksDoc,eventsSnap,reportsSnap] = await Promise.all([
       safeGet(db.collection('players')),
       safeGet(db.collection('teams')),
       safeGet(db.collection('reward_requests')),
       safeGet(db.collection('compete_rooms').limit(60)),
       safeGet(db.collection('announcements').limit(30)),
       safeGet(db.collection('admins')),
-      safeGet(db.collection('admin_requests'))
+      safeGet(db.collection('admin_requests')),
+      db.collection('gameContent').doc('locks').get().catch(()=>null),
+      db.collection('playerEvents').orderBy('ts','desc').limit(500).get().catch(()=>null),
+      db.collection('playerReports').orderBy('createdAt','desc').limit(200).get().catch(()=>null)
     ]);
+    contentLocks = (locksDoc && locksDoc.exists) ? (locksDoc.data() || {}) : {};
+    playerEvents = []; if(eventsSnap){eventsSnap.forEach(d=>{const x=d.data();x._id=d.id;playerEvents.push(x);});}
+    playerReports = []; if(reportsSnap){reportsSnap.forEach(d=>{const x=d.data();x._id=d.id;playerReports.push(x);});}
   } catch(e) {
     console.warn('[loadAll] Firestore unreachable:', e.message);
     btn.classList.remove('spin');
@@ -1314,6 +2067,8 @@ async function loadAll() {
   fillTeamFilter();
   try { renderInsights(); } catch(e) { console.warn('renderInsights error:', e); }
   applyF(); renderTeams(); renderRewards(); renderRooms(); renderAnnounce(); renderAdminMgmt(); updateSegmentCount();
+  try { renderLocks(); } catch(e) { console.warn('renderLocks error:', e); }
+  try { rptTab(currentReportTab); } catch(e) { console.warn('renderReports error:', e); }
   updateBadges();
   btn.classList.remove('spin');
 }
@@ -1323,9 +2078,18 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',admins:'إدارة الأدمنز'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',admins:'قبول وإدارة الأدمنز'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز'};
 function goPage(name) {
+  // Permission gate (admins-page is gated separately by being hidden from non-supers)
+  if(name!=='admins' && !hasPerm(name)){
+    toast('ليس لديك صلاحية لهذه الصفحة','err');
+    return;
+  }
+  if(name==='admins' && me?.role!=='superadmin'){
+    toast('للمسؤول الأعلى فقط','err');
+    return;
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
@@ -1334,6 +2098,7 @@ function goPage(name) {
   document.getElementById('tb-title').childNodes[0].textContent=PTITLES[name]||name;
   document.getElementById('tb-sub').textContent=PSUBS[name]||'';
   document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').style.display='none';
 }
 
 // ════════════════════════════════
@@ -1351,6 +2116,13 @@ function updateBadges() {
   if(na){let ab=na.querySelector('.nbadge');
     if(arpend>0){if(!ab){ab=document.createElement('span');ab.className='nbadge';na.appendChild(ab);}ab.textContent=arpend;}
     else if(ab) ab.remove();}
+
+  // Player reports badge
+  const rpend = (playerReports||[]).filter(r=>r.status==='pending'||!r.status).length;
+  const nr=document.getElementById('nav-reports');
+  if(nr){let rb=nr.querySelector('.nbadge');
+    if(rpend>0){if(!rb){rb=document.createElement('span');rb.className='nbadge';nr.appendChild(rb);}rb.textContent=rpend;}
+    else if(rb) rb.remove();}
 }
 
 // ════════════════════════════════
@@ -1394,7 +2166,7 @@ function renderInsights() {
         <div class="donut-leg">
           <div class="leg-row"><div class="leg-dot" style="background:var(--teal)"></div> أولاد: <strong>${M}</strong></div>
           <div class="leg-row"><div class="leg-dot" style="background:var(--pink)"></div> بنات: <strong>${F}</strong></div>
-          <div class="leg-row"><div class="leg-dot" style="background:rgba(255,255,255,.15)"></div> غير محدد: <strong>${T-M-F}</strong></div>
+          <div class="leg-row"><div class="leg-dot" style="background:rgba(31,22,17,.18)"></div> غير محدد: <strong>${T-M-F}</strong></div>
         </div>
       </div>
     </div></div>`;
@@ -1516,7 +2288,8 @@ function applyF() {
         ph=document.getElementById('f-phone').value.trim(),
         g=document.getElementById('f-gender').value,
         y=document.getElementById('f-year').value,
-        t=document.getElementById('f-team').value;
+        t=document.getElementById('f-team').value,
+        s=(document.getElementById('f-status')||{}).value||'';
   filtered=players.filter(p=>{
     if(n&&!(p.playerName||'').toLowerCase().includes(n)&&!(p.username||'').toLowerCase().includes(n)) return false;
     if(ph&&!(p.playerPhone||'').includes(ph)) return false;
@@ -1524,11 +2297,15 @@ function applyF() {
     if(y&&p.academicYear!==y) return false;
     if(t==='__none__'&&p.team&&p.team.trim()) return false;
     if(t&&t!=='__none__'&&p.team!==t) return false;
+    if(s){
+      const ps=p.status||'active';
+      if(ps!==s) return false;
+    }
     return true;
   });
   doSort(); document.getElementById('fcnt').textContent=filtered.length+' لاعب'; renderPT();
 }
-function clearF(){['f-name','f-phone'].forEach(id=>document.getElementById(id).value='');['f-gender','f-year','f-team'].forEach(id=>document.getElementById(id).value='');applyF();}
+function clearF(){['f-name','f-phone'].forEach(id=>document.getElementById(id).value='');['f-gender','f-year','f-team','f-status'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});applyF();}
 function sortBy(f){if(sortField===f)sortDir=sortDir==='asc'?'desc':'asc';else{sortField=f;sortDir='desc';}
   document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
   const el=document.getElementById('si-'+f);if(el){el.closest('th').classList.add('sorted');el.className='fas fa-sort-'+(sortDir==='asc'?'up':'down');}
@@ -1536,15 +2313,25 @@ function sortBy(f){if(sortField===f)sortDir=sortDir==='asc'?'desc':'asc';else{so
 function doSort(){filtered.sort((a,b)=>{let av=a[sortField]??0,bv=b[sortField]??0;if(typeof av==='string')av=av.toLowerCase();if(typeof bv==='string')bv=bv.toLowerCase();return av<bv?(sortDir==='asc'?-1:1):av>bv?(sortDir==='asc'?1:-1):0;});}
 function renderPT() {
   const tbody=document.getElementById('ptbody');
-  if(!filtered.length){tbody.innerHTML='<tr><td colspan="9" class="empty"><i class="fas fa-search"></i><p>لا يوجد نتائج</p></td></tr>';return;}
+  const cards=document.getElementById('pcards-list');
+  if(!filtered.length){
+    tbody.innerHTML='<tr><td colspan="9" class="empty"><i class="fas fa-search"></i><p>لا يوجد نتائج</p></td></tr>';
+    if(cards) cards.innerHTML='<div class="empty" style="padding:24px;text-align:center;color:var(--muted)"><i class="fas fa-search"></i><p>لا يوجد نتائج</p></div>';
+    return;
+  }
   tbody.innerHTML=filtered.map(p=>{
     const gb=p.gender==='male'?'<span class="badge b-male">👦 ولد</span>':p.gender==='female'?'<span class="badge b-female">👧 بنت</span>':'<span style="color:var(--muted);font-size:11px">—</span>';
     const yb=p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'—';
     const tb=p.team&&p.team.trim()?`<span class="badge b-team">${p.teamLogo||'⚔️'} ${esc(p.team)}</span>`:'<span class="badge b-noteam">بدون فريق</span>';
     const ab=p.team&&p.team.trim()?`<button class="btn bd bxs" onclick="removeFromTeam('${p.playerPhone}','${esc(p.team)}')"><i class="fas fa-user-minus"></i> إزالة</button>`
                                   :`<button class="btn bg bxs" onclick="openAssign('${p.playerPhone}')"><i class="fas fa-user-plus"></i> فريق</button>`;
-    return `<tr>
-      <td><div style="font-weight:700">${esc(p.playerName||'—')}</div><div style="font-size:11px;color:var(--muted)">@${esc(p.username||'—')}</div></td>
+    const sBadge = p.status==='suspended' ? '<span class="badge b-suspended" style="margin-right:4px">⏸️ موقوف</span>'
+                  : p.status==='blocked' ? '<span class="badge b-blocked" style="margin-right:4px">⛔ محظور</span>' : '';
+    const sBtn = (p.status==='suspended'||p.status==='blocked')
+      ? `<button class="btn bs bxs" onclick="unsuspendPlayer('${p.playerPhone}')" title="إلغاء الإيقاف"><i class="fas fa-circle-check"></i></button>`
+      : `<button class="btn bxs" style="background:rgba(245,158,11,.18);color:#d97706;border:1px solid rgba(245,158,11,.35)" onclick="openSuspendModal('${p.playerPhone}')" title="إيقاف/حظر"><i class="fas fa-ban"></i></button>`;
+    return `<tr${p.status==='blocked'?' style="opacity:.55"':''}>
+      <td><div style="font-weight:700">${esc(p.playerName||'—')} ${sBadge}</div><div style="font-size:11px;color:var(--muted)">@${esc(p.username||'—')}</div></td>
       <td dir="ltr" style="font-size:12px">${esc(p.playerPhone||'—')}</td>
       <td>${gb}</td><td>${yb}</td>
       <td style="color:var(--gold);font-weight:700">⭐ ${(p.stars||0).toLocaleString()}</td>
@@ -1554,9 +2341,47 @@ function renderPT() {
       <td><div style="display:flex;gap:5px;flex-wrap:wrap">
         <button class="btn bg bxs" onclick="openPM('${p.playerPhone}')"><i class="fas fa-pen"></i> تعديل</button>
         ${ab}
+        ${sBtn}
         <button class="btn bd bxs" onclick="deletePlayer('${p.playerPhone}')" title="حذف اللاعب"><i class="fas fa-trash"></i></button>
       </div></td></tr>`;
   }).join('');
+  if(cards){
+    cards.innerHTML=filtered.map(p=>{
+      const gIcon=p.gender==='male'?'👦':p.gender==='female'?'👧':'👤';
+      const initial=(p.playerName||'?').trim().charAt(0)||'?';
+      const yb=p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'';
+      const tb=p.team&&p.team.trim()?`<span class="badge b-team">${p.teamLogo||'⚔️'} ${esc(p.team)}</span>`:'<span class="badge b-noteam">بدون فريق</span>';
+      const gb=p.gender==='male'?'<span class="badge b-male">👦 ولد</span>':p.gender==='female'?'<span class="badge b-female">👧 بنت</span>':'';
+      const ab=p.team&&p.team.trim()?`<button class="btn bd bsm" onclick="removeFromTeam('${p.playerPhone}','${esc(p.team)}')"><i class="fas fa-user-minus"></i> إزالة</button>`
+                                    :`<button class="btn bg bsm" onclick="openAssign('${p.playerPhone}')"><i class="fas fa-user-plus"></i> فريق</button>`;
+      const sBadge = p.status==='suspended' ? '<span class="badge b-suspended">⏸️ موقوف</span>'
+                    : p.status==='blocked' ? '<span class="badge b-blocked">⛔ محظور</span>' : '';
+      const sBtn = (p.status==='suspended'||p.status==='blocked')
+        ? `<button class="btn bs bsm" onclick="unsuspendPlayer('${p.playerPhone}')"><i class="fas fa-circle-check"></i> إلغاء الإيقاف</button>`
+        : `<button class="btn bsm" style="background:rgba(245,158,11,.18);color:#d97706;border:1px solid rgba(245,158,11,.35)" onclick="openSuspendModal('${p.playerPhone}')"><i class="fas fa-ban"></i> إيقاف</button>`;
+      return `<div class="player-card"${p.status==='blocked'?' style="opacity:.6"':''}>
+        <div class="player-card-top">
+          <div class="player-card-av">${initial}</div>
+          <div class="player-card-name">
+            <h4>${gIcon} ${esc(p.playerName||'—')}</h4>
+            <p>@${esc(p.username||'—')} · ${esc(p.playerPhone||'—')}</p>
+          </div>
+        </div>
+        <div class="player-card-stats">
+          <div class="pcs"><div class="pcs-val" style="color:var(--gold)">⭐ ${(p.stars||0).toLocaleString()}</div><div class="pcs-lbl">نجوم</div></div>
+          <div class="pcs"><div class="pcs-val" style="color:#1d6bd6">💎 ${(p.gems||0).toLocaleString()}</div><div class="pcs-lbl">جواهر</div></div>
+          <div class="pcs"><div class="pcs-val" style="color:var(--accent2)">✨ ${(p.xp||0).toLocaleString()}</div><div class="pcs-lbl">XP</div></div>
+        </div>
+        <div class="player-card-meta">${gb}${yb}${tb}${sBadge}</div>
+        <div class="player-card-acts">
+          <button class="btn bg bsm" onclick="openPM('${p.playerPhone}')"><i class="fas fa-pen"></i> تعديل</button>
+          ${ab}
+          ${sBtn}
+          <button class="btn bd bsm" onclick="deletePlayer('${p.playerPhone}')"><i class="fas fa-trash"></i> حذف</button>
+        </div>
+      </div>`;
+    }).join('');
+  }
 }
 
 // ════════════════════════════════
@@ -1572,22 +2397,26 @@ function openPM(phone) {
     <div class="pm-tabs">
       <button class="pm-tab active" onclick="pmTab(0)">✏️ تعديل</button>
       <button class="pm-tab" onclick="pmTab(1)">📚 الدروس</button>
-      <button class="pm-tab" onclick="pmTab(2)">⭐ مصادر النقاط</button>
-      <button class="pm-tab" onclick="pmTab(3)">🙏 الحياة الروحية</button>
-      <button class="pm-tab" onclick="pmTab(4)">📊 تلخيص</button>
+      <button class="pm-tab" onclick="pmTab(2)">⭐ النقاط</button>
+      <button class="pm-tab" onclick="pmTab(3)">🙏 الروحية</button>
+      <button class="pm-tab" onclick="pmTab(4)">🎒 المخزن</button>
+      <button class="pm-tab" onclick="pmTab(5)">📅 النشاط</button>
+      <button class="pm-tab" onclick="pmTab(6)">📊 تلخيص</button>
     </div>
     <div class="mbody" id="pm-tab-0">${renderEditTab(p)}</div>
     <div class="mbody" id="pm-tab-1" style="display:none">${renderLessonsTab(p)}</div>
     <div class="mbody" id="pm-tab-2" style="display:none">${renderPointsTab(p)}</div>
     <div class="mbody" id="pm-tab-3" style="display:none">${renderSpiritualTab(p)}</div>
-    <div class="mbody" id="pm-tab-4" style="display:none">${renderSummaryTab(p)}</div>
+    <div class="mbody" id="pm-tab-4" style="display:none">${renderInventoryTab(p)}</div>
+    <div class="mbody" id="pm-tab-5" style="display:none">${renderActivityTab(p)}</div>
+    <div class="mbody" id="pm-tab-6" style="display:none">${renderSummaryTab(p)}</div>
   `;
   document.getElementById('modal-player').style.display='flex';
 }
 
 function pmTab(n) {
   document.querySelectorAll('.pm-tab').forEach((t,i)=>t.classList.toggle('active',i===n));
-  [0,1,2,3,4].forEach(i=>{const el=document.getElementById('pm-tab-'+i);if(el)el.style.display=i===n?'block':'none';});
+  [0,1,2,3,4,5,6].forEach(i=>{const el=document.getElementById('pm-tab-'+i);if(el)el.style.display=i===n?'block':'none';});
 }
 
 function renderEditTab(p) {
@@ -1801,6 +2630,417 @@ async function resetPlayerPass(phone) {
     document.getElementById('e-new-pass2').value='';
     toast('✅ تم تغيير كلمة السر','ok');
   }catch(e){console.error(e);toast('خطأ في تغيير كلمة السر','err');}
+}
+
+// ════════════════════════════════
+//  GAME CATALOGS (mirrored from game.js — id → friendly label)
+// ════════════════════════════════
+const CAT_FRAMES = {
+  cross:  {n:'إطار الصليب الذهبي',  i:'✝️', c:15, color:'#FFD700'},
+  dove:   {n:'إطار الحمامة السماوية', i:'🕊️', c:30, color:'#7EC8E3'},
+  church: {n:'إطار الكنيسة المجيدة',  i:'⛪', c:50, color:'#C39BD3'},
+  flame:  {n:'إطار اللهيب المقدس',    i:'🔥', c:0,  color:'#FF6B35', earnedBy:'مكافأة 7 أيام دخول'}
+};
+const CAT_TITLES = {
+  bookKeeper:{n:'حافظ الكتاب',    i:'📖', c:0,  desc:'اقرأ 10 أصحاحات'},
+  gameChamp: {n:'بطل الألعاب',    i:'🏆', c:0,  desc:'أكمل 20 لعبة'},
+  faithful:  {n:'خادم أمين',      i:'🙏', c:0,  desc:'7 أيام streak متواصل'},
+  warrior:   {n:'محارب الإيمان',   i:'⚔️', c:25, desc:'هاجم البوس 5 مرات'},
+  scholar:   {n:'عالم اللاهوت',    i:'🎓', c:25, desc:'اشترِ بـ 25 جوهرة'},
+  star:      {n:'نجم المنافسات',   i:'⭐', c:40, desc:'اشترِ بـ 40 جوهرة'},
+  steadfast: {n:'المثابر الأمين',  i:'🏆', c:0,  desc:'30 يوم متواصل'}
+};
+const CAT_ARMOR = {
+  helmet:     {n:'خوذة الخلاص',  i:'⛑️', slot:'رأس',  c:50,  effect:'+5ث وقت'},
+  breastplate:{n:'درع البر',     i:'🛡️', slot:'صدر',  c:80,  effect:'+1 حياة'},
+  belt:       {n:'منطقة الحق',   i:'📿', slot:'وسط',  c:60,  effect:'×1.5 نقاط'},
+  shoes:      {n:'حذاء الإنجيل', i:'👟', slot:'قدم',  c:40,  effect:'سرعة'},
+  shield:     {n:'ترس الإيمان',  i:'🔰', slot:'يد',   c:100, effect:'حماية خطأ'},
+  sword:      {n:'سيف الروح',    i:'🗡️', slot:'سلاح', c:120, effect:'هجوم ×2'}
+};
+const CAT_WEAPONS = {
+  sling:       {n:'مقلاع داود',           i:'🪨', c:25,  type:'consumable', desc:'تخطي سؤال صعب'},
+  scroll:      {n:'لفافة الحكمة',         i:'📜', c:40,  type:'consumable', desc:'كشف إجابة صحيحة'},
+  doubleSword: {n:'سيف ذو حدين',          i:'⚔️', c:80,  type:'timed',      desc:'×2 نقاط لمدة'},
+  shieldFaith: {n:'ترس إيمان متقدم',      i:'🛡️', c:60,  type:'consumable', desc:'تجاهل خطأ'},
+  spear:       {n:'رمح النور',            i:'🗡️', c:50,  type:'consumable', desc:'تجميد سؤال'},
+  trumpet:     {n:'بوق الانتصار',         i:'🎺', c:100, type:'timed',      desc:'مضاعف XP'}
+};
+const CAT_THEMES = {
+  'default':    {n:'الإيمان الكلاسيكي', i:'⛪'},
+  'space':      {n:'الفضاء السماوي',     i:'🌌'},
+  'underwater': {n:'أعماق البحار',        i:'🌊'},
+  'sky':        {n:'السماء المفتوحة',    i:'☁️'}
+};
+const CAT_BUNDLES = {
+  starter:{n:'باقة البداية',  i:'🚀'},
+  warrior:{n:'باقة المحارب', i:'⚔️'}
+};
+const CAT_REWARDS = {
+  trip_discount:{n:'خصم رحلة الخدمة',   i:'✈️'},
+  surprise_box: {n:'صندوق المفاجآت',    i:'🎁'},
+  conf_discount:{n:'خصم المؤتمر',        i:'⛪'},
+  cash_prize:   {n:'هدية نقدية',         i:'💰'},
+  phone_case:   {n:'جراب موبايل',        i:'📱'}
+};
+const CAT_STREAK = {
+  streak7: {n:'إطار اللهيب (7 أيام)',     i:'🔥', d:7},
+  streak14:{n:'رتبة فضية (14 يوم)',       i:'⚡', d:14},
+  streak30:{n:'لقب المثابر (30 يوم)',     i:'🏆', d:30}
+};
+const CAT_CHARACTERS = {
+  david:    {n:'داود',       i:'🤴'},
+  philomena:{n:'فيلومينا',  i:'👸'},
+  paul:     {n:'بولس',       i:'🧔'},
+  george:   {n:'جرجس',       i:'⚔️'},
+  athanasius:{n:'أثناسيوس', i:'📜'},
+  ester:    {n:'إستير',     i:'👑'},
+  verina:   {n:'فيرينا',    i:'🌹'}
+};
+
+// Inventory rendering helpers
+function _itemCard(opts){
+  // opts: {icon, name, status:'equipped'|'owned'|'locked', meta, count, color}
+  const stCol = opts.status==='equipped' ? 'linear-gradient(135deg,rgba(212,160,23,.20),rgba(244,213,107,.30))'
+              : opts.status==='owned'    ? 'linear-gradient(135deg,rgba(5,150,105,.10),rgba(5,150,105,.04))'
+              :                             'linear-gradient(135deg,rgba(31,22,17,.04),rgba(31,22,17,.01))';
+  const stBorder = opts.status==='equipped' ? 'rgba(212,160,23,.55)'
+                  : opts.status==='owned'   ? 'rgba(5,150,105,.30)'
+                  :                            'rgba(31,22,17,.10)';
+  const stBadge = opts.status==='equipped' ? '<span class="inv-pill inv-pill-eq">⚡ مرتدي</span>'
+                : opts.status==='owned'    ? '<span class="inv-pill inv-pill-own">✓ يملك</span>'
+                :                             '<span class="inv-pill inv-pill-lock">🔒 مقفول</span>';
+  const opacity = opts.status==='locked' ? '.45' : '1';
+  const countHtml = opts.count!==undefined ? '<div style="font-size:11px;color:var(--gold-dark);font-weight:800;margin-top:3px">×'+opts.count+'</div>' : '';
+  return '<div class="inv-card" style="background:'+stCol+';border:1.5px solid '+stBorder+';opacity:'+opacity+'">'
+       +   '<div class="inv-icon" style="filter:'+(opts.status==='locked'?'grayscale(.6)':'none')+'">'+opts.icon+'</div>'
+       +   '<div class="inv-name">'+opts.name+'</div>'
+       +   (opts.meta?'<div class="inv-meta">'+opts.meta+'</div>':'')
+       +   countHtml
+       +   '<div class="inv-status">'+stBadge+'</div>'
+       + '</div>';
+}
+
+function renderInventoryTab(p){
+  const ownedFrames=p.ownedFrames||[], ownedTitles=p.ownedTitles||[];
+  const eqFrame=p.equippedFrame||'', eqTitle=p.equippedTitle||'';
+  const armor=p.armor||[], eqArmor=p.equippedArmor||{};
+  const consWeapons=p.consumableWeapons||{}, timedWeapons=p.weaponTimedEffects||{};
+  const claimedBundles=p.claimedBundles||[], theme=p.mapTheme||'default';
+  const charTiers=p.characterTiers||{}, character=p.character||'david';
+  const claimedStreaks=p.claimedStreakRewards||[];
+
+  // Counters
+  const ownedCount = ownedFrames.length + ownedTitles.length + armor.length + claimedBundles.length;
+  const totalShop = Object.keys(CAT_FRAMES).length + Object.keys(CAT_TITLES).length + Object.keys(CAT_ARMOR).length + Object.keys(CAT_BUNDLES).length;
+
+  let html='';
+
+  // ── Header KPIs ──
+  html+='<div class="inv-kpis">'
+      +'<div class="inv-kpi"><div class="inv-kpi-icon">🎒</div><div class="inv-kpi-val">'+ownedCount+'</div><div class="inv-kpi-lbl">عنصر يملكه</div></div>'
+      +'<div class="inv-kpi"><div class="inv-kpi-icon">🛡️</div><div class="inv-kpi-val">'+armor.length+'/'+Object.keys(CAT_ARMOR).length+'</div><div class="inv-kpi-lbl">دروع الإيمان</div></div>'
+      +'<div class="inv-kpi"><div class="inv-kpi-icon">🖼️</div><div class="inv-kpi-val">'+ownedFrames.length+'/'+Object.keys(CAT_FRAMES).length+'</div><div class="inv-kpi-lbl">إطارات</div></div>'
+      +'<div class="inv-kpi"><div class="inv-kpi-icon">🏷️</div><div class="inv-kpi-val">'+ownedTitles.length+'/'+Object.keys(CAT_TITLES).length+'</div><div class="inv-kpi-lbl">ألقاب</div></div>'
+      +'<div class="inv-kpi"><div class="inv-kpi-icon">🎁</div><div class="inv-kpi-val">'+claimedBundles.length+'/'+Object.keys(CAT_BUNDLES).length+'</div><div class="inv-kpi-lbl">باقات</div></div>'
+      +'<div class="inv-kpi"><div class="inv-kpi-icon">📊</div><div class="inv-kpi-val">'+Math.round(ownedCount/Math.max(totalShop,1)*100)+'%</div><div class="inv-kpi-lbl">من المخزن</div></div>'
+      +'</div>';
+
+  // ── Equipped showcase ──
+  const eqFrameInfo = CAT_FRAMES[eqFrame], eqTitleInfo = CAT_TITLES[eqTitle];
+  const eqCharInfo = CAT_CHARACTERS[character];
+  const eqThemeInfo = CAT_THEMES[theme];
+  html+='<div class="slbl" style="margin-top:14px">⚡ المرتدي حالياً</div>';
+  html+='<div class="dg" style="grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">';
+  html+='<div class="dgi" style="background:rgba(212,160,23,.06);border-color:rgba(212,160,23,.25)"><div class="dgl">🖼️ إطار البروفايل</div><div class="dgv" style="color:var(--gold-dark)">'+(eqFrameInfo?eqFrameInfo.i+' '+eqFrameInfo.n:'<span style="color:var(--muted)">لا شيء</span>')+'</div></div>';
+  html+='<div class="dgi" style="background:rgba(212,160,23,.06);border-color:rgba(212,160,23,.25)"><div class="dgl">🏷️ اللقب</div><div class="dgv" style="color:var(--gold-dark)">'+(eqTitleInfo?eqTitleInfo.i+' '+eqTitleInfo.n:'<span style="color:var(--muted)">لا شيء</span>')+'</div></div>';
+  html+='<div class="dgi" style="background:rgba(212,160,23,.06);border-color:rgba(212,160,23,.25)"><div class="dgl">🦸 الشخصية</div><div class="dgv" style="color:var(--gold-dark)">'+(eqCharInfo?eqCharInfo.i+' '+eqCharInfo.n:character)+(charTiers[character]?' <span class="badge" style="background:rgba(212,160,23,.18);color:var(--gold-dark);font-size:10px">'+charTiers[character]+'</span>':'')+'</div></div>';
+  html+='<div class="dgi" style="background:rgba(212,160,23,.06);border-color:rgba(212,160,23,.25)"><div class="dgl">🗺️ ثيم الخريطة</div><div class="dgv" style="color:var(--gold-dark)">'+(eqThemeInfo?eqThemeInfo.i+' '+eqThemeInfo.n:theme)+'</div></div>';
+  html+='</div>';
+
+  // ── Equipped Armor ──
+  if(Object.keys(eqArmor).length){
+    html+='<div class="slbl" style="margin-top:8px">🛡️ الدروع المرتدية (حسب الفتحة)</div>';
+    html+='<div class="inv-grid" style="margin-bottom:14px">';
+    Object.keys(eqArmor).forEach(function(slot){
+      const id=eqArmor[slot]; const info=CAT_ARMOR[id];
+      if(!info) return;
+      html+=_itemCard({icon:info.i, name:info.n, status:'equipped', meta:'فتحة: '+slot+' · '+info.effect});
+    });
+    html+='</div>';
+  }
+
+  // ── Frames ──
+  html+='<div class="slbl">🖼️ كل الإطارات ('+ownedFrames.length+'/'+Object.keys(CAT_FRAMES).length+')</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_FRAMES).forEach(function(k){
+    const f=CAT_FRAMES[k];
+    const status = eqFrame===k ? 'equipped' : ownedFrames.indexOf(k)>=0 ? 'owned' : 'locked';
+    html+=_itemCard({icon:f.i, name:f.n, status:status, meta:f.c>0?('💎 '+f.c):(f.earnedBy||'مكافأة')});
+  });
+  html+='</div>';
+
+  // ── Titles ──
+  html+='<div class="slbl" style="margin-top:14px">🏷️ كل الألقاب ('+ownedTitles.length+'/'+Object.keys(CAT_TITLES).length+')</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_TITLES).forEach(function(k){
+    const t=CAT_TITLES[k];
+    const status = eqTitle===k ? 'equipped' : ownedTitles.indexOf(k)>=0 ? 'owned' : 'locked';
+    html+=_itemCard({icon:t.i, name:t.n, status:status, meta:t.c>0?('💎 '+t.c):t.desc});
+  });
+  html+='</div>';
+
+  // ── Armor ──
+  html+='<div class="slbl" style="margin-top:14px">🛡️ كل دروع الإيمان ('+armor.length+'/'+Object.keys(CAT_ARMOR).length+')</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_ARMOR).forEach(function(k){
+    const a=CAT_ARMOR[k];
+    const isEq = Object.values(eqArmor).indexOf(k)>=0;
+    const status = isEq ? 'equipped' : armor.indexOf(k)>=0 ? 'owned' : 'locked';
+    html+=_itemCard({icon:a.i, name:a.n, status:status, meta:'💎 '+a.c+' · '+a.effect});
+  });
+  html+='</div>';
+
+  // ── Consumable + Timed Weapons ──
+  html+='<div class="slbl" style="margin-top:14px">⚔️ الأسلحة الاستهلاكية والمؤقتة</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_WEAPONS).forEach(function(k){
+    const w=CAT_WEAPONS[k];
+    let status='locked', meta=w.desc, count;
+    if(w.type==='consumable'){
+      const n = consWeapons[k]||0;
+      status = n>0 ? 'owned' : 'locked';
+      if(n>0) count = n;
+    } else if(w.type==='timed'){
+      const expiry = timedWeapons[k]||0;
+      const active = expiry > Date.now();
+      status = active ? 'equipped' : 'locked';
+      if(active){
+        const minsLeft = Math.max(0, Math.round((expiry-Date.now())/60000));
+        meta = 'متبقي: '+minsLeft+' دقيقة';
+      }
+    }
+    html+=_itemCard({icon:w.i, name:w.n, status:status, meta:meta, count:count});
+  });
+  html+='</div>';
+
+  // ── Bundles ──
+  html+='<div class="slbl" style="margin-top:14px">🎁 الباقات المشتراة</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_BUNDLES).forEach(function(k){
+    const b=CAT_BUNDLES[k];
+    const status = claimedBundles.indexOf(k)>=0 ? 'owned' : 'locked';
+    html+=_itemCard({icon:b.i, name:b.n, status:status, meta:status==='owned'?'تم الشراء':'لم يشترِ'});
+  });
+  html+='</div>';
+
+  // ── Map Themes ──
+  html+='<div class="slbl" style="margin-top:14px">🗺️ ثيمات الخريطة</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_THEMES).forEach(function(k){
+    const t=CAT_THEMES[k];
+    const status = theme===k ? 'equipped' : 'locked';
+    html+=_itemCard({icon:t.i, name:t.n, status:status, meta:status==='equipped'?'الثيم الحالي':'متاح'});
+  });
+  html+='</div>';
+
+  // ── Character Tiers ──
+  if(Object.keys(charTiers).length){
+    html+='<div class="slbl" style="margin-top:14px">🦸 رُتب الشخصيات</div>';
+    html+='<div class="inv-grid">';
+    Object.keys(charTiers).forEach(function(k){
+      const c=CAT_CHARACTERS[k]||{n:k,i:'👤'};
+      html+=_itemCard({icon:c.i, name:c.n, status:'owned', meta:'رتبة: '+charTiers[k]});
+    });
+    html+='</div>';
+  }
+
+  // ── Streak Rewards ──
+  html+='<div class="slbl" style="margin-top:14px">🔥 مكافآت الدخول المتواصل</div>';
+  html+='<div class="inv-grid">';
+  Object.keys(CAT_STREAK).forEach(function(k){
+    const s=CAT_STREAK[k];
+    const status = claimedStreaks.indexOf(k)>=0 ? 'owned' : 'locked';
+    html+=_itemCard({icon:s.i, name:s.n, status:status, meta:status==='owned'?'استلمها':'يحتاج '+s.d+' يوم متواصل'});
+  });
+  html+='</div>';
+
+  return html;
+}
+
+function renderActivityTab(p){
+  const today=new Date().toISOString().slice(0,10);
+  const lastLogin=p.dailyLoginDate||'—', loginStreak=p.loginStreak||0;
+  const lastSpin=p.dailySpinDate||'—', bonusSpin=p.dailyBonusSpin?'متاح':'استخدمها';
+  const lastDeal=p.dailyDealDate||'—', dealClaimed=p.dailyDealClaimed?'استلمها':'لم يستلم';
+  const blitzScore=p.blitzWeeklyScore||0, blitzKey=p.blitzWeeklyKey||'—';
+  const lastBoss=p.bossFoughtDate||'—';
+  const teamLast=p.teamLastAction?new Date(p.teamLastAction).toLocaleString('ar-EG'):'—';
+  const lampActive=(p.lampData||{}).lastActiveDate||'—';
+  const verseSpinLast=p.todayVerseSpinDate||'—';
+  const todayVerse=p.todayVerse;
+  const paulStation=p.paulJourneyStation||1;
+  const claimedStreaks=p.claimedStreakRewards||[];
+  const redeemed=p.redeemedRewards||[];
+  const claimedBundles=p.claimedBundles||[];
+  const dvl=p.dailyVerseLog||{};
+  const wl=p.weeklyChallengeLog||{};
+  const qh=p.questionHistory||{};
+  const lessonSummaries=p.lessonSummaries||{};
+  const highlightedVerses=p.highlightedVerses||{};
+
+  // Activity day count (unique days seen across logs)
+  const allDays={};
+  [p.bibleReadingLog,p.devotionLog,dvl,p.exerciseLog].forEach(function(log){
+    if(!log) return;
+    Object.keys(log).forEach(function(d){ allDays[d]=true; });
+  });
+  const activeDays=Object.keys(allDays).length;
+  const isLoggedToday=lastLogin===today;
+
+  let html='';
+
+  // ── Engagement KPIs ──
+  html+='<div class="inv-kpis">';
+  html+='<div class="inv-kpi"><div class="inv-kpi-icon">🔥</div><div class="inv-kpi-val">'+loginStreak+'</div><div class="inv-kpi-lbl">يوم متواصل</div></div>';
+  html+='<div class="inv-kpi"><div class="inv-kpi-icon">📅</div><div class="inv-kpi-val">'+activeDays+'</div><div class="inv-kpi-lbl">يوم نشط</div></div>';
+  html+='<div class="inv-kpi"><div class="inv-kpi-icon">⚡</div><div class="inv-kpi-val">'+blitzScore+'</div><div class="inv-kpi-lbl">بلتز هذا الأسبوع</div></div>';
+  html+='<div class="inv-kpi"><div class="inv-kpi-icon">🎁</div><div class="inv-kpi-val">'+redeemed.length+'</div><div class="inv-kpi-lbl">جوائز مستبدلة</div></div>';
+  html+='<div class="inv-kpi"><div class="inv-kpi-icon">🛤️</div><div class="inv-kpi-val">'+paulStation+'</div><div class="inv-kpi-lbl">محطة بولس</div></div>';
+  html+='<div class="inv-kpi"><div class="inv-kpi-icon">'+(isLoggedToday?'✅':'⏰')+'</div><div class="inv-kpi-val" style="font-size:13px">'+(isLoggedToday?'دخل اليوم':'لم يدخل اليوم')+'</div><div class="inv-kpi-lbl">حالة اليوم</div></div>';
+  html+='</div>';
+
+  // ── Daily Activity Status ──
+  html+='<div class="slbl" style="margin-top:14px">📅 حالة الأنشطة اليومية</div>';
+  html+='<div class="dg" style="grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:14px">';
+  html+='<div class="dgi"><div class="dgl">🌅 آخر تسجيل دخول</div><div class="dgv">'+lastLogin+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">🎰 آخر سبينة</div><div class="dgv">'+lastSpin+' · '+bonusSpin+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">💸 صفقة اليوم</div><div class="dgv">'+lastDeal+' · '+dealClaimed+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">📖 آية اليوم — آخر سبينة</div><div class="dgv">'+verseSpinLast+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">⚔️ آخر معركة بوس</div><div class="dgv">'+lastBoss+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">🤝 آخر إجراء فريق</div><div class="dgv" style="font-size:11px">'+teamLast+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">💡 آخر نشاط للمصباح</div><div class="dgv">'+lampActive+'</div></div>';
+  html+='<div class="dgi"><div class="dgl">⚡ مفتاح أسبوع البلتز</div><div class="dgv" style="font-size:11px">'+blitzKey+'</div></div>';
+  html+='</div>';
+
+  // ── Streak Rewards Claimed ──
+  html+='<div class="slbl" style="margin-top:8px">🏆 مكافآت الـ Streak المستلمة</div>';
+  if(claimedStreaks.length){
+    html+='<div class="inv-grid" style="margin-bottom:14px">';
+    Object.keys(CAT_STREAK).forEach(function(k){
+      const s=CAT_STREAK[k];
+      const owned=claimedStreaks.indexOf(k)>=0;
+      html+=_itemCard({icon:s.i, name:s.n, status:owned?'owned':'locked', meta:owned?'استلمها':'يحتاج '+s.d+' يوم'});
+    });
+    html+='</div>';
+  } else {
+    html+='<div class="empty" style="padding:18px;background:rgba(31,22,17,.03);border-radius:10px;margin-bottom:14px"><p style="font-size:12px;color:var(--muted)">لم يستلم أي مكافأة streak بعد</p></div>';
+  }
+
+  // ── Redeemed Rewards ──
+  html+='<div class="slbl">🎁 الجوائز المستبدلة ('+redeemed.length+')</div>';
+  if(redeemed.length){
+    html+='<div class="inv-grid" style="margin-bottom:14px">';
+    redeemed.forEach(function(rid){
+      const r=CAT_REWARDS[rid]||{n:rid,i:'🎁'};
+      html+=_itemCard({icon:r.i, name:r.n, status:'owned', meta:'تم الاستبدال'});
+    });
+    html+='</div>';
+  } else {
+    html+='<div class="empty" style="padding:18px;background:rgba(31,22,17,.03);border-radius:10px;margin-bottom:14px"><p style="font-size:12px;color:var(--muted)">لم يستبدل أي جائزة بعد</p></div>';
+  }
+
+  // ── Today's Verse (if any) ──
+  if(todayVerse && (todayVerse.text||todayVerse.ref)){
+    html+='<div class="slbl">📜 آية اليوم الحالية</div>';
+    html+='<div style="background:linear-gradient(135deg,rgba(212,160,23,.10),rgba(244,213,107,.05));border:1px solid rgba(212,160,23,.30);border-radius:12px;padding:14px;margin-bottom:14px">';
+    if(todayVerse.text) html+='<div style="font-size:13px;color:var(--text);line-height:1.7;margin-bottom:6px">"'+esc(todayVerse.text)+'"</div>';
+    if(todayVerse.ref)  html+='<div style="font-size:11px;color:var(--gold-dark);font-weight:700">— '+esc(todayVerse.ref)+'</div>';
+    html+='</div>';
+  }
+
+  // ── Daily Verse Log (last 14 days) ──
+  const dvlKeys=Object.keys(dvl).sort().reverse().slice(0,14);
+  if(dvlKeys.length){
+    html+='<div class="slbl">📖 سجل آية اليوم — آخر '+dvlKeys.length+' أيام</div>';
+    html+='<div class="dg" style="grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-bottom:14px">';
+    dvlKeys.forEach(function(d){
+      const e=dvl[d]||{};
+      const done=e.completed?'✅':'⏳';
+      html+='<div class="dgi" style="padding:7px 9px"><div class="dgl">'+d+'</div><div class="dgv" style="font-size:12px">'+done+' '+(e.answered?'أجاب':'لم يجب')+'</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // ── Weekly Challenge Log ──
+  const wlKeys=Object.keys(wl);
+  if(wlKeys.length){
+    html+='<div class="slbl">🏆 سجل التحدي الأسبوعي</div>';
+    html+='<div style="background:rgba(31,22,17,.02);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:14px">';
+    wlKeys.slice(-6).reverse().forEach(function(k){
+      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted)">'+k+'</span><span style="font-weight:700">'+JSON.stringify(wl[k]).slice(0,40)+'</span></div>';
+    });
+    html+='</div>';
+  }
+
+  // ── Lesson Summaries ──
+  const lsKeys=Object.keys(lessonSummaries);
+  if(lsKeys.length){
+    html+='<div class="slbl">📝 ملخصات الدروس ('+lsKeys.length+')</div>';
+    html+='<div style="background:rgba(31,22,17,.02);border:1px solid var(--border);border-radius:10px;padding:10px;margin-bottom:14px;max-height:280px;overflow-y:auto">';
+    lsKeys.forEach(function(k){
+      const ls=lessonSummaries[k]||{};
+      const txt=(ls.text||'').slice(0,140);
+      html+='<div style="padding:8px 10px;border-bottom:1px solid var(--border)">';
+      html+='<div style="font-size:11px;color:var(--gold-dark);font-weight:800;margin-bottom:3px">📚 '+esc(k)+(ls.date?' · '+esc(ls.date):'')+'</div>';
+      if(txt) html+='<div style="font-size:12px;color:var(--text);line-height:1.6">'+esc(txt)+(ls.text&&ls.text.length>140?'…':'')+'</div>';
+      if(ls.image) html+='<div style="font-size:10px;color:var(--muted);margin-top:3px">🖼️ يحتوي صورة</div>';
+      html+='</div>';
+    });
+    html+='</div>';
+  }
+
+  // ── Highlighted Verses ──
+  const hvKeys=Object.keys(highlightedVerses);
+  if(hvKeys.length){
+    let totalHl=0; hvKeys.forEach(function(k){ totalHl+=(highlightedVerses[k]||[]).length; });
+    html+='<div class="slbl">✨ الآيات المُحدَّدة ('+totalHl+' آية في '+hvKeys.length+' أصحاح)</div>';
+    html+='<div class="dg" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:6px;margin-bottom:14px">';
+    hvKeys.sort().forEach(function(k){
+      const arr=highlightedVerses[k]||[];
+      html+='<div class="dgi" style="padding:7px 9px"><div class="dgl">'+esc(k)+'</div><div class="dgv">✨ '+arr.length+' آية</div></div>';
+    });
+    html+='</div>';
+  }
+
+  // ── Question History per lesson ──
+  const qhKeys=Object.keys(qh);
+  if(qhKeys.length){
+    let totalQ=0; qhKeys.forEach(function(k){ totalQ+=(qh[k]||[]).length; });
+    html+='<div class="slbl">❓ سجل الأسئلة الأخيرة ('+totalQ+' سؤال محفوظ في '+qhKeys.length+' درس)</div>';
+    html+='<div style="background:rgba(31,22,17,.02);border:1px solid var(--border);border-radius:10px;padding:6px;margin-bottom:14px;max-height:260px;overflow-y:auto">';
+    qhKeys.sort().forEach(function(k){
+      const arr=qh[k]||[];
+      html+='<details style="border-bottom:1px solid var(--border);padding:6px 8px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:var(--gold-dark)">📚 '+esc(k)+' <span style="color:var(--muted);font-weight:400">('+arr.length+' سؤال)</span></summary>';
+      html+='<ol style="font-size:11px;color:var(--text);padding-inline-start:22px;margin-top:5px;line-height:1.6">';
+      arr.slice(-15).forEach(function(q){ html+='<li>'+esc((q||'').slice(0,120))+'</li>'; });
+      html+='</ol></details>';
+    });
+    html+='</div>';
+  }
+
+  // ── Bundles purchased ──
+  if(claimedBundles.length){
+    html+='<div class="slbl">🎁 الباقات المشتراة</div>';
+    html+='<div class="inv-grid" style="margin-bottom:14px">';
+    claimedBundles.forEach(function(bid){
+      const b=CAT_BUNDLES[bid]||{n:bid,i:'🎁'};
+      html+=_itemCard({icon:b.i, name:b.n, status:'owned', meta:'تم الشراء'});
+    });
+    html+='</div>';
+  }
+
+  return html;
 }
 
 function _dgi(label,val,color){return'<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:9px;padding:9px 12px"><div style="font-size:10px;color:var(--muted);margin-bottom:2px;text-transform:uppercase;letter-spacing:.4px">'+label+'</div><div style="font-size:13px;font-weight:700;color:'+(color||'var(--text)')+'">'+val+'</div></div>';}
@@ -2154,6 +3394,440 @@ async function deletePlayer(phone) {
 }
 
 // ════════════════════════════════
+//  REPORTS PAGE (audit / suspicion / engagement / player reports)
+// ════════════════════════════════
+let currentReportTab = 'audit';
+function rptTab(name){
+  currentReportTab = name;
+  document.querySelectorAll('.rpt-tab').forEach(t=>t.classList.toggle('active', t.dataset.rt===name));
+  if (name==='audit')      renderAuditReport();
+  if (name==='suspicion')  renderSuspicionReport();
+  if (name==='engagement') renderEngagementReport();
+  if (name==='reports')    renderPlayerReportsList();
+}
+
+const EV_LBL = {
+  login:'دخول', subject_open:'فتح مادة', lesson_start:'بدء درس',
+  answer:'إجابة سؤال', reward_redeem:'استبدال جائزة', admin_action:'إجراء أدمن',
+  player_report_submitted:'إرسال بلاغ', logout:'خروج'
+};
+function evIcon(t){return {login:'🔐',subject_open:'📚',lesson_start:'🎓',answer:'❓',reward_redeem:'🎁',admin_action:'🛡️',player_report_submitted:'🚩',logout:'👋'}[t]||'•';}
+
+function renderAuditReport(){
+  const body = document.getElementById('rpt-body');
+  if (!playerEvents || !playerEvents.length) {
+    body.innerHTML = '<div class="cb"><div class="empty"><i class="fas fa-inbox"></i><p>لا توجد أحداث بعد</p><p style="font-size:11px;color:var(--muted)">سجلّ النشاط هيتعبّى لما اللاعبين يبدأوا يلعبوا</p></div></div>';
+    return;
+  }
+  // Filters
+  const types = Array.from(new Set(playerEvents.map(e=>e.type))).sort();
+  const filterRow = `
+    <div class="cb" style="border-bottom:1px solid var(--border)">
+      <div class="fbar">
+        <input type="text" class="flt" id="ev-name" placeholder="🔍 اسم/تليفون اللاعب" oninput="renderAuditReport()">
+        <select class="flt" id="ev-type" onchange="renderAuditReport()"><option value="">كل الأنواع</option>${types.map(t=>'<option value="'+t+'">'+(EV_LBL[t]||t)+'</option>').join('')}</select>
+        <select class="flt" id="ev-since" onchange="renderAuditReport()">
+          <option value="0">كل الفترة</option>
+          <option value="1">آخر 24 ساعة</option>
+          <option value="7">آخر أسبوع</option>
+          <option value="30">آخر شهر</option>
+        </select>
+        <span class="fcnt" id="ev-cnt"></span>
+      </div>
+    </div>`;
+  // Filtered list
+  const fName = (document.getElementById('ev-name')||{}).value || '';
+  const fType = (document.getElementById('ev-type')||{}).value || '';
+  const fSince = parseInt((document.getElementById('ev-since')||{}).value || '0', 10);
+  const sinceTs = fSince>0 ? Date.now()-fSince*86400000 : 0;
+  const list = playerEvents.filter(e=>{
+    if (fName) {
+      const q = fName.toLowerCase();
+      if (!(e.playerName||'').toLowerCase().includes(q) && !(e.playerPhone||'').includes(q)) return false;
+    }
+    if (fType && e.type!==fType) return false;
+    if (sinceTs>0 && (e.ts||0) < sinceTs) return false;
+    return true;
+  });
+  const rows = list.slice(0,300).map(e=>{
+    const dt = e.ts ? new Date(e.ts).toLocaleString('ar-EG') : '—';
+    const data = e.data||{}; const sub = e.subtype?(' ('+e.subtype+')'):'';
+    let detail = '';
+    if (e.type==='answer') detail = (data.correct?'✅ صح':'❌ غلط') + ' · ' + (data.cat||'') + (data.t!=null?' · '+data.t+'ث':'');
+    else if (e.type==='lesson_start') detail = (data.subject||'') + ' / درس ' + ((data.lesson||0)+1);
+    else if (e.type==='subject_open') detail = data.subject||'';
+    else if (e.type==='reward_redeem') detail = (data.name||'') + ' (⭐'+((data.cost||{}).stars||0)+' 💎'+((data.cost||{}).gems||0)+')';
+    else if (e.type==='admin_action') detail = (data.action||'') + (data.reason?' — '+data.reason:'');
+    else if (e.type==='player_report_submitted') detail = 'عن: '+(data.reportedPhone||'');
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px;color:var(--muted)">${dt}</td>
+      <td style="white-space:nowrap"><span style="font-size:16px;margin-left:5px">${evIcon(e.type)}</span>${EV_LBL[e.type]||e.type}${sub}</td>
+      <td><div style="font-weight:700">${esc(e.playerName||'—')}</div><div style="font-size:11px;color:var(--muted);direction:ltr">${esc(e.playerPhone||'')}</div></td>
+      <td style="font-size:12px">${esc(detail)}</td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = filterRow + `
+    <div class="cb">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>الوقت</th><th>النوع</th><th>اللاعب</th><th>التفاصيل</th></tr></thead>
+        <tbody>${rows||'<tr><td colspan="4" class="empty"><p>لا نتائج</p></td></tr>'}</tbody>
+      </table></div>
+    </div>`;
+  const cntEl = document.getElementById('ev-cnt');
+  if (cntEl) cntEl.textContent = list.length + ' حدث';
+}
+
+function renderSuspicionReport(){
+  // Heuristics: very high accuracy (>=95%) with >100 answered, very fast level progression, suspicious answer streaks (>=20 correct in <5s avg)
+  const flagged = [];
+  players.forEach(p=>{
+    var flags = [];
+    var acc = p.totalAnswered ? (p.totalCorrect||0)/p.totalAnswered : 0;
+    if (p.totalAnswered>=100 && acc>=0.95) flags.push('🎯 دقة مريبة جدًا ('+Math.round(acc*100)+'%)');
+    if ((p.bestStreak||0) >= 30) flags.push('🔥 سلسلة كبيرة ('+(p.bestStreak)+')');
+    if ((p.gamesPlayed||0) < 5 && (p.stars||0) > 1500) flags.push('⭐ نجوم كتير بألعاب قليلة');
+    // Fast answer time from events
+    const myEv = playerEvents.filter(e=>e.playerPhone===p.playerPhone && e.type==='answer');
+    if (myEv.length >= 30) {
+      const fast = myEv.filter(e=>(e.data&&e.data.t!=null&&e.data.t<2&&e.data.correct));
+      if (fast.length / myEv.length > 0.8) flags.push('⚡ إجابات سريعة جدًا (<2ث)');
+    }
+    if (flags.length) flagged.push({p, flags});
+  });
+  flagged.sort((a,b)=>b.flags.length-a.flags.length);
+  const body = document.getElementById('rpt-body');
+  if (!flagged.length){
+    body.innerHTML = '<div class="cb"><div class="empty"><i class="fas fa-shield-halved" style="color:var(--green)"></i><p>مفيش حاجة مريبة</p></div></div>';
+    return;
+  }
+  body.innerHTML = '<div class="cb">' + flagged.map(({p,flags})=>`
+    <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.25);border-radius:11px;padding:12px 14px;margin-bottom:9px;display:flex;gap:11px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:700">${esc(p.playerName||'—')}</div>
+        <div style="font-size:11px;color:var(--muted);direction:ltr">${esc(p.playerPhone||'')}</div>
+        <div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:6px">${flags.map(f=>'<span class="badge" style="background:rgba(245,158,11,.18);color:#92400e;border:1px solid rgba(245,158,11,.4)">'+f+'</span>').join('')}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn bg bsm" onclick="openPM('${p.playerPhone}')"><i class="fas fa-eye"></i> عرض</button>
+        ${(p.status==='suspended'||p.status==='blocked')?'':`<button class="btn bsm" style="background:rgba(245,158,11,.18);color:#d97706;border:1px solid rgba(245,158,11,.35)" onclick="openSuspendModal('${p.playerPhone}')"><i class="fas fa-ban"></i> إيقاف</button>`}
+      </div>
+    </div>`).join('') + '</div>';
+}
+
+function renderEngagementReport(){
+  const body = document.getElementById('rpt-body');
+  // Last activity per player (from lampData/lastActiveDate or events)
+  const now = Date.now();
+  const buckets = {today:0, week:0, month:0, more:0, never:0};
+  const activeRange = {d1:0,d3:0,d7:0,d30:0};
+  players.forEach(p=>{
+    const last = (p.lampData&&p.lampData.lastActiveDate) || p.lastActiveDate || '';
+    const d = last ? new Date(last).getTime() : 0;
+    if (!d){ buckets.never++; return; }
+    const days = Math.floor((now - d)/86400000);
+    if (days<=0) buckets.today++;
+    else if (days<=7) buckets.week++;
+    else if (days<=30) buckets.month++;
+    else buckets.more++;
+    if (days<=1) activeRange.d1++;
+    if (days<=3) activeRange.d3++;
+    if (days<=7) activeRange.d7++;
+    if (days<=30) activeRange.d30++;
+  });
+  // Lesson completion funnel
+  const subjectComp = {};
+  Object.keys(SUBJECTS).forEach(sk=>{
+    subjectComp[sk] = SUBJECTS[sk].lessons.map((_,i)=>{
+      let n=0; players.forEach(p=>{ if((p.stationScores||{})[sk+'_'+i]&&(p.stationScores[sk+'_'+i].total||0)>0) n++; });
+      return n;
+    });
+  });
+  // Top events by type (last 7 days)
+  const since = now - 7*86400000;
+  const evCounts = {};
+  playerEvents.forEach(e=>{ if(e.ts&&e.ts>=since){ evCounts[e.type]=(evCounts[e.type]||0)+1; } });
+  const evRows = Object.keys(evCounts).sort((a,b)=>evCounts[b]-evCounts[a]).map(t=>`
+    <div class="barrow"><span class="barlbl">${evIcon(t)} ${EV_LBL[t]||t}</span><div class="bartrack"><div class="barfill" style="width:${Math.min(evCounts[t]/Math.max(...Object.values(evCounts),1)*100,100)}%;background:var(--accent2)"></div></div><span class="barnum">${evCounts[t]}</span></div>`).join('');
+  body.innerHTML = `
+    <div class="cb">
+      <div class="kpi-grid" style="margin-bottom:12px">
+        <div class="kpi" style="--kc:var(--green)"><div class="kpi-icon">🟢</div><div class="kpi-val">${activeRange.d1}</div><div class="kpi-lbl">نشط آخر 24س</div></div>
+        <div class="kpi" style="--kc:var(--accent)"><div class="kpi-icon">📅</div><div class="kpi-val">${activeRange.d7}</div><div class="kpi-lbl">آخر أسبوع</div></div>
+        <div class="kpi" style="--kc:var(--accent2)"><div class="kpi-icon">📊</div><div class="kpi-val">${activeRange.d30}</div><div class="kpi-lbl">آخر شهر</div></div>
+        <div class="kpi" style="--kc:var(--muted)"><div class="kpi-icon">💤</div><div class="kpi-val">${buckets.never+buckets.more}</div><div class="kpi-lbl">غير نشطين</div></div>
+      </div>
+      <div class="g2" style="gap:14px">
+        <div class="card"><div class="ch"><h3>🔥 أحداث آخر 7 أيام</h3></div><div class="cb"><div class="barchart">${evRows||'<div class="empty"><p>لا أحداث</p></div>'}</div></div></div>
+        <div class="card"><div class="ch"><h3>📚 إكمال الدروس (لكل مادة)</h3></div><div class="cb">
+          ${Object.keys(SUBJECTS).map(sk=>{
+            const sub=SUBJECTS[sk]; const arr=subjectComp[sk]; const max=Math.max(...arr,1);
+            return `<div style="margin-bottom:10px"><div class="slbl" style="color:${sub.color}">${sub.icon} ${sub.name}</div>${arr.map((n,i)=>`<div class="barrow"><span class="barlbl">د${i+1}</span><div class="bartrack"><div class="barfill" style="width:${(n/max*100).toFixed(0)}%;background:${sub.color}"></div></div><span class="barnum">${n}</span></div>`).join('')}</div>`;
+          }).join('')}
+        </div></div>
+      </div>
+    </div>`;
+}
+
+function renderPlayerReportsList(){
+  const body = document.getElementById('rpt-body');
+  if (!playerReports.length){
+    body.innerHTML = '<div class="cb"><div class="empty"><i class="fas fa-bullhorn" style="color:var(--green)"></i><p>مفيش بلاغات لاعبين</p></div></div>';
+    return;
+  }
+  const STATUS_LBL = {pending:'⏳ معلّق', reviewed:'👁️ تمت المراجعة', dismissed:'🙈 رفض', actioned:'✅ تم التصرف'};
+  const rows = playerReports.map(r=>{
+    const dt = r.ts ? new Date(r.ts).toLocaleString('ar-EG') : (r.createdAt ? new Date(r.createdAt?.toDate?.()??r.createdAt).toLocaleString('ar-EG') : '—');
+    const stCls = r.status==='pending'?'b-pending':r.status==='actioned'?'b-done':'b-noteam';
+    return `<tr>
+      <td style="white-space:nowrap;font-size:11px;color:var(--muted)">${dt}</td>
+      <td><div style="font-weight:700">${esc(r.reportedName||r.reportedPhone||'—')}</div><div style="font-size:11px;color:var(--muted);direction:ltr">${esc(r.reportedPhone||'')}</div></td>
+      <td>${esc(r.reporterName||r.reporterPhone||'—')}</td>
+      <td><strong>${esc(r.reason||'—')}</strong>${r.description?'<div style="font-size:11px;color:var(--muted);margin-top:3px">'+esc(r.description)+'</div>':''}</td>
+      <td><span class="badge ${stCls}">${STATUS_LBL[r.status]||r.status}</span></td>
+      <td><div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn bg bxs" onclick="openReportDetail('${r._id}')"><i class="fas fa-eye"></i></button>
+        ${r.status==='pending'?`<button class="btn bs bxs" onclick="setReportStatus('${r._id}','reviewed')" title="تمت المراجعة"><i class="fas fa-check"></i></button>`:''}
+        ${r.status!=='dismissed'?`<button class="btn bg bxs" onclick="setReportStatus('${r._id}','dismissed')" title="رفض"><i class="fas fa-xmark"></i></button>`:''}
+        ${r.reportedPhone?`<button class="btn bxs" style="background:rgba(245,158,11,.18);color:#d97706;border:1px solid rgba(245,158,11,.35)" onclick="openSuspendModal('${r.reportedPhone}')" title="إيقاف اللاعب"><i class="fas fa-ban"></i></button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+  body.innerHTML = `
+    <div class="cb">
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>الوقت</th><th>المُبَلَّغ عنه</th><th>المُبَلِّغ</th><th>السبب / التفاصيل</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>
+    </div>`;
+}
+
+async function setReportStatus(id, status){
+  try{
+    await db.collection('playerReports').doc(id).update({status, reviewedBy: me.phone||'', reviewedAt: Date.now()});
+    const r = playerReports.find(x=>x._id===id);
+    if (r) { r.status=status; r.reviewedBy=me.phone||''; r.reviewedAt=Date.now(); }
+    renderPlayerReportsList(); toast('✅ تم التحديث','ok');
+  }catch(e){toast('خطأ','err');}
+}
+
+function openReportDetail(id){
+  const r = playerReports.find(x=>x._id===id); if(!r) return;
+  const dt = r.ts ? new Date(r.ts).toLocaleString('ar-EG') : '—';
+  document.getElementById('mreport-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-flag" style="color:var(--red)"></i> تفاصيل البلاغ</h2><button class="btnx" onclick="closeM('modal-report')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="dg">
+        <div class="dgi"><div class="dgl">الوقت</div><div class="dgv">${dt}</div></div>
+        <div class="dgi"><div class="dgl">السبب</div><div class="dgv">${esc(r.reason||'—')}</div></div>
+        <div class="dgi"><div class="dgl">المبلّغ عنه</div><div class="dgv">${esc(r.reportedName||r.reportedPhone||'—')}</div></div>
+        <div class="dgi"><div class="dgl">المبلّغ</div><div class="dgv">${esc(r.reporterName||r.reporterPhone||'—')}</div></div>
+      </div>
+      ${r.description?'<div class="slbl" style="margin-top:14px">التفاصيل</div><div style="background:rgba(0,0,0,.04);border:1px solid var(--border);border-radius:9px;padding:11px;font-size:13px">'+esc(r.description)+'</div>':''}
+      <div style="display:flex;gap:9px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn bs" onclick="setReportStatus('${id}','reviewed');closeM('modal-report')"><i class="fas fa-check"></i> تمت المراجعة</button>
+        <button class="btn bg" onclick="setReportStatus('${id}','dismissed');closeM('modal-report')"><i class="fas fa-xmark"></i> رفض</button>
+        ${r.reportedPhone?`<button class="btn bd" onclick="closeM('modal-report');openSuspendModal('${r.reportedPhone}');setReportStatus('${id}','actioned')" style="margin-right:auto"><i class="fas fa-ban"></i> إيقاف اللاعب</button>`:''}
+      </div>
+    </div>`;
+  document.getElementById('modal-report').style.display='flex';
+}
+
+// ════════════════════════════════
+//  CONTENT LOCKS (cards, levels, subjects, lessons)
+// ════════════════════════════════
+const LOCK_CARDS = [
+  { key:'card_level1',          name:'كارت المستوى الأول',     icon:'fa-scroll' },
+  { key:'card_level2',          name:'كارت المستوى الثاني',    icon:'fa-graduation-cap' },
+  { key:'card_compete',         name:'كارت المنافسات',          icon:'fa-bolt' },
+  { key:'card_myQuestions',     name:'كارت "اسأل الخدّام"',     icon:'fa-comments' },
+  { key:'card_friendsQuestions',name:'كارت "أسئلة أصحابك"',     icon:'fa-users' }
+];
+const LOCK_LEVELS = [1,2,3,4,5].map(n=>({key:'level_'+n, name:'المستوى '+n}));
+const LOCK_SUBJECTS = Object.keys(SUBJECTS).map(k=>({key:'subject_'+k, name:SUBJECTS[k].icon+' '+SUBJECTS[k].name, sk:k}));
+
+function lockState(key){ return contentLocks[key] || {locked:false, message:''}; }
+
+function lockRowHtml(key, name, icon){
+  const s = lockState(key);
+  const stClass = s.locked ? 'shut' : 'open';
+  const stLbl = s.locked ? '🔒 مقفول' : '✅ مفتوح';
+  return `<div class="lock-row${s.locked?' locked':''}">
+    <div style="font-size:18px;color:var(--accent2);width:24px;text-align:center">${icon?'<i class="fas '+icon+'"></i>':'🔧'}</div>
+    <div style="flex:1;min-width:0">
+      <div class="lk-name">${esc(name)}</div>
+      ${s.locked && s.message ? '<span class="lk-msg">💬 '+esc(s.message)+'</span>' : ''}
+    </div>
+    <span class="lk-state ${stClass}">${stLbl}</span>
+    <button class="btn bg bxs" onclick="openLockModal('${key}','${esc(name).replace(/'/g,'&#39;')}')"><i class="fas fa-pen"></i></button>
+    <button class="btn ${s.locked?'bs':'bd'} bxs" onclick="toggleLockQuick('${key}','${esc(name).replace(/'/g,'&#39;')}')">${s.locked?'<i class="fas fa-lock-open"></i>':'<i class="fas fa-lock"></i>'}</button>
+  </div>`;
+}
+
+function renderLocks(){
+  const cardsEl = document.getElementById('locks-cards');
+  if(!cardsEl) return;
+  cardsEl.innerHTML = LOCK_CARDS.map(c=>lockRowHtml(c.key, c.name, c.icon)).join('');
+  document.getElementById('locks-levels').innerHTML = LOCK_LEVELS.map(l=>lockRowHtml(l.key, l.name, 'fa-layer-group')).join('');
+  document.getElementById('locks-subjects').innerHTML = LOCK_SUBJECTS.map(s=>lockRowHtml(s.key, s.name, 'fa-book')).join('');
+  // Lessons grouped by subject
+  let lh = '';
+  Object.keys(SUBJECTS).forEach(sk=>{
+    const sub = SUBJECTS[sk];
+    lh += '<div style="margin-bottom:10px"><div class="slbl" style="background:'+sub.color+'1a;border-radius:8px;padding:6px 10px;color:'+sub.color+';font-size:12px;font-weight:800">'+sub.icon+' '+sub.name+'</div>';
+    sub.lessons.forEach((lname,i)=>{
+      const key = 'lesson_'+sk+'_'+i;
+      lh += lockRowHtml(key, 'الدرس '+(i+1)+' — '+lname, '');
+    });
+    lh += '</div>';
+  });
+  document.getElementById('locks-lessons').innerHTML = lh;
+}
+
+function openLockModal(key, name){
+  const s = lockState(key);
+  document.getElementById('mlock-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-lock" style="color:var(--accent2)"></i> ${esc(name)}</h2><button class="btnx" onclick="closeM('modal-lock')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">الحالة</span>
+        <select class="einp" id="lk-locked">
+          <option value="false" ${!s.locked?'selected':''}>✅ مفتوح للاعبين</option>
+          <option value="true"  ${ s.locked?'selected':''}>🔒 مقفول</option>
+        </select>
+      </div>
+      <div class="erow"><span class="elbl">الرسالة عند الضغط</span>
+        <textarea class="einp antxt" id="lk-msg" placeholder="هتظهر للاعب لما يحاول يفتح..." style="min-height:90px">${esc(s.message||'')}</textarea>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn bp" onclick="saveLock('${key}','${esc(name).replace(/'/g,'&#39;')}')"><i class="fas fa-save"></i> حفظ</button>
+        <button class="btn bg" onclick="closeM('modal-lock')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-lock').style.display='flex';
+}
+
+async function saveLock(key, name){
+  const locked = document.getElementById('lk-locked').value === 'true';
+  const message = document.getElementById('lk-msg').value.trim();
+  try{
+    const upd = {}; upd[key] = { locked, message, setBy: me.phone||'', setAt: Date.now() };
+    await db.collection('gameContent').doc('locks').set(upd, { merge: true });
+    contentLocks[key] = upd[key];
+    closeM('modal-lock'); renderLocks(); toast('✅ تم الحفظ','ok');
+  }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+async function toggleLockQuick(key, name){
+  const cur = lockState(key);
+  const next = !cur.locked;
+  const message = cur.message || (next ? 'هذا القسم مغلق مؤقتاً' : '');
+  try{
+    const upd = {}; upd[key] = { locked: next, message, setBy: me.phone||'', setAt: Date.now() };
+    await db.collection('gameContent').doc('locks').set(upd, { merge: true });
+    contentLocks[key] = upd[key];
+    renderLocks(); toast(next?'🔒 تم القفل':'✅ تم الفتح','ok');
+  }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+// ════════════════════════════════
+//  SUSPEND / BLOCK PLAYER
+// ════════════════════════════════
+function openSuspendModal(phone){
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  document.getElementById('msuspend-box').innerHTML=`
+    <div class="mhead"><h2><i class="fas fa-ban" style="color:var(--red)"></i> إيقاف / حظر اللاعب</h2><button class="btnx" onclick="closeM('modal-suspend')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div style="background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.2);border-radius:10px;padding:11px 14px;margin-bottom:14px">
+        <div style="font-weight:700">${esc(p.playerName||'—')}</div>
+        <div style="font-size:11px;color:var(--muted);direction:ltr">${esc(p.playerPhone||'')}</div>
+      </div>
+      <div class="erow"><span class="elbl">نوع الإجراء</span>
+        <select class="einp" id="sp-type">
+          <option value="suspended">⏸️ إيقاف مؤقت (Suspend)</option>
+          <option value="blocked">⛔ حظر دائم (Block)</option>
+        </select>
+      </div>
+      <div class="erow" id="sp-dur-row"><span class="elbl">مدة الإيقاف</span>
+        <select class="einp" id="sp-dur">
+          <option value="1">يوم واحد</option>
+          <option value="3">3 أيام</option>
+          <option value="7" selected>أسبوع</option>
+          <option value="14">أسبوعين</option>
+          <option value="30">شهر</option>
+          <option value="0">غير محدد</option>
+        </select>
+      </div>
+      <div class="erow"><span class="elbl">السبب</span><input type="text" class="einp" id="sp-reason" placeholder="مثال: سلوك غير مناسب، غش..." maxlength="120"></div>
+      <div class="erow"><span class="elbl">رسالة للاعب</span><textarea class="einp antxt" id="sp-msg" placeholder="هتظهر له لما يحاول يدخل..." style="min-height:70px">حسابك تم إيقافه مؤقتاً. لو في استفسار كلّم الخدّام.</textarea></div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn bd" onclick="applySuspend('${p.playerPhone}')"><i class="fas fa-ban"></i> تنفيذ</button>
+        <button class="btn bg" onclick="closeM('modal-suspend')">إلغاء</button>
+      </div>
+    </div>`;
+  // Toggle duration row visibility based on type
+  setTimeout(()=>{
+    const t=document.getElementById('sp-type'), dr=document.getElementById('sp-dur-row');
+    t.addEventListener('change',()=>{ dr.style.display = t.value==='blocked' ? 'none' : 'flex'; });
+  },10);
+  document.getElementById('modal-suspend').style.display='flex';
+}
+
+async function applySuspend(phone){
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  const type=document.getElementById('sp-type').value;
+  const dur=parseInt(document.getElementById('sp-dur').value||'0',10);
+  const reason=document.getElementById('sp-reason').value.trim();
+  const msg=document.getElementById('sp-msg').value.trim() || 'حسابك تم إيقافه. كلّم الخدّام.';
+  const upd={
+    status:type,
+    statusReason:reason,
+    statusMessage:msg,
+    statusSetBy:me.phone||me.name||'admin',
+    statusSetAt:Date.now()
+  };
+  if(type==='suspended' && dur>0){
+    upd.suspendedUntil = Date.now() + dur*86400000;
+  } else {
+    upd.suspendedUntil = 0;
+  }
+  try{
+    await db.collection('players').doc(p._id).update(upd);
+    Object.assign(p,upd);
+    // Log admin action
+    try{
+      await db.collection('playerEvents').add({
+        playerPhone:p.playerPhone, playerName:p.playerName||'',
+        type:'admin_action', subtype:'suspend', data:{action:type,reason,duration:dur},
+        adminPhone:me.phone||'', adminName:me.name||'',
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+        ts:Date.now()
+      });
+    }catch(e){}
+    closeM('modal-suspend'); applyF(); renderInsights();
+    toast(type==='blocked'?'⛔ تم حظر اللاعب':'⏸️ تم إيقاف اللاعب','err');
+  }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+async function unsuspendPlayer(phone){
+  const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
+  if(!confirm('تأكيد إلغاء الإيقاف؟')) return;
+  const upd={status:'active',statusReason:'',statusMessage:'',suspendedUntil:0,statusSetBy:me.phone||'',statusSetAt:Date.now()};
+  try{
+    await db.collection('players').doc(p._id).update(upd);
+    Object.assign(p,upd);
+    try{
+      await db.collection('playerEvents').add({
+        playerPhone:p.playerPhone, playerName:p.playerName||'',
+        type:'admin_action', subtype:'unsuspend', data:{},
+        adminPhone:me.phone||'', adminName:me.name||'',
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(),
+        ts:Date.now()
+      });
+    }catch(e){}
+    applyF(); renderInsights(); toast('✅ تم إلغاء الإيقاف','ok');
+  }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+// ════════════════════════════════
 //  TEAM ASSIGN / REMOVE
 // ════════════════════════════════
 function openAssign(phone) {
@@ -2188,16 +3862,126 @@ async function removeFromTeam(phone,tname) {
 //  TEAMS
 // ════════════════════════════════
 function renderTeams() {
-  if(!teams.length){document.getElementById('tgrid').innerHTML='<div class="empty"><i class="fas fa-users-slash"></i><p>لا توجد فرق</p></div>';return;}
+  if(!teams.length){document.getElementById('tgrid').innerHTML='<div class="empty"><i class="fas fa-users-slash"></i><p>لا توجد فرق</p><button class="btn bp bsm" style="margin-top:10px" onclick="openCreateTeamModal()"><i class="fas fa-plus"></i> أضف أول فريق</button></div>';return;}
   const medals=['🥇','🥈','🥉'];
   document.getElementById('tgrid').innerHTML=[...teams].sort((a,b)=>(b.totalStars||0)-(a.totalStars||0)).map((t,i)=>{
     const ads=t.admins||[],mbs=(t.members||[]).map(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);return{ph,name:pl?pl.playerName:ph,adm:ads.includes(ph)};});
     return`<div class="tcard"><div class="tband" style="background:${t.color||'var(--accent)'}"></div><div class="tinner">
-      <div class="ttop"><div class="tlogobd" style="filter:drop-shadow(0 2px 10px ${t.color||'#7c6af7'}88)">${t.logo||'⚔️'}</div><div><div class="tiname">${esc(t.name)}</div><div class="tisub">${mbs.length}/6 أعضاء · ${medals[i]||'#'+(i+1)}</div></div></div>
+      <div class="ttop"><div class="tlogobd" style="filter:drop-shadow(0 2px 10px ${t.color||'#7c6af7'}88)">${t.logo||'⚔️'}</div><div style="flex:1"><div class="tiname">${esc(t.name)}</div><div class="tisub">${mbs.length}/6 أعضاء · ${medals[i]||'#'+(i+1)}</div></div>
+        <div style="display:flex;gap:5px"><button class="btn bg bxs" onclick="openEditTeamModal('${t._id}')" title="تعديل"><i class="fas fa-pen"></i></button><button class="btn bd bxs" onclick="deleteTeam('${t._id}')" title="حذف الفريق"><i class="fas fa-trash"></i></button></div>
+      </div>
       <div class="tscores"><div class="tsb"><div class="tsv" style="color:var(--gold)">⭐${(t.totalStars||0).toLocaleString()}</div><div class="tsl">نجوم</div></div><div class="tsb"><div class="tsv" style="color:#60a5fa">💎${(t.totalGems||0).toLocaleString()}</div><div class="tsl">جواهر</div></div><div class="tsb"><div class="tsv" style="color:var(--accent2)">✨${(t.totalXp||0).toLocaleString()}</div><div class="tsl">XP</div></div></div>
       <div class="slbl">الأعضاء</div>
       <div class="mlist">${mbs.length?mbs.map(m=>`<div class="mrow"><span class="mname">${m.adm?'<span class="admbdg">⚔️</span>':''} ${esc(m.name)}</span><button class="btn bd bxs" onclick="removeFromTeam('${m.ph}','${esc(t.name)}')"><i class="fas fa-times"></i></button></div>`).join(''):'<div style="color:var(--muted);font-size:12px;text-align:center;padding:6px">لا يوجد أعضاء</div>'}</div>
     </div></div>`;}).join('');
+}
+
+// ════════════════════════════════
+//  TEAM CREATE / EDIT / DELETE
+// ════════════════════════════════
+const TEAM_LOGOS = ['⚔️','🛡️','✝️','🦁','🦅','🐉','🌟','🔥','⚡','👑','🏆','🌹','🕊️','📖','🎯','🌊'];
+const TEAM_COLORS = ['#7c6af7','#e74c3c','#10b981','#f59e0b','#3b82f6','#ec4899','#8b5cf6','#06b6d4','#84cc16','#f97316','#dc2626','#0ea5e9'];
+
+function openCreateTeamModal(){
+  const lg=TEAM_LOGOS.map(l=>`<button type="button" class="logo-pick" data-logo="${l}" onclick="document.querySelectorAll('.logo-pick').forEach(b=>b.classList.remove('on'));this.classList.add('on')" style="font-size:22px;background:rgba(0,0,0,.05);border:2px solid var(--border);border-radius:10px;padding:6px 8px;cursor:pointer">${l}</button>`).join('');
+  const cl=TEAM_COLORS.map(c=>`<button type="button" class="color-pick" data-color="${c}" onclick="document.querySelectorAll('.color-pick').forEach(b=>b.classList.remove('on'));this.classList.add('on')" style="background:${c};width:32px;height:32px;border:3px solid #fff;border-radius:50%;cursor:pointer;box-shadow:0 0 0 1px var(--border)"></button>`).join('');
+  document.getElementById('mteam-box').innerHTML=`
+    <div class="mhead"><h2><i class="fas fa-plus" style="color:var(--green)"></i> فريق جديد</h2><button class="btnx" onclick="closeM('modal-team')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">اسم الفريق</span><input type="text" class="einp" id="tm-name" placeholder="مثال: فريق البطل" maxlength="30"></div>
+      <div class="slbl" style="margin-top:12px">شعار الفريق</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${lg}</div>
+      <div class="slbl" style="margin-top:12px">لون الفريق</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${cl}</div>
+      <div style="display:flex;gap:9px;margin-top:18px">
+        <button class="btn bp" onclick="saveNewTeam()"><i class="fas fa-save"></i> إنشاء الفريق</button>
+        <button class="btn bg" onclick="closeM('modal-team')">إلغاء</button>
+      </div>
+    </div>`;
+  // Default-select first
+  setTimeout(()=>{const fl=document.querySelector('.logo-pick');if(fl)fl.classList.add('on');const fc=document.querySelector('.color-pick');if(fc)fc.classList.add('on');},10);
+  document.getElementById('modal-team').style.display='flex';
+}
+
+function openEditTeamModal(tid){
+  const t=teams.find(x=>x._id===tid); if(!t) return;
+  const lg=TEAM_LOGOS.map(l=>`<button type="button" class="logo-pick${l===t.logo?' on':''}" data-logo="${l}" onclick="document.querySelectorAll('.logo-pick').forEach(b=>b.classList.remove('on'));this.classList.add('on')" style="font-size:22px;background:rgba(0,0,0,.05);border:2px solid var(--border);border-radius:10px;padding:6px 8px;cursor:pointer">${l}</button>`).join('');
+  const cl=TEAM_COLORS.map(c=>`<button type="button" class="color-pick${c===t.color?' on':''}" data-color="${c}" onclick="document.querySelectorAll('.color-pick').forEach(b=>b.classList.remove('on'));this.classList.add('on')" style="background:${c};width:32px;height:32px;border:3px solid #fff;border-radius:50%;cursor:pointer;box-shadow:0 0 0 1px var(--border)"></button>`).join('');
+  document.getElementById('mteam-box').innerHTML=`
+    <div class="mhead"><h2><i class="fas fa-pen" style="color:var(--gold)"></i> تعديل فريق</h2><button class="btnx" onclick="closeM('modal-team')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">اسم الفريق</span><input type="text" class="einp" id="tm-name" value="${esc(t.name||'')}" maxlength="30"></div>
+      <div class="slbl" style="margin-top:12px">شعار الفريق</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${lg}</div>
+      <div class="slbl" style="margin-top:12px">لون الفريق</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${cl}</div>
+      <div style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn bp" onclick="saveEditTeam('${tid}')"><i class="fas fa-save"></i> حفظ</button>
+        <button class="btn bg" onclick="closeM('modal-team')">إلغاء</button>
+        <button class="btn bd" style="margin-right:auto" onclick="closeM('modal-team');deleteTeam('${tid}')"><i class="fas fa-trash"></i> حذف</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-team').style.display='flex';
+}
+
+async function saveNewTeam(){
+  const name=document.getElementById('tm-name').value.trim();
+  if(!name){toast('اكتب اسم الفريق','err');return;}
+  if(teams.some(t=>t.name===name)){toast('في فريق بنفس الاسم','err');return;}
+  const lg=document.querySelector('.logo-pick.on'), cl=document.querySelector('.color-pick.on');
+  const logo=lg?lg.dataset.logo:'⚔️', color=cl?cl.dataset.color:'#7c6af7';
+  try{
+    const ref=await db.collection('teams').add({name,logo,color,members:[],memberNames:[],admins:[],totalStars:0,totalGems:0,totalXp:0,createdAt:firebase.firestore.FieldValue.serverTimestamp(),createdBy:me.phone||''});
+    teams.push({_id:ref.id,name,logo,color,members:[],memberNames:[],admins:[],totalStars:0,totalGems:0,totalXp:0});
+    closeM('modal-team');fillTeamFilter();renderTeams();renderInsights();toast('✅ تم إنشاء الفريق','ok');
+  }catch(e){console.error(e);toast('خطأ في الإنشاء','err');}
+}
+
+async function saveEditTeam(tid){
+  const t=teams.find(x=>x._id===tid); if(!t) return;
+  const name=document.getElementById('tm-name').value.trim();
+  if(!name){toast('اكتب اسم الفريق','err');return;}
+  if(teams.some(x=>x._id!==tid&&x.name===name)){toast('في فريق تاني بنفس الاسم','err');return;}
+  const lg=document.querySelector('.logo-pick.on'), cl=document.querySelector('.color-pick.on');
+  const logo=lg?lg.dataset.logo:t.logo||'⚔️', color=cl?cl.dataset.color:t.color||'#7c6af7';
+  const oldName=t.name;
+  try{
+    await db.collection('teams').doc(tid).update({name,logo,color});
+    t.name=name; t.logo=logo; t.color=color;
+    // If renamed, update members' player docs
+    if(name!==oldName){
+      const batch=db.batch();
+      (t.members||[]).forEach(ph=>{
+        const pl=players.find(x=>x.playerPhone===ph||x._id===ph);
+        if(pl){batch.update(db.collection('players').doc(pl._id),{team:name,teamLogo:logo,teamColor:color});pl.team=name;pl.teamLogo=logo;pl.teamColor=color;}
+      });
+      await batch.commit();
+    }else{
+      // Just update logo/color on members
+      const batch=db.batch();
+      (t.members||[]).forEach(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);if(pl){batch.update(db.collection('players').doc(pl._id),{teamLogo:logo,teamColor:color});pl.teamLogo=logo;pl.teamColor=color;}});
+      await batch.commit();
+    }
+    closeM('modal-team');fillTeamFilter();renderTeams();applyF();renderInsights();toast('✅ تم الحفظ','ok');
+  }catch(e){console.error(e);toast('خطأ في الحفظ','err');}
+}
+
+async function deleteTeam(tid){
+  const t=teams.find(x=>x._id===tid); if(!t) return;
+  const cnt=(t.members||[]).length;
+  const msg = cnt>0
+    ? 'هتحذف فريق "'+t.name+'" وفيه '+cnt+' عضو؟\nالأعضاء هيفضلوا في النظام لكن من غير فريق.'
+    : 'هتحذف فريق "'+t.name+'" نهائياً؟';
+  if(!confirm(msg))return;
+  try{
+    // Clear team field from all members
+    const batch=db.batch();
+    (t.members||[]).forEach(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);if(pl){batch.update(db.collection('players').doc(pl._id),{team:'',teamLogo:'',teamColor:''});pl.team='';pl.teamLogo='';pl.teamColor='';}});
+    await batch.commit();
+    await db.collection('teams').doc(tid).delete();
+    teams=teams.filter(x=>x._id!==tid);
+    fillTeamFilter();renderTeams();applyF();renderInsights();toast('🗑️ تم حذف الفريق','err');
+  }catch(e){console.error(e);toast('خطأ في الحذف','err');}
 }
 
 // ════════════════════════════════
@@ -2546,22 +4330,37 @@ function renderAdminMgmt(){
       </div>
     </div>`).join(''):'<div class="empty"><i class="fas fa-inbox"></i><p>لا توجد طلبات جديدة</p></div>';
 
-  // Active admins
-  document.getElementById('ampanel-active').innerHTML=actv.length?`
-    <div class="areqcard" style="background:rgba(251,191,36,.04);border-bottom:1px solid rgba(251,191,36,.15)">
-      <div class="av" style="background:rgba(251,191,36,.2);border-color:rgba(251,191,36,.4);color:var(--gold)">👑</div>
-      <div class="areqinfo"><div class="areqname" style="color:var(--gold)">${esc(SUPER.name)}</div>
-      <div class="areqmeta" dir="ltr">${SUPER.phone} · <span class="badge b-super">المسؤول الأعلى</span></div></div>
-    </div>`+actv.map(a=>`
-    <div class="areqcard">
+  // Active admins — header with "Create new admin" button
+  const headerHtml = `<div class="am-header" style="padding:14px 16px 0">
+    <div style="font-size:13px;color:var(--muted);font-weight:700">إجمالي الأدمنز: <b style="color:var(--gold-dark)">${actv.length+1}</b> (شاملاً المسؤول الأعلى)</div>
+    <button class="btn-create-admin" onclick="openCreateAdmin()"><i class="fas fa-user-plus"></i> إضافة أدمن جديد</button>
+  </div>`;
+  const superRow = `
+    <div class="areqcard" style="background:linear-gradient(135deg,rgba(212,160,23,.10),rgba(244,213,107,.18));border-bottom:1px solid rgba(212,160,23,.20)">
+      <div class="av" style="background:linear-gradient(135deg,#daa520,#9c7e1a);border-color:rgba(212,160,23,.55);color:#fff;font-size:18px">👑</div>
+      <div class="areqinfo"><div class="areqname" style="color:var(--gold-dark);font-size:15px">${esc(SUPER.name)}</div>
+        <div class="areqmeta" dir="ltr">${SUPER.phone} · <span class="badge b-super">👑 المسؤول الأعلى</span></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">صلاحيات كاملة على كل اللوحة</div>
+      </div>
+    </div>`;
+  document.getElementById('ampanel-active').innerHTML = headerHtml + superRow + (actv.length ? actv.map(a=>{
+    const pms = a.perms || defaultPerms();
+    const tags = PAGES.filter(function(p){ return pms[p.key]; })
+                      .map(function(p){ return '<span class="perm-tag"><i class="fas '+p.icon+'"></i> '+p.label+'</span>'; }).join('');
+    const noPerms = !PAGES.some(function(p){ return pms[p.key]; });
+    return `<div class="areqcard">
       <div class="av">${(a.name||'?').charAt(0)}</div>
-      <div class="areqinfo"><div class="areqname">${esc(a.name||'—')}</div>
-      <div class="areqmeta" dir="ltr">${esc(a.phone||'—')} · <span class="badge b-admin">أدمن</span></div></div>
+      <div class="areqinfo">
+        <div class="areqname">${esc(a.name||'—')}</div>
+        <div class="areqmeta" dir="ltr">${esc(a.phone||'—')} · <span class="badge b-admin">🛡️ أدمن</span></div>
+        <div class="perm-tags">${tags || '<span class="perm-tag" style="background:rgba(220,38,38,.08);color:#b91c1c;border-color:rgba(220,38,38,.22)"><i class="fas fa-ban"></i> بدون صلاحيات</span>'}</div>
+      </div>
       <div class="areqact">
         <button class="btn bg bsm" onclick="editAdmin('${a._id}')"><i class="fas fa-pen"></i> تعديل</button>
-        <button class="btn bd bsm" onclick="removeAdmin('${a._id}','${esc(a.name)}')"><i class="fas fa-trash"></i> حذف</button>
+        <button class="btn bd bsm" onclick="removeAdmin('${a._id}','${esc(a.name)}')"><i class="fas fa-trash"></i></button>
       </div>
-    </div>`).join(''):'<div class="empty"><i class="fas fa-users"></i><p>لا يوجد أدمنز حاليين (غير المسؤول الأعلى)</p></div>';
+    </div>`;
+  }).join('') : '<div class="empty" style="padding:30px"><i class="fas fa-users"></i><p>لا يوجد أدمنز حاليين — اضغط <b>إضافة أدمن جديد</b> لإنشاء حساب</p></div>');
 
   // Rejected
   document.getElementById('ampanel-rejected').innerHTML=rej.length?rej.map(r=>`
@@ -2578,7 +4377,7 @@ function renderAdminMgmt(){
 
 async function approveReq(id, name, phone, passHash) {
   try {
-    await db.collection('admins').add({ name, phone, passwordHash:passHash, role:'admin', status:'active', approvedBy:me.phone, approvedAt:firebase.firestore.FieldValue.serverTimestamp() });
+    await db.collection('admins').add({ name, phone, passwordHash:passHash, role:'admin', status:'active', perms:defaultPerms(), approvedBy:me.phone, approvedAt:firebase.firestore.FieldValue.serverTimestamp() });
     await db.collection('admin_requests').doc(id).update({ status:'approved' });
     const r=adminReqs.find(x=>x._id===id); if(r) r.status='approved';
     const fresh=await db.collection('admins').get(); admins=[]; fresh.forEach(d=>{const x=d.data();x._id=d.id;admins.push(x);});
@@ -2596,28 +4395,134 @@ async function removeAdmin(id, name) {
   if(!confirm(`تحذف أدمن "${name}"؟`)) return;
   try{await db.collection('admins').doc(id).delete();admins=admins.filter(x=>x._id!==id);renderAdminMgmt();toast('تم الحذف','ok');}catch(e){toast('خطأ','err');}
 }
+function permsMatrixHtml(perms){
+  const p = perms || defaultPerms();
+  return '<div class="perm-grid">' + PAGES.map(function(pg){
+    const checked = !!p[pg.key];
+    return `<label class="perm-chip ${checked?'checked':''}" onclick="event.stopPropagation()">
+      <input type="checkbox" data-perm="${pg.key}" ${checked?'checked':''} onchange="this.parentElement.classList.toggle('checked',this.checked)">
+      <i class="fas ${pg.icon}"></i> ${pg.label}
+    </label>`;
+  }).join('') + '</div>';
+}
+function readPermsFromForm(){
+  const out={};
+  document.querySelectorAll('#madmin-box input[data-perm]').forEach(function(cb){
+    out[cb.dataset.perm] = !!cb.checked;
+  });
+  return out;
+}
+function permQuickButtons(){
+  return `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;font-size:11px">
+    <button type="button" class="btn bg bxs" onclick="permSetAll(true)"><i class="fas fa-check-double"></i> تفعيل الكل</button>
+    <button type="button" class="btn bg bxs" onclick="permSetAll(false)"><i class="fas fa-times"></i> إلغاء الكل</button>
+  </div>`;
+}
+function permSetAll(val){
+  document.querySelectorAll('#madmin-box input[data-perm]').forEach(function(cb){
+    cb.checked = val;
+    cb.parentElement.classList.toggle('checked', val);
+  });
+}
+
+function openCreateAdmin() {
+  document.getElementById('madmin-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-user-plus" style="color:var(--gold)"></i> إضافة أدمن جديد</h2><button class="btnx" onclick="closeM('modal-admin')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="slbl">📋 بيانات الحساب</div>
+      <div class="erow"><span class="elbl">الاسم</span><input type="text" class="einp" id="ca-name" placeholder="اسم الأدمن" style="flex:1"></div>
+      <div class="erow"><span class="elbl">رقم التليفون</span><input type="tel" class="einp" id="ca-phone" placeholder="01xxxxxxxxx" dir="ltr" maxlength="11" style="flex:1"></div>
+      <div class="erow"><span class="elbl">كلمة السر</span><input type="password" class="einp" id="ca-pass" placeholder="٦ أحرف على الأقل" dir="ltr" style="flex:1"></div>
+      <div class="erow"><span class="elbl">تأكيد السر</span><input type="password" class="einp" id="ca-pass2" placeholder="اكتب مرة تانية" dir="ltr" style="flex:1"></div>
+
+      <div class="slbl" style="margin-top:14px">🔐 الصلاحيات — اختار اللي يقدر يدخلها</div>
+      ${permsMatrixHtml(defaultPerms())}
+      ${permQuickButtons()}
+
+      <div style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn bp" onclick="createAdmin()" id="ca-save"><i class="fas fa-user-plus"></i> إنشاء الأدمن</button>
+        <button class="btn bg" onclick="closeM('modal-admin')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-admin').style.display = 'flex';
+}
+
+async function createAdmin() {
+  const name  = document.getElementById('ca-name').value.trim();
+  const phone = document.getElementById('ca-phone').value.trim();
+  const pass  = document.getElementById('ca-pass').value;
+  const pass2 = document.getElementById('ca-pass2').value;
+  if(!name)               { toast('اكتب الاسم','err'); return; }
+  if(!/^01\d{9}$/.test(phone)) { toast('رقم تليفون غير صحيح','err'); return; }
+  if(!pass||pass.length<6){ toast('كلمة السر لازم ٦ حروف','err'); return; }
+  if(pass!==pass2)        { toast('كلمة السر مش متطابقة','err'); return; }
+  if(phone===SUPER.phone) { toast('الرقم محجوز للمسؤول الأعلى','err'); return; }
+  // Check duplicates
+  try {
+    const exist = await db.collection('admins').where('phone','==',phone).limit(1).get();
+    if(!exist.empty){ toast('في أدمن بنفس الرقم','err'); return; }
+  } catch(e){ toast('خطأ في التحقق','err'); return; }
+
+  const perms = readPermsFromForm();
+  const btn = document.getElementById('ca-save');
+  btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإنشاء...';
+  try {
+    const ref = await db.collection('admins').add({
+      name, phone,
+      passwordHash: hp(phone+pass),
+      role:'admin', status:'active', perms,
+      createdBy: me.phone,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const fresh = await db.collection('admins').get();
+    admins = []; fresh.forEach(d=>{ const x=d.data(); x._id=d.id; admins.push(x); });
+    closeM('modal-admin'); renderAdminMgmt();
+    toast('✅ تم إنشاء الأدمن: '+name,'ok');
+  } catch(e) {
+    console.error(e); toast('خطأ في الإنشاء','err');
+    btn.disabled=false; btn.innerHTML='<i class="fas fa-user-plus"></i> إنشاء الأدمن';
+  }
+}
+
 function editAdmin(id) {
   const a=admins.find(x=>x._id===id); if(!a) return;
+  const perms = a.perms || defaultPerms();
   document.getElementById('madmin-box').innerHTML=`
-    <div class="mhead"><h2>✏️ تعديل أدمن</h2><button class="btnx" onclick="closeM('modal-admin')"><i class="fas fa-times"></i></button></div>
+    <div class="mhead"><h2><i class="fas fa-pen" style="color:var(--gold)"></i> تعديل أدمن</h2><button class="btnx" onclick="closeM('modal-admin')"><i class="fas fa-times"></i></button></div>
     <div class="mbody">
+      <div class="slbl">📋 البيانات</div>
       <div class="erow"><span class="elbl">الاسم</span><input type="text" class="einp" id="ea-name" value="${esc(a.name||'')}" style="flex:1"></div>
       <div class="erow"><span class="elbl">رقم التليفون</span><input type="tel" class="einp" id="ea-phone" value="${esc(a.phone||'')}" dir="ltr" style="flex:1"></div>
       <div class="erow"><span class="elbl">كلمة سر جديدة</span><input type="password" class="einp" id="ea-pass" placeholder="اتركها فاضية لو مش هتغيرها" dir="ltr" style="flex:1"></div>
-      <div style="display:flex;gap:9px;margin-top:16px">
-        <button class="btn bp" onclick="saveAdmin('${id}','${esc(a.phone)}')"><i class="fas fa-save"></i> حفظ</button>
+
+      <div class="slbl" style="margin-top:14px">🔐 الصلاحيات</div>
+      ${permsMatrixHtml(perms)}
+      ${permQuickButtons()}
+
+      <div style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn bp" onclick="saveAdmin('${id}','${esc(a.phone)}')"><i class="fas fa-save"></i> حفظ التعديلات</button>
         <button class="btn bg" onclick="closeM('modal-admin')">إلغاء</button>
+        <button class="btn bd" onclick="removeAdmin('${id}','${esc(a.name||'')}');closeM('modal-admin')" style="margin-right:auto"><i class="fas fa-trash"></i> حذف</button>
       </div>
     </div>`;
   document.getElementById('modal-admin').style.display='flex';
 }
+
 async function saveAdmin(id, oldPhone) {
   const name=document.getElementById('ea-name').value.trim(), phone=document.getElementById('ea-phone').value.trim(), pass=document.getElementById('ea-pass').value;
   if(!name||!phone){toast('اكتب الاسم والتليفون','err');return;}
-  const upd={name,phone,lastUpdated:new Date().toISOString()};
-  if(pass) upd.passwordHash=hp(phone+pass);
-  try{await db.collection('admins').doc(id).update(upd);const a=admins.find(x=>x._id===id);if(a)Object.assign(a,upd);closeM('modal-admin');renderAdminMgmt();toast('✅ تم الحفظ','ok');}
-  catch(e){toast('خطأ','err');}
+  if(!/^01\d{9}$/.test(phone)){toast('رقم تليفون غير صحيح','err');return;}
+  const perms = readPermsFromForm();
+  const upd={name,phone,perms,lastUpdated:new Date().toISOString()};
+  if(pass){
+    if(pass.length<6){toast('كلمة السر لازم ٦ حروف','err');return;}
+    upd.passwordHash=hp(phone+pass);
+  }
+  try{
+    await db.collection('admins').doc(id).update(upd);
+    const a=admins.find(x=>x._id===id); if(a) Object.assign(a,upd);
+    closeM('modal-admin'); renderAdminMgmt(); toast('✅ تم الحفظ','ok');
+  } catch(e){console.error(e);toast('خطأ في الحفظ','err');}
 }
 
 // ════════════════════════════════

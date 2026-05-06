@@ -169,52 +169,12 @@ async function safeSend(token, notification, data, playerId) {
 
 // ============================================================
 // 1. COMPETITION CREATED → Notify subscribed users
+//    DISABLED: notifications now sent only from admin panel
 // ============================================================
-exports.onCompetitionCreated = functions
-    .region('europe-west1')
-    .firestore.document('compete_rooms/{roomId}')
-    .onCreate(async (snap, context) => {
-        var room = snap.data();
-        var hostName = room.hostName || 'حد من الخدمة';
-        var roomCode = room.code || '';
-        var hostPhone = room.hostPhone || '';
-
-        // Get all players (filter for fcmToken in code to include legacy docs)
-        var playersSnap = await db.collection('players').get();
-
-        var sent = 0;
-        var promises = [];
-
-        playersSnap.forEach(function(doc) {
-            // Don't notify the host who created it
-            if (doc.id === hostPhone) return;
-
-            var player = doc.data();
-            if (!player.fcmToken) return;
-
-            // Check notification preferences
-            if (player.notifPrefs && player.notifPrefs.competitions === false) return;
-
-            promises.push(
-                safeSend(
-                    player.fcmToken,
-                    {
-                        title: COMPETITION_MSG.title,
-                        body: hostName + ' عمل مسابقة جديدة - يلا نافس! 🏆',
-                    },
-                    {
-                        type: 'compete_invite',
-                        roomCode: roomCode,
-                        roomId: context.params.roomId,
-                    },
-                    doc.id
-                ).then(function(ok) { if (ok) sent++; })
-            );
-        });
-
-        await Promise.all(promises);
-        console.log('[Notif] Competition created by', hostName, '- notified', sent, 'players');
-    });
+// exports.onCompetitionCreated = functions
+//     .region('europe-west1')
+//     .firestore.document('compete_rooms/{roomId}')
+//     .onCreate(async (snap, context) => { ... });
 
 // ============================================================
 // 2. NEW LESSON / CONTENT → Notify all users

@@ -1,0 +1,1884 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>كاس مين البطل — البث المباشر</title>
+<meta name="theme-color" content="#0b0f1a">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e27; --bg2:#141937; --bg3:#1a2040;
+  --card:#1a2040; --card2:#141937;
+  --border:rgba(255,255,255,.08); --border2:rgba(255,255,255,.16);
+  --gold:#FFD700; --gold-light:#FFE875; --gold-dark:#D4A017;
+  --silver:#C0C0C0; --bronze:#CD7F32;
+  --team-a:#6C5CE7;       /* purple */
+  --team-b:#00CEC9;       /* cyan */
+  --accent:#6C5CE7; --accent2:#FFD700;
+  --teal:#00CEC9; --green:#00B894; --red:#FF6B6B; --pink:#ec4899; --orange:#FDCB6E; --purple:#a855f7; --blue:#3b82f6;
+  --correct:#00B894; --wrong:#FF6B6B;
+  --text:#fff; --muted:rgba(255,255,255,.5);
+  --shadow-gold:0 4px 24px rgba(255,215,0,.30);
+  --radius:16px;
+}
+html,body{height:100%}
+body{font-family:'Cairo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;position:relative}
+body::before{content:'';position:fixed;inset:0;background-image:url('images/tourment-bg-opt.jpg');background-size:cover;background-position:center;background-attachment:fixed;z-index:-2;pointer-events:none}
+body::after{content:'';position:fixed;inset:0;background:rgba(10,14,39,.55);backdrop-filter:blur(2px);z-index:-1;pointer-events:none}
+button{font-family:inherit;cursor:pointer}
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:99px}
+
+/* ─── FULLSCREEN BUTTON ─── */
+.fs-btn{position:fixed;top:14px;left:14px;z-index:200;width:48px;height:48px;border-radius:50%;background:rgba(20,25,60,.55);border:1px solid var(--border2);color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.25s;backdrop-filter:blur(8px);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+.fs-btn:hover{background:rgba(108,92,231,.35);border-color:var(--team-a);transform:scale(1.08)}
+:fullscreen .fs-btn{top:18px;left:18px}
+.fs-btn .fa-compress{display:none}
+:fullscreen .fs-btn .fa-expand{display:none}
+:fullscreen .fs-btn .fa-compress{display:inline}
+
+/* ─── SHELL ─── */
+#shell{display:flex;flex-direction:column;min-height:100vh;padding:18px 18px 18px 76px;gap:16px;position:relative;z-index:1}
+
+.topbar{display:flex;align-items:center;gap:14px;padding:14px 22px;background:linear-gradient(135deg,rgba(108,92,231,.20),rgba(0,206,201,.14));border:1px solid var(--border2);border-radius:var(--radius);backdrop-filter:blur(10px);box-shadow:0 8px 32px rgba(0,0,0,.30)}
+.topbar .logo{font-size:38px;filter:drop-shadow(0 0 16px rgba(255,215,0,.7))}
+.topbar h1{font-size:22px;font-weight:900;line-height:1.1;background:linear-gradient(135deg,#FFD700,#FFE875);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 30px rgba(255,215,0,.30)}
+.topbar .sub{color:var(--muted);font-size:13px;margin-top:3px}
+.topbar .right{margin-right:auto;display:flex;align-items:center;gap:10px}
+.live-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;background:rgba(0,184,148,.20);border:1px solid rgba(0,184,148,.5);border-radius:99px;color:var(--correct);font-size:13px;font-weight:800;text-shadow:0 0 12px rgba(0,184,148,.6)}
+.live-pill::before{content:'';width:9px;height:9px;border-radius:50%;background:var(--correct);box-shadow:0 0 12px var(--correct);animation:livepulse 1.5s infinite}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ─── LANDING / TOURNAMENT PICKER ─── */
+.landing{display:flex;flex-direction:column;gap:16px;max-width:920px;width:100%;margin:40px auto;position:relative;z-index:1}
+.landing h2{font-size:32px;font-weight:900;text-align:center;background:linear-gradient(135deg,#FFD700,#FFE875);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 40px rgba(255,215,0,.40)}
+.landing .hint{color:var(--muted);font-size:14px;text-align:center;margin-bottom:10px}
+.tour-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.tour-card{position:relative;padding:22px;background:rgba(26,32,64,.75);border:1px solid var(--border2);border-radius:18px;cursor:pointer;transition:.25s;overflow:hidden;backdrop-filter:blur(8px)}
+.tour-card:hover{transform:translateY(-4px);border-color:var(--gold);box-shadow:0 12px 40px rgba(255,215,0,.25)}
+.tour-card .ico{font-size:36px;margin-bottom:8px;filter:drop-shadow(0 4px 12px rgba(255,215,0,.5))}
+.tour-card .nm{font-size:18px;font-weight:900}
+.tour-card .meta{font-size:13px;color:var(--muted);margin-top:5px}
+.tour-card .badge{position:absolute;top:16px;left:16px;padding:4px 12px;border-radius:99px;font-size:11px;font-weight:800;border:1px solid currentColor}
+.b-draft{color:#9ca3af}
+.b-active{color:var(--correct);background:rgba(0,184,148,.18)}
+.b-paused{color:var(--orange);background:rgba(253,203,110,.18)}
+.b-completed{color:var(--blue);background:rgba(59,130,246,.15)}
+
+/* ─── HEADER (in-game) ─── */
+.gh{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;padding:16px 24px;background:linear-gradient(90deg,rgba(108,92,231,.20),rgba(255,215,0,.05),rgba(0,206,201,.20));border:1px solid var(--border2);border-radius:18px;backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.gh .left,.gh .right{display:flex;align-items:center;gap:10px}
+.gh .right{justify-content:flex-end}
+.gh .name{font-size:22px;font-weight:900;background:linear-gradient(135deg,#FFD700,#FFE875);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 30px rgba(255,215,0,.4)}
+.gh .round{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;background:rgba(255,215,0,.15);border:1.5px solid rgba(255,215,0,.5);border-radius:99px;font-size:14px;font-weight:800;color:var(--gold);text-shadow:0 0 18px rgba(255,215,0,.4)}
+.gh .qtype{display:inline-flex;align-items:center;gap:8px;padding:8px 18px;border-radius:99px;font-size:14px;font-weight:800;backdrop-filter:blur(6px)}
+
+/* ─── MAIN GAME LAYOUT — race track on top, big stage below ─── */
+.game-layout{display:flex;flex-direction:column;gap:14px;flex:1;min-height:0}
+
+/* TEAMS GRID — all visible, gamified cards */
+.race-track{padding:14px 16px;background:rgba(26,32,64,.85);border:1px solid var(--border2);border-radius:18px;backdrop-filter:blur(10px);box-shadow:0 8px 28px rgba(0,0,0,.35);flex-shrink:0}
+.race-track-head{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:800;letter-spacing:1px;padding:0 4px 10px;text-transform:uppercase}
+.race-track-head i{color:var(--gold)}
+.race-track-head .leader-tag{margin-right:auto;font-size:11px;color:var(--gold);background:rgba(255,215,0,.12);padding:4px 11px;border-radius:99px;text-transform:none;letter-spacing:.5px;font-weight:800}
+
+/* Auto-fitted grid: each card ~150px min, scales with team count */
+.race-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.team{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 10px 12px;background:linear-gradient(180deg,rgba(20,25,55,.7),rgba(8,11,30,.5));border:2px solid var(--border2);border-radius:14px;position:relative;transition:border-color .3s,box-shadow .3s,transform .3s,opacity .3s,filter .3s;min-height:160px}
+.team::before{content:'';position:absolute;top:0;left:0;right:0;height:4px;background:var(--tcolor,var(--team-a));border-radius:14px 14px 0 0;opacity:.95}
+.team.turn{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold),0 12px 36px rgba(255,215,0,.5),inset 0 0 32px rgba(255,215,0,.10);transform:translateY(-4px) scale(1.02);z-index:2}
+.team.turn::after{content:'⚡ دوره الآن';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#FFD700,#FFA502);color:#000;padding:4px 13px;border-radius:99px;font-size:11px;font-weight:900;white-space:nowrap;letter-spacing:.3px;animation:turnpulse 1.4s infinite;box-shadow:0 4px 14px rgba(255,215,0,.65);z-index:3}
+@keyframes turnpulse{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
+.team.next-up{border-color:var(--team-b);box-shadow:0 0 0 2px var(--team-b),0 8px 24px rgba(0,206,201,.40);animation:nextPulse 1.4s infinite}
+.team.next-up::after{content:'⏭️ التالي';position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#00CEC9,#0891b2);color:#000;padding:4px 13px;border-radius:99px;font-size:11px;font-weight:900;white-space:nowrap;letter-spacing:.3px;box-shadow:0 4px 14px rgba(0,206,201,.5);z-index:3}
+@keyframes nextPulse{0%,100%{box-shadow:0 0 0 2px var(--team-b),0 8px 24px rgba(0,206,201,.40)}50%{box-shadow:0 0 0 2px var(--team-b),0 12px 30px rgba(0,206,201,.65)}}
+.team.eliminated{opacity:.35;filter:grayscale(.85)}
+.team.eliminated::before{background:var(--red)}
+.team .out-stamp{position:absolute;top:-8px;right:8px;background:linear-gradient(135deg,#FF6B6B,#dc2626);color:#fff;font-size:10px;font-weight:900;padding:2px 9px;border-radius:6px;letter-spacing:.5px;box-shadow:0 3px 10px rgba(239,68,68,.5);display:none;z-index:3}
+.team.eliminated .out-stamp{display:block}
+.team.leader{border-color:var(--gold)}
+.team.leader:not(.turn) .leader-crown{display:block}
+.leader-crown{display:none;position:absolute;top:-13px;right:8px;font-size:22px;filter:drop-shadow(0 4px 8px rgba(255,215,0,.7));z-index:3;animation:crownBob 2.5s ease-in-out infinite}
+@keyframes crownBob{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-3px) rotate(5deg)}}
+
+.team-logo-circle{width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--tcolor,var(--team-a)),rgba(0,0,0,.35));display:flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(255,255,255,.2);box-shadow:0 4px 14px var(--tcolor,rgba(108,92,231,.5));flex-shrink:0}
+.team.turn .team-logo-circle{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 6px 22px rgba(255,215,0,.6);animation:turnGlow 1.5s ease-in-out infinite}
+@keyframes turnGlow{0%,100%{box-shadow:0 0 0 2px var(--gold),0 6px 22px rgba(255,215,0,.6)}50%{box-shadow:0 0 0 2px var(--gold),0 8px 28px rgba(255,215,0,.9)}}
+
+.team-name{font-size:13px;font-weight:900;line-height:1.2;text-shadow:0 1px 4px rgba(0,0,0,.5);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;width:100%;padding:0 4px}
+.team-score{font-size:30px;font-weight:900;color:var(--gold);text-shadow:0 0 14px rgba(255,215,0,.55),0 2px 4px rgba(0,0,0,.6);transition:.3s;letter-spacing:-1px;line-height:1}
+.team-score.bump{animation:scorebump .65s}
+@keyframes scorebump{0%{transform:scale(1)}30%{transform:scale(1.7);color:var(--correct);text-shadow:0 0 32px var(--correct)}100%{transform:scale(1)}}
+
+/* race progress bar inside each card */
+.score-bar{height:8px;width:100%;background:rgba(255,255,255,.06);border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.05);position:relative}
+.score-bar-fill{height:100%;background:linear-gradient(90deg,var(--tcolor,var(--team-a)),var(--gold));border-radius:99px;transition:width .9s cubic-bezier(.4,.6,.2,1);box-shadow:inset 0 0 6px rgba(255,255,255,.25),0 0 8px var(--gold);position:relative;min-width:0}
+.score-bar-fill[data-w="0"]{background:rgba(255,255,255,.12);box-shadow:none}
+.score-bar-fill::before{content:'';position:absolute;inset:0;background-image:linear-gradient(45deg,rgba(255,255,255,.18) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.18) 50%,rgba(255,255,255,.18) 75%,transparent 75%);background-size:12px 12px;animation:raceStripe .9s linear infinite;border-radius:99px}
+.score-bar-fill[data-w="0"]::before{animation:none;opacity:0}
+.team.eliminated .score-bar-fill::before{animation:none;opacity:.2}
+@keyframes raceStripe{0%{background-position:0 0}100%{background-position:24px 0}}
+
+.helpers{display:flex;flex-wrap:wrap;gap:3px;align-items:center;justify-content:center;min-height:18px}
+.helper{display:inline-flex;align-items:center;gap:2px;padding:1px 5px;background:rgba(108,92,231,.18);border:1px solid rgba(108,92,231,.4);border-radius:6px;font-size:10px;color:#fff;font-weight:700}
+.helper.empty{opacity:.22}
+
+/* TURN-MODE PILL */
+.turn-mode-pill{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:99px;font-size:11px;font-weight:800;cursor:pointer;transition:.2s;background:rgba(108,92,231,.14);border:1px solid rgba(108,92,231,.4);color:var(--team-a)}
+.turn-mode-pill.manual{background:rgba(0,206,201,.14);border-color:rgba(0,206,201,.4);color:var(--team-b)}
+
+/* ─── STAGE (the centerpiece — question + timer) ─── */
+.stage-col{display:flex;flex-direction:column;min-height:0}
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;background:linear-gradient(180deg,rgba(26,32,64,.94),rgba(8,11,30,.88));border:1px solid var(--border2);border-radius:22px;padding:36px 36px 30px;position:relative;backdrop-filter:blur(14px);box-shadow:0 16px 48px rgba(0,0,0,.50);min-height:480px;transition:box-shadow .6s,border-color .6s}
+.stage.idle{text-align:center}
+.stage.reveal-pop{animation:stageRevealPop .75s cubic-bezier(.34,1.56,.64,1)}
+@keyframes stageRevealPop{0%{transform:scale(.985);box-shadow:0 16px 48px rgba(0,0,0,.50),0 0 0 0 rgba(255,215,0,0)}40%{transform:scale(1.012);box-shadow:0 22px 60px rgba(0,0,0,.55),0 0 0 10px rgba(255,215,0,.18)}100%{transform:scale(1);box-shadow:0 16px 48px rgba(0,0,0,.50),0 0 0 0 rgba(255,215,0,0)}}
+/* Ambient pulse around the stage while a question is being shown — very subtle */
+.stage::after{content:'';position:absolute;inset:-1px;border-radius:22px;pointer-events:none;box-shadow:0 0 0 2px rgba(255,215,0,0);transition:box-shadow .6s}
+.stage:has(.q-text:not(.hidden-q))::after{animation:stageAmbient 3.6s ease-in-out infinite}
+@keyframes stageAmbient{0%,100%{box-shadow:0 0 0 1.5px rgba(255,215,0,.10),0 0 24px rgba(255,215,0,.08) inset}50%{box-shadow:0 0 0 2px rgba(255,215,0,.22),0 0 36px rgba(255,215,0,.18) inset}}
+.stage-empty{color:var(--muted);font-size:16px;line-height:1.7}
+.stage-empty i{font-size:80px;color:var(--gold);opacity:.7;display:block;margin-bottom:18px;filter:drop-shadow(0 0 30px rgba(255,215,0,.5));animation:idleFloat 3s ease-in-out infinite}
+@keyframes idleFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
+
+.qtype-banner{display:inline-flex;align-items:center;gap:8px;padding:9px 22px;border-radius:99px;font-size:16px;font-weight:800;backdrop-filter:blur(6px);box-shadow:0 4px 18px rgba(0,0,0,.35)}
+.q-text{font-size:42px;font-weight:800;line-height:1.5;color:#fff;text-align:center;max-width:1000px;text-shadow:0 4px 16px rgba(0,0,0,.75),0 0 40px rgba(108,92,231,.25);padding:0 12px;animation:qTextIn .55s cubic-bezier(.34,1.56,.64,1)}
+.q-text.hidden-q{font-size:24px;color:var(--muted);font-weight:700;font-style:italic;animation:none}
+@keyframes qTextIn{0%{opacity:0;transform:translateY(12px) scale(.97);filter:blur(6px)}60%{opacity:1;transform:translateY(-1px) scale(1.01);filter:blur(0)}100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}}
+.q-notes{color:var(--muted);font-size:15px;text-align:center;font-style:italic;max-width:800px}
+
+/* TIMER RING — HUGE for projector */
+.timer-wrap{display:flex;align-items:center;justify-content:center;gap:18px}
+.ring{width:180px;height:180px;position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ring svg{transform:rotate(-90deg);width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(255,215,0,.45))}
+.ring circle{fill:none;stroke-width:8}
+.ring .bg{stroke:rgba(255,255,255,.08)}
+.ring .fg{stroke:var(--gold);stroke-linecap:round;transition:stroke-dashoffset .9s linear,stroke .3s}
+.ring.urgent{animation:timerShake .3s infinite,timerHalo 1s ease-in-out infinite}
+.ring.urgent .fg{stroke:var(--wrong)}
+@keyframes timerShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes timerHalo{0%,100%{filter:drop-shadow(0 0 24px rgba(255,107,107,.55))}50%{filter:drop-shadow(0 0 42px rgba(255,107,107,.95)) drop-shadow(0 0 18px rgba(255,107,107,.7))}}
+.ring .num{position:absolute;font-size:64px;font-weight:900;color:var(--gold);text-shadow:0 0 28px rgba(255,215,0,.7),0 4px 8px rgba(0,0,0,.6);letter-spacing:-2px;line-height:1;transition:color .25s}
+.ring.urgent .num{color:var(--wrong);text-shadow:0 0 28px rgba(255,107,107,.85);animation:urgent .5s infinite}
+@keyframes urgent{0%,100%{transform:scale(1)}50%{transform:scale(1.18)}}
+.timer-status{font-size:13px;color:var(--muted);font-weight:700}
+
+/* ANSWER REVEAL — dramatic */
+.answer-box{padding:22px 28px;background:linear-gradient(135deg,rgba(0,184,148,.30),rgba(0,184,148,.10));border:3px solid rgba(0,184,148,.65);border-radius:16px;text-align:center;animation:reveal .55s;box-shadow:0 10px 36px rgba(0,184,148,.30);max-width:1000px}
+.answer-box .lbl{font-size:14px;color:var(--correct);font-weight:800;margin-bottom:10px;letter-spacing:2px;text-transform:uppercase}
+.answer-box .txt{font-size:28px;font-weight:900;color:#fff;line-height:1.5;text-shadow:0 2px 10px rgba(0,0,0,.5)}
+@keyframes reveal{from{opacity:0;transform:scale(.85)}to{opacity:1;transform:scale(1)}}
+
+/* ─── STAGE: top row (type banner + turn badge) ─── */
+.stage-top-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;max-width:1000px;flex-wrap:wrap}
+.turn-badge{display:inline-flex;align-items:center;gap:10px;padding:7px 14px 7px 8px;border-radius:99px;background:linear-gradient(90deg,rgba(255,215,0,.20),rgba(255,215,0,.05));border:1.5px solid rgba(255,215,0,.55);box-shadow:0 4px 14px rgba(255,215,0,.20);animation:reveal .4s}
+.turn-badge-logo{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--tcolor,var(--team-a)),rgba(0,0,0,.35));display:flex;align-items:center;justify-content:center;font-size:18px;border:2px solid rgba(255,255,255,.25)}
+.turn-badge-name{font-size:14px;font-weight:800;color:var(--gold);text-shadow:0 0 12px rgba(255,215,0,.4)}
+.turn-badge-name b{color:#fff;font-weight:900;margin-left:4px}
+
+/* ─── MULTIPLE CHOICE OPTIONS GRID ─── */
+.q-options{display:grid;grid-template-columns:repeat(2,1fr);gap:14px;width:100%;max-width:920px}
+.q-option{display:flex;align-items:center;gap:14px;padding:18px 22px;border-radius:16px;border:2.5px solid rgba(255,255,255,.16);background:rgba(20,25,60,.85);backdrop-filter:blur(6px);font-size:22px;font-weight:700;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.5);transition:.35s;position:relative;min-height:70px;animation:optEnter .5s both;animation-delay:calc(var(--i,0) * 90ms + 80ms)}
+@keyframes optEnter{0%{opacity:0;transform:translateY(14px) scale(.94)}60%{opacity:1;transform:translateY(-2px) scale(1.02)}100%{opacity:1;transform:translateY(0) scale(1)}}
+.q-option-letter{width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:900;flex-shrink:0;background:rgba(108,92,231,.25);color:var(--team-a);border:1px solid rgba(108,92,231,.4)}
+.q-option:nth-child(1) .q-option-letter{background:rgba(255,107,107,.20);color:#FF6B6B;border-color:rgba(255,107,107,.4)}
+.q-option:nth-child(2) .q-option-letter{background:rgba(108,92,231,.20);color:#6C5CE7;border-color:rgba(108,92,231,.4)}
+.q-option:nth-child(3) .q-option-letter{background:rgba(0,206,201,.20);color:#00CEC9;border-color:rgba(0,206,201,.4)}
+.q-option:nth-child(4) .q-option-letter{background:rgba(253,203,110,.20);color:#FDCB6E;border-color:rgba(253,203,110,.4)}
+.q-option-text{flex:1;line-height:1.4}
+.q-option-check{color:var(--correct);font-size:28px;text-shadow:0 0 16px var(--correct);animation:checkPop .55s}
+@keyframes checkPop{0%{transform:scale(0) rotate(-180deg)}60%{transform:scale(1.4) rotate(20deg)}100%{transform:scale(1) rotate(0)}}
+.q-option.correct{background:linear-gradient(135deg,rgba(0,184,148,.30),rgba(0,184,148,.10))!important;border-color:var(--correct)!important;box-shadow:0 8px 28px rgba(0,184,148,.40);animation:correctOption .65s}
+@keyframes correctOption{0%{transform:scale(1)}50%{transform:scale(1.04);box-shadow:0 12px 36px rgba(0,184,148,.6)}100%{transform:scale(1)}}
+
+/* ─── NEXT TEAM PREP BANNER (shown between questions) ─── */
+.next-team-banner{display:flex;flex-direction:column;align-items:center;gap:18px;padding:34px 40px;background:linear-gradient(135deg,rgba(0,206,201,.15),rgba(108,92,231,.10));border:2.5px solid rgba(0,206,201,.4);border-radius:24px;animation:reveal .5s;text-align:center;max-width:560px}
+.next-team-banner .ntb-label{font-size:18px;font-weight:800;color:var(--team-b);letter-spacing:2px;text-shadow:0 0 14px rgba(0,206,201,.5);text-transform:uppercase}
+.next-team-banner .ntb-team{display:flex;flex-direction:column;align-items:center;gap:14px}
+.next-team-banner .ntb-logo{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,var(--tcolor,var(--team-a)),rgba(0,0,0,.4));display:flex;align-items:center;justify-content:center;font-size:62px;border:4px solid var(--gold);box-shadow:0 0 0 3px rgba(255,215,0,.3),0 12px 40px var(--tcolor,rgba(108,92,231,.5));animation:nextLogoSpin 4s linear infinite}
+@keyframes nextLogoSpin{0%,100%{transform:scale(1) rotate(0)}50%{transform:scale(1.05) rotate(2deg)}}
+.next-team-banner .ntb-name{font-size:36px;font-weight:900;color:#fff;text-shadow:0 4px 20px rgba(0,0,0,.5),0 0 30px rgba(255,215,0,.4)}
+.next-team-banner .ntb-hint{font-size:13px;color:var(--muted);font-style:italic;font-weight:600}
+
+/* ─── MYSTERY BOX OVERLAY (random category spinner) ─── */
+.mystery-ov{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 30%,rgba(108,92,231,.30) 0%,rgba(8,11,30,.97) 70%);z-index:9300;display:none;flex-direction:column;align-items:center;justify-content:center;gap:24px;padding:40px;animation:mbFadeIn .35s}
+.mystery-ov.on{display:flex}
+@keyframes mbFadeIn{from{opacity:0}to{opacity:1}}
+.mystery-team-tag{display:inline-flex;align-items:center;gap:14px;padding:11px 22px 11px 14px;border-radius:99px;background:linear-gradient(90deg,rgba(255,215,0,.20),rgba(255,215,0,.05));border:1.5px solid rgba(255,215,0,.55);color:var(--gold);font-weight:900;font-size:18px;animation:mbPopIn .55s;box-shadow:0 6px 22px rgba(255,215,0,.30)}
+.mystery-team-tag .mtt-logo{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--tcolor,var(--gold)),rgba(0,0,0,.35));display:flex;align-items:center;justify-content:center;font-size:22px;border:2px solid rgba(255,255,255,.25)}
+@keyframes mbPopIn{0%{opacity:0;transform:scale(.4) rotate(-8deg)}60%{opacity:1;transform:scale(1.1) rotate(3deg)}100%{transform:scale(1) rotate(0)}}
+
+/* The mystery box itself */
+.mystery-box{font-size:200px;line-height:1;filter:drop-shadow(0 0 70px rgba(255,215,0,.7));animation:mbFloat 1.4s ease-in-out infinite alternate}
+@keyframes mbFloat{from{transform:translateY(0) rotate(-4deg) scale(1)}to{transform:translateY(-18px) rotate(4deg) scale(1.04)}}
+.mystery-box.shaking{animation:mbShake .12s linear infinite}
+@keyframes mbShake{0%,100%{transform:translate(0,0) rotate(0)}25%{transform:translate(-10px,3px) rotate(-3deg)}50%{transform:translate(10px,-3px) rotate(3deg)}75%{transform:translate(-5px,5px) rotate(-1deg)}}
+.mystery-box.opening{animation:mbOpen .65s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes mbOpen{0%{transform:scale(1) rotate(0);filter:drop-shadow(0 0 70px rgba(255,215,0,.7))}30%{transform:scale(1.5) rotate(-15deg);filter:drop-shadow(0 0 120px rgba(255,215,0,1)) brightness(1.6)}100%{transform:scale(0) rotate(720deg);opacity:0;filter:drop-shadow(0 0 200px rgba(255,215,0,1))}}
+
+/* Cycling cards */
+.mystery-cards{display:flex;align-items:center;justify-content:center;min-height:240px;animation:cardsAppear .35s}
+@keyframes cardsAppear{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+.mystery-card{width:240px;height:240px;background:linear-gradient(180deg,rgba(20,25,55,.95),rgba(8,11,30,.85));border:3px solid var(--gold);border-radius:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:18px;box-shadow:0 16px 56px rgba(255,215,0,.45),inset 0 0 30px rgba(255,255,255,.04);transition:border-color .15s}
+.mystery-card .mc-ico{font-size:96px;line-height:1;filter:drop-shadow(0 6px 22px currentColor)}
+.mystery-card .mc-name{font-size:22px;font-weight:900;color:#fff;text-align:center;line-height:1.2;text-shadow:0 2px 8px rgba(0,0,0,.5)}
+.mystery-card.flash{animation:cardFlash .14s}
+@keyframes cardFlash{0%{transform:scale(1.12);filter:brightness(1.6)}100%{transform:scale(1);filter:brightness(1)}}
+
+/* Final reveal */
+.mystery-result{display:flex;flex-direction:column;align-items:center;gap:20px;animation:resultZoom .85s cubic-bezier(.34,1.56,.64,1)}
+@keyframes resultZoom{0%{opacity:0;transform:scale(.25) rotate(-180deg)}55%{opacity:1;transform:scale(1.25) rotate(15deg)}100%{opacity:1;transform:scale(1) rotate(0)}}
+.mystery-result .mr-label{font-size:20px;color:var(--gold-light);font-weight:800;letter-spacing:3px;text-transform:uppercase;text-shadow:0 0 18px rgba(255,215,0,.5)}
+.mystery-result .mr-ico{font-size:160px;line-height:1;filter:drop-shadow(0 0 80px currentColor) drop-shadow(0 0 40px currentColor)}
+.mystery-result .mr-name{font-size:54px;font-weight:900;background:linear-gradient(135deg,#FFD700,#FFE875);-webkit-background-clip:text;background-clip:text;color:transparent;text-shadow:0 0 50px rgba(255,215,0,.6);text-align:center}
+
+.mystery-status{font-size:18px;color:var(--gold-light);font-weight:800;letter-spacing:1.5px;text-shadow:0 0 14px rgba(255,215,0,.4);min-height:24px}
+
+/* ─── ANSWER FEEDBACK OVERLAYS (correct/wrong/timeout) ─── */
+.feedback-ov{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;z-index:8800;pointer-events:none;animation:fbIn .35s ease-out}
+.feedback-ov.out{animation:fbOut .35s forwards}
+@keyframes fbIn{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes fbOut{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(1.15)}}
+.fb-icon{font-size:140px;filter:drop-shadow(0 0 60px currentColor)}
+.fb-correct .fb-icon{color:var(--correct);animation:correctIcon .8s ease-out}
+.fb-wrong .fb-icon{color:var(--wrong);animation:wrongIcon .8s ease-out}
+.fb-timeout .fb-icon{color:var(--orange);animation:wrongIcon .8s ease-out}
+@keyframes correctIcon{0%{transform:scale(0) rotate(-180deg)}55%{transform:scale(1.4) rotate(20deg)}100%{transform:scale(1) rotate(0)}}
+@keyframes wrongIcon{0%{transform:scale(0) rotate(0)}30%{transform:scale(1.2) rotate(-15deg)}55%{transform:scale(1) rotate(15deg)}100%{transform:scale(1) rotate(0)}}
+.fb-text{font-size:54px;font-weight:900;text-shadow:0 6px 24px rgba(0,0,0,.65);text-align:center}
+.fb-correct .fb-text{color:var(--correct);text-shadow:0 6px 26px rgba(0,184,148,.5),0 2px 8px rgba(0,0,0,.7)}
+.fb-wrong .fb-text{color:var(--wrong);text-shadow:0 6px 26px rgba(255,107,107,.5),0 2px 8px rgba(0,0,0,.7)}
+.fb-timeout .fb-text{color:var(--orange);text-shadow:0 6px 26px rgba(253,203,110,.5),0 2px 8px rgba(0,0,0,.7)}
+.fb-team{font-size:24px;font-weight:800;color:#fff;text-shadow:0 4px 16px rgba(0,0,0,.65);display:flex;align-items:center;gap:12px}
+.fb-team-logo{font-size:42px}
+
+/* ─── FLOATING ACTION BUTTONS (drawer triggers) ─── */
+.fab-bar{position:fixed;bottom:18px;left:18px;display:flex;flex-direction:column;gap:10px;z-index:90}
+.fab{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;background:linear-gradient(135deg,rgba(108,92,231,.85),rgba(0,206,201,.65));border:1px solid rgba(255,255,255,.18);color:#fff;border-radius:99px;font-family:'Cairo',sans-serif;font-size:13px;font-weight:800;cursor:pointer;backdrop-filter:blur(10px);box-shadow:0 8px 24px rgba(0,0,0,.40);transition:.2s}
+.fab:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(108,92,231,.4)}
+.fab i{font-size:14px}
+
+/* ─── DRAWER (slide-in panel for leaderboard/progress) ─── */
+.drawer-ov{position:fixed;inset:0;background:rgba(8,11,30,.55);backdrop-filter:blur(8px);z-index:300;display:none;animation:drawerFade .25s}
+.drawer-ov.on{display:block}
+@keyframes drawerFade{from{opacity:0}to{opacity:1}}
+.drawer{position:fixed;top:0;bottom:0;left:0;width:min(540px,92vw);background:linear-gradient(180deg,rgba(26,32,64,.97),rgba(20,25,55,.94));border-right:1px solid var(--border2);z-index:301;display:none;flex-direction:column;animation:drawerSlide .35s cubic-bezier(.4,0,.2,1);backdrop-filter:blur(16px);box-shadow:8px 0 40px rgba(0,0,0,.5)}
+.drawer.on{display:flex}
+@keyframes drawerSlide{from{transform:translateX(-100%)}to{transform:translateX(0)}}
+.drawer-head{display:flex;align-items:center;gap:12px;padding:18px 22px;border-bottom:1px solid var(--border2);background:linear-gradient(90deg,rgba(108,92,231,.18),transparent)}
+.drawer-head h2{font-size:18px;font-weight:900;color:var(--gold);flex:1;text-shadow:0 0 14px rgba(255,215,0,.3)}
+.drawer-x{background:rgba(255,255,255,.08);border:1px solid var(--border2);color:#fff;width:34px;height:34px;border-radius:8px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.2s}
+.drawer-x:hover{background:rgba(239,68,68,.2);border-color:var(--wrong)}
+.drawer-body{flex:1;overflow-y:auto;padding:20px 22px}
+
+/* leaderboard inside drawer */
+.lb-row{display:flex;align-items:center;gap:10px;padding:11px 14px;border-radius:12px;background:rgba(255,255,255,.04);margin-bottom:7px;transition:.2s;border:1px solid transparent}
+.lb-row.r1{background:linear-gradient(90deg,rgba(255,215,0,.22),transparent);border-color:rgba(255,215,0,.40);box-shadow:0 4px 14px rgba(255,215,0,.20)}
+.lb-row.r2{background:linear-gradient(90deg,rgba(192,192,192,.18),transparent);border-color:rgba(192,192,192,.30)}
+.lb-row.r3{background:linear-gradient(90deg,rgba(205,127,50,.18),transparent);border-color:rgba(205,127,50,.30)}
+.lb-row .rk{font-size:20px;font-weight:900;color:var(--gold);width:34px;text-align:center}
+.lb-row .lg{font-size:28px}
+.lb-row .nm{flex:1;font-size:15px;font-weight:800}
+.lb-row .sc{font-size:22px;font-weight:900;color:var(--gold);text-shadow:0 0 12px rgba(255,215,0,.4)}
+.lb-row .adv-tag{font-size:10px;color:var(--correct);background:rgba(0,184,148,.18);padding:2px 8px;border-radius:99px;margin-right:6px;font-weight:800}
+
+/* ─── HELPER ICONS LEGEND ─── */
+.legend{display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--muted)}
+.legend span{padding:2px 7px;background:rgba(255,255,255,.04);border-radius:6px;border:1px solid var(--border)}
+
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 12px;border-radius:8px;font-family:'Cairo',sans-serif;font-size:12px;font-weight:700;border:none;transition:.15s;cursor:pointer}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-g{background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--border2)}
+.btn-g:hover:not(:disabled){background:rgba(255,255,255,.10)}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--card2);border:1px solid var(--border2);padding:10px 18px;border-radius:99px;font-size:13px;font-weight:700;color:var(--text);z-index:1000;transition:.25s;opacity:0;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.toast.ok{border-color:rgba(34,197,94,.5);color:var(--green)}
+.toast.err{border-color:rgba(239,68,68,.5);color:var(--red)}
+
+/* ─── CONFETTI CANVAS ─── */
+#confetti{position:fixed;inset:0;pointer-events:none;z-index:9000;display:none}
+#confetti.on{display:block}
+
+/* ─── SCREEN FLASH (failure/timeout) ─── */
+.flash-overlay{position:fixed;inset:0;pointer-events:none;z-index:8500;opacity:0;transition:opacity .15s}
+.flash-red{background:radial-gradient(circle at 50% 50%,rgba(239,68,68,.45) 0%,rgba(239,68,68,0) 70%)}
+.flash-green{background:radial-gradient(circle at 50% 50%,rgba(34,197,94,.40) 0%,rgba(34,197,94,0) 70%)}
+.flash-overlay.go{animation:flashpulse .9s ease-out}
+@keyframes flashpulse{0%{opacity:0}20%{opacity:1}100%{opacity:0}}
+
+/* ─── MINI SCORE POPUP ─── */
+.score-pop{position:absolute;top:-22px;right:50%;transform:translateX(50%);background:linear-gradient(135deg,var(--green),#16a34a);color:#fff;font-weight:900;font-size:18px;padding:6px 12px;border-radius:99px;box-shadow:0 6px 20px rgba(34,197,94,.5);pointer-events:none;animation:scorepop 1.4s forwards}
+@keyframes scorepop{0%{transform:translateX(50%) translateY(20px) scale(.5);opacity:0}25%{transform:translateX(50%) translateY(0) scale(1.2);opacity:1}60%{transform:translateX(50%) translateY(-12px) scale(1);opacity:1}100%{transform:translateX(50%) translateY(-50px) scale(.85);opacity:0}}
+.score-pop.minus{background:linear-gradient(135deg,var(--red),#dc2626);box-shadow:0 6px 20px rgba(239,68,68,.5)}
+
+/* ─── WRONG ANSWER SHAKE ─── */
+@keyframes shake{0%,100%{transform:translateX(0)}10%,30%,50%,70%,90%{transform:translateX(-7px)}20%,40%,60%,80%{transform:translateX(7px)}}
+.team.shake{animation:shake .55s;border-color:var(--red)!important}
+.team.shake .team-name::after{content:' ✗';color:var(--red);font-weight:900}
+
+/* ─── ELIMINATION ANIMATION ─── */
+@keyframes elimBurst{0%{filter:grayscale(0);opacity:1}50%{transform:scale(1.05);filter:grayscale(.5) brightness(1.3)}100%{filter:grayscale(.7);opacity:.4}}
+.team.eliminating{animation:elimBurst 1s forwards}
+
+/* ─── CELEBRATION OVERLAY (round-end / tournament-end) ─── */
+.celeb-ov{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(212,160,23,.25) 0%,rgba(7,10,19,.96) 65%);z-index:9500;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px;overflow-y:auto;animation:celebFade .5s}
+.celeb-ov.on{display:flex}
+@keyframes celebFade{from{opacity:0}to{opacity:1}}
+.celeb-title{font-size:48px;font-weight:900;background:linear-gradient(135deg,#ffd700,#d4a017,#fff8c5);-webkit-background-clip:text;background-clip:text;color:transparent;text-align:center;margin-bottom:6px;animation:titleZoom .8s ease-out;text-shadow:0 0 40px rgba(212,160,23,.6);filter:drop-shadow(0 4px 16px rgba(212,160,23,.5))}
+@keyframes titleZoom{0%{transform:scale(.4) rotate(-3deg);opacity:0}60%{transform:scale(1.15) rotate(2deg);opacity:1}100%{transform:scale(1) rotate(0);opacity:1}}
+.celeb-sub{font-size:18px;color:var(--gold-light);text-align:center;margin-bottom:30px;animation:fadeUp .9s ease-out}
+@keyframes fadeUp{from{transform:translateY(15px);opacity:0}to{transform:translateY(0);opacity:1}}
+.celeb-final{font-size:60px}
+
+/* PODIUM */
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin-bottom:28px;perspective:800px}
+.podium .step{display:flex;flex-direction:column;align-items:center;gap:8px}
+.podium .pteam{width:130px;background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.02));border:2px solid var(--border2);border-radius:14px;padding:14px 8px;text-align:center;backdrop-filter:blur(6px)}
+.podium .plogo{font-size:46px;filter:drop-shadow(0 4px 12px var(--gold))}
+.podium .pname{font-size:14px;font-weight:900;line-height:1.1;min-height:28px;display:flex;align-items:center;justify-content:center;color:var(--text);margin-top:4px}
+.podium .pscore{font-size:28px;font-weight:900;color:var(--gold);text-shadow:0 2px 10px rgba(212,160,23,.6);margin-top:2px}
+.podium .pbase{width:130px;font-size:42px;font-weight:900;display:flex;align-items:center;justify-content:center;border-radius:10px 10px 0 0;color:#1a1300;background:linear-gradient(180deg,var(--gold-light),var(--gold));box-shadow:0 -8px 24px rgba(212,160,23,.4),inset 0 -3px 0 var(--gold-dark)}
+.podium .step.s1{transform:translateY(-20px)}
+.podium .step.s1 .pteam{border-color:var(--gold);box-shadow:0 0 0 3px var(--gold),0 16px 60px rgba(212,160,23,.7);background:linear-gradient(180deg,rgba(255,215,0,.20),rgba(212,160,23,.05))}
+.podium .step.s1 .pbase{height:130px;background:linear-gradient(180deg,#ffd700,#d4a017)}
+.podium .step.s2 .pbase{height:90px;background:linear-gradient(180deg,#e5e7eb,#9ca3af)}
+.podium .step.s3 .pbase{height:60px;background:linear-gradient(180deg,#fbbf24,#b45309)}
+.podium .step.s1 .plogo{font-size:60px;animation:championPulse 1.6s infinite}
+@keyframes championPulse{0%,100%{filter:drop-shadow(0 0 18px var(--gold)) brightness(1.2)}50%{filter:drop-shadow(0 0 30px #fff) brightness(1.5)}}
+.podium .step{animation:risePodium .9s cubic-bezier(.34,1.56,.64,1) backwards}
+.podium .step.s2{animation-delay:.2s}
+.podium .step.s1{animation-delay:.5s}
+.podium .step.s3{animation-delay:.4s}
+@keyframes risePodium{from{transform:translateY(80px) scale(.7);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.podium .step.s1{animation-name:risePodiumChamp}
+@keyframes risePodiumChamp{from{transform:translateY(120px) scale(.5);opacity:0}to{transform:translateY(-20px) scale(1);opacity:1}}
+
+/* CELEBRATION CHIPS LIST */
+.celeb-chips{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:760px;margin-bottom:16px;animation:fadeUp 1.2s ease-out backwards;animation-delay:.7s}
+.celeb-chip{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:99px;font-weight:700;font-size:13px;border:1px solid currentColor}
+.celeb-chip.adv{color:var(--green);background:rgba(34,197,94,.15)}
+.celeb-chip.elim{color:var(--red);background:rgba(239,68,68,.12);text-decoration:line-through;text-decoration-thickness:1px;opacity:.7}
+
+.celeb-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;animation:fadeUp 1.4s ease-out backwards;animation-delay:1s}
+.celeb-actions .btn{padding:11px 22px;font-size:14px;font-weight:900}
+.btn-gold{background:linear-gradient(135deg,var(--gold-light),var(--gold));color:#1a1300;border:none;box-shadow:0 6px 22px rgba(212,160,23,.4)}
+.btn-gold:hover{box-shadow:0 8px 28px rgba(212,160,23,.55);transform:translateY(-2px)}
+
+/* CHAMPION CROWN/RAYS */
+.crown-rays{position:absolute;top:18%;left:50%;transform:translateX(-50%);width:480px;height:480px;pointer-events:none;background:conic-gradient(from 0deg,rgba(212,160,23,.55),transparent 30deg,rgba(212,160,23,.55) 60deg,transparent 90deg,rgba(212,160,23,.55) 120deg,transparent 150deg,rgba(212,160,23,.55) 180deg,transparent 210deg,rgba(212,160,23,.55) 240deg,transparent 270deg,rgba(212,160,23,.55) 300deg,transparent 330deg,rgba(212,160,23,.55) 360deg);animation:rays 8s linear infinite;mask:radial-gradient(circle,transparent 80px,#000 100px,#000 220px,transparent 240px);-webkit-mask:radial-gradient(circle,transparent 80px,#000 100px,#000 220px,transparent 240px);opacity:.7}
+@keyframes rays{to{transform:translateX(-50%) rotate(360deg)}}
+
+/* progress-panel CSS removed — content now lives in drawer */
+
+/* ── BRACKET VIEWER ─────────────────────────────── */
+.bkv-tree{display:flex;gap:0;overflow-x:auto;padding:10px 0;align-items:flex-start}
+.bkv-round-col{display:flex;flex-direction:column;min-width:160px;flex-shrink:0}
+.bkv-round-label{text-align:center;font-size:10px;font-weight:900;color:var(--gold);padding:0 6px 8px;letter-spacing:.8px;opacity:.85}
+.bkv-matches{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:6px;padding:0 6px}
+.bkv-match{background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:9px;overflow:hidden}
+.bkv-team{display:flex;align-items:center;gap:7px;padding:7px 9px;font-size:12px;font-weight:700;border-right:3px solid transparent}
+.bkv-team.bkv-winner{background:rgba(0,184,148,.14);border-right-color:var(--correct);color:var(--correct)}
+.bkv-team.bkv-loser{opacity:.4}
+.bkv-team.bkv-bye{color:var(--muted);font-style:italic;font-size:11px;opacity:.5}
+.bkv-vs{text-align:center;font-size:9px;color:var(--muted);padding:1px;background:rgba(255,255,255,.03);letter-spacing:1px}
+.bkv-connector{width:22px;flex-shrink:0;display:flex;flex-direction:column;justify-content:space-around;align-items:center;position:relative;align-self:stretch}
+.bkv-connector::before{content:'';position:absolute;top:0;bottom:0;left:50%;width:1px;background:var(--border2);opacity:.6}
+.bkv-champion{background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,215,0,.06));border:2px solid var(--gold);border-radius:12px;padding:14px;text-align:center;margin-bottom:16px}
+.bkv-tbd{background:rgba(255,255,255,.02);border:1px dashed var(--border);border-radius:9px;padding:8px;text-align:center;font-size:11px;color:var(--muted);font-style:italic;margin:3px 6px}
+.round-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(255,215,0,.15);color:var(--gold);margin-left:4px}
+.cumtable{width:100%;border-collapse:collapse;font-size:14px}
+.cumtable th{font-size:11px;color:var(--muted);font-weight:800;text-align:center;padding:8px 6px;border-bottom:2px solid var(--border2);letter-spacing:.5px}
+.cumtable th.team-col{text-align:right;padding-right:10px;width:35%}
+.cumtable td{padding:9px 6px;text-align:center;border-bottom:1px solid var(--border)}
+.cumtable td.tname{text-align:right;padding-right:10px;font-weight:800}
+.cumtable td.total{font-weight:900;color:var(--gold);font-size:18px;text-shadow:0 0 12px rgba(255,215,0,.4)}
+.cumtable tr.dropped td{opacity:.4}
+.cumtable tr.advancing td{background:rgba(0,184,148,.06)}
+.cumtable tr:first-child td{background:linear-gradient(90deg,rgba(255,215,0,.10),transparent)}
+.cumtable .pos{display:inline-block;width:22px;font-weight:900;color:var(--gold);font-size:13px}
+
+@media(max-width:760px){
+  .gh{grid-template-columns:1fr;gap:6px;text-align:center}
+  .gh .left,.gh .right{justify-content:center}
+  .q-text{font-size:18px;min-height:90px}
+  .ring{width:70px;height:70px}
+  .ring .num{font-size:20px}
+}
+</style>
+</head>
+<body>
+
+<!-- Fullscreen toggle (top-left) -->
+<button class="fs-btn" id="fs-btn" onclick="toggleFullscreen()" title="ملء الشاشة"><i class="fas fa-expand"></i><i class="fas fa-compress"></i></button>
+
+<div id="shell">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="logo">🏆</div>
+    <div>
+      <h1 id="tb-name">كاس مين البطل</h1>
+      <div class="sub" id="tb-sub">شاشة البث المباشر</div>
+    </div>
+    <div class="right">
+      <span class="live-pill" id="live-pill" style="display:none">مباشر</span>
+      <button class="btn btn-g" onclick="goLanding()" id="btn-back" style="display:none"><i class="fas fa-list"></i> القائمة</button>
+    </div>
+  </div>
+
+  <!-- Landing / picker -->
+  <div id="landing" class="landing">
+    <h2><i class="fas fa-trophy" style="color:var(--gold)"></i> اختر بطولة لعرضها</h2>
+    <div class="hint">اختر بطولة موجودة من لوحة الإدارة. يمكن فتحها من أي جهاز عرض (شاشة كبيرة، تابلت، إلخ).</div>
+    <div id="tour-list" class="tour-grid"><div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div></div>
+  </div>
+
+  <!-- Live game view -->
+  <div id="game" style="display:none;flex:1;flex-direction:column;gap:14px;min-height:0">
+    <div class="gh">
+      <div class="left">
+        <div class="name" id="g-name"></div>
+      </div>
+      <div style="text-align:center;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div class="round" id="g-round"></div>
+        <div class="turn-mode-pill" id="g-turn-mode" style="display:none"><i class="fas fa-rotate"></i> <span></span></div>
+      </div>
+      <div class="right"><div class="qtype" id="g-qtype" style="display:none"></div></div>
+    </div>
+
+    <div class="game-layout">
+      <!-- Race track: all teams visible, fight/race progress -->
+      <div class="race-track">
+        <div class="race-track-head"><i class="fas fa-flag-checkered"></i> سباق الفِرق <span class="leader-tag" id="leader-tag" style="display:none"></span></div>
+        <div id="teams" class="race-rows"></div>
+      </div>
+
+      <!-- Stage centerpiece (Q + Timer) -->
+      <div class="stage-col">
+        <div class="stage idle" id="stage">
+          <div class="stage-empty">
+            <i class="fas fa-trophy"></i>
+            <div>في انتظار السؤال التالي</div>
+            <div style="margin-top:6px;font-size:13px">المسابقة جاهزة — اختر سؤال من لوحة التحكم</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating action buttons -->
+<div class="fab-bar" id="fab-bar" style="display:none">
+  <button class="fab" onclick="openDrawer('lb')"><i class="fas fa-medal"></i> ترتيب الدور</button>
+  <button class="fab" onclick="openDrawer('progress')"><i class="fas fa-chart-line"></i> سجل البطولة</button>
+  <button class="fab" id="fab-bracket" onclick="openDrawer('bracket')" style="display:none;background:linear-gradient(135deg,rgba(124,58,237,.9),rgba(79,70,229,.8))"><i class="fas fa-sitemap"></i> البراكيت</button>
+</div>
+
+<!-- Drawer overlay + panels -->
+<div class="drawer-ov" id="drawer-ov" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer-lb">
+  <div class="drawer-head">
+    <h2><i class="fas fa-medal"></i> ترتيب الدور الحالي</h2>
+    <button class="drawer-x" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drawer-body" id="lb-list"></div>
+</div>
+<div class="drawer" id="drawer-progress">
+  <div class="drawer-head">
+    <h2><i class="fas fa-chart-line"></i> سجل البطولة عبر الأدوار <span id="prog-meta" style="font-size:11px;color:var(--muted);font-weight:400;margin-right:auto"></span></h2>
+    <button class="drawer-x" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drawer-body" id="progress-body"></div>
+</div>
+<div class="drawer" id="drawer-bracket" style="width:min(680px,96vw)">
+  <div class="drawer-head">
+    <h2><i class="fas fa-sitemap"></i> براكيت كأس البطولة</h2>
+    <button class="drawer-x" onclick="closeDrawer()"><i class="fas fa-times"></i></button>
+  </div>
+  <div class="drawer-body" id="bracket-body"></div>
+</div>
+
+<!-- Mystery box overlay -->
+<div class="mystery-ov" id="mystery-ov">
+  <div class="mystery-team-tag" id="mystery-team-tag" style="display:none"></div>
+  <div class="mystery-box" id="mystery-box">🎁</div>
+  <div class="mystery-cards" id="mystery-cards" style="display:none">
+    <div class="mystery-card" id="mystery-card">
+      <div class="mc-ico">❓</div>
+      <div class="mc-name">—</div>
+    </div>
+  </div>
+  <div class="mystery-result" id="mystery-result" style="display:none"></div>
+  <div class="mystery-status" id="mystery-status">صندوق الغموض ✨</div>
+</div>
+
+<!-- Confetti canvas + flash overlays -->
+<canvas id="confetti"></canvas>
+<div class="flash-overlay flash-red" id="flash-red"></div>
+<div class="flash-overlay flash-green" id="flash-green"></div>
+
+<!-- Celebration overlay (round-end / tournament-end) -->
+<div class="celeb-ov" id="celeb-ov">
+  <div id="celeb-rays"></div>
+  <div class="celeb-title" id="celeb-title">انتهى الدور</div>
+  <div class="celeb-sub" id="celeb-sub"></div>
+  <div class="podium" id="celeb-podium"></div>
+  <div class="celeb-chips" id="celeb-adv"></div>
+  <div class="celeb-chips" id="celeb-elim"></div>
+  <div class="celeb-actions">
+    <button class="btn btn-gold" onclick="closeCeleb()"><i class="fas fa-times"></i> إغلاق</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyDZXv7nmtJ5tqSLmvrxQ1F4WuoHmBxttuY",
+  authDomain:"min-el-batal.firebaseapp.com",
+  projectId:"min-el-batal",
+  storageBucket:"min-el-batal.firebasestorage.app",
+  messagingSenderId:"743794480493",
+  appId:"1:743794480493:web:74c8ef6a444e29f7a4b664"
+});
+const db = firebase.firestore();
+db.settings({ experimentalForceLongPolling:true, experimentalAutoDetectLongPolling:false });
+
+// ── Static defs (mirrored from admin.html) ──
+const TQ_TYPES = [
+  { id:'speed', name:'أسئلة السرعة', icon:'⚡', color:'#f59e0b' },
+  { id:'group', name:'أسئلة جماعية', icon:'👥', color:'#3b82f6' },
+  { id:'individual', name:'أسئلة فردية', icon:'🎯', color:'#10b981' },
+  { id:'puzzle', name:'أسئلة فوازير', icon:'🧩', color:'#8b5cf6' },
+  { id:'math', name:'معادلات حسابية', icon:'➕', color:'#ec4899' },
+  { id:'bonus', name:'أسئلة نقطتين', icon:'💎', color:'#dc2626' },
+  { id:'auction', name:'أسئلة مزاد', icon:'🔨', color:'#0891b2' },
+  { id:'mime', name:'أسئلة تمثيل', icon:'🎭', color:'#7c3aed' },
+  { id:'whosaid', name:'مين القائل؟', icon:'💬', color:'#ea580c' },
+  { id:'general', name:'أسئلة عامة', icon:'📚', color:'#0d9488' }
+];
+const HELPER_DEFS = [
+  { id:'remove2', name:'حذف خيارين', icon:'❌' },
+  { id:'askOthers', name:'سؤال الجمهور', icon:'👥' },
+  { id:'askServant', name:'سؤال الخادم', icon:'🙏' },
+  { id:'addTime', name:'+30 ثانية', icon:'⏱️' },
+  { id:'mysteryBox', name:'صندوق الغموض', icon:'🎁' },
+  { id:'doublePts', name:'نقاط مضاعفة', icon:'✖️' },
+  { id:'skip', name:'تخطي السؤال', icon:'⏭️' }
+];
+const tqType = id => TQ_TYPES.find(t=>t.id===id) || {id,name:id,icon:'❓',color:'#888'};
+
+// ── State ──
+let tournaments = [];
+let teamsCache = {};      // teamId -> {name,logo,color}
+let questionsByType = {}; // typeId -> [questions]
+let currentTour = null;
+let unsub = null;
+let timerInterval = null;
+let lastScores = {};      // for animation
+let lastEliminated = []; // for elimination animation
+let lastEventTs = 0;     // for transient event animations
+let lastStatus = null;   // for celebration trigger
+let lastTimerState = null; // for timeout detection
+let celebShown = {};     // roundIdx -> true (don't replay)
+let lastMysteryTs = 0;   // for mystery-box trigger
+let _mysteryActive = false;
+let audioCtx = null;
+// Skeleton hashes (rebuild only when shape changes — diff updates otherwise)
+let _hashHeader = '';
+let _hashTeams = '';
+let _hashStage = '';
+let _hashLb = '';
+let _hashProgress = '';
+let _activeDrawer = null;
+let _renderRaf = 0;          // coalesce snapshot bursts into one render
+let lastQuestionRevealed = false; // detect 0→1 transition for sound
+let lastAnswerRevealed = false;   // detect 0→1 transition for sound
+let lastQuestionId = '';      // detect new-question for sound
+let lastTickSecond = -1;      // last second we played a tick on
+
+// ── Utilities ──
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),2500);}
+function getParam(k){return new URLSearchParams(location.search).get(k);}
+
+// ── Fullscreen (projector mode) ──
+function toggleFullscreen(){
+  const el = document.documentElement;
+  if(!document.fullscreenElement && !document.webkitFullscreenElement){
+    (el.requestFullscreen?.call(el) || el.webkitRequestFullscreen?.call(el))?.catch?.(()=>{});
+  } else {
+    (document.exitFullscreen?.call(document) || document.webkitExitFullscreen?.call(document));
+  }
+}
+// Suggest fullscreen once on first interaction in tournament view
+let _fsSuggested = false;
+function suggestFullscreen(){
+  if(_fsSuggested) return; _fsSuggested = true;
+  if(document.fullscreenElement || document.webkitFullscreenElement) return;
+  // gentle hint via toast
+  setTimeout(()=>toast('💡 اضغط زر الشاشة الكاملة لعرض البطولة على الشاشة الكبيرة','ok'), 500);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  AUDIO — synthesized SFX (no external assets)
+// ════════════════════════════════════════════════════════════════
+function getCtx(){
+  if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; } }
+  if(audioCtx.state==='suspended') audioCtx.resume().catch(()=>{});
+  return audioCtx;
+}
+function _tone(freq, dur, type='sine', vol=0.18, delay=0){
+  const ctx = getCtx(); if(!ctx) return;
+  const t0 = ctx.currentTime + delay;
+  const osc = ctx.createOscillator();
+  const g = ctx.createGain();
+  osc.frequency.value = freq;
+  osc.type = type;
+  osc.connect(g); g.connect(ctx.destination);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.012);
+  g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  osc.start(t0); osc.stop(t0 + dur + 0.05);
+}
+function sfx(type){
+  if(!getCtx()) return;
+  switch(type){
+    case 'score':       // happy chime
+      _tone(659.25, 0.18, 'triangle', 0.20, 0);
+      _tone(987.77, 0.30, 'triangle', 0.18, 0.08);
+      break;
+    case 'wrong':       // descending dissonance
+      _tone(220, 0.18, 'sawtooth', 0.20, 0);
+      _tone(196, 0.28, 'sawtooth', 0.18, 0.10);
+      break;
+    case 'timeout':     // alarm
+      _tone(330, 0.14, 'square', 0.15, 0);
+      _tone(330, 0.14, 'square', 0.15, 0.18);
+      _tone(220, 0.40, 'sawtooth', 0.20, 0.36);
+      break;
+    case 'eliminate':   // sad horn
+      _tone(196, 0.30, 'sawtooth', 0.20, 0);
+      _tone(146.83, 0.55, 'sawtooth', 0.18, 0.25);
+      break;
+    case 'roundwin':    // C E G C arpeggio + sustained chord
+      [261.63, 329.63, 392, 523.25].forEach((f,i)=>_tone(f, 0.45, 'triangle', 0.20, i*0.13));
+      _tone(523.25, 0.9, 'sine', 0.10, 0.55);
+      _tone(659.25, 0.9, 'sine', 0.08, 0.55);
+      _tone(783.99, 0.9, 'sine', 0.07, 0.55);
+      break;
+    case 'champion':    // grand fanfare
+      [261.63,329.63,392,523.25,659.25,783.99,1046.5].forEach((f,i)=>_tone(f, 0.40, 'triangle', 0.22, i*0.10));
+      [523.25, 659.25, 783.99, 1046.5].forEach(f=>_tone(f, 1.6, 'sine', 0.08, 0.85));
+      // sparkle
+      for(let i=0;i<6;i++) _tone(1568.99+i*100, 0.10, 'sine', 0.10, 1.0+i*0.15);
+      break;
+    case 'tick':        // last few seconds tick
+      _tone(880, 0.08, 'square', 0.10, 0);
+      break;
+    case 'tickUrgent':  // sharper tick when ≤3s remaining
+      _tone(1320, 0.07, 'square', 0.14, 0);
+      _tone(660, 0.06, 'square', 0.08, 0.04);
+      break;
+    case 'reveal':      // dramatic question reveal — swoosh + chime
+      _tone(180, 0.25, 'sawtooth', 0.10, 0);
+      _tone(523.25, 0.18, 'triangle', 0.16, 0.10);
+      _tone(783.99, 0.30, 'triangle', 0.14, 0.18);
+      break;
+    case 'answerOpen':  // softer cue when the answer is unveiled
+      _tone(440, 0.14, 'sine', 0.12, 0);
+      _tone(659.25, 0.20, 'sine', 0.14, 0.08);
+      _tone(880, 0.30, 'sine', 0.10, 0.18);
+      break;
+    case 'questionAppear': // light "ding" as the question DOM mounts
+      _tone(740, 0.10, 'triangle', 0.12, 0);
+      _tone(1108.73, 0.14, 'triangle', 0.10, 0.05);
+      break;
+    case 'timerStart':  // tiny "go" beep when countdown begins
+      _tone(523.25, 0.08, 'square', 0.10, 0);
+      _tone(659.25, 0.08, 'square', 0.10, 0.06);
+      _tone(783.99, 0.10, 'square', 0.10, 0.12);
+      break;
+    case 'whoosh':      // generic whoosh for transitions
+      _tone(120, 0.20, 'sawtooth', 0.06, 0);
+      _tone(80, 0.25, 'sawtooth', 0.05, 0.05);
+      break;
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  CONFETTI — canvas particle system
+// ════════════════════════════════════════════════════════════════
+const _confetti = { canvas:null, ctx:null, particles:[], raf:0, until:0 };
+function _confettiInit(){
+  if(_confetti.canvas) return;
+  const c = document.getElementById('confetti');
+  _confetti.canvas = c; _confetti.ctx = c.getContext('2d');
+  function resize(){ c.width = innerWidth; c.height = innerHeight; }
+  resize(); addEventListener('resize', resize);
+}
+function fireConfetti(intensity=160, durationMs=4500, originX){
+  _confettiInit();
+  const c = _confetti.canvas;
+  c.classList.add('on');
+  _confetti.until = Math.max(_confetti.until, performance.now() + durationMs);
+  const colors = ['#ffd700','#d4a017','#7c6af7','#22c55e','#ec4899','#06b6d4','#f59e0b','#ef4444'];
+  const ox = originX!==undefined ? originX : c.width/2;
+  for(let i=0;i<intensity;i++){
+    _confetti.particles.push({
+      x: ox + (Math.random()-.5)*c.width*0.4,
+      y: -10 - Math.random()*40,
+      vx: (Math.random()-.5)*6,
+      vy: 2 + Math.random()*5,
+      g: 0.12 + Math.random()*.08,
+      w: 6 + Math.random()*7, h: 10 + Math.random()*8,
+      rot: Math.random()*Math.PI*2,
+      vr: (Math.random()-.5)*.32,
+      color: colors[Math.floor(Math.random()*colors.length)],
+      shape: Math.random()<0.5?'rect':'circle'
+    });
+  }
+  if(!_confetti.raf) _confettiTick();
+}
+function _confettiTick(){
+  const c = _confetti.canvas, ctx = _confetti.ctx;
+  ctx.clearRect(0,0,c.width,c.height);
+  const ps = _confetti.particles;
+  for(let i=ps.length-1;i>=0;i--){
+    const p = ps[i];
+    p.x += p.vx; p.y += p.vy; p.vy += p.g; p.rot += p.vr;
+    if(p.y > c.height + 20){ ps.splice(i,1); continue; }
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.rot);
+    ctx.fillStyle = p.color;
+    if(p.shape==='rect') ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+    else { ctx.beginPath(); ctx.arc(0,0,p.w/2,0,Math.PI*2); ctx.fill(); }
+    ctx.restore();
+  }
+  if(performance.now() < _confetti.until || ps.length){
+    _confetti.raf = requestAnimationFrame(_confettiTick);
+  } else {
+    _confetti.raf = 0;
+    c.classList.remove('on');
+  }
+}
+
+function flashScreen(color){
+  const el = document.getElementById('flash-'+color); if(!el) return;
+  el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+}
+
+// ── Bootstrap ──
+async function init(){
+  // Preload teams + questions in parallel
+  await Promise.all([loadTeams(), loadQuestions()]);
+  const id = getParam('id');
+  if(id) openTournament(id);
+  else loadLanding();
+}
+
+async function loadTeams(){
+  try{
+    const snap = await db.collection('teams').get();
+    snap.forEach(d=>{ const t=d.data(); teamsCache[d.id] = {id:d.id, name:t.name, logo:t.logo||'⚔️', color:t.color||'#7c6af7'}; });
+  }catch(e){ console.warn('teams load failed',e); }
+}
+
+async function loadQuestions(){
+  try{
+    const snap = await db.collection('tournament_questions').get();
+    questionsByType = {};
+    snap.forEach(d=>{ const q=d.data(); q._id=d.id; (questionsByType[q.type]=questionsByType[q.type]||[]).push(q); });
+  }catch(e){ console.warn('questions load failed',e); }
+}
+
+// ── Landing screen ──
+async function loadLanding(){
+  document.getElementById('btn-back').style.display='none';
+  document.getElementById('landing').style.display='';
+  document.getElementById('game').style.display='none';
+  document.getElementById('live-pill').style.display='none';
+  try{
+    const snap = await db.collection('tournaments').get();
+    tournaments = []; snap.forEach(d=>{ const t=d.data(); t._id=d.id; tournaments.push(t); });
+  }catch(e){ console.error(e); }
+  const list = document.getElementById('tour-list');
+  if(!tournaments.length){
+    list.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--muted)"><i class="fas fa-inbox" style="font-size:42px;display:block;margin-bottom:10px;opacity:.5"></i>لا توجد بطولات. أنشئ واحدة من لوحة الإدارة أولاً.</div>';
+    return;
+  }
+  const STATUS_BADGE = {draft:{cls:'b-draft',txt:'📝 مسودة'}, active:{cls:'b-active',txt:'▶️ جارية'}, paused:{cls:'b-paused',txt:'⏸️ متوقفة'}, completed:{cls:'b-completed',txt:'🏁 منتهية'}};
+  list.innerHTML = tournaments.sort((a,b)=>{
+    const ta=a.createdAt?.toDate?.()?.getTime?.()||0, tb=b.createdAt?.toDate?.()?.getTime?.()||0; return tb-ta;
+  }).map(t=>{
+    const st = STATUS_BADGE[t.status||'draft'];
+    const teamSet = new Set(); (t.rounds||[]).forEach(r=>(r.teams||[]).forEach(id=>teamSet.add(id)));
+    return `<div class="tour-card" onclick="openTournament('${t._id}')">
+      <span class="badge ${st.cls}">${st.txt}</span>
+      <div class="ico">🏆</div>
+      <div class="nm">${esc(t.name||'بدون اسم')}</div>
+      <div class="meta">${(t.rounds||[]).length} أدوار · ${teamSet.size} فريق</div>
+    </div>`;
+  }).join('');
+}
+
+function goLanding(){
+  if(unsub){unsub();unsub=null;}
+  if(timerInterval){clearInterval(timerInterval);timerInterval=null;}
+  currentTour=null;
+  document.getElementById('fab-bar').style.display='none';
+  closeDrawer();
+  history.replaceState(null,'','tournament-live.html');
+  loadLanding();
+}
+
+// ── Drawer (slide-in panels for leaderboard / progress) ──
+function openDrawer(which){
+  closeDrawer();
+  _activeDrawer = which;
+  document.getElementById('drawer-ov').classList.add('on');
+  if(which==='lb') document.getElementById('drawer-lb').classList.add('on');
+  if(which==='progress') document.getElementById('drawer-progress').classList.add('on');
+  if(which==='bracket') document.getElementById('drawer-bracket').classList.add('on');
+  // Force a render of the relevant panel content (in case nothing changed since last open)
+  if(currentTour){
+    const ls = ensureLiveState(currentTour);
+    const round = (currentTour.rounds||[])[ls.currentRoundIdx] || {teams:[]};
+    if(which==='lb'){ _hashLb=''; renderLB(round, ls); }
+    if(which==='progress'){ _hashProgress=''; renderProgressPanel(currentTour.rounds||[], ls); }
+    if(which==='bracket'){ renderBracketDrawer(currentTour); }
+  }
+}
+function closeDrawer(){
+  _activeDrawer = null;
+  document.getElementById('drawer-ov').classList.remove('on');
+  document.getElementById('drawer-lb').classList.remove('on');
+  document.getElementById('drawer-progress').classList.remove('on');
+  document.getElementById('drawer-bracket').classList.remove('on');
+}
+
+// ── Open tournament with live listener ──
+function openTournament(id){
+  if(unsub){unsub();}
+  // reset skeleton hashes so first render rebuilds DOM
+  _hashHeader=''; _hashTeams=''; _hashStage=''; _hashLb=''; _hashProgress='';
+  lastScores={}; lastEliminated=[]; lastStatus=null; lastTimerState=null; lastEventTs=0; celebShown={};
+  lastQuestionRevealed=false; lastAnswerRevealed=false; lastQuestionId=''; lastTickSecond=-1;
+  document.getElementById('landing').style.display='none';
+  document.getElementById('game').style.display='flex';
+  document.getElementById('btn-back').style.display='';
+  document.getElementById('live-pill').style.display='';
+  document.getElementById('fab-bar').style.display='flex';
+  history.replaceState(null,'','tournament-live.html?id='+encodeURIComponent(id));
+  suggestFullscreen();
+  unsub = db.collection('tournaments').doc(id).onSnapshot(snap=>{
+    if(!snap.exists){ toast('البطولة غير موجودة','err'); goLanding(); return; }
+    currentTour = Object.assign({_id:snap.id}, snap.data());
+    // Coalesce bursts of Firestore updates into a single render per animation
+    // frame. Without this, each tiny field change (score, timer, event ts, …)
+    // queues its own render, which made the UI flicker visibly when the admin
+    // saved several fields in quick succession.
+    if(_renderRaf) cancelAnimationFrame(_renderRaf);
+    _renderRaf = requestAnimationFrame(()=>{ _renderRaf = 0; render(); });
+  }, err=>{ console.error(err); toast('خطأ في الاتصال','err'); });
+}
+
+// ── Render ──
+function ensureLiveState(t){
+  if(t.liveState && typeof t.liveState==='object') return t.liveState;
+  return {
+    currentRoundIdx: 0,
+    currentTeamId: '',
+    currentQuestion: null,
+    questionRevealed: false,
+    answerRevealed: false,
+    timerStartedAt: 0,
+    timerDuration: 0,
+    timerPaused: false,
+    pausedRemaining: 0,
+    teamScores: {},
+    teamHelpersUsed: {},
+    eliminatedTeamIds: [],
+    roundResults: [],
+    usedQuestionIds: [],
+    status: 'lobby'
+  };
+}
+
+function render(){
+  if(!currentTour) return;
+  const ls = ensureLiveState(currentTour);
+  const rounds = currentTour.rounds||[];
+  const round = rounds[ls.currentRoundIdx] || rounds[0] || {teams:[],questionTypes:[]};
+
+  // ── Reactive triggers (compare prev → current) ──
+  reactToStateChange(ls, round, rounds);
+
+  // Diff-based renders — each function decides whether to rebuild skeleton or just update mutable values
+  renderHeader(currentTour, ls, rounds, round);
+  renderTeams(round, ls);
+  renderStage(ls);
+  // Drawer panels — only re-render if open (otherwise just update the cached hash for next open)
+  if(_activeDrawer==='lb') renderLB(round, ls);
+  if(_activeDrawer==='progress') renderProgressPanel(rounds, ls);
+  if(_activeDrawer==='bracket') renderBracketDrawer(currentTour);
+  // Show/hide bracket FAB
+  const fabBracket = document.getElementById('fab-bracket');
+  if(fabBracket) fabBracket.style.display = (currentTour.bracket && currentTour.bracket.rounds && currentTour.bracket.rounds.length) ? '' : 'none';
+
+  // Timer tick (only updates timer DOM, no skeleton work)
+  startTimerLoop();
+}
+
+// ── HEADER ──
+function renderHeader(t, ls, rounds, round){
+  const qt = ls.currentQuestion ? tqType(ls.currentQuestion.type) : null;
+  const turnMode = ls.turnMode || 'auto';
+  const hash = JSON.stringify({n:t.name, st:ls.status, ri:ls.currentRoundIdx, rn:round.name, rl:rounds.length, qt:qt?.id||'', tm:turnMode});
+  if(hash === _hashHeader) return;
+  _hashHeader = hash;
+
+  document.getElementById('tb-name').textContent = t.name||'كاس مين البطل';
+  document.getElementById('tb-sub').textContent = ({lobby:'في الانتظار', playing:'مباشر', roundEnd:'نهاية الدور', finished:'انتهت البطولة'})[ls.status] || 'مباشر';
+  document.getElementById('g-name').textContent = t.name||'';
+  document.getElementById('g-round').innerHTML = '<i class="fas fa-layer-group"></i> دور '+(ls.currentRoundIdx+1)+' من '+rounds.length+(round.name?' — '+esc(round.name):'');
+
+  // Turn-mode pill
+  const tmPill = document.getElementById('g-turn-mode');
+  if(round.teams && round.teams.length){
+    tmPill.style.display = '';
+    tmPill.classList.toggle('manual', turnMode==='manual');
+    tmPill.querySelector('span').textContent = turnMode==='manual' ? 'دور يدوي (الأدمن)' : 'دور تلقائي (دوّاري)';
+  } else {
+    tmPill.style.display='none';
+  }
+
+  // Question type banner
+  const qb = document.getElementById('g-qtype');
+  if(qt){ qb.style.display=''; qb.style.background=qt.color+'22'; qb.style.color=qt.color; qb.style.border='1px solid '+qt.color+'66'; qb.innerHTML = qt.icon+' '+qt.name; }
+  else qb.style.display='none';
+}
+
+// ════════════════════════════════════════════════════════════════
+//  REACTIVE TRIGGERS — celebrations, failures, animations
+// ════════════════════════════════════════════════════════════════
+function reactToStateChange(ls, round, rounds){
+  // 1. Score increases → mini popup + score chime
+  Object.keys(ls.teamScores||{}).forEach(id=>{
+    const cur = ls.teamScores[id]||0;
+    const prev = lastScores[id];
+    if(prev !== undefined && cur > prev){
+      setTimeout(()=>{ popScore(id, '+'+(cur-prev)); sfx('score'); }, 80);
+    } else if(prev !== undefined && cur < prev){
+      setTimeout(()=>{ popScore(id, '-'+(prev-cur), true); }, 80);
+    }
+  });
+
+  // 2. Eliminations → animation + sad sound
+  const elim = ls.eliminatedTeamIds || [];
+  elim.forEach(id=>{ if(!lastEliminated.includes(id)){
+    setTimeout(()=>{
+      const card = document.querySelector(`[data-tid="${id}"]`)?.closest('.team');
+      if(card){ card.classList.add('eliminating'); setTimeout(()=>card.classList.remove('eliminating'), 1100); }
+      sfx('eliminate');
+    }, 100);
+  }});
+  lastEliminated = [...elim];
+
+  // 3. lastEvent (admin-triggered events: wrong, correct, etc.)
+  const ev = ls.lastEvent;
+  if(ev && ev.ts && ev.ts !== lastEventTs){
+    lastEventTs = ev.ts;
+    handleAdminEvent(ev);
+  }
+
+  // 4. Timer hit zero — viewer-side reaction (admin console handles auto-clear/rotate)
+  const tm = computeTimer(ls);
+  if(tm.duration && tm.started && !tm.paused && tm.remaining===0 && lastTimerState !== 'expired'){
+    lastTimerState = 'expired';
+    setTimeout(()=>{
+      flashScreen('red'); sfx('timeout');
+      showFeedback('timeout', ls.currentTeamId||'', 'انتهى الوقت!');
+    }, 0);
+  } else if(tm.remaining > 0){
+    if(lastTimerState !== 'running') sfx('timerStart'); // first frame the timer is alive
+    lastTimerState = 'running';
+  }
+  else if(!tm.started){ lastTimerState = null; }
+
+  // 4a. Question reveal: 0 → 1 transition. Play a short reveal cue + flash.
+  const qid = ls.currentQuestion?._id || '';
+  const qRev = !!ls.questionRevealed;
+  const aRev = !!ls.answerRevealed;
+  if(qid && qid !== lastQuestionId){
+    // A brand-new question was loaded — gentle "appear" ding.
+    setTimeout(()=>sfx('questionAppear'), 30);
+    lastQuestionId = qid;
+    // reset reveal trackers so the upcoming reveal still triggers cues
+    lastQuestionRevealed = false;
+    lastAnswerRevealed = false;
+  } else if(!qid){
+    lastQuestionId = '';
+  }
+  if(qRev && !lastQuestionRevealed){
+    setTimeout(()=>sfx('reveal'), 0);
+    // Sparkle confetti at the top of the stage to punctuate the reveal
+    setTimeout(()=>fireConfetti(70, 1600), 100);
+    // Stage pop animation — no full-screen flash (too jarring)
+    const st = document.getElementById('stage');
+    if(st){ st.classList.remove('reveal-pop'); void st.offsetWidth; st.classList.add('reveal-pop'); setTimeout(()=>st.classList.remove('reveal-pop'), 800); }
+  }
+  lastQuestionRevealed = qRev;
+  if(aRev && !lastAnswerRevealed){
+    setTimeout(()=>sfx('answerOpen'), 0);
+  }
+  lastAnswerRevealed = aRev;
+
+  // 4b. Mystery box trigger
+  const mb = ls.mysteryBox;
+  if(mb && mb.ts && mb.ts !== lastMysteryTs){
+    lastMysteryTs = mb.ts;
+    runMysteryAnimation(mb.finalType, mb.teamId);
+  }
+
+  // 5. Status transitions → celebration
+  if(ls.status !== lastStatus){
+    const prevStatus = lastStatus;
+    lastStatus = ls.status;
+    if(prevStatus !== null){ // skip first render
+      if(ls.status === 'roundEnd'){
+        setTimeout(()=>showRoundEndCeleb(ls, round, rounds), 250);
+      } else if(ls.status === 'finished'){
+        setTimeout(()=>showChampionCeleb(ls, rounds), 350);
+      }
+    }
+  }
+
+  // Update score baseline
+  Object.keys(ls.teamScores||{}).forEach(id=>{ lastScores[id] = ls.teamScores[id]||0; });
+}
+
+function popScore(teamId, txt, minus){
+  const card = document.querySelector(`[data-tid="${teamId}"]`)?.closest('.team');
+  if(!card) return;
+  // Remove existing popups
+  card.querySelectorAll('.score-pop').forEach(el=>el.remove());
+  const pop = document.createElement('div');
+  pop.className = 'score-pop' + (minus?' minus':'');
+  pop.textContent = txt;
+  card.style.position='relative';
+  card.appendChild(pop);
+  setTimeout(()=>pop.remove(), 1500);
+  if(!minus){
+    // Mini confetti at the team card
+    const r = card.getBoundingClientRect();
+    fireConfetti(40, 1500, r.left + r.width/2);
+  }
+}
+
+function handleAdminEvent(ev){
+  switch(ev.type){
+    case 'wrong': {
+      flashScreen('red'); sfx('wrong');
+      if(ev.teamId){
+        const card = document.querySelector(`[data-tid="${ev.teamId}"]`);
+        if(card){ card.classList.remove('shake'); void card.offsetWidth; card.classList.add('shake'); setTimeout(()=>card.classList.remove('shake'), 600); }
+      }
+      showFeedback('wrong', ev.teamId, 'إجابة خاطئة!');
+      break;
+    }
+    case 'correct': {
+      flashScreen('green'); sfx('score');
+      // BIG celebration: confetti everywhere + score chime + celebratory overlay
+      fireConfetti(220, 4000);
+      if(ev.teamId){
+        const r = document.querySelector(`[data-tid="${ev.teamId}"]`)?.getBoundingClientRect();
+        if(r) fireConfetti(80, 2200, r.left + r.width/2);
+      }
+      sfx('roundwin');
+      showFeedback('correct', ev.teamId, 'إجابة صحيحة!');
+      break;
+    }
+    case 'timeout': {
+      flashScreen('red'); sfx('timeout');
+      showFeedback('timeout', ev.teamId, 'انتهى الوقت!');
+      break;
+    }
+    case 'celebrate': {
+      fireConfetti(220, 4500); sfx('roundwin'); break;
+    }
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  MYSTERY BOX — random category spinner (synced via liveState.mysteryBox)
+// ════════════════════════════════════════════════════════════════
+function runMysteryAnimation(finalType, teamId){
+  if(_mysteryActive) return; // ignore re-trigger while running
+  _mysteryActive = true;
+  const ov = document.getElementById('mystery-ov');
+  const teamTag = document.getElementById('mystery-team-tag');
+  const box = document.getElementById('mystery-box');
+  const cardsDiv = document.getElementById('mystery-cards');
+  const cardEl = document.getElementById('mystery-card');
+  const result = document.getElementById('mystery-result');
+  const status = document.getElementById('mystery-status');
+  if(!ov) { _mysteryActive=false; return; }
+
+  // Reset state
+  box.className = 'mystery-box';
+  box.style.display = '';
+  box.textContent = '🎁';
+  cardsDiv.style.display = 'none';
+  result.style.display = 'none';
+  result.innerHTML = '';
+
+  // Team tag
+  if(teamId && teamsCache[teamId]){
+    const t = teamsCache[teamId];
+    teamTag.style.display = '';
+    teamTag.style.setProperty('--tcolor', t.color);
+    teamTag.innerHTML = `<span class="mtt-logo">${t.logo}</span> صندوق غموض للفريق: ${esc(t.name)}`;
+  } else {
+    teamTag.style.display = 'none';
+  }
+
+  status.textContent = '🎁 يهتز الصندوق...';
+  ov.classList.add('on');
+
+  // Phase 1: shake (1000ms)
+  setTimeout(()=>box.classList.add('shaking'), 200);
+  for(let i=0;i<5;i++){ setTimeout(()=>sfx('tick'), 200+i*180); }
+
+  // Phase 2: open + first confetti (600ms)
+  setTimeout(()=>{
+    box.classList.remove('shaking');
+    box.classList.add('opening');
+    fireConfetti(160, 1800);
+    sfx('score');
+    status.textContent = '✨ يتم اختيار الفئة...';
+  }, 1100);
+
+  // Phase 3: cards cycling (~1700ms total)
+  setTimeout(()=>{
+    box.style.display = 'none';
+    cardsDiv.style.display = 'flex';
+    cycleMysteryCards(cardEl, finalType);
+  }, 1750);
+
+  // Phase 4: reveal final (after cycling done)
+  setTimeout(()=>{
+    cardsDiv.style.display = 'none';
+    const tp = TQ_TYPES.find(t=>t.id===finalType) || {icon:'❓',name:finalType,color:'#888'};
+    result.innerHTML = `
+      <div class="mr-label">🎯 الفئة المختارة</div>
+      <div class="mr-ico" style="color:${tp.color}">${tp.icon}</div>
+      <div class="mr-name">${esc(tp.name)}</div>
+    `;
+    result.style.display = 'flex';
+    status.textContent = '✨ استعد للسؤال!';
+    fireConfetti(240, 3200);
+    sfx('roundwin');
+  }, 3700);
+
+  // Phase 5: dismiss
+  setTimeout(()=>{
+    ov.classList.remove('on');
+    _mysteryActive = false;
+  }, 5400);
+}
+
+function cycleMysteryCards(cardEl, finalType){
+  const types = TQ_TYPES;
+  const totalFrames = 26;
+  let i = 0;
+  function step(){
+    if(i >= totalFrames){ return; }
+    let pick;
+    if(i === totalFrames - 1){
+      pick = types.find(t=>t.id===finalType) || types[0];
+    } else if(i === totalFrames - 2){
+      // teaser frame: not the final, but pick a different one
+      const others = types.filter(t=>t.id!==finalType);
+      pick = others[Math.floor(Math.random()*others.length)] || types[0];
+    } else {
+      pick = types[Math.floor(Math.random()*types.length)];
+    }
+    const ico = cardEl.querySelector('.mc-ico');
+    const name = cardEl.querySelector('.mc-name');
+    ico.textContent = pick.icon;
+    ico.style.color = pick.color;
+    name.textContent = pick.name;
+    cardEl.style.borderColor = pick.color;
+    cardEl.style.boxShadow = `0 16px 56px ${pick.color}66, inset 0 0 30px rgba(255,255,255,.04)`;
+    cardEl.classList.remove('flash'); void cardEl.offsetWidth; cardEl.classList.add('flash');
+    if(i % 2 === 0) sfx('tick');
+    i++;
+    // Slowing down: short delays first, longer at end
+    const t = i/totalFrames;
+    const delay = 55 + Math.pow(t, 2.6) * 280;
+    setTimeout(step, delay);
+  }
+  step();
+}
+
+// Big feedback overlay (correct / wrong / timeout)
+let _fbTimer = null;
+function showFeedback(kind, teamId, text){
+  const old = document.getElementById('fb-ov'); if(old) old.remove();
+  const t = teamId ? (teamsCache[teamId]||{name:'?',logo:'❓'}) : null;
+  const icon = kind==='correct'?'fa-circle-check' : kind==='wrong'?'fa-circle-xmark' : 'fa-hourglass-end';
+  const ov = document.createElement('div');
+  ov.id = 'fb-ov';
+  ov.className = 'feedback-ov fb-'+kind;
+  ov.innerHTML = `
+    <div class="fb-icon"><i class="fas ${icon}"></i></div>
+    <div class="fb-text">${esc(text)}</div>
+    ${t ? `<div class="fb-team"><span class="fb-team-logo">${t.logo}</span> ${esc(t.name)}</div>` : ''}
+  `;
+  document.body.appendChild(ov);
+  if(_fbTimer) clearTimeout(_fbTimer);
+  _fbTimer = setTimeout(()=>{
+    ov.classList.add('out');
+    setTimeout(()=>ov.remove(), 350);
+  }, kind==='correct' ? 2200 : 1800);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  ROUND-END / TOURNAMENT-END CELEBRATION OVERLAYS
+// ════════════════════════════════════════════════════════════════
+function _podiumStep(rank, team, score){
+  const s = rank===0?'s1':rank===1?'s2':'s3';
+  const medal = rank===0?'🥇':rank===1?'🥈':'🥉';
+  return `<div class="step ${s}">
+    <div class="pteam"><div class="plogo">${team.logo||'⚔️'}</div><div class="pname">${esc(team.name||'?')}</div><div class="pscore">${score}</div></div>
+    <div class="pbase">${medal}</div>
+  </div>`;
+}
+
+function showRoundEndCeleb(ls, round, rounds){
+  const key = 'r'+ls.currentRoundIdx;
+  if(celebShown[key]) return;
+  celebShown[key] = true;
+
+  const teamIds = (round.teams||[]);
+  const scores = ls.teamScores||{};
+  const ranked = teamIds.map(id=>({id, sc:scores[id]||0, t:teamsCache[id]||{name:'?',logo:'❓'}}))
+    .sort((a,b)=>b.sc-a.sc);
+  const last = (ls.roundResults||[]).slice(-1)[0];
+  const advancing = (last && last.advancing) || [];
+  const elimThisRound = teamIds.filter(id=>!advancing.includes(id));
+
+  document.getElementById('celeb-rays').className = 'crown-rays';
+  document.getElementById('celeb-title').textContent = '🏆 انتهى الدور '+(ls.currentRoundIdx+1)+' 🏆';
+  document.getElementById('celeb-title').classList.remove('celeb-final');
+  const nextRoundExists = ls.currentRoundIdx + 1 < rounds.length;
+  document.getElementById('celeb-sub').textContent = nextRoundExists ? `${advancing.length} ${advancing.length===1?'فريق متأهل':'فرق متأهلة'} للدور التالي` : 'هذا هو الدور الأخير';
+
+  // Podium: top 3 (in visual order: 2nd, 1st, 3rd)
+  const podium = document.getElementById('celeb-podium');
+  if(ranked.length >= 2){
+    const order = [1,0,2].map(i=>ranked[i]).filter(Boolean); // 2nd, 1st, 3rd
+    podium.innerHTML = order.map(r=>_podiumStep(ranked.indexOf(r), r.t, r.sc)).join('');
+  } else if(ranked.length === 1){
+    podium.innerHTML = _podiumStep(0, ranked[0].t, ranked[0].sc);
+  } else {
+    podium.innerHTML = '';
+  }
+
+  // Advancing chips
+  document.getElementById('celeb-adv').innerHTML = advancing.length ?
+    '<span style="color:var(--green);font-weight:900;font-size:14px;width:100%;text-align:center;margin-bottom:6px"><i class="fas fa-arrow-up"></i> يتأهل</span>' +
+    advancing.map(id=>{ const t=teamsCache[id]||{name:'?',logo:'❓'}; return `<span class="celeb-chip adv">${t.logo} ${esc(t.name)}</span>`; }).join('')
+    : '';
+
+  document.getElementById('celeb-elim').innerHTML = elimThisRound.length && nextRoundExists ?
+    '<span style="color:var(--red);font-weight:900;font-size:14px;width:100%;text-align:center;margin-bottom:6px"><i class="fas fa-circle-xmark"></i> خرج من المنافسة</span>' +
+    elimThisRound.map(id=>{ const t=teamsCache[id]||{name:'?',logo:'❓'}; return `<span class="celeb-chip elim">${t.logo} ${esc(t.name)}</span>`; }).join('')
+    : '';
+
+  document.getElementById('celeb-ov').classList.add('on');
+  fireConfetti(260, 6500);
+  sfx('roundwin');
+}
+
+function showChampionCeleb(ls, rounds){
+  if(celebShown.champion) return;
+  celebShown.champion = true;
+  // Champion = #1 of the last round
+  const lastRound = rounds[ls.currentRoundIdx]||rounds[rounds.length-1];
+  const scores = ls.teamScores||{};
+  const ranked = (lastRound.teams||[]).map(id=>({id, sc:scores[id]||0, t:teamsCache[id]||{name:'?',logo:'❓'}}))
+    .sort((a,b)=>b.sc-a.sc);
+
+  document.getElementById('celeb-rays').className = 'crown-rays';
+  const title = document.getElementById('celeb-title');
+  title.textContent = '👑 البطل! 👑';
+  title.classList.add('celeb-final');
+  const champ = ranked[0];
+  document.getElementById('celeb-sub').innerHTML = champ ? `<span style="font-size:24px">${champ.t.logo} <b>${esc(champ.t.name)}</b></span><br><span style="font-size:14px;color:var(--muted)">بطل كاس مين البطل</span>` : 'انتهت البطولة';
+
+  const podium = document.getElementById('celeb-podium');
+  if(ranked.length >= 2){
+    const order = [1,0,2].map(i=>ranked[i]).filter(Boolean);
+    podium.innerHTML = order.map(r=>_podiumStep(ranked.indexOf(r), r.t, r.sc)).join('');
+  } else if(ranked.length === 1){
+    podium.innerHTML = _podiumStep(0, ranked[0].t, ranked[0].sc);
+  } else { podium.innerHTML = ''; }
+
+  document.getElementById('celeb-adv').innerHTML = '';
+  document.getElementById('celeb-elim').innerHTML = '';
+
+  document.getElementById('celeb-ov').classList.add('on');
+  fireConfetti(400, 9000);
+  sfx('champion');
+}
+
+function closeCeleb(){ document.getElementById('celeb-ov').classList.remove('on'); }
+
+// ════════════════════════════════════════════════════════════════
+//  CROSS-ROUND PROGRESS PANEL
+// ════════════════════════════════════════════════════════════════
+function renderProgressPanel(rounds, ls){
+  const panel = document.getElementById('progress-panel');
+  const completed = ls.roundResults||[];
+  if(!completed.length && ls.currentRoundIdx===0 && (ls.status==='lobby' || !ls.status)){
+    panel.style.display='none'; return;
+  }
+  panel.style.display='';
+  document.getElementById('prog-meta').textContent = completed.length + ' / ' + rounds.length + ' أدوار مكتملة';
+
+  // Build a unified team set across rounds
+  const allTeams = new Set();
+  rounds.forEach(r=>(r.teams||[]).forEach(id=>allTeams.add(id)));
+  const teamIds = [...allTeams];
+
+  // Cumulative scores: sum each completed round's score per team + current round's live score
+  const cumScores = {}; teamIds.forEach(id=>cumScores[id]=0);
+  completed.forEach(rr=>{
+    (rr.ranking||[]).forEach(r=>{ cumScores[r.teamId] = (cumScores[r.teamId]||0) + (r.score||0); });
+  });
+  // Add current live round (not yet in completed)
+  const isCurrentInCompleted = completed.some(rr=>rr.roundIdx===ls.currentRoundIdx);
+  if(!isCurrentInCompleted){
+    Object.keys(ls.teamScores||{}).forEach(id=>{ cumScores[id] = (cumScores[id]||0) + (ls.teamScores[id]||0); });
+  }
+
+  // Build rows sorted by cumulative
+  const rows = teamIds.map(id=>{
+    const t = teamsCache[id] || {name:'?',logo:'❓'};
+    const isOut = (ls.eliminatedTeamIds||[]).includes(id);
+    const inCurrent = (rounds[ls.currentRoundIdx]?.teams||[]).includes(id) && !isOut;
+    return {id, t, total:cumScores[id]||0, isOut, inCurrent};
+  }).sort((a,b)=>b.total-a.total);
+
+  // Header columns: each round + total
+  const head = '<tr>' +
+    '<th class="team-col">الفريق</th>' +
+    rounds.map((r,i)=>`<th>${i+1}</th>`).join('') +
+    '<th>المجموع</th></tr>';
+
+  const body = rows.map((row,i)=>{
+    const cells = rounds.map((r,ri)=>{
+      const completedRow = completed.find(c=>c.roundIdx===ri);
+      let val = '—';
+      if(completedRow){
+        const found = (completedRow.ranking||[]).find(x=>x.teamId===row.id);
+        if(found) val = found.score;
+      } else if(ri === ls.currentRoundIdx && (rounds[ri].teams||[]).includes(row.id)){
+        val = (ls.teamScores||{})[row.id] || 0;
+      }
+      const inThisRound = (rounds[ri].teams||[]).includes(row.id);
+      return `<td style="${inThisRound?'':'opacity:.25'}">${val}</td>`;
+    }).join('');
+    return `<tr class="${row.isOut?'dropped':row.inCurrent?'advancing':''}">
+      <td class="tname"><span class="pos">#${i+1}</span> ${row.t.logo||'⚔️'} ${esc(row.t.name)}${row.isOut?' <span style="color:var(--red);font-size:10px">(خرج)</span>':''}</td>
+      ${cells}
+      <td class="total">${row.total}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('progress-body').innerHTML =
+    `<div style="overflow-x:auto"><table class="cumtable"><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+
+function renderTeams(round, ls){
+  const wrap = document.getElementById('teams');
+  const teamIds = round.teams || [];
+  const helpersCfg = currentTour.helpers || {};
+  const helperList = HELPER_DEFS.filter(h=>(helpersCfg[h.id]||0)>0);
+  const scores = ls.teamScores || {};
+  const usedH = ls.teamHelpersUsed || {};
+  const eliminated = ls.eliminatedTeamIds || [];
+
+  // Skeleton hash — rebuild only if team set or helper config changed
+  const skel = JSON.stringify({tids:teamIds, hids:helperList.map(h=>h.id+':'+helpersCfg[h.id])});
+  if(skel !== _hashTeams){
+    _hashTeams = skel;
+    if(!teamIds.length){
+      wrap.innerHTML = '<div style="color:var(--muted);text-align:center;padding:24px;font-size:13px">لا فرق في هذا الدور</div>';
+      return;
+    }
+    wrap.innerHTML = teamIds.map(id=>{
+      const t = teamsCache[id] || {id, name:'فريق غير معروف', logo:'❓', color:'#888'};
+      const helperHtml = helperList.map(h=>`<span class="helper" data-hid="${h.id}" title="${h.name}">${h.icon}<b>0</b></span>`).join('');
+      return `<div class="team" data-tid="${id}" style="--tcolor:${t.color}">
+        <div class="out-stamp">خرج</div>
+        <div class="leader-crown">👑</div>
+        <div class="team-logo-circle">${t.logo}</div>
+        <div class="team-name">${esc(t.name)}</div>
+        <div class="team-score" data-score>0</div>
+        <div class="score-bar"><div class="score-bar-fill" data-fill style="width:0%" data-w="0"></div></div>
+        <div class="helpers">${helperHtml}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // ── Diff updates: classes, scores, helpers, race bar widths ──
+  if(!teamIds.length) return;
+  const max = Math.max(1, ...teamIds.map(id=>scores[id]||0));
+  // Find leader (highlight if scores diverge)
+  const sorted = [...teamIds].filter(id=>!eliminated.includes(id)).sort((a,b)=>(scores[b]||0)-(scores[a]||0));
+  const leaderId = (sorted.length && (scores[sorted[0]]||0) > 0 && (sorted.length<2 || (scores[sorted[0]]||0) > (scores[sorted[1]]||0))) ? sorted[0] : null;
+
+  // Compute "next-up" team — between questions, show who's coming up next
+  // In auto turn mode: next non-eliminated team in cycle. In manual: only show if explicitly set via nextTeamId.
+  let nextUpId = null;
+  const turnMode = ls.turnMode || 'auto';
+  const showNextHint = !ls.currentQuestion || !ls.questionRevealed; // before question is revealed
+  if(showNextHint){
+    if(turnMode === 'manual' && ls.nextTeamId){
+      nextUpId = ls.nextTeamId;
+    } else if(turnMode === 'auto' && ls.currentTeamId){
+      const alive = teamIds.filter(id=>!eliminated.includes(id));
+      const i = alive.indexOf(ls.currentTeamId);
+      // If current question is still active, "next" = the team AFTER current
+      // If no question yet (between questions), "next" = current (it's their turn coming)
+      if(i>=0) nextUpId = ls.currentQuestion ? alive[(i+1)%alive.length] : ls.currentTeamId;
+    } else if(!ls.currentTeamId){
+      const alive = teamIds.filter(id=>!eliminated.includes(id));
+      if(alive.length) nextUpId = alive[0];
+    }
+  }
+  // Don't double-highlight: if a team is "turn" don't also mark "next-up"
+  if(nextUpId === ls.currentTeamId && ls.currentQuestion) nextUpId = null;
+
+  teamIds.forEach(id=>{
+    const card = wrap.querySelector(`[data-tid="${id}"]`);
+    if(!card) return;
+    const sc = scores[id]||0;
+    const isOut = eliminated.includes(id);
+    const isTurn = ls.currentTeamId===id && !isOut && !!ls.currentQuestion; // only highlight turn while a question is staged/active
+    const isNext = nextUpId===id && !isOut;
+    const isLeader = leaderId===id;
+
+    if(card.classList.contains('turn') !== isTurn) card.classList.toggle('turn', isTurn);
+    if(card.classList.contains('next-up') !== isNext) card.classList.toggle('next-up', isNext);
+    if(card.classList.contains('eliminated') !== isOut) card.classList.toggle('eliminated', isOut);
+    if(card.classList.contains('leader') !== isLeader) card.classList.toggle('leader', isLeader);
+
+    // Score number with bump animation
+    const scEl = card.querySelector('[data-score]');
+    if(scEl){
+      const prev = parseInt(scEl.textContent)||0;
+      if(prev !== sc){
+        if(sc > prev){ scEl.classList.remove('bump'); void scEl.offsetWidth; scEl.classList.add('bump'); }
+        scEl.textContent = sc;
+      }
+    }
+
+    // Race bar width — fills relative to current leader
+    const fillEl = card.querySelector('[data-fill]');
+    if(fillEl){
+      const pct = max>0 ? Math.round(sc/max*100) : 0;
+      const cur = parseInt(fillEl.dataset.w)||0;
+      if(cur !== pct){ fillEl.style.width = pct+'%'; fillEl.dataset.w = pct; }
+    }
+
+    // Helpers
+    const usedT = usedH[id]||{};
+    helperList.forEach(h=>{
+      const helperEl = card.querySelector(`[data-hid="${h.id}"]`);
+      if(!helperEl) return;
+      const remaining = (helpersCfg[h.id]||0) - (usedT[h.id]||0);
+      const b = helperEl.querySelector('b');
+      if(b && b.textContent !== String(remaining)) b.textContent = remaining;
+      helperEl.classList.toggle('empty', remaining<=0);
+    });
+  });
+
+  // Update leader-tag in the race-track header
+  const leaderTag = document.getElementById('leader-tag');
+  if(leaderTag){
+    if(leaderId){
+      const t = teamsCache[leaderId]||{name:'?',logo:'⚔️'};
+      leaderTag.style.display='';
+      leaderTag.textContent = '🏆 المتصدر: ' + t.logo + ' ' + t.name;
+    } else {
+      leaderTag.style.display='none';
+    }
+  }
+}
+
+function renderStage(ls){
+  const stage = document.getElementById('stage');
+  const q = ls.currentQuestion;
+  const round = (currentTour.rounds||[])[ls.currentRoundIdx] || {teams:[]};
+  // Skeleton hash — only rebuild when structural things change.
+  // Excluded on purpose: currentTeamId/nextTeamId. Those drive the small turn
+  // badge and idle "next team" banner — we update those out-of-band below so
+  // changing whose turn it is mid-question does NOT rebuild the entire
+  // question/options DOM (which used to flicker the screen).
+  const idleMode = !q;
+  const skel = JSON.stringify({
+    qid: q?._id||'',
+    qtxt: q?.text||'',
+    qnotes: q?.notes||'',
+    qtype: q?.type||'',
+    qopts: q?.options||null,
+    // NOTE: arev (answerRevealed) intentionally excluded — answer reveal is
+    // handled by updateAnswerDOM() without rebuilding the whole stage.
+    // NOTE: cur/nxt excluded for non-idle — updateTurnBadgeDOM() handles it.
+    qrev: !!ls.questionRevealed,
+    timerDur: ls.timerDuration||0,
+    status: ls.status||'lobby',
+    idleCur: idleMode ? (ls.currentTeamId||'') : '',
+    idleNxt: idleMode ? (ls.nextTeamId||'') : '',
+    tmode: ls.turnMode||'auto'
+  });
+  if(skel === _hashStage){
+    updateTimerDOM(ls);
+    updateTurnBadgeDOM(ls);
+    updateAnswerDOM(ls);   // surgical: only touches answer-box + correct option class
+    return;
+  }
+  _hashStage = skel;
+
+  // ── No active question — show idle / "next team" banner ──
+  if(!q){
+    stage.classList.add('idle');
+    stage.innerHTML = renderIdleStage(ls, round);
+    return;
+  }
+  stage.classList.remove('idle');
+  const qt = tqType(q.type);
+  const showQ = !!ls.questionRevealed;
+  const showA = !!ls.answerRevealed;
+  const C = 2*Math.PI*36;
+  const hasTimer = !!ls.timerDuration;
+  const hasOptions = Array.isArray(q.options) && q.options.length>0;
+  const correctIdx = typeof q.correctIndex==='number' ? q.correctIndex : -1;
+
+  // Build options grid (when MC question) — no correct-marking here;
+  // that's handled surgically by updateAnswerDOM() after render so that
+  // revealing the answer doesn't cause a full DOM rebuild + re-animation.
+  const optsHtml = (showQ && hasOptions) ? `
+    <div class="q-options">
+      ${q.options.map((opt,i)=>`<div class="q-option" data-oidx="${i}">
+          <span class="q-option-letter">${['أ','ب','ج','د','هـ','و','ز','ح'][i]||(i+1)}</span>
+          <span class="q-option-text">${esc(opt)}</span>
+        </div>`).join('')}
+    </div>` : '';
+
+  stage.innerHTML = `
+    <div class="stage-top-row">
+      <div class="qtype-banner" style="background:${qt.color}22;color:${qt.color};border:1px solid ${qt.color}55">${qt.icon} ${qt.name}</div>
+      ${showQ && ls.currentTeamId ? renderTurnBadge(ls.currentTeamId) : ''}
+    </div>
+    <div class="q-text${showQ?'':' hidden-q'}">${showQ ? esc(q.text||'') : 'في انتظار عرض السؤال...'}</div>
+    ${q.notes && showQ ? `<div class="q-notes">${esc(q.notes)}</div>`:''}
+    ${optsHtml}
+    ${hasTimer && showQ ? `<div class="timer-wrap">
+      <div class="ring" id="ring-wrap">
+        <svg viewBox="0 0 80 80"><circle class="bg" cx="40" cy="40" r="36"/><circle id="timer-fg" class="fg" cx="40" cy="40" r="36" stroke-dasharray="${C}" stroke-dashoffset="0"/></svg>
+        <div class="num" id="timer-num">${ls.timerDuration}</div>
+      </div>
+      <div class="timer-status" id="timer-status">لم يبدأ بعد</div>
+    </div>`:''}
+  `;
+  // Stagger-in animation for multiple-choice options
+  stage.querySelectorAll('.q-option').forEach((el,i)=> el.style.setProperty('--i', i));
+  updateTimerDOM(ls);
+  updateTurnBadgeDOM(ls);
+  updateAnswerDOM(ls); // apply correct marks / answer box without another rebuild
+}
+
+// Update only the in-stage turn badge (top-row, next to the question type)
+// without touching the rest of the stage. Lets us swap whose turn it is mid
+// question without re-running the question's reveal animation.
+function updateTurnBadgeDOM(ls){
+  const topRow = document.querySelector('#stage .stage-top-row');
+  if(!topRow) return;
+  const wantBadge = !!ls.questionRevealed && !!ls.currentTeamId;
+  const existing = topRow.querySelector('.turn-badge');
+  if(!wantBadge){
+    if(existing) existing.remove();
+    return;
+  }
+  const t = teamsCache[ls.currentTeamId] || {name:'?',logo:'❓',color:'#888'};
+  // If the badge is already correct, leave it alone (avoids replaying the
+  // pop-in animation on every render).
+  if(existing && existing.dataset.tid === ls.currentTeamId) return;
+  const html = `<div class="turn-badge" data-tid="${ls.currentTeamId}" style="--tcolor:${t.color}">
+    <div class="turn-badge-logo">${t.logo}</div>
+    <div class="turn-badge-name"><b>دور:</b> ${esc(t.name)}</div>
+  </div>`;
+  if(existing) existing.outerHTML = html;
+  else topRow.insertAdjacentHTML('beforeend', html);
+}
+
+// Surgical answer-state update — never rebuilds stage innerHTML.
+// Called every render so the correct option and answer box always reflect
+// the current answerRevealed state without triggering option re-animations.
+function updateAnswerDOM(ls){
+  const stage = document.getElementById('stage');
+  if(!stage) return;
+  const q = ls.currentQuestion;
+  if(!q) return;
+  const showA = !!ls.answerRevealed;
+  const correctIdx = typeof q.correctIndex==='number' ? q.correctIndex : -1;
+  const hasOptions = Array.isArray(q.options) && q.options.length>0;
+
+  // ── Option correct-marking ──────────────────────────────────────
+  stage.querySelectorAll('.q-option').forEach(el=>{
+    const i = parseInt(el.dataset.oidx);
+    const shouldBeCorrect = showA && i === correctIdx;
+    const isCorrect = el.classList.contains('correct');
+    if(shouldBeCorrect && !isCorrect){
+      el.classList.add('correct');
+      if(!el.querySelector('.q-option-check')){
+        el.insertAdjacentHTML('beforeend','<span class="q-option-check"><i class="fas fa-check"></i></span>');
+      }
+    } else if(!shouldBeCorrect && isCorrect){
+      el.classList.remove('correct');
+      el.querySelector('.q-option-check')?.remove();
+    }
+  });
+
+  // ── Answer box (shown for non-MC, or MC without a correctIndex) ─
+  const needsBox = showA && ((!hasOptions && q.answer) || (hasOptions && correctIdx<0 && q.answer));
+  let box = stage.querySelector('.answer-box');
+  if(needsBox){
+    if(!box){
+      box = document.createElement('div');
+      box.className = 'answer-box';
+      box.innerHTML = `<div class="lbl"><i class="fas fa-circle-check"></i> الإجابة</div><div class="txt">${esc(q.answer||'(بدون إجابة محددة)')}</div>`;
+      stage.appendChild(box);
+    } else {
+      box.style.display = '';
+    }
+  } else if(box){
+    box.style.display = 'none';
+  }
+}
+
+// ── Idle stage: show "next team prep" or empty state ──
+function renderIdleStage(ls, round){
+  const teamIds = round.teams||[];
+  const eliminated = ls.eliminatedTeamIds||[];
+  const turnMode = ls.turnMode||'auto';
+  // Determine the team coming up
+  let nextId = null;
+  if(turnMode==='manual' && ls.nextTeamId) nextId = ls.nextTeamId;
+  else if(ls.currentTeamId && !eliminated.includes(ls.currentTeamId)) nextId = ls.currentTeamId;
+  else {
+    const alive = teamIds.filter(id=>!eliminated.includes(id));
+    if(alive.length) nextId = alive[0];
+  }
+
+  if(ls.status==='lobby'){
+    return `<div class="stage-empty">
+      <i class="fas fa-trophy"></i>
+      <div>المسابقة جاهزة للبدء</div>
+      <div style="margin-top:6px;font-size:13px">اضغط "ابدأ" من لوحة التحكم</div>
+    </div>`;
+  }
+  if(ls.status==='roundEnd' || ls.status==='finished'){
+    return `<div class="stage-empty">
+      <i class="fas fa-flag-checkered"></i>
+      <div>${ls.status==='finished'?'انتهت البطولة 🎉':'انتهى الدور'}</div>
+    </div>`;
+  }
+  // Playing but no question — show "next team" prep banner
+  if(nextId){
+    const t = teamsCache[nextId] || {name:'?',logo:'❓',color:'#888'};
+    return `<div class="next-team-banner" style="--tcolor:${t.color}">
+      <div class="ntb-label">⏭️ السؤال القادم لـ:</div>
+      <div class="ntb-team">
+        <div class="ntb-logo">${t.logo}</div>
+        <div class="ntb-name">${esc(t.name)}</div>
+      </div>
+      <div class="ntb-hint">في انتظار اختيار السؤال من لوحة التحكم...</div>
+    </div>`;
+  }
+  return `<div class="stage-empty">
+    <i class="fas fa-trophy"></i>
+    <div>في انتظار السؤال التالي</div>
+  </div>`;
+}
+
+// ── Small "current turn" badge shown next to question type ──
+function renderTurnBadge(teamId){
+  const t = teamsCache[teamId] || {name:'?',logo:'❓',color:'#888'};
+  return `<div class="turn-badge" data-tid="${teamId}" style="--tcolor:${t.color}">
+    <div class="turn-badge-logo">${t.logo}</div>
+    <div class="turn-badge-name"><b>دور:</b> ${esc(t.name)}</div>
+  </div>`;
+}
+
+// Updates only the timer DOM (number + ring stroke + urgency class) — no innerHTML rebuild
+function updateTimerDOM(ls){
+  const num = document.getElementById('timer-num');
+  const fg = document.getElementById('timer-fg');
+  const ring = document.getElementById('ring-wrap');
+  const stat = document.getElementById('timer-status');
+  if(!num || !fg || !ring) return;
+  const tm = computeTimer(ls);
+  const C = 2*Math.PI*36;
+  const offset = tm.duration ? C*(1 - Math.max(0,tm.remaining)/tm.duration) : 0;
+  const newNum = String(tm.remaining);
+  if(num.textContent !== newNum) num.textContent = newNum;
+  fg.setAttribute('stroke-dashoffset', offset);
+  const urgent = tm.remaining<=5 && tm.remaining>0 && tm.started && !tm.paused;
+  ring.classList.toggle('urgent', urgent);
+  if(stat){
+    const newStat = tm.paused?'⏸️ متوقف':tm.started?'⏱️ جارٍ':'لم يبدأ بعد';
+    if(stat.textContent !== newStat) stat.textContent = newStat;
+  }
+}
+
+function computeTimer(ls){
+  const dur = ls.timerDuration||0;
+  if(!dur) return {duration:0, remaining:0, startedAt:0, paused:false, started:false};
+  if(ls.timerPaused) return {duration:dur, remaining:Math.max(0,Math.round(ls.pausedRemaining||0)), startedAt:ls.timerStartedAt, paused:true, started:true};
+  if(!ls.timerStartedAt) return {duration:dur, remaining:dur, startedAt:0, paused:false, started:false};
+  const elapsed = Math.floor((Date.now() - ls.timerStartedAt)/1000);
+  return {duration:dur, remaining:Math.max(0, dur - elapsed), startedAt:ls.timerStartedAt, paused:false, started:true};
+}
+
+function startTimerLoop(){
+  if(timerInterval) return; // single shared interval — never restart
+  timerInterval = setInterval(()=>{
+    if(!currentTour) return;
+    const ls = ensureLiveState(currentTour);
+    if(ls.currentQuestion && ls.timerDuration && ls.timerStartedAt && !ls.timerPaused){
+      updateTimerDOM(ls); // only updates timer elements, no skeleton rebuild
+      // Tick sound for the final 5 seconds (urgent variant for the last 3).
+      const tm = computeTimer(ls);
+      if(tm.started && !tm.paused && tm.remaining > 0 && tm.remaining <= 5){
+        if(lastTickSecond !== tm.remaining){
+          lastTickSecond = tm.remaining;
+          sfx(tm.remaining <= 3 ? 'tickUrgent' : 'tick');
+        }
+      } else if(tm.remaining > 5){
+        lastTickSecond = -1;
+      }
+    } else {
+      lastTickSecond = -1;
+    }
+  }, 250);
+}
+
+function renderLB(round, ls){
+  const teamIds = round.teams||[];
+  const scores = ls.teamScores||{};
+  const ranked = teamIds.map(id=>({id, sc:scores[id]||0, t:teamsCache[id]||{name:'?',logo:'❓'}})).sort((a,b)=>b.sc-a.sc);
+  const adv = round.advance||1;
+  document.getElementById('lb-list').innerHTML = ranked.map((r,i)=>{
+    const isAdv = i<adv && ls.status!=='lobby';
+    return `<div class="lb-row" style="${isAdv?'border-left:3px solid var(--green)':''}">
+      <div class="rk">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</div>
+      <div class="lg">${r.t.logo}</div>
+      <div class="nm">${esc(r.t.name)} ${isAdv?'<span style="color:var(--green);font-size:10px">يصعد</span>':''}</div>
+      <div class="sc">${r.sc}</div>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:14px">لا فرق</div>';
+}
+
+function renderHelperLegend(){
+  const helpers = currentTour.helpers||{};
+  const items = HELPER_DEFS.filter(h=>(helpers[h.id]||0)>0).map(h=>`<span>${h.icon} ${h.name} × ${helpers[h.id]}</span>`).join('');
+  document.getElementById('helper-legend').innerHTML = items ? '<b style="color:var(--gold-light)">الوسائل المساعدة:</b> '+items : '';
+}
+
+// ── BRACKET DRAWER RENDERER ──
+function renderBracketDrawer(t){
+  const el = document.getElementById('bracket-body');
+  if(!el) return;
+  const b = t && t.bracket;
+  if(!b || !b.rounds || !b.rounds.length){
+    el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)"><div style="font-size:40px;margin-bottom:12px">🏆</div><div>البراكيت لم يُعدّ بعد</div></div>';
+    return;
+  }
+
+  const tInfo = id => {
+    if(!id) return null;
+    const c = teamsCache[id];
+    return c ? { logo: c.logo, name: c.name } : { logo: '❓', name: id };
+  };
+
+  const escTxt = s => s ? s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+
+  const roundLabel = r => {
+    const tot = b.rounds.length;
+    if(r === tot - 1) return '🏆 النهائي';
+    if(r === tot - 2) return tot >= 3 ? 'نصف النهائي' : 'الدور الأول';
+    if(r === tot - 3) return 'ربع النهائي';
+    if(r === tot - 4) return 'ثمن النهائي';
+    return `الدور ${r + 1}`;
+  };
+
+  // Champion
+  const champ = b.champion ? tInfo(b.champion) : null;
+  const champHtml = champ ? `
+    <div class="bkv-champion">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:4px">🏆 بطل البطولة</div>
+      <div style="font-size:20px;font-weight:900;color:var(--gold)">${champ.logo} ${escTxt(champ.name)}</div>
+    </div>` : '';
+
+  const colsHtml = b.rounds.map((round, r) => {
+    const matchesHtml = round.map(match => {
+      // Double-bye: hide
+      if(match.winner === 'bye' && match.t1 === 'bye' && match.t2 === 'bye') return '<div class="bkv-tbd" style="opacity:.2">—</div>';
+      const isT1Bye = match.t1 === 'bye';
+      const isT2Bye = match.t2 === 'bye';
+      const t1Info = (!isT1Bye && match.t1) ? tInfo(match.t1) : null;
+      const t2Info = (!isT2Bye && match.t2) ? tInfo(match.t2) : null;
+      const w1 = match.winner && match.winner !== 'bye' && match.winner === match.t1;
+      const w2 = match.winner && match.winner !== 'bye' && match.winner === match.t2;
+      const label1 = isT1Bye ? 'BYE' : !match.t1 ? 'في الانتظار' : escTxt(t1Info ? t1Info.name : match.t1);
+      const label2 = isT2Bye ? 'BYE' : !match.t2 ? 'في الانتظار' : escTxt(t2Info ? t2Info.name : match.t2);
+      const row1 = `<div class="bkv-team ${w1?'bkv-winner':match.winner&&match.winner!=='bye'&&!w1?'bkv-loser':''} ${isT1Bye||!match.t1?'bkv-bye':''}">
+        <span>${t1Info ? t1Info.logo : (isT1Bye ? '' : '?')}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label1}</span>
+        ${w1?'<span>👑</span>':''}
+      </div>`;
+      const row2 = `<div class="bkv-team ${w2?'bkv-winner':match.winner&&match.winner!=='bye'&&!w2?'bkv-loser':''} ${isT2Bye||!match.t2?'bkv-bye':''}">
+        <span>${t2Info ? t2Info.logo : (isT2Bye ? '' : '?')}</span>
+        <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${label2}</span>
+        ${w2?'<span>👑</span>':''}
+      </div>`;
+      return `<div class="bkv-match">${row1}<div class="bkv-vs">VS</div>${row2}</div>`;
+    }).join('');
+
+    return `<div class="bkv-round-col">
+      <div class="bkv-round-label">${roundLabel(r)}</div>
+      <div class="bkv-matches">${matchesHtml}</div>
+    </div>`;
+  }).join('<div class="bkv-connector"></div>');
+
+  el.innerHTML = champHtml + `<div class="bkv-tree">${colsHtml}</div>`;
+}
+
+// Boot
+init();
+</script>
+</body>
+</html>

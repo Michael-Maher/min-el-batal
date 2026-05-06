@@ -1333,6 +1333,25 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
 /* Subtle gold animation on KPI icons */
 @keyframes goldShimmer{0%,100%{filter:drop-shadow(0 1px 3px rgba(212,160,23,.20))}50%{filter:drop-shadow(0 2px 8px rgba(212,160,23,.45))}}
 .kpi-icon{animation:goldShimmer 4s ease-in-out infinite}
+
+/* ── BRACKET (Champions League style) ──────────────────── */
+.bk-tree{display:flex;gap:0;overflow-x:auto;padding:16px 4px;align-items:flex-start}
+.bk-round-col{display:flex;flex-direction:column;min-width:190px;max-width:220px}
+.bk-round-label{text-align:center;font-size:10px;font-weight:900;color:var(--gold);padding:0 8px 10px;letter-spacing:.8px;text-transform:uppercase;opacity:.85}
+.bk-matches{display:flex;flex-direction:column;justify-content:space-around;flex:1;gap:6px;padding:0 8px}
+.bk-match{background:var(--card);border:1.5px solid var(--border2);border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.bk-team-row{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px;font-weight:700;cursor:default;transition:background .15s;border-right:3px solid transparent}
+.bk-team-row.clickable{cursor:pointer}
+.bk-team-row.clickable:hover{background:rgba(200,161,74,.12);border-right-color:var(--accent)}
+.bk-team-row.bk-winner{background:rgba(5,150,105,.10);border-right-color:var(--green);color:#059669}
+.bk-team-row.bk-loser{opacity:.45}
+.bk-team-row.bk-bye{color:var(--muted2);font-style:italic;font-size:11px;opacity:.55}
+.bk-vs-bar{text-align:center;font-size:9px;color:var(--muted2);padding:1px 0;background:rgba(0,0,0,.03);letter-spacing:1px}
+.bk-connector{width:28px;flex-shrink:0;display:flex;flex-direction:column;justify-content:space-around;align-items:center;padding:0;position:relative;align-self:stretch}
+.bk-conn-group{display:flex;flex-direction:column;align-items:center;position:relative;flex:1}
+.bk-conn-group::after{content:'';position:absolute;top:25%;bottom:25%;left:50%;width:2px;background:var(--border2)}
+.bk-match-tbd{border:1.5px dashed var(--border2);border-radius:10px;padding:10px 12px;text-align:center;font-size:11px;color:var(--muted2);font-style:italic;background:rgba(0,0,0,.02);margin:3px 8px}
+.bk-champion-card{background:linear-gradient(135deg,rgba(212,160,23,.15),rgba(212,160,23,.06));border:2px solid var(--gold);border-radius:14px;padding:16px;text-align:center;margin-bottom:18px;animation:goldShimmer 3s infinite}
 </style>
 </head>
 <body>
@@ -1397,6 +1416,11 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
         <button class="nav-btn" onclick="goPage('locks')" id="nav-locks"><i class="fas fa-lock"></i> الإقفال والإتاحة</button>
         <button class="nav-btn" onclick="goPage('reports')" id="nav-reports"><i class="fas fa-flag"></i> التقارير <span class="nav-badge" id="nav-reports-badge" style="display:none">0</span></button>
+      </div>
+      <div class="nav-grp">
+        <div class="nav-grp-title">كاس مين البطل</div>
+        <button class="nav-btn" onclick="goPage('tournaments')"><i class="fas fa-trophy"></i> البطولات</button>
+        <button class="nav-btn" onclick="goPage('tqbank')"><i class="fas fa-database"></i> بنك أسئلة البطولة</button>
       </div>
       <div class="nav-grp" id="nav-grp-super" style="display:none">
         <div class="nav-grp-title">المسؤول الأعلى</div>
@@ -1684,6 +1708,146 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
     </div>
 
     <!-- ADMIN MANAGEMENT (superadmin only) -->
+    <!-- TOURNAMENTS -->
+    <div class="page" id="page-tournaments">
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px">
+        <div><h2><i class="fas fa-trophy" style="color:var(--gold)"></i> كاس مين البطل</h2><p>إنشاء وإدارة بطولات الفرق متعددة الأدوار</p></div>
+        <button class="btn bp" onclick="openCreateTournamentModal()"><i class="fas fa-plus"></i> بطولة جديدة</button>
+      </div>
+      <div class="fbar">
+        <select class="flt" id="tf-status" onchange="renderTournaments()">
+          <option value="">كل الحالات</option>
+          <option value="draft">📝 مسودة</option>
+          <option value="active">▶️ جارية</option>
+          <option value="paused">⏸️ متوقفة</option>
+          <option value="completed">🏁 منتهية</option>
+        </select>
+        <span class="fcnt" id="tcnt"></span>
+      </div>
+      <div id="tour-grid" class="tgrid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- TOURNAMENT LIVE CONSOLE (Phase 3) -->
+    <div class="page" id="page-tour-console">
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px">
+        <div><h2><i class="fas fa-gamepad" style="color:var(--gold)"></i> <span id="tc-name">وحدة التحكم المباشر</span></h2><p id="tc-sub">إدارة البطولة لحظة بلحظة</p></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <a class="btn bg" id="tc-tv-link" href="#" target="_blank"><i class="fas fa-tv"></i> افتح شاشة العرض</a>
+          <button class="btn bg" onclick="goPage('tournaments')"><i class="fas fa-arrow-right"></i> رجوع للقائمة</button>
+        </div>
+      </div>
+
+      <!-- Status strip -->
+      <div id="tc-status-strip" class="card" style="padding:14px;margin-bottom:14px;display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between">
+        <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+          <div><div style="font-size:11px;color:var(--muted)">الحالة</div><div id="tc-status" style="font-weight:900;font-size:14px">—</div></div>
+          <div><div style="font-size:11px;color:var(--muted)">الدور</div><div id="tc-round" style="font-weight:900;font-size:14px">—</div></div>
+          <div><div style="font-size:11px;color:var(--muted)">دور الفريق</div><div id="tc-current-team" style="font-weight:900;font-size:14px">—</div></div>
+          <div><div style="font-size:11px;color:var(--muted)">نوع الدور</div>
+            <button class="btn bg bxs" id="tc-turn-mode-btn" onclick="tcToggleTurnMode()" style="font-weight:900;font-size:12px"><i class="fas fa-rotate"></i> —</button>
+          </div>
+          <div><div style="font-size:11px;color:var(--muted)">الأسئلة المستخدمة</div><div id="tc-used-count" style="font-weight:900;font-size:14px">0</div></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn bp bsm" onclick="tcStart()"><i class="fas fa-play"></i> ابدأ</button>
+          <button class="btn bg bsm" onclick="tcPause()"><i class="fas fa-pause"></i> إيقاف</button>
+          <button class="btn bd bsm" onclick="tcReset()"><i class="fas fa-rotate-left"></i> إعادة تهيئة</button>
+        </div>
+      </div>
+
+      <!-- Offline indicator bar -->
+      <div id="tc-offline-bar" style="display:none;align-items:center;gap:10px;background:#7f1d1d;border:1px solid #dc2626;border-radius:10px;padding:10px 16px;margin-bottom:12px;color:#fff;font-size:13px;font-weight:600">
+        <i class="fas fa-wifi" style="color:#fca5a5"></i>
+        <span>وضع بدون إنترنت — التغييرات محفوظة محلياً وستُزامَن تلقائياً عند عودة الاتصال</span>
+        <span id="tc-offline-queue-count" style="margin-right:auto;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:12px;font-size:11px"></span>
+      </div>
+
+      <!-- Main grid -->
+      <div class="g2" style="grid-template-columns:1.4fr 1fr;align-items:start" id="tc-grid">
+        <!-- LEFT: Teams panel -->
+        <div class="card">
+          <div class="ch"><h3><i class="fas fa-users" style="color:var(--accent2)"></i> الفرق <span id="tc-team-count" style="color:var(--muted);font-weight:400;font-size:11px"></span></h3>
+            <button class="btn bg bxs" onclick="tcAutoNextTurn()" title="الفريق التالي تلقائياً"><i class="fas fa-forward"></i> التالي</button>
+          </div>
+          <div class="cb" id="tc-teams-panel"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+        </div>
+
+        <!-- RIGHT: Stage + Timer + Round controls -->
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <!-- Question staging -->
+          <div class="card">
+            <div class="ch"><h3><i class="fas fa-circle-question" style="color:var(--purple)"></i> السؤال الحالي</h3>
+              <span id="tc-q-status" style="font-size:11px;color:var(--muted)">—</span>
+            </div>
+            <div class="cb" id="tc-stage"><div style="color:var(--muted);text-align:center;padding:14px">لم يتم اختيار سؤال</div></div>
+          </div>
+          <!-- Timer -->
+          <div class="card">
+            <div class="ch"><h3><i class="fas fa-clock" style="color:var(--blue)"></i> المؤقت</h3><span id="tc-timer-num" style="font-size:18px;font-weight:900;color:var(--gold)">—</span></div>
+            <div class="cb">
+              <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+                <button class="btn bp bsm" onclick="tcTimerStart()"><i class="fas fa-play"></i> ابدأ</button>
+                <button class="btn bg bsm" onclick="tcTimerPause()"><i class="fas fa-pause"></i> إيقاف</button>
+                <button class="btn bg bsm" onclick="tcTimerAdd(30)"><i class="fas fa-plus"></i> +30 ثانية</button>
+                <button class="btn bg bsm" onclick="tcTimerAdd(-10)"><i class="fas fa-minus"></i> -10 ثانية</button>
+                <button class="btn bd bsm" onclick="tcTimerStop()"><i class="fas fa-stop"></i> ألغ</button>
+              </div>
+              <div style="display:flex;gap:5px;align-items:center">
+                <span style="font-size:12px;color:var(--muted)">مدة مخصصة:</span>
+                <input type="number" id="tc-timer-custom" min="0" max="600" placeholder="ثانية" style="width:90px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:6px;padding:5px 8px;color:var(--text);font-family:inherit">
+                <button class="btn bg bsm" onclick="tcSetCustomTimer()"><i class="fas fa-check"></i> طبق</button>
+              </div>
+            </div>
+          </div>
+          <!-- Round controls -->
+          <div class="card">
+            <div class="ch"><h3><i class="fas fa-flag-checkered" style="color:var(--green)"></i> إدارة الدور</h3></div>
+            <div class="cb">
+              <button class="btn bp" style="width:100%;margin-bottom:6px" onclick="tcOpenAdvancing()"><i class="fas fa-medal"></i> أنهِ الدور (اختر المتأهلين)</button>
+              <button class="btn bg" style="width:100%;margin-bottom:6px" onclick="tcNextRound()"><i class="fas fa-arrow-right"></i> ابدأ الدور التالي</button>
+              <button class="btn bg" style="width:100%;background:rgba(124,58,237,.12);color:var(--purple);border-color:rgba(124,58,237,.4)" onclick="tcOpenBracket()"><i class="fas fa-sitemap"></i> البراكيت (كأس البطولة)</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom: leaderboard -->
+      <div class="card" style="margin-top:14px">
+        <div class="ch"><h3><i class="fas fa-trophy" style="color:var(--gold)"></i> ترتيب الفرق — هذا الدور</h3></div>
+        <div class="cb"><div class="ranklist" id="tc-leaderboard"></div></div>
+      </div>
+    </div>
+
+    <!-- TOURNAMENT QUESTION BANK -->
+    <div class="page" id="page-tqbank">
+      <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px">
+        <div><h2><i class="fas fa-database" style="color:var(--accent2)"></i> بنك أسئلة البطولة</h2><p>إدارة الأسئلة المستخدمة في البطولات — مصنفة حسب النوع</p></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn bg" onclick="openImportTQModal()"><i class="fas fa-file-import"></i> استيراد JSON</button>
+          <button class="btn bg" onclick="exportTQJson()"><i class="fas fa-file-export"></i> تصدير</button>
+          <button class="btn bp" onclick="openCreateTQModal()"><i class="fas fa-plus"></i> سؤال جديد</button>
+        </div>
+      </div>
+      <div class="fbar">
+        <input type="text" class="flt" id="tqf-text" placeholder="🔍 ابحث في النص" oninput="renderTQBank()">
+        <select class="flt" id="tqf-type" onchange="renderTQBank()">
+          <option value="">كل الأنواع</option>
+        </select>
+        <span class="fcnt" id="tqcnt"></span>
+      </div>
+      <div class="card tbl-wrap">
+        <table>
+          <thead><tr>
+            <th>النوع</th>
+            <th>السؤال</th>
+            <th>الإجابة</th>
+            <th>إجراءات</th>
+          </tr></thead>
+          <tbody id="tqtbody"><tr><td colspan="4" class="loading"><i class="fas fa-spinner"></i></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="page" id="page-admins">
       <div class="ph"><h2><i class="fas fa-user-shield" style="color:var(--gold)"></i> إدارة الأدمنز</h2><p>قبول وإدارة الأدمنز المساعدين</p></div>
       <div class="superbox">
@@ -1745,6 +1909,46 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
   <div class="modal" style="max-width:560px" id="mreport-box"></div>
 </div>
 
+<!-- TOURNAMENT CREATE/EDIT MODAL -->
+<div id="modal-tournament" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tournament')">
+  <div class="modal" style="max-width:760px" id="mtour-box"></div>
+</div>
+
+<!-- TOURNAMENT QUESTION CREATE/EDIT MODAL -->
+<div id="modal-tq" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tq')">
+  <div class="modal" style="max-width:560px" id="mtq-box"></div>
+</div>
+
+<!-- TOURNAMENT QUESTION IMPORT MODAL -->
+<div id="modal-tq-import" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tq-import')">
+  <div class="modal" style="max-width:680px" id="mtqimp-box"></div>
+</div>
+
+<!-- LIVE-CONSOLE: PICK QUESTION MODAL -->
+<div id="modal-tc-pick" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tc-pick')">
+  <div class="modal" style="max-width:760px" id="mtcpick-box"></div>
+</div>
+
+<!-- LIVE-CONSOLE: EDIT QUESTION (PRE-REVEAL) MODAL -->
+<div id="modal-tc-edit" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tc-edit')">
+  <div class="modal" style="max-width:560px" id="mtcedit-box"></div>
+</div>
+
+<!-- LIVE-CONSOLE: ADVANCING TEAMS MODAL -->
+<div id="modal-tc-adv" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tc-adv')">
+  <div class="modal" style="max-width:560px" id="mtcadv-box"></div>
+</div>
+
+<!-- LIVE-CONSOLE: SCORE OVERRIDE MODAL -->
+<div id="modal-tc-score" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tc-score')">
+  <div class="modal" style="max-width:380px" id="mtcscore-box"></div>
+</div>
+
+<!-- LIVE-CONSOLE: BRACKET MODAL -->
+<div id="modal-tc-bracket" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-tc-bracket')">
+  <div class="modal" style="max-width:980px;width:96vw;max-height:90vh;display:flex;flex-direction:column" id="mtcbracket-box"></div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
@@ -1764,6 +1968,10 @@ firebase.initializeApp({
 });
 const db = firebase.firestore();
 db.settings({ experimentalForceLongPolling: true, experimentalAutoDetectLongPolling: false });
+db.enablePersistence({ synchronizeTabs: true }).catch(function(err){
+  if(err.code === 'failed-precondition') console.warn('Firestore persistence: multiple tabs open');
+  else if(err.code === 'unimplemented') console.warn('Firestore persistence: browser not supported');
+});
 const SESSION_KEY = 'minElBatal_adminSession';
 const SUPER = { phone:'01207714622', passHash:hp('01207714622'+'123456789mI'), name:'المسؤول الأعلى', role:'superadmin' };
 
@@ -1779,7 +1987,9 @@ const PAGES = [
   { key:'announce', label:'الإعلانات',       icon:'fa-bullhorn' },
   { key:'questions',label:'الأسئلة',         icon:'fa-comments' },
   { key:'locks',    label:'الإقفال والإتاحة', icon:'fa-lock' },
-  { key:'reports',  label:'التقارير',         icon:'fa-flag' }
+  { key:'reports',  label:'التقارير',         icon:'fa-flag' },
+  { key:'tournaments', label:'البطولات',      icon:'fa-trophy' },
+  { key:'tqbank',   label:'بنك أسئلة البطولة', icon:'fa-database' }
 ];
 function defaultPerms(){ var p={}; PAGES.forEach(function(x){ p[x.key]=true; }); return p; }
 function hasPerm(key){
@@ -1806,6 +2016,7 @@ let players=[], teams=[], rewards=[], rooms=[], announces=[], admins=[], adminRe
 let filtered=[], sortField='stars', sortDir='desc', pendingAssignPhone=null;
 let contentLocks = {}; // { card_level1:{locked,message}, level_1:{...}, subject_faith:{...}, lesson_faith_0:{...} }
 let playerEvents = [], playerReports = [];
+let tournaments = [], tqBank = [];
 const YR = {prep1:'أولى إعدادي',prep2:'تانية إعدادي',prep3:'تالتة إعدادي'};
 const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
 const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#10b981',lessons:['اعرف نفسك','قوة الكلمة','إدارة الوقت','القيادة الخادمة','التعامل مع الضغوط','صانع السلام']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']}};
@@ -2016,7 +2227,8 @@ async function loadAll() {
   let ps,ts,rs,rms,ans,ads,arqs;
   try {
     var locksDoc, eventsSnap, reportsSnap;
-    [ps,ts,rs,rms,ans,ads,arqs,locksDoc,eventsSnap,reportsSnap] = await Promise.all([
+    var tourSnap, tqSnap;
+    [ps,ts,rs,rms,ans,ads,arqs,locksDoc,eventsSnap,reportsSnap,tourSnap,tqSnap] = await Promise.all([
       safeGet(db.collection('players')),
       safeGet(db.collection('teams')),
       safeGet(db.collection('reward_requests')),
@@ -2026,11 +2238,15 @@ async function loadAll() {
       safeGet(db.collection('admin_requests')),
       db.collection('gameContent').doc('locks').get().catch(()=>null),
       db.collection('playerEvents').orderBy('ts','desc').limit(500).get().catch(()=>null),
-      db.collection('playerReports').orderBy('createdAt','desc').limit(200).get().catch(()=>null)
+      db.collection('playerReports').orderBy('createdAt','desc').limit(200).get().catch(()=>null),
+      safeGet(db.collection('tournaments')).catch(()=>null),
+      safeGet(db.collection('tournament_questions')).catch(()=>null)
     ]);
     contentLocks = (locksDoc && locksDoc.exists) ? (locksDoc.data() || {}) : {};
     playerEvents = []; if(eventsSnap){eventsSnap.forEach(d=>{const x=d.data();x._id=d.id;playerEvents.push(x);});}
     playerReports = []; if(reportsSnap){reportsSnap.forEach(d=>{const x=d.data();x._id=d.id;playerReports.push(x);});}
+    tournaments = []; if(tourSnap){tourSnap.forEach(d=>{const x=d.data();x._id=d.id;tournaments.push(x);});}
+    tqBank = []; if(tqSnap){tqSnap.forEach(d=>{const x=d.data();x._id=d.id;tqBank.push(x);});}
   } catch(e) {
     console.warn('[loadAll] Firestore unreachable:', e.message);
     btn.classList.remove('spin');
@@ -2069,6 +2285,7 @@ async function loadAll() {
   applyF(); renderTeams(); renderRewards(); renderRooms(); renderAnnounce(); renderAdminMgmt(); updateSegmentCount();
   try { renderLocks(); } catch(e) { console.warn('renderLocks error:', e); }
   try { rptTab(currentReportTab); } catch(e) { console.warn('renderReports error:', e); }
+  try { renderTournaments(); renderTQBank(); fillTQTypeFilter(); } catch(e) { console.warn('renderTournaments/Bank error:', e); }
   updateBadges();
   btn.classList.remove('spin');
 }
@@ -2078,11 +2295,13 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية'};
 function goPage(name) {
   // Permission gate (admins-page is gated separately by being hidden from non-supers)
-  if(name!=='admins' && !hasPerm(name)){
+  // tour-console inherits tournaments perm
+  const permKey = name==='tour-console' ? 'tournaments' : name;
+  if(name!=='admins' && !hasPerm(permKey)){
     toast('ليس لديك صلاحية لهذه الصفحة','err');
     return;
   }
@@ -2090,6 +2309,8 @@ function goPage(name) {
     toast('للمسؤول الأعلى فقط','err');
     return;
   }
+  // Cleanup live-console listener if leaving it
+  if(typeof tcStop==='function' && name!=='tour-console') tcStop();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
@@ -5181,6 +5402,1890 @@ async function qaDeleteThread(){
     document.getElementById('qthr-title').innerHTML='<i class="fas fa-comment-dots" style="color:var(--muted)"></i> اختر سؤال للرد عليه';
     toast('تم الحذف','ok');
   }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+// ════════════════════════════════════════════════════════════════
+//  TOURNAMENTS — كاس مين البطل (Phase 1: Builder + Question Bank)
+// ════════════════════════════════════════════════════════════════
+const TQ_TYPES = [
+  { id:'speed',     name:'أسئلة السرعة',         icon:'⚡', color:'#f59e0b', timer:3,  defaultPoints:1 },
+  { id:'group',     name:'أسئلة جماعية',         icon:'👥', color:'#3b82f6', timer:60, defaultPoints:2 },
+  { id:'individual',name:'أسئلة فردية',          icon:'🎯', color:'#10b981', timer:30, defaultPoints:2 },
+  { id:'puzzle',    name:'أسئلة فوازير',         icon:'🧩', color:'#8b5cf6', timer:45, defaultPoints:2 },
+  { id:'math',      name:'معادلات حسابية',       icon:'➕', color:'#ec4899', timer:30, defaultPoints:2 },
+  { id:'bonus',     name:'أسئلة نقطتين',         icon:'💎', color:'#dc2626', timer:30, defaultPoints:2 },
+  { id:'auction',   name:'أسئلة مزاد',           icon:'🔨', color:'#0891b2', timer:60, defaultPoints:3 },
+  { id:'mime',      name:'أسئلة تمثيل',          icon:'🎭', color:'#7c3aed', timer:60, defaultPoints:2 },
+  { id:'whosaid',   name:'مين القائل؟',          icon:'💬', color:'#ea580c', timer:15, defaultPoints:1 },
+  { id:'general',   name:'أسئلة عامة',           icon:'📚', color:'#0d9488', timer:30, defaultPoints:1 }
+];
+const HELPER_DEFS = [
+  { id:'remove2',     name:'حذف خيارين',          icon:'❌', defaultCount:2 },
+  { id:'askOthers',   name:'سؤال الجمهور',        icon:'👥', defaultCount:1 },
+  { id:'askServant',  name:'سؤال الخادم',         icon:'🙏', defaultCount:1 },
+  { id:'addTime',     name:'+30 ثانية',           icon:'⏱️', defaultCount:2 },
+  { id:'mysteryBox',  name:'صندوق الغموض',        icon:'🎁', defaultCount:1 },
+  { id:'doublePts',   name:'نقاط مضاعفة',         icon:'✖️', defaultCount:1 },
+  { id:'skip',        name:'تخطي السؤال',         icon:'⏭️', defaultCount:1 }
+];
+
+function tqType(id){ return TQ_TYPES.find(t=>t.id===id) || {name:id, icon:'❓', color:'var(--muted)'}; }
+
+// ── TOURNAMENTS LIST/RENDER ─────────────────────────────────────
+function renderTournaments(){
+  const grid = document.getElementById('tour-grid'); if(!grid) return;
+  const filt = document.getElementById('tf-status')?.value || '';
+  const list = tournaments.filter(t=>!filt || t.status===filt)
+    .sort((a,b)=>{
+      const ta = a.createdAt?.toDate?.()?.getTime?.() || a.createdAt || 0;
+      const tb = b.createdAt?.toDate?.()?.getTime?.() || b.createdAt || 0;
+      return tb-ta;
+    });
+  document.getElementById('tcnt').textContent = list.length+' بطولة';
+  if(!list.length){
+    grid.innerHTML = '<div class="empty"><i class="fas fa-trophy"></i><p>لا توجد بطولات بعد</p><button class="btn bp bsm" style="margin-top:10px" onclick="openCreateTournamentModal()"><i class="fas fa-plus"></i> ابدأ أول بطولة</button></div>';
+    return;
+  }
+  const STATUS_LBL = {draft:'📝 مسودة', active:'▶️ جارية', paused:'⏸️ متوقفة', completed:'🏁 منتهية'};
+  const STATUS_COLOR = {draft:'#6b7280', active:'#10b981', paused:'#f59e0b', completed:'#3b82f6'};
+  grid.innerHTML = list.map(t=>{
+    const teamCount = (t.rounds||[]).reduce((s,r)=>s+((r.teams||[]).length),0);
+    const uniqTeams = new Set(); (t.rounds||[]).forEach(r=>(r.teams||[]).forEach(id=>uniqTeams.add(id)));
+    const status = t.status||'draft';
+    const ls = t.liveState || null;
+    const isResumable = ls && (ls.status==='playing' || ls.status==='roundEnd' || (ls.teamScores && Object.keys(ls.teamScores).length));
+    const resumeNote = isResumable ? `<div style="margin-top:5px;padding:5px 9px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.30);border-radius:8px;font-size:11px;color:var(--green);font-weight:700"><i class="fas fa-circle-play"></i> جارية — دور ${(ls.currentRoundIdx||0)+1} · ${(ls.usedQuestionIds||[]).length} سؤال مُستخدم</div>` : '';
+    return `<div class="tcard"><div class="tband" style="background:${STATUS_COLOR[status]}"></div><div class="tinner">
+      <div class="ttop">
+        <div class="tlogobd" style="filter:drop-shadow(0 2px 10px ${STATUS_COLOR[status]}88)">🏆</div>
+        <div style="flex:1">
+          <div class="tiname">${esc(t.name||'بدون اسم')}</div>
+          <div class="tisub">${(t.rounds||[]).length} أدوار · ${uniqTeams.size} فرق</div>
+          ${resumeNote}
+        </div>
+        <div style="display:flex;gap:5px">
+          <button class="btn bp bxs" onclick="tcOpen('${t._id}')" title="وحدة التحكم المباشر"><i class="fas fa-gamepad"></i></button>
+          <a class="btn bg bxs" href="tournament-live.html?id=${t._id}" target="_blank" title="افتح شاشة العرض المباشر"><i class="fas fa-tv"></i></a>
+          <button class="btn bg bxs" onclick="openEditTournamentModal('${t._id}')" title="تعديل"><i class="fas fa-pen"></i></button>
+          <button class="btn bd bxs" onclick="deleteTournament('${t._id}')" title="حذف"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="tscores">
+        <div class="tsb"><div class="tsv" style="color:${STATUS_COLOR[status]}">${STATUS_LBL[status]}</div><div class="tsl">الحالة</div></div>
+        <div class="tsb"><div class="tsv" style="color:var(--accent2)">${(t.rounds||[]).length}</div><div class="tsl">دور</div></div>
+        <div class="tsb"><div class="tsv" style="color:var(--gold)">${uniqTeams.size}</div><div class="tsl">فريق</div></div>
+      </div>
+      <div class="slbl">الأدوار</div>
+      <div class="mlist">${(t.rounds||[]).map((r,i)=>`<div class="mrow"><span class="mname">دور ${i+1}: ${(r.teams||[]).length} فرق · يصعد ${r.advance||1}</span><span style="color:var(--muted);font-size:11px">${(r.questionTypes||[]).length} نوع</span></div>`).join('')||'<div style="color:var(--muted);font-size:12px;text-align:center;padding:6px">بدون أدوار</div>'}</div>
+    </div></div>`;
+  }).join('');
+}
+
+// ── TOURNAMENT BUILDER MODAL (CREATE / EDIT) ────────────────────
+let _tourDraft = null; // working copy while in builder
+
+function blankTournamentDraft(){
+  const helpers = {}; HELPER_DEFS.forEach(h=>helpers[h.id]=h.defaultCount);
+  const timerByType = {}; TQ_TYPES.forEach(t=>timerByType[t.id]=t.timer);
+  return {
+    name: '',
+    status: 'draft',
+    rounds: [],
+    helpers,
+    timerByType,
+    dedupeQuestions: true
+  };
+}
+
+function openCreateTournamentModal(){
+  _tourDraft = blankTournamentDraft();
+  // Seed with one round
+  addRoundToDraft();
+  renderTournamentBuilder(null);
+  document.getElementById('modal-tournament').style.display='flex';
+}
+
+function openEditTournamentModal(id){
+  const t = tournaments.find(x=>x._id===id); if(!t) return;
+  _tourDraft = JSON.parse(JSON.stringify({
+    name: t.name||'',
+    status: t.status||'draft',
+    rounds: t.rounds||[],
+    helpers: t.helpers || (function(){ const h={}; HELPER_DEFS.forEach(x=>h[x.id]=x.defaultCount); return h; })(),
+    timerByType: t.timerByType || (function(){ const m={}; TQ_TYPES.forEach(x=>m[x.id]=x.timer); return m; })(),
+    dedupeQuestions: t.dedupeQuestions!==false
+  }));
+  renderTournamentBuilder(id);
+  document.getElementById('modal-tournament').style.display='flex';
+}
+
+function addRoundToDraft(){
+  const round = {
+    name: 'دور '+((_tourDraft.rounds.length)+1),
+    teams: [],
+    advance: 1,
+    questionTypes: ['general'],
+    questionsPerType: 5
+  };
+  _tourDraft.rounds.push(round);
+}
+
+function removeRoundFromDraft(i){
+  _tourDraft.rounds.splice(i,1);
+  renderTournamentBuilder(_tourDraft._id||null);
+}
+
+function renderTournamentBuilder(id){
+  const isEdit = !!id;
+  const teamOpts = teams.map(t=>({id:t._id, name:t.name, logo:t.logo||'⚔️', color:t.color||'#7c6af7'}));
+  const roundsHtml = _tourDraft.rounds.map((r,i)=>{
+    const selectedTeams = (r.teams||[]).map(tid=>{
+      const t = teamOpts.find(x=>x.id===tid);
+      return t ? `<span class="chip" style="background:${t.color}22;border:1px solid ${t.color}55;color:var(--text);padding:3px 9px;border-radius:99px;font-size:12px;display:inline-flex;align-items:center;gap:5px">${t.logo} ${esc(t.name)} <i class="fas fa-times" style="cursor:pointer;color:var(--muted)" onclick="tourToggleTeam(${i},'${tid}')"></i></span>` : '';
+    }).join(' ');
+    const teamPicker = teamOpts.filter(t=>!r.teams.includes(t.id)).map(t=>{
+      return `<button type="button" class="btn bg bxs" onclick="tourToggleTeam(${i},'${t.id}')" style="margin:2px">${t.logo} ${esc(t.name)}</button>`;
+    }).join('');
+    const typeChecks = TQ_TYPES.map(tt=>{
+      const checked = (r.questionTypes||[]).includes(tt.id) ? 'checked' : '';
+      return `<label style="display:inline-flex;align-items:center;gap:4px;padding:5px 9px;background:${tt.color}11;border:1px solid ${tt.color}44;border-radius:99px;cursor:pointer;font-size:12px;margin:2px"><input type="checkbox" ${checked} onchange="tourToggleType(${i},'${tt.id}',this.checked)" style="accent-color:${tt.color}"> ${tt.icon} ${tt.name}</label>`;
+    }).join('');
+    return `<div class="card" style="margin-bottom:12px;padding:0">
+      <div class="ch" style="background:linear-gradient(90deg,rgba(212,160,23,.08),transparent)">
+        <h3><i class="fas fa-layer-group" style="color:var(--accent2)"></i> <input type="text" class="einp" style="max-width:160px;font-weight:700" value="${esc(r.name||'دور '+(i+1))}" oninput="_tourDraft.rounds[${i}].name=this.value"></h3>
+        <button class="btn bd bxs" onclick="removeRoundFromDraft(${i})" ${_tourDraft.rounds.length<=1?'disabled':''}><i class="fas fa-trash"></i></button>
+      </div>
+      <div class="cb">
+        <div class="erow"><span class="elbl">الفرق المختارة (حد أقصى 10)</span>
+          <div style="flex:1;min-height:32px;display:flex;flex-wrap:wrap;gap:5px;align-items:center">${selectedTeams || '<span style="color:var(--muted);font-size:12px">لم يتم اختيار فرق</span>'}</div>
+        </div>
+        ${r.teams.length<10 && teamPicker ? `<div style="margin:6px 0 12px;padding:8px;background:var(--bg2);border-radius:8px;max-height:120px;overflow-y:auto">${teamPicker}</div>`:''}
+        <div class="erow">
+          <span class="elbl">عدد الفرق المتأهلة</span>
+          <input type="number" class="einp" min="1" max="${Math.max(1,r.teams.length-1)}" value="${r.advance||1}" oninput="_tourDraft.rounds[${i}].advance=Math.max(1,parseInt(this.value)||1)" style="max-width:90px">
+          <span style="color:var(--muted);font-size:12px">من ${r.teams.length||0} فريق</span>
+        </div>
+        <div class="erow">
+          <span class="elbl">أسئلة من كل نوع</span>
+          <input type="number" class="einp" min="1" max="50" value="${r.questionsPerType||5}" oninput="_tourDraft.rounds[${i}].questionsPerType=Math.max(1,parseInt(this.value)||5)" style="max-width:90px">
+        </div>
+        <div class="slbl" style="margin-top:8px">أنواع الأسئلة</div>
+        <div style="display:flex;flex-wrap:wrap">${typeChecks}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const helpersHtml = HELPER_DEFS.map(h=>`<div class="erow" style="margin-bottom:5px">
+    <span class="elbl" style="width:130px">${h.icon} ${h.name}</span>
+    <input type="number" class="einp" min="0" max="10" value="${_tourDraft.helpers[h.id]||0}" oninput="_tourDraft.helpers['${h.id}']=Math.max(0,parseInt(this.value)||0)" style="max-width:80px">
+    <span style="color:var(--muted);font-size:11px">لكل فريق</span>
+  </div>`).join('');
+
+  const timerHtml = TQ_TYPES.map(tt=>`<div class="erow" style="margin-bottom:5px">
+    <span class="elbl" style="width:140px">${tt.icon} ${tt.name}</span>
+    <input type="number" class="einp" min="0" max="600" value="${_tourDraft.timerByType[tt.id]||0}" oninput="_tourDraft.timerByType['${tt.id}']=Math.max(0,parseInt(this.value)||0)" style="max-width:80px">
+    <span style="color:var(--muted);font-size:11px">ثانية (0 = بدون مؤقت)</span>
+  </div>`).join('');
+
+  document.getElementById('mtour-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-trophy" style="color:var(--gold)"></i> ${isEdit?'تعديل بطولة':'بطولة جديدة'}</h2><button class="btnx" onclick="closeM('modal-tournament')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">اسم البطولة</span><input type="text" class="einp" id="tour-name" value="${esc(_tourDraft.name||'')}" placeholder="مثال: كاس البطل الموسم الأول"></div>
+      <div class="erow"><span class="elbl">منع تكرار السؤال</span>
+        <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ${_tourDraft.dedupeQuestions?'checked':''} onchange="_tourDraft.dedupeQuestions=this.checked" style="accent-color:var(--accent2)"> لا يظهر السؤال مرتين في نفس البطولة</label>
+      </div>
+
+      <div class="slbl" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+        <span><i class="fas fa-layer-group" style="color:var(--accent2)"></i> الأدوار</span>
+        <button class="btn bg bxs" onclick="addRoundToDraft();renderTournamentBuilder('${id||''}')"><i class="fas fa-plus"></i> أضف دور</button>
+      </div>
+      <div>${roundsHtml}</div>
+
+      <div class="slbl" style="margin-top:14px"><i class="fas fa-magic" style="color:var(--purple)"></i> الوسائل المساعدة (لكل فريق)</div>
+      <div class="card" style="padding:12px">${helpersHtml}</div>
+
+      <div class="slbl" style="margin-top:14px"><i class="fas fa-clock" style="color:var(--blue)"></i> المؤقت لكل نوع سؤال</div>
+      <div class="card" style="padding:12px">${timerHtml}</div>
+
+      <div style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap">
+        <button class="btn bp" onclick="saveTournament('${id||''}')"><i class="fas fa-save"></i> حفظ كمسودة</button>
+        <button class="btn bg" onclick="closeM('modal-tournament')">إلغاء</button>
+      </div>
+    </div>`;
+  // Bind name input separately so it survives re-renders only on round changes
+  setTimeout(()=>{const n=document.getElementById('tour-name'); if(n) n.oninput=()=>{_tourDraft.name=n.value;};}, 10);
+}
+
+function tourToggleTeam(roundIdx, teamId){
+  const r = _tourDraft.rounds[roundIdx]; if(!r) return;
+  r.teams = r.teams || [];
+  const i = r.teams.indexOf(teamId);
+  if(i>=0) r.teams.splice(i,1);
+  else {
+    if(r.teams.length>=10){ toast('الحد الأقصى 10 فرق في الدور','err'); return; }
+    r.teams.push(teamId);
+  }
+  if(r.advance > Math.max(1,r.teams.length-1)) r.advance = Math.max(1,r.teams.length-1);
+  renderTournamentBuilder(_tourDraft._id||null);
+}
+
+function tourToggleType(roundIdx, typeId, on){
+  const r = _tourDraft.rounds[roundIdx]; if(!r) return;
+  r.questionTypes = r.questionTypes || [];
+  const i = r.questionTypes.indexOf(typeId);
+  if(on && i<0) r.questionTypes.push(typeId);
+  if(!on && i>=0) r.questionTypes.splice(i,1);
+}
+
+async function saveTournament(id){
+  if(!_tourDraft.name.trim()){ toast('اكتب اسم البطولة','err'); return; }
+  if(!_tourDraft.rounds.length){ toast('أضف دور واحد على الأقل','err'); return; }
+  for(const r of _tourDraft.rounds){
+    if(!r.teams || r.teams.length<2){ toast('كل دور لازم فيه فريقين على الأقل','err'); return; }
+    if(!r.questionTypes || !r.questionTypes.length){ toast('اختر نوع سؤال واحد على الأقل لكل دور','err'); return; }
+  }
+  const payload = {
+    name: _tourDraft.name.trim(),
+    status: _tourDraft.status || 'draft',
+    rounds: _tourDraft.rounds,
+    helpers: _tourDraft.helpers,
+    timerByType: _tourDraft.timerByType,
+    dedupeQuestions: !!_tourDraft.dedupeQuestions,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedBy: me?.phone || ''
+  };
+  try{
+    if(id){
+      await db.collection('tournaments').doc(id).update(payload);
+      const idx = tournaments.findIndex(t=>t._id===id);
+      if(idx>=0) Object.assign(tournaments[idx], payload);
+      toast('✅ تم الحفظ','ok');
+    }else{
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      payload.createdBy = me?.phone || '';
+      payload.usedQuestionIds = [];
+      payload.leaderboard = [];
+      const ref = await db.collection('tournaments').add(payload);
+      tournaments.push(Object.assign({_id:ref.id}, payload));
+      toast('✅ تم إنشاء البطولة','ok');
+    }
+    closeM('modal-tournament');
+    renderTournaments();
+  }catch(e){ console.error(e); toast('خطأ في الحفظ','err'); }
+}
+
+async function deleteTournament(id){
+  const t = tournaments.find(x=>x._id===id); if(!t) return;
+  if(!confirm('حذف بطولة "'+t.name+'"؟')) return;
+  try{
+    await db.collection('tournaments').doc(id).delete();
+    tournaments = tournaments.filter(x=>x._id!==id);
+    renderTournaments();
+    toast('🗑️ تم الحذف','err');
+  }catch(e){ console.error(e); toast('خطأ في الحذف','err'); }
+}
+
+// ── TOURNAMENT QUESTION BANK ────────────────────────────────────
+function fillTQTypeFilter(){
+  const sel = document.getElementById('tqf-type'); if(!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">كل الأنواع</option>' + TQ_TYPES.map(t=>`<option value="${t.id}">${t.icon} ${t.name}</option>`).join('');
+  sel.value = cur;
+}
+
+function renderTQBank(){
+  const tbody = document.getElementById('tqtbody'); if(!tbody) return;
+  const ftext = (document.getElementById('tqf-text')?.value || '').toLowerCase();
+  const ftype = document.getElementById('tqf-type')?.value || '';
+  const list = tqBank.filter(q => (!ftype || q.type===ftype) && (!ftext || (q.text||'').toLowerCase().includes(ftext) || (q.answer||'').toLowerCase().includes(ftext)));
+  document.getElementById('tqcnt').textContent = list.length+' / '+tqBank.length+' سؤال';
+  if(!list.length){
+    tbody.innerHTML = '<tr><td colspan="4" class="empty"><i class="fas fa-inbox"></i><p>لا توجد أسئلة</p></td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(q=>{
+    const tp = tqType(q.type);
+    return `<tr>
+      <td><span style="display:inline-flex;align-items:center;gap:4px;padding:3px 9px;background:${tp.color}11;border:1px solid ${tp.color}44;color:${tp.color};border-radius:99px;font-size:11px;font-weight:700">${tp.icon} ${tp.name}</span></td>
+      <td style="max-width:380px"><div style="white-space:normal;word-break:break-word">${esc(q.text||'')}</div></td>
+      <td style="max-width:200px;color:var(--green)"><div style="white-space:normal;word-break:break-word">${esc(q.answer||'')}</div></td>
+      <td>
+        <button class="btn bg bxs" onclick="openEditTQModal('${q._id}')" title="تعديل"><i class="fas fa-pen"></i></button>
+        <button class="btn bd bxs" onclick="deleteTQ('${q._id}')" title="حذف"><i class="fas fa-trash"></i></button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function openCreateTQModal(){
+  _renderTQModal({type:'general', text:'', answer:'', notes:''}, null);
+}
+function openEditTQModal(id){
+  const q = tqBank.find(x=>x._id===id); if(!q) return;
+  _renderTQModal(q, id);
+}
+function _renderTQModal(q, id){
+  const isEdit = !!id;
+  const typeOpts = TQ_TYPES.map(t=>`<option value="${t.id}" ${q.type===t.id?'selected':''}>${t.icon} ${t.name}</option>`).join('');
+  const opts = Array.isArray(q.options) ? q.options : [];
+  const correctIdx = typeof q.correctIndex==='number' ? q.correctIndex : -1;
+  const optionsRows = [0,1,2,3].map(i=>`
+    <div class="erow" style="margin-bottom:5px">
+      <span class="elbl" style="width:90px"><input type="radio" name="tq-correct" value="${i}" id="tq-c-${i}" ${i===correctIdx?'checked':''} style="margin-left:6px;accent-color:var(--green)"><label for="tq-c-${i}" style="cursor:pointer">${['أ','ب','ج','د'][i]}</label></span>
+      <input type="text" class="einp tq-opt" data-idx="${i}" placeholder="(اختياري) خيار ${i+1}" value="${esc(opts[i]||'')}">
+    </div>
+  `).join('');
+  document.getElementById('mtq-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-${isEdit?'pen':'plus'}" style="color:var(--accent2)"></i> ${isEdit?'تعديل سؤال':'سؤال جديد'}</h2><button class="btnx" onclick="closeM('modal-tq')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">النوع</span><select class="einp" id="tq-type">${typeOpts}</select></div>
+      <div class="erow" style="align-items:flex-start"><span class="elbl">السؤال</span><textarea class="einp" id="tq-text" rows="3" style="resize:vertical">${esc(q.text||'')}</textarea></div>
+      <div class="erow" style="align-items:flex-start"><span class="elbl">الإجابة</span><textarea class="einp" id="tq-answer" rows="2" style="resize:vertical" placeholder="نص الإجابة (إن لم تستخدم خيارات)">${esc(q.answer||'')}</textarea></div>
+      <div class="slbl" style="margin-top:8px"><i class="fas fa-list-ul" style="color:var(--accent2)"></i> الخيارات (لأسئلة الاختيار من متعدد — اتركها فاضية لو السؤال مفتوح)</div>
+      <div style="background:var(--bg2);padding:10px;border-radius:8px;border:1px solid var(--border)">${optionsRows}<div style="font-size:11px;color:var(--muted);margin-top:6px">حدد الإجابة الصحيحة بعلامة الاختيار</div></div>
+      <div class="erow" style="align-items:flex-start;margin-top:8px"><span class="elbl">ملاحظات</span><textarea class="einp" id="tq-notes" rows="2" style="resize:vertical" placeholder="اختياري">${esc(q.notes||'')}</textarea></div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn bp" onclick="saveTQ('${id||''}')"><i class="fas fa-save"></i> حفظ</button>
+        <button class="btn bg" onclick="closeM('modal-tq')">إلغاء</button>
+        ${isEdit?`<button class="btn bd" style="margin-right:auto" onclick="closeM('modal-tq');deleteTQ('${id}')"><i class="fas fa-trash"></i> حذف</button>`:''}
+      </div>
+    </div>`;
+  document.getElementById('modal-tq').style.display='flex';
+}
+async function saveTQ(id){
+  const type = document.getElementById('tq-type').value;
+  const text = document.getElementById('tq-text').value.trim();
+  const answer = document.getElementById('tq-answer').value.trim();
+  const notes = document.getElementById('tq-notes').value.trim();
+  // Collect MC options + correct index
+  const optInputs = [...document.querySelectorAll('.tq-opt')];
+  const optionsArr = optInputs.map(el=>el.value.trim());
+  // Only keep options array if at least 2 non-empty options
+  const filled = optionsArr.filter(o=>o);
+  const useOpts = filled.length >= 2;
+  const correctRadio = document.querySelector('input[name="tq-correct"]:checked');
+  const correctIndex = useOpts && correctRadio ? parseInt(correctRadio.value) : -1;
+  if(!text){ toast('اكتب نص السؤال','err'); return; }
+  if(useOpts && (correctIndex<0 || !optionsArr[correctIndex])){ toast('حدد الإجابة الصحيحة بعلامة الاختيار','err'); return; }
+  const payload = { type, text, answer, notes,
+    options: useOpts ? optionsArr.slice(0, optionsArr.lastIndexOf(filled[filled.length-1])+1) : firebase.firestore.FieldValue.delete(),
+    correctIndex: useOpts ? correctIndex : firebase.firestore.FieldValue.delete(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  try{
+    if(id){
+      await db.collection('tournament_questions').doc(id).update(payload);
+      const idx = tqBank.findIndex(q=>q._id===id);
+      if(idx>=0){
+        const updated = Object.assign({}, tqBank[idx], payload);
+        // Translate FieldValue.delete() to actual JS delete in cache
+        if(!useOpts){ delete updated.options; delete updated.correctIndex; }
+        tqBank[idx] = updated;
+      }
+      toast('✅ تم الحفظ','ok');
+    }else{
+      payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      // For new docs, FieldValue.delete is invalid — strip those fields
+      if(!useOpts){ delete payload.options; delete payload.correctIndex; }
+      const ref = await db.collection('tournament_questions').add(payload);
+      tqBank.push(Object.assign({_id:ref.id}, payload));
+      toast('✅ تم الإضافة','ok');
+    }
+    closeM('modal-tq'); renderTQBank();
+  }catch(e){ console.error(e); toast('خطأ في الحفظ','err'); }
+}
+async function deleteTQ(id){
+  if(!confirm('حذف السؤال؟')) return;
+  try{
+    await db.collection('tournament_questions').doc(id).delete();
+    tqBank = tqBank.filter(q=>q._id!==id);
+    renderTQBank(); toast('🗑️ تم الحذف','err');
+  }catch(e){ console.error(e); toast('خطأ في الحذف','err'); }
+}
+
+// ── BULK IMPORT (JSON) ──────────────────────────────────────────
+function openImportTQModal(){
+  const sample = `[
+  { "type":"speed", "text":"ما هو جوهر الله؟", "answer":"واحد" },
+  { "type":"individual", "text":"عرّف الاتحاد الأقنومي.", "answer":"اتحاد طبيعتين..." }
+]`;
+  const types = TQ_TYPES.map(t=>`<code style="background:var(--bg2);padding:2px 6px;border-radius:4px;font-size:11px;margin:2px;display:inline-block">${t.id}</code>`).join(' ');
+  document.getElementById('mtqimp-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-file-import" style="color:var(--accent2)"></i> استيراد أسئلة JSON</h2><button class="btnx" onclick="closeM('modal-tq-import')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
+        <div style="font-weight:700;margin-bottom:4px">الأنواع المتاحة:</div>
+        <div>${types}</div>
+        <div style="font-weight:700;margin:6px 0 4px">الحقول:</div>
+        <div><code>type</code> (إجباري) — <code>text</code> (إجباري) — <code>answer</code> — <code>notes</code></div>
+      </div>
+      <div class="slbl">الصق JSON هنا أو اختر ملف</div>
+      <input type="file" accept=".json,application/json" id="tq-file" onchange="(function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(){document.getElementById('tq-json').value=r.result;};r.readAsText(f);})(event)" style="margin-bottom:8px">
+      <textarea class="einp" id="tq-json" rows="12" style="font-family:monospace;direction:ltr;resize:vertical" placeholder='${esc(sample)}'></textarea>
+      <div id="tq-imp-status" style="font-size:12px;color:var(--muted);margin-top:8px"></div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn bp" onclick="runImportTQ(false)"><i class="fas fa-upload"></i> استيراد (إضافة)</button>
+        <button class="btn bd" onclick="runImportTQ(true)" title="حذف الكل ثم استيراد"><i class="fas fa-rotate-right"></i> استبدال الكل</button>
+        <button class="btn bg" onclick="closeM('modal-tq-import')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-tq-import').style.display='flex';
+}
+
+async function runImportTQ(replaceAll){
+  const status = document.getElementById('tq-imp-status');
+  let raw = document.getElementById('tq-json').value.trim();
+  if(!raw){ status.innerHTML='<span style="color:var(--red)">الصق JSON أو ارفع ملف</span>'; return; }
+  let data;
+  try{ data = JSON.parse(raw); }catch(e){ status.innerHTML='<span style="color:var(--red)">JSON غير صحيح: '+esc(e.message)+'</span>'; return; }
+  if(!Array.isArray(data)){ status.innerHTML='<span style="color:var(--red)">المتوقع مصفوفة [..]</span>'; return; }
+  const valid = []; const errors = [];
+  const validTypes = TQ_TYPES.map(t=>t.id);
+  data.forEach((q,i)=>{
+    if(!q || typeof q!=='object'){ errors.push('السطر '+(i+1)+': ليس كائن'); return; }
+    if(!q.type || !validTypes.includes(q.type)){ errors.push('السطر '+(i+1)+': نوع غير صالح'); return; }
+    if(!q.text || !String(q.text).trim()){ errors.push('السطر '+(i+1)+': نص فاضي'); return; }
+    const item = {type:q.type, text:String(q.text).trim(), answer:String(q.answer||'').trim(), notes:String(q.notes||'').trim()};
+    // Optional MC options
+    if(Array.isArray(q.options)){
+      const opts = q.options.map(o=>String(o||'').trim()).filter(o=>o);
+      if(opts.length >= 2){
+        item.options = opts;
+        const ci = parseInt(q.correctIndex);
+        if(!isNaN(ci) && ci>=0 && ci<opts.length) item.correctIndex = ci;
+      }
+    }
+    valid.push(item);
+  });
+  if(!valid.length){ status.innerHTML='<span style="color:var(--red)">لا يوجد سؤال صالح. '+esc(errors.slice(0,3).join(' | '))+'</span>'; return; }
+  if(replaceAll){
+    if(!confirm('سيتم حذف جميع الأسئلة الحالية ('+tqBank.length+') واستبدالها بـ '+valid.length+' سؤال. متابعة؟')) return;
+  }
+  status.innerHTML='<i class="fas fa-spinner fa-spin"></i> جاري الاستيراد ('+valid.length+' سؤال)...';
+  try{
+    if(replaceAll){
+      // Delete in batches of 400
+      for(let i=0;i<tqBank.length;i+=400){
+        const batch = db.batch();
+        tqBank.slice(i,i+400).forEach(q=>batch.delete(db.collection('tournament_questions').doc(q._id)));
+        await batch.commit();
+      }
+      tqBank = [];
+    }
+    // Insert in batches of 400
+    const ts = firebase.firestore.FieldValue.serverTimestamp();
+    for(let i=0;i<valid.length;i+=400){
+      const batch = db.batch();
+      const slice = valid.slice(i,i+400);
+      const refs = [];
+      slice.forEach(q=>{
+        const ref = db.collection('tournament_questions').doc();
+        batch.set(ref, Object.assign({}, q, {createdAt:ts, updatedAt:ts}));
+        refs.push(ref);
+      });
+      await batch.commit();
+      slice.forEach((q,k)=>tqBank.push(Object.assign({_id:refs[k].id}, q)));
+    }
+    status.innerHTML = '<span style="color:var(--green)">✅ تم استيراد '+valid.length+' سؤال'+(errors.length?' · تخطي '+errors.length:'')+'</span>';
+    renderTQBank();
+    setTimeout(()=>closeM('modal-tq-import'), 1200);
+    toast('✅ '+valid.length+' سؤال','ok');
+  }catch(e){
+    console.error(e);
+    status.innerHTML = '<span style="color:var(--red)">خطأ: '+esc(e.message||'')+'</span>';
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  LIVE CONSOLE — Phase 3 admin operator panel
+// ════════════════════════════════════════════════════════════════
+let tc = { id:null, doc:null, unsub:null, tickInterval:null };
+
+// ── Offline tournament support ─────────────────────────────────
+var _tcOfflineQueue = [];
+var _tcIsOnline = navigator.onLine;
+
+function _tcUpdateOnlineStatus(){
+  _tcIsOnline = navigator.onLine;
+  const bar = document.getElementById('tc-offline-bar');
+  if(bar) bar.style.display = _tcIsOnline ? 'none' : 'flex';
+  if(_tcIsOnline && _tcOfflineQueue.length > 0) _tcFlushQueue();
+}
+window.addEventListener('online', _tcUpdateOnlineStatus);
+window.addEventListener('offline', _tcUpdateOnlineStatus);
+
+function _tcSaveLocal(){
+  if(!tc.id || !tc.doc) return;
+  try{ localStorage.setItem('tc_local_'+tc.id, JSON.stringify({doc: tc.doc, savedAt: Date.now()})); }catch(e){}
+}
+
+function _tcLoadLocal(id){
+  try{
+    const raw = localStorage.getItem('tc_local_'+id);
+    return raw ? JSON.parse(raw).doc : null;
+  }catch(e){ return null; }
+}
+
+async function _tcFlushQueue(){
+  if(!tc.id || !tc.doc || !_tcOfflineQueue.length) return;
+  const count = _tcOfflineQueue.length;
+  _tcOfflineQueue = [];
+  _tcUpdateQueueBadge();
+  const finalState = tc.doc.liveState;
+  try{
+    await db.collection('tournaments').doc(tc.id).update({
+      liveState: finalState,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    localStorage.removeItem('tc_local_'+tc.id);
+    toast('✅ تمت مزامنة '+count+' تغيير', 'ok');
+  }catch(e){
+    console.error('Flush failed:', e);
+    toast('خطأ في المزامنة — سيُعاد المحاولة', 'err');
+    _tcOfflineQueue = [finalState]; // re-queue so next online event retries
+  }
+}
+
+function _tcUpdateQueueBadge(){
+  const el = document.getElementById('tc-offline-queue-count');
+  if(!el) return;
+  el.textContent = _tcOfflineQueue.length ? _tcOfflineQueue.length+' تغيير معلق' : '';
+}
+
+function tcEnsureLive(t){
+  if(t.liveState && typeof t.liveState==='object') return t.liveState;
+  return {
+    currentRoundIdx:0, currentTeamId:'', nextTeamId:'',
+    currentQuestion:null, questionRevealed:false, answerRevealed:false,
+    timerStartedAt:0, timerDuration:0, timerPaused:false, pausedRemaining:0,
+    teamScores:{}, teamHelpersUsed:{}, eliminatedTeamIds:[],
+    roundResults:[], usedQuestionIds:[], status:'lobby',
+    turnMode:'auto'  // 'auto' = round-robin, 'manual' = admin picks
+  };
+}
+// Track local "timeout fired" state per question to avoid re-firing
+let _tcTimeoutFiredFor = '';
+// Points awarded when admin clicks "صح". Defaults to 1; admin can change it
+// per question via the input rendered in tcRenderStage. Persists across re-
+// renders (so Firestore snapshot updates don't reset the value the admin typed).
+let _tcQScore = 1;
+
+function tcComputeTimer(ls){
+  const dur = ls.timerDuration||0;
+  if(!dur) return {duration:0, remaining:0, paused:false, started:false};
+  if(ls.timerPaused) return {duration:dur, remaining:Math.max(0,Math.round(ls.pausedRemaining||0)), paused:true, started:true};
+  if(!ls.timerStartedAt) return {duration:dur, remaining:dur, paused:false, started:false};
+  const elapsed = Math.floor((Date.now() - ls.timerStartedAt)/1000);
+  return {duration:dur, remaining:Math.max(0, dur-elapsed), paused:false, started:true};
+}
+
+async function tcOpen(id){
+  if(!hasPerm('tournaments')){ toast('ليس لديك صلاحية','err'); return; }
+  tcStop();
+  tc.id = id;
+  _tcOfflineQueue = [];
+  _tcIsOnline = navigator.onLine;
+  goPage('tour-console');
+  const linkEl = document.getElementById('tc-tv-link');
+  if(linkEl) linkEl.href = 'tournament-live.html?id='+encodeURIComponent(id);
+
+  // If offline on open, load from localStorage immediately so the console works
+  if(!_tcIsOnline){
+    const localDoc = _tcLoadLocal(id);
+    if(localDoc){ tc.doc = localDoc; tcRender(); }
+    _tcUpdateOnlineStatus();
+  }
+
+  // Real-time listener — when online, merge server state with any pending local changes
+  tc.unsub = db.collection('tournaments').doc(id).onSnapshot(snap=>{
+    if(!snap.exists){ toast('البطولة غير موجودة','err'); goPage('tournaments'); return; }
+    const serverDoc = Object.assign({_id:snap.id}, snap.data());
+    // If we have pending offline changes, keep our local liveState rather than overwriting
+    if(_tcOfflineQueue.length > 0 && tc.doc){
+      serverDoc.liveState = tc.doc.liveState;
+    }
+    tc.doc = serverDoc;
+    _tcSaveLocal();
+    tcRender();
+  }, err=>{
+    console.error(err);
+    // Firestore error — if we have local state keep running
+    if(!tc.doc){
+      const localDoc = _tcLoadLocal(id);
+      if(localDoc){ tc.doc = localDoc; tcRender(); }
+    }
+    if(_tcIsOnline) toast('خطأ في الاتصال','err');
+  });
+  // Timer tick — also handles auto-timeout (single source: admin console)
+  tc.tickInterval = setInterval(()=>{
+    if(!tc.doc) return;
+    const ls = tcEnsureLive(tc.doc);
+    if(ls.timerStartedAt && !ls.timerPaused && ls.timerDuration){
+      tcRenderTimer();
+      // Auto-timeout: when timer hits 0, fire timeout event ONCE per question
+      const tm = tcComputeTimer(ls);
+      const qid = ls.currentQuestion?._id || '';
+      if(tm.remaining <= 0 && qid && _tcTimeoutFiredFor !== qid){
+        _tcTimeoutFiredFor = qid;
+        tcAutoTimeout();
+      }
+    }
+  }, 500);
+}
+
+// Auto-timeout flow: failure event → reveal answer → (after delay) auto-clear + auto-rotate (if auto mode)
+async function tcAutoTimeout(){
+  const ls = tcEnsureLive(tc.doc);
+  // Fire timeout event for live screen feedback overlay
+  await tcSaveLive({
+    lastEvent: {type:'timeout', teamId: ls.currentTeamId||'', ts: Date.now()},
+    answerRevealed: true,                 // show the right answer
+    timerStartedAt: 0, timerPaused: false, pausedRemaining: 0
+  });
+  toast('⏱️ انتهى الوقت — تم تسجيلها كخطأ','err');
+  // After a brief delay, in auto mode → clear question + advance turn
+  if((ls.turnMode||'auto') === 'auto'){
+    setTimeout(async ()=>{
+      if(!tc.doc) return;
+      const cur = tcEnsureLive(tc.doc);
+      // Only auto-advance if state is still on the same expired question
+      if(cur.currentQuestion?._id !== ls.currentQuestion?._id) return;
+      const round = (tc.doc.rounds||[])[cur.currentRoundIdx]||{teams:[]};
+      const alive = (round.teams||[]).filter(id=>!(cur.eliminatedTeamIds||[]).includes(id));
+      const i = alive.indexOf(cur.currentTeamId);
+      const next = alive.length ? alive[(i+1)%alive.length] : '';
+      await tcSaveLive({
+        currentQuestion:null, questionRevealed:false, answerRevealed:false,
+        timerStartedAt:0, timerPaused:false, pausedRemaining:0,
+        currentTeamId: next
+      });
+    }, 3500);
+  }
+}
+
+function tcStop(){
+  if(tc.unsub){ tc.unsub(); tc.unsub=null; }
+  if(tc.tickInterval){ clearInterval(tc.tickInterval); tc.tickInterval=null; }
+  tc.id=null; tc.doc=null;
+  _tcOfflineQueue = [];
+  _tcUpdateQueueBadge();
+}
+
+function tcRender(){
+  if(!tc.doc) return;
+  const t = tc.doc;
+  const ls = tcEnsureLive(t);
+  const rounds = t.rounds||[];
+  const round = rounds[ls.currentRoundIdx] || rounds[0] || {teams:[],questionTypes:[]};
+  // Header
+  document.getElementById('tc-name').textContent = t.name || 'بطولة';
+  document.getElementById('tc-sub').textContent = 'إدارة لحظة بلحظة — أي تعديل ينعكس فوراً على شاشة العرض';
+  document.getElementById('tc-status').innerHTML = ({lobby:'📝 في الانتظار',playing:'▶️ مباشر',roundEnd:'🏁 نهاية الدور',finished:'🎉 منتهية'})[ls.status] || ls.status;
+  document.getElementById('tc-round').textContent = 'دور '+(ls.currentRoundIdx+1)+' من '+rounds.length+(round.name?' — '+round.name:'');
+  const curTeam = teams.find(x=>x._id===ls.currentTeamId);
+  document.getElementById('tc-current-team').innerHTML = curTeam ? `${curTeam.logo||'⚔️'} ${esc(curTeam.name)}` : '<span style="color:var(--muted)">—</span>';
+  document.getElementById('tc-used-count').textContent = (ls.usedQuestionIds||[]).length;
+  document.getElementById('tc-team-count').textContent = '('+(round.teams||[]).length+' فريق)';
+  // Turn-mode button label
+  const tmBtn = document.getElementById('tc-turn-mode-btn');
+  if(tmBtn){
+    const mode = ls.turnMode || 'auto';
+    tmBtn.innerHTML = mode==='auto' ? '<i class="fas fa-rotate"></i> تلقائي (دوّاري)' : '<i class="fas fa-hand-pointer"></i> يدوي (الأدمن)';
+    tmBtn.style.background = mode==='auto' ? 'rgba(108,92,231,.14)' : 'rgba(0,206,201,.14)';
+    tmBtn.style.borderColor = mode==='auto' ? 'rgba(108,92,231,.4)' : 'rgba(0,206,201,.4)';
+    tmBtn.style.color = mode==='auto' ? 'var(--accent2)' : 'var(--teal)';
+  }
+  tcRenderTeams(round, ls);
+  tcRenderStage();
+  tcRenderTimer();
+  tcRenderLeaderboard(round, ls);
+}
+
+async function tcToggleTurnMode(){
+  const ls = tcEnsureLive(tc.doc);
+  const next = (ls.turnMode||'auto') === 'auto' ? 'manual' : 'auto';
+  await tcSaveLive({turnMode: next});
+  toast(next==='auto' ? '🔄 تلقائي — الدور دوّاري' : '✋ يدوي — اختر الفريق بنفسك','ok');
+}
+
+function tcRenderTeams(round, ls){
+  const wrap = document.getElementById('tc-teams-panel');
+  const teamIds = round.teams||[];
+  const helpersCfg = tc.doc.helpers||{};
+  const used = ls.teamHelpersUsed||{};
+  const elim = ls.eliminatedTeamIds||[];
+  const scores = ls.teamScores||{};
+  if(!teamIds.length){ wrap.innerHTML='<div style="color:var(--muted);text-align:center;padding:20px">لا فرق في هذا الدور</div>'; return; }
+  wrap.innerHTML = teamIds.map(id=>{
+    const t = teams.find(x=>x._id===id) || {name:'فريق غير موجود', logo:'❓', color:'#888', _id:id};
+    const sc = scores[id]||0;
+    const isOut = elim.includes(id);
+    const isTurn = ls.currentTeamId===id;
+    const usedT = used[id]||{};
+    const helperBtns = HELPER_DEFS.filter(h=>(helpersCfg[h.id]||0)>0).map(h=>{
+      const remaining = (helpersCfg[h.id]||0) - (usedT[h.id]||0);
+      const dis = remaining<=0 ? 'disabled' : '';
+      return `<button class="btn bg bxs" ${dis} onclick="tcUseHelper('${id}','${h.id}')" title="${h.name} — متبقي ${remaining}" style="padding:3px 7px;font-size:11px;${dis?'opacity:.35':''}">${h.icon} <b>${remaining}</b></button>`;
+    }).join('');
+    return `<div class="card" style="padding:10px;margin-bottom:8px;border:2px solid ${isTurn?'var(--gold)':'var(--border)'};${isTurn?'background:linear-gradient(90deg,rgba(212,160,23,.08),transparent);':''}${isOut?'opacity:.5;':''}">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <div style="font-size:28px;filter:drop-shadow(0 2px 8px ${t.color}88)">${t.logo}</div>
+        <div style="flex:1;min-width:90px">
+          <div style="font-weight:900;font-size:13px">${esc(t.name)}${isTurn?' <span style="color:var(--gold);font-size:10px;margin-right:4px">⬅ دوره</span>':''}${isOut?' <span style="color:var(--red);font-size:10px;margin-right:4px">خرج</span>':''}</div>
+          <div style="display:flex;align-items:center;gap:5px;margin-top:3px">
+            <span style="font-size:18px;font-weight:900;color:var(--gold)">${sc}</span>
+            <button class="btn bg bxs" onclick="tcAdjScore('${id}',1)" title="+1" style="padding:2px 6px;font-size:11px"><i class="fas fa-plus"></i></button>
+            <button class="btn bg bxs" onclick="tcAdjScore('${id}',-1)" title="-1" style="padding:2px 6px;font-size:11px"><i class="fas fa-minus"></i></button>
+            <button class="btn bg bxs" onclick="tcOpenScore('${id}')" title="تعديل" style="padding:2px 6px;font-size:11px"><i class="fas fa-pen"></i></button>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <button class="btn ${isTurn?'bp':'bg'} bxs" onclick="tcSetTurn('${id}')" title="${isTurn?'الدور الحالي':'حدد دوره'}" style="padding:3px 8px;font-size:11px"><i class="fas fa-user-check"></i> دوره</button>
+          <button class="btn ${isOut?'bp':'bd'} bxs" onclick="tcToggleEliminate('${id}')" title="${isOut?'استرجع':'إقصاء'}" style="padding:3px 8px;font-size:11px"><i class="fas fa-${isOut?'rotate-left':'ban'}"></i> ${isOut?'استرجاع':'إقصاء'}</button>
+        </div>
+      </div>
+      ${helperBtns?`<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">${helperBtns}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function tcRenderStage(){
+  const t = tc.doc; if(!t) return;
+  const ls = tcEnsureLive(t);
+  const rounds = t.rounds||[];
+  const round = rounds[ls.currentRoundIdx] || {questionTypes:[]};
+  const stage = document.getElementById('tc-stage');
+  const q = ls.currentQuestion;
+  const qStatus = document.getElementById('tc-q-status');
+
+  // ── 3 labelled question-selection approaches ───────────────────────────
+  const hasAnyAvail = (round.questionTypes||[]).some(tid=>{
+    let pool = tqBank.filter(x=>x.type===tid);
+    if(t.dedupeQuestions!==false) pool = pool.filter(x=>!(ls.usedQuestionIds||[]).includes(x._id));
+    return pool.length > 0;
+  });
+  const typeOpts = (round.questionTypes||[]).map(tid=>{
+    const tp = tqType(tid);
+    const pool = tqBank.filter(x=>x.type===tid);
+    const avail = t.dedupeQuestions!==false ? pool.filter(x=>!(ls.usedQuestionIds||[]).includes(x._id)).length : pool.length;
+    return `<option value="${tid}" ${avail===0?'disabled':''}>${tp.icon} ${tp.name} (${avail} متاح)</option>`;
+  }).join('');
+  const overwriteNote = q ? `<div style="font-size:10px;color:var(--orange);font-style:italic;margin:0 0 6px;display:flex;align-items:center;gap:4px"><i class="fas fa-circle-exclamation"></i> الضغط سيستبدل السؤال الحالي</div>` : '';
+  const approachPicker = `
+    <div style="border:1.5px solid rgba(255,255,255,.1);border-radius:14px;overflow:hidden;margin-bottom:12px">
+      ${overwriteNote ? `<div style="padding:6px 12px;background:rgba(253,203,110,.1)">${overwriteNote}</div>` : ''}
+
+      <!-- Approach 1 — Mystery Box -->
+      <div style="padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(90deg,rgba(212,160,23,.12),transparent)">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="min-width:130px">
+            <div style="font-size:12px;font-weight:900;color:var(--gold)">🎁 صندوق الغموض</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">حركة للاعبين، ثم السؤال تلقائياً</div>
+          </div>
+          <button class="btn bsm" style="background:linear-gradient(135deg,#FFD700,#FFA502);color:#000;font-weight:900;margin-right:auto" onclick="tcMysteryBox()" ${!hasAnyAvail?'disabled':''}><i class="fas fa-gift"></i> ابدأ الصندوق</button>
+        </div>
+      </div>
+
+      <!-- Approach 2 — Quick Random (direct reveal) -->
+      <div style="padding:10px 13px;border-bottom:1px solid rgba(255,255,255,.07);background:linear-gradient(90deg,rgba(108,92,231,.10),transparent)">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+          <div style="min-width:130px">
+            <div style="font-size:12px;font-weight:900;color:var(--team-a)">🎲 عشوائي مباشر</div>
+            <div style="font-size:10px;color:var(--muted);margin-top:2px">فئة وسؤال عشوائي يظهر فوراً</div>
+          </div>
+          <button class="btn bg bsm" style="border-color:rgba(108,92,231,.5);margin-right:auto" onclick="tcQuickRandom()" ${!hasAnyAvail?'disabled':''}><i class="fas fa-dice"></i> اختيار عشوائي</button>
+        </div>
+      </div>
+
+      <!-- Approach 3 — Manual pick by category -->
+      <div style="padding:10px 13px;background:linear-gradient(90deg,rgba(0,206,201,.08),transparent)">
+        <div style="font-size:12px;font-weight:900;color:var(--team-b);margin-bottom:7px">🎯 اختيار يدوي</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <select id="tc-pick-type" class="einp" style="flex:1;min-width:160px;font-size:12px">${typeOpts || '<option>لا أنواع متاحة</option>'}</select>
+          <button class="btn bg bsm" onclick="tcPickRandom()" ${!hasAnyAvail?'disabled':''}><i class="fas fa-shuffle"></i> عشوائي من الفئة</button>
+          <button class="btn bg bsm" onclick="tcOpenPickList()" ${!hasAnyAvail?'disabled':''}><i class="fas fa-list"></i> تصفح الأسئلة</button>
+        </div>
+      </div>
+    </div>`;
+
+  if(!q){
+    qStatus.textContent = 'لم يتم اختيار سؤال';
+    stage.innerHTML = approachPicker;
+    return;
+  }
+  const tp = tqType(q.type);
+  qStatus.innerHTML = ls.questionRevealed
+    ? '<span style="color:var(--green)">✓ معروض على الشاشة</span>'
+    : '<span style="color:var(--orange);font-weight:900">👁 معاينة — لم يُعرض بعد</span>';
+
+  // ── Admin preview card (visible only to admin, not to players) ────────
+  const hasOptions = Array.isArray(q.options) && q.options.length;
+  const correctIdx = typeof q.correctIndex==='number' ? q.correctIndex : -1;
+  const optionsPreviewHtml = hasOptions ? `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px">
+      ${q.options.map((opt,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:7px 10px;background:${(ls.answerRevealed||!ls.questionRevealed)&&i===correctIdx?'rgba(0,184,148,.20)':'rgba(255,255,255,.04)'};border:1px solid ${(ls.answerRevealed||!ls.questionRevealed)&&i===correctIdx?'rgba(0,184,148,.6)':'rgba(255,255,255,.10)'};border-radius:8px;font-size:12px;font-weight:700">
+        <span style="width:24px;height:24px;border-radius:6px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0">${['أ','ب','ج','د','هـ'][i]||(i+1)}</span>
+        <span style="flex:1">${esc(opt)}</span>
+        ${i===correctIdx?'<span style="color:var(--green);font-size:14px">✓</span>':''}
+      </div>`).join('')}
+    </div>` : '';
+
+  const previewSection = !ls.questionRevealed ? `
+    <div style="background:linear-gradient(135deg,rgba(253,203,110,.08),rgba(253,203,110,.03));border:1.5px solid rgba(253,203,110,.35);border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;background:${tp.color}22;color:${tp.color};border:1px solid ${tp.color}44">${tp.icon} ${tp.name}</div>
+        <span style="font-size:10px;color:var(--orange);font-weight:700;background:rgba(253,203,110,.15);padding:2px 8px;border-radius:99px;border:1px solid rgba(253,203,110,.3)">👁 أدمن فقط</span>
+        <button class="btn bg bxs" onclick="tcEditQ()" style="margin-right:auto;font-size:11px"><i class="fas fa-pen"></i> تعديل</button>
+      </div>
+      <div style="font-size:16px;font-weight:800;line-height:1.7;white-space:pre-wrap;margin-bottom:6px">${esc(q.text||'')}</div>
+      ${q.notes?`<div style="font-size:11px;color:var(--muted);font-style:italic;margin-bottom:6px">${esc(q.notes)}</div>`:''}
+      ${optionsPreviewHtml}
+      <div style="margin-top:10px;padding:8px 10px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.35);border-radius:8px;font-size:12px">
+        <span style="color:var(--green);font-weight:800;font-size:11px">✓ الإجابة الصحيحة:</span>
+        <span style="font-weight:700;margin-right:6px">${esc(q.answer||'(بدون إجابة محددة)')}</span>
+      </div>
+      <!-- BIG reveal CTA -->
+      <button onclick="tcRevealQuestion()" style="width:100%;margin-top:12px;padding:13px;background:linear-gradient(135deg,#FFD700,#FFA502);color:#1a1300;border:none;border-radius:10px;font-family:inherit;font-size:16px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 6px 22px rgba(212,160,23,.4);transition:.2s" onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+        <i class="fas fa-eye"></i> عرض للاعبين الآن
+      </button>
+      <button class="btn bd" onclick="tcClearQuestion()" style="width:100%;margin-top:6px;font-size:12px"><i class="fas fa-xmark"></i> تجاهل / اختر سؤالاً آخر</button>
+    </div>` : `
+    <div style="background:rgba(0,184,148,.08);border:1px solid rgba(0,184,148,.3);border-radius:14px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;background:${tp.color}22;color:${tp.color};border:1px solid ${tp.color}44">${tp.icon} ${tp.name}</div>
+        <span style="font-size:11px;color:var(--green);font-weight:800;margin-right:auto">✅ معروض</span>
+      </div>
+      <div style="font-size:14px;font-weight:700;line-height:1.6;white-space:pre-wrap;margin-bottom:6px">${esc(q.text||'')}</div>
+      ${optionsPreviewHtml}
+      <div style="margin-top:8px;padding:6px 10px;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.3);border-radius:8px;font-size:12px">
+        <span style="color:var(--green);font-weight:800;font-size:11px">✓ الإجابة:</span>
+        <span style="font-weight:700;margin-right:6px">${esc(q.answer||'(بدون إجابة محددة)')}</span>
+        ${ls.answerRevealed?'<span style="color:var(--green);font-size:10px;font-weight:700"> · معروضة على الشاشة</span>':''}
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:8px">
+        ${ls.answerRevealed ? `<button class="btn bg bsm" disabled><i class="fas fa-check"></i> الإجابة معروضة</button>` : `<button class="btn bp bsm" onclick="tcRevealAnswer()"><i class="fas fa-check"></i> اعرض الإجابة</button>`}
+        <button class="btn bd bsm" onclick="tcClearQuestion()" style="margin-right:auto"><i class="fas fa-xmark"></i> أنهِ / تخطي</button>
+      </div>
+    </div>`;
+
+  stage.innerHTML = approachPicker + previewSection + `
+    <div style="margin-top:10px;padding:10px 12px;border-top:1px dashed var(--border);border-radius:0 0 10px 10px;background:rgba(255,255,255,.02)">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;font-weight:700">⚡ حكم على الإجابة</div>
+
+      <!-- Score-per-question control (default 1, admin-adjustable) -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+        <span style="font-size:12px;color:var(--muted)">النقاط:</span>
+        <div style="display:flex;align-items:center;gap:4px;background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:8px;overflow:hidden">
+          <button class="btn bg bxs" onclick="_tcQScore=Math.max(0,_tcQScore-1);document.getElementById('tc-q-score').value=_tcQScore;document.getElementById('tc-score-preview').textContent=_tcQScore" style="border:none;border-radius:0;padding:4px 8px;font-size:13px">−</button>
+          <input type="number" id="tc-q-score" value="${_tcQScore}" min="0" max="1000"
+            oninput="_tcQScore=Math.max(0,parseInt(this.value)||0);document.getElementById('tc-score-preview').textContent=_tcQScore"
+            style="width:52px;text-align:center;background:transparent;border:none;color:var(--gold);font-weight:900;font-size:16px;padding:4px 0;font-family:inherit">
+          <button class="btn bg bxs" onclick="_tcQScore=Math.min(1000,_tcQScore+1);document.getElementById('tc-q-score').value=_tcQScore;document.getElementById('tc-score-preview').textContent=_tcQScore" style="border:none;border-radius:0;padding:4px 8px;font-size:13px">＋</button>
+        </div>
+        <span style="font-size:10px;color:var(--muted);font-style:italic">تُضاف عند الضغط على صح</span>
+      </div>
+
+      <!-- Verdict buttons -->
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <button class="btn bsm" style="background:rgba(34,197,94,.18);color:var(--green);border:1.5px solid rgba(34,197,94,.5);font-weight:900" onclick="tcFireEvent('correct')" title="إجابة صحيحة: تضيف النقاط وتوقف المؤقت">
+          <i class="fas fa-circle-check"></i> صح ✨ (+<span id="tc-score-preview">${_tcQScore}</span>)
+        </button>
+        <button class="btn bsm" style="background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.4)" onclick="tcFireEvent('wrong')">
+          <i class="fas fa-circle-xmark"></i> غلط
+        </button>
+        <button class="btn bg bsm" onclick="tcFireEvent('timeout')"><i class="fas fa-hourglass-end"></i> انتهى الوقت</button>
+        <button class="btn bg bsm" onclick="tcFireEvent('celebrate')"><i class="fas fa-party-horn"></i> احتفال</button>
+      </div>
+    </div>`;
+}
+
+function tcRenderTimer(){
+  const t = tc.doc; if(!t) return;
+  const ls = tcEnsureLive(t);
+  const tm = tcComputeTimer(ls);
+  const el = document.getElementById('tc-timer-num');
+  if(!tm.duration){ el.innerHTML='<span style="color:var(--muted);font-size:13px">بدون مؤقت</span>'; return; }
+  el.textContent = tm.remaining + ' ثانية' + (tm.paused?' (متوقف)':tm.started?'':' (لم يبدأ)');
+  el.style.color = tm.remaining<=5 && tm.remaining>0 && !tm.paused ? 'var(--red)' : 'var(--gold)';
+}
+
+function tcRenderLeaderboard(round, ls){
+  const teamIds = round.teams||[];
+  const scores = ls.teamScores||{};
+  const ranked = teamIds.map(id=>{
+    const t = teams.find(x=>x._id===id) || {name:id, logo:'❓'};
+    return {id, sc:scores[id]||0, t};
+  }).sort((a,b)=>b.sc-a.sc);
+  const adv = round.advance||1;
+  document.getElementById('tc-leaderboard').innerHTML = ranked.map((r,i)=>{
+    const isAdv = i<adv && ls.status!=='lobby';
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:8px;background:${i===0?'linear-gradient(90deg,rgba(212,160,23,.18),transparent)':'rgba(255,255,255,.02)'};margin-bottom:5px;${isAdv?'border-right:3px solid var(--green)':''}">
+      <span style="font-weight:900;color:var(--gold);width:36px">${medal}</span>
+      <span style="font-size:20px">${r.t.logo||'⚔️'}</span>
+      <span style="flex:1;font-weight:700">${esc(r.t.name)} ${isAdv?'<span style="color:var(--green);font-size:10px">يتأهل</span>':''}</span>
+      <span style="font-weight:900;color:var(--gold);font-size:16px">${r.sc}</span>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);text-align:center;padding:14px">لا فرق</div>';
+}
+
+// ── State updates ─────────────────────────────────────────────
+async function tcSaveLive(patch){
+  if(!tc.id || !tc.doc) return;
+  const ls = tcEnsureLive(tc.doc);
+  const next = Object.assign({}, ls, patch);
+
+  // Optimistic: update in memory and re-render immediately (works offline too)
+  tc.doc = Object.assign({}, tc.doc, {liveState: next});
+  tcRender();
+  _tcSaveLocal();
+
+  if(!_tcIsOnline){
+    _tcOfflineQueue.push(patch);
+    _tcUpdateQueueBadge();
+    return;
+  }
+  try{
+    await db.collection('tournaments').doc(tc.id).update({liveState: next, updatedAt: firebase.firestore.FieldValue.serverTimestamp()});
+  }catch(e){
+    if(!navigator.onLine){
+      _tcIsOnline = false;
+      _tcUpdateOnlineStatus();
+      _tcOfflineQueue.push(patch);
+      _tcUpdateQueueBadge();
+    } else {
+      console.error(e);
+      toast('فشل الحفظ','err');
+    }
+  }
+}
+
+async function tcStart(){
+  const ls = tcEnsureLive(tc.doc);
+  const round = (tc.doc.rounds||[])[ls.currentRoundIdx]||{teams:[]};
+  const scores = Object.assign({}, ls.teamScores||{});
+  (round.teams||[]).forEach(id=>{ if(scores[id]===undefined) scores[id]=0; });
+  try{
+    await db.collection('tournaments').doc(tc.id).update({
+      status:'active',
+      liveState: Object.assign({}, ls, {status:'playing', teamScores:scores})
+    });
+    toast('▶️ بدأت البطولة','ok');
+  }catch(e){ console.error(e); toast('خطأ','err'); }
+}
+
+async function tcPause(){
+  try{
+    await db.collection('tournaments').doc(tc.id).update({status:'paused', 'liveState.timerPaused':true});
+    toast('⏸️ موقوف','ok');
+  }catch(e){ console.error(e); toast('خطأ','err'); }
+}
+
+async function tcReset(){
+  if(!confirm('إعادة تهيئة كاملة؟ ستفقد كل النقاط والتقدم لهذه البطولة.')) return;
+  try{
+    await db.collection('tournaments').doc(tc.id).update({status:'draft', liveState: firebase.firestore.FieldValue.delete()});
+    toast('تمت الإعادة','ok');
+  }catch(e){ console.error(e); toast('خطأ','err'); }
+}
+
+async function tcSetTurn(teamId){
+  await tcSaveLive({currentTeamId: teamId});
+}
+
+async function tcAutoNextTurn(){
+  const ls = tcEnsureLive(tc.doc);
+  const round = (tc.doc.rounds||[])[ls.currentRoundIdx]||{teams:[]};
+  const alive = (round.teams||[]).filter(id=>!(ls.eliminatedTeamIds||[]).includes(id));
+  if(!alive.length){ toast('لا فرق متاحة','err'); return; }
+  const idx = alive.indexOf(ls.currentTeamId);
+  const next = alive[(idx+1) % alive.length];
+  await tcSaveLive({currentTeamId: next});
+}
+
+async function tcToggleEliminate(teamId){
+  const ls = tcEnsureLive(tc.doc);
+  const elim = [...(ls.eliminatedTeamIds||[])];
+  const i = elim.indexOf(teamId);
+  if(i>=0) elim.splice(i,1); else elim.push(teamId);
+  await tcSaveLive({eliminatedTeamIds: elim});
+}
+
+async function tcAdjScore(teamId, delta){
+  const ls = tcEnsureLive(tc.doc);
+  const scores = Object.assign({}, ls.teamScores||{});
+  scores[teamId] = Math.max(0, (scores[teamId]||0) + delta);
+  await tcSaveLive({teamScores: scores});
+}
+
+function tcOpenScore(teamId){
+  const t = teams.find(x=>x._id===teamId) || {name:'فريق', logo:'❓'};
+  const ls = tcEnsureLive(tc.doc);
+  const cur = (ls.teamScores||{})[teamId]||0;
+  document.getElementById('mtcscore-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-pen"></i> تعديل نقاط ${t.logo} ${esc(t.name)}</h2><button class="btnx" onclick="closeM('modal-tc-score')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">النقاط</span><input type="number" id="tc-new-score" class="einp" value="${cur}" min="0"></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn bp" onclick="tcSaveScore('${teamId}')"><i class="fas fa-save"></i> حفظ</button>
+        <button class="btn bg" onclick="closeM('modal-tc-score')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-tc-score').style.display='flex';
+  setTimeout(()=>document.getElementById('tc-new-score')?.focus(), 50);
+}
+async function tcSaveScore(teamId){
+  const v = Math.max(0, parseInt(document.getElementById('tc-new-score').value)||0);
+  const ls = tcEnsureLive(tc.doc);
+  const scores = Object.assign({}, ls.teamScores||{});
+  scores[teamId] = v;
+  await tcSaveLive({teamScores: scores});
+  closeM('modal-tc-score');
+}
+
+async function tcUseHelper(teamId, helperId){
+  const ls = tcEnsureLive(tc.doc);
+  const cfg = tc.doc.helpers||{};
+  const used = JSON.parse(JSON.stringify(ls.teamHelpersUsed||{}));
+  used[teamId] = used[teamId]||{};
+  const remaining = (cfg[helperId]||0) - (used[teamId][helperId]||0);
+  if(remaining<=0){ toast('لا يوجد متبقي','err'); return; }
+  used[teamId][helperId] = (used[teamId][helperId]||0) + 1;
+  await tcSaveLive({teamHelpersUsed: used});
+  const h = HELPER_DEFS.find(x=>x.id===helperId);
+  toast((h?.icon||'🛟')+' '+(h?.name||'')+' — تم الاستخدام','ok');
+}
+
+// ── Question staging ─────────────────────────────────────────
+async function tcPickRandom(){
+  const ls = tcEnsureLive(tc.doc);
+  const sel = document.getElementById('tc-pick-type');
+  if(!sel || !sel.value){ toast('اختر نوع سؤال','err'); return; }
+  const tid = sel.value;
+  const used = ls.usedQuestionIds||[];
+  const dedupe = tc.doc.dedupeQuestions !== false;
+  let pool = tqBank.filter(q=>q.type===tid);
+  if(dedupe) pool = pool.filter(q=>!used.includes(q._id));
+  if(!pool.length){ toast('لا توجد أسئلة متاحة في هذا النوع','err'); return; }
+  const q = pool[Math.floor(Math.random()*pool.length)];
+  const dur = (tc.doc.timerByType||{})[tid]||0;
+  _tcTimeoutFiredFor = ''; _tcQScore = 1;
+  // If turn-mode is auto and no current team, default to first alive
+  let curTeamPatch = {};
+  if(!ls.currentTeamId && (ls.turnMode||'auto')==='auto'){
+    const round = (tc.doc.rounds||[])[ls.currentRoundIdx]||{teams:[]};
+    const alive = (round.teams||[]).filter(id=>!(ls.eliminatedTeamIds||[]).includes(id));
+    if(alive.length) curTeamPatch.currentTeamId = alive[0];
+  }
+  // Approach 3 — load for admin preview (admin explicitly reveals when ready)
+  await tcSaveLive(Object.assign({
+    currentQuestion: {_id:q._id, type:q.type, text:q.text, answer:q.answer||'', notes:q.notes||'',
+      options: Array.isArray(q.options)?q.options:null, correctIndex: typeof q.correctIndex==='number'?q.correctIndex:-1},
+    questionRevealed:false, answerRevealed:false,
+    timerDuration:dur, timerStartedAt:0, timerPaused:false, pausedRemaining:0,
+    usedQuestionIds: [...used, q._id]
+  }, curTeamPatch));
+  toast('🎯 السؤال جاهز — راجع وأعرض للاعبين','ok');
+}
+
+// ── Quick random: fully random category + random question (no spinner animation) ──
+async function tcQuickRandom(){
+  const ls = tcEnsureLive(tc.doc);
+  const round = (tc.doc.rounds||[])[ls.currentRoundIdx] || {teams:[],questionTypes:[]};
+  const used = ls.usedQuestionIds||[];
+  const dedupe = tc.doc.dedupeQuestions !== false;
+
+  const availableTypes = (round.questionTypes||[]).filter(tid=>{
+    let pool = tqBank.filter(q=>q.type===tid);
+    if(dedupe) pool = pool.filter(q=>!used.includes(q._id));
+    return pool.length > 0;
+  });
+  if(!availableTypes.length){ toast('لا توجد فئات بأسئلة متاحة','err'); return; }
+
+  const finalType = availableTypes[Math.floor(Math.random()*availableTypes.length)];
+  let pool = tqBank.filter(q=>q.type===finalType);
+  if(dedupe) pool = pool.filter(q=>!used.includes(q._id));
+  const q = pool[Math.floor(Math.random()*pool.length)];
+  const dur = (tc.doc.timerByType||{})[finalType] || 0;
+
+  _tcTimeoutFiredFor = ''; _tcQScore = 1;
+  let curTeamPatch = {};
+  if(!ls.currentTeamId && (ls.turnMode||'auto')==='auto'){
+    const alive = (round.teams||[]).filter(id=>!(ls.eliminatedTeamIds||[]).includes(id));
+    if(alive.length) curTeamPatch.currentTeamId = alive[0];
+  }
+
+  // Approach 2 — load for admin preview (admin reveals when ready)
+  await tcSaveLive(Object.assign({
+    currentQuestion: {
+      _id:q._id, type:q.type, text:q.text, answer:q.answer||'', notes:q.notes||'',
+      options: Array.isArray(q.options)?q.options:null,
+      correctIndex: typeof q.correctIndex==='number'?q.correctIndex:-1
+    },
+    questionRevealed:false, answerRevealed:false,
+    timerDuration:dur, timerStartedAt:0, timerPaused:false, pausedRemaining:0,
+    usedQuestionIds: [...used, q._id]
+  }, curTeamPatch));
+
+  const tp = tqType(finalType);
+  toast(`🎲 ${tp.icon} ${tp.name} — راجع وأعرض للاعبين`,'ok');
+}
+
+// ── Mystery box: random category + random question with animated reveal on viewer ──
+async function tcMysteryBox(){
+  const ls = tcEnsureLive(tc.doc);
+  const round = (tc.doc.rounds||[])[ls.currentRoundIdx] || {teams:[],questionTypes:[]};
+  const used = ls.usedQuestionIds||[];
+  const dedupe = tc.doc.dedupeQuestions !== false;
+
+  // Pool of types that still have at least 1 available question
+  const availableTypes = (round.questionTypes||[]).filter(tid=>{
+    let pool = tqBank.filter(q=>q.type===tid);
+    if(dedupe) pool = pool.filter(q=>!used.includes(q._id));
+    return pool.length > 0;
+  });
+  if(!availableTypes.length){ toast('لا توجد فئات بأسئلة متاحة','err'); return; }
+
+  // Pick the category fairly + a random question from it
+  const finalType = availableTypes[Math.floor(Math.random()*availableTypes.length)];
+  let pool = tqBank.filter(q=>q.type===finalType);
+  if(dedupe) pool = pool.filter(q=>!used.includes(q._id));
+  const q = pool[Math.floor(Math.random()*pool.length)];
+  const dur = (tc.doc.timerByType||{})[finalType] || 0;
+
+  _tcTimeoutFiredFor = ''; _tcQScore = 1;
+  // Default to first alive team if no current team and we're in auto mode
+  let curTeamPatch = {};
+  if(!ls.currentTeamId && (ls.turnMode||'auto')==='auto'){
+    const alive = (round.teams||[]).filter(id=>!(ls.eliminatedTeamIds||[]).includes(id));
+    if(alive.length) curTeamPatch.currentTeamId = alive[0];
+  }
+  const teamId = curTeamPatch.currentTeamId || ls.currentTeamId || '';
+  const sessionId = Date.now();
+
+  await tcSaveLive(Object.assign({
+    mysteryBox: {sessionId, finalType, teamId, ts: sessionId},
+    currentQuestion: {
+      _id:q._id, type:q.type, text:q.text, answer:q.answer||'', notes:q.notes||'',
+      options: Array.isArray(q.options)?q.options:null,
+      correctIndex: typeof q.correctIndex==='number'?q.correctIndex:-1
+    },
+    questionRevealed:false, answerRevealed:false,
+    timerDuration:dur, timerStartedAt:0, timerPaused:false, pausedRemaining:0,
+    usedQuestionIds: [...used, q._id]
+  }, curTeamPatch));
+
+  // Question lands in preview mode — admin reviews/edits, then presses "عرض للاعبين الآن"
+  toast('🎁 الصندوق يُشغَّل — راجع السؤال ثم اعرضه للاعبين','ok');
+}
+
+function tcOpenPickList(){
+  const ls = tcEnsureLive(tc.doc);
+  const sel = document.getElementById('tc-pick-type');
+  const tid = sel?.value || (tc.doc.rounds[ls.currentRoundIdx]?.questionTypes||[])[0];
+  if(!tid){ toast('اختر نوع','err'); return; }
+  const used = ls.usedQuestionIds||[];
+  const dedupe = tc.doc.dedupeQuestions !== false;
+  const pool = tqBank.filter(q=>q.type===tid);
+  const tp = tqType(tid);
+  document.getElementById('mtcpick-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-list"></i> اختر سؤال — ${tp.icon} ${tp.name}</h2><button class="btnx" onclick="closeM('modal-tc-pick')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody" style="max-height:70vh;overflow-y:auto">
+      <input type="text" class="einp" id="tc-pick-search" placeholder="🔍 بحث..." oninput="tcFilterPickList()" style="margin-bottom:10px">
+      <div id="tc-pick-list">${pool.map(q=>{
+        const isUsed = used.includes(q._id);
+        return `<div class="card" style="padding:10px;margin-bottom:6px;${isUsed && dedupe?'opacity:.45':''}" data-text="${esc((q.text||'').toLowerCase())}">
+          <div style="font-size:13px;font-weight:700;line-height:1.5">${esc(q.text||'')}${isUsed?' <span style="color:var(--orange);font-size:10px">(مستخدم)</span>':''}</div>
+          ${q.answer?`<div style="font-size:11px;color:var(--green);margin-top:4px">✓ ${esc(q.answer)}</div>`:''}
+          <div style="display:flex;gap:5px;margin-top:6px">
+            <button class="btn bp bxs" onclick="tcPickSpecific('${q._id}',${isUsed?'true':'false'})">${isUsed?'إعادة استخدام':'اختر هذا السؤال'}</button>
+          </div>
+        </div>`;
+      }).join('') || '<div style="color:var(--muted);text-align:center;padding:14px">لا أسئلة في هذا النوع</div>'}</div>
+    </div>`;
+  document.getElementById('modal-tc-pick').style.display='flex';
+}
+function tcFilterPickList(){
+  const v = (document.getElementById('tc-pick-search').value||'').toLowerCase();
+  document.querySelectorAll('#tc-pick-list .card').forEach(el=>{
+    el.style.display = (el.dataset.text||'').includes(v) ? '' : 'none';
+  });
+}
+async function tcPickSpecific(qid, alreadyUsed){
+  const q = tqBank.find(x=>x._id===qid); if(!q) return;
+  const ls = tcEnsureLive(tc.doc);
+  const used = ls.usedQuestionIds||[];
+  const dur = (tc.doc.timerByType||{})[q.type]||0;
+  const newUsed = used.includes(qid) ? used : [...used, qid];
+  _tcTimeoutFiredFor = ''; _tcQScore = 1;
+  // Manual browse — load for admin preview then admin reveals when ready
+  await tcSaveLive({
+    currentQuestion: {_id:q._id, type:q.type, text:q.text, answer:q.answer||'', notes:q.notes||'',
+      options: Array.isArray(q.options)?q.options:null, correctIndex: typeof q.correctIndex==='number'?q.correctIndex:-1},
+    questionRevealed:false, answerRevealed:false,
+    timerDuration:dur, timerStartedAt:0, timerPaused:false, pausedRemaining:0,
+    usedQuestionIds: newUsed
+  });
+  closeM('modal-tc-pick');
+  toast('🎯 السؤال جاهز — راجع وأعرض للاعبين','ok');
+}
+
+function tcEditQ(){
+  const ls = tcEnsureLive(tc.doc);
+  if(!ls.currentQuestion) return;
+  const q = ls.currentQuestion;
+  document.getElementById('mtcedit-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-pen"></i> عدّل السؤال قبل العرض</h2><button class="btnx" onclick="closeM('modal-tc-edit')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">التعديل هنا لا يغيّر السؤال في البنك — فقط هذه المرة.</div>
+      <div class="erow" style="align-items:flex-start"><span class="elbl">السؤال</span><textarea class="einp" id="tc-eq-text" rows="3">${esc(q.text||'')}</textarea></div>
+      <div class="erow" style="align-items:flex-start"><span class="elbl">الإجابة</span><textarea class="einp" id="tc-eq-answer" rows="2">${esc(q.answer||'')}</textarea></div>
+      <div class="erow" style="align-items:flex-start"><span class="elbl">ملاحظات</span><textarea class="einp" id="tc-eq-notes" rows="2">${esc(q.notes||'')}</textarea></div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn bp" onclick="tcSaveQEdit()"><i class="fas fa-save"></i> حفظ</button>
+        <button class="btn bg" onclick="closeM('modal-tc-edit')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-tc-edit').style.display='flex';
+}
+async function tcSaveQEdit(){
+  const ls = tcEnsureLive(tc.doc);
+  const cur = ls.currentQuestion||{};
+  const next = Object.assign({}, cur, {
+    text: document.getElementById('tc-eq-text').value,
+    answer: document.getElementById('tc-eq-answer').value,
+    notes: document.getElementById('tc-eq-notes').value
+  });
+  await tcSaveLive({currentQuestion: next});
+  closeM('modal-tc-edit');
+  toast('✅ تم التعديل','ok');
+}
+
+// Build the turn-rotation patch: advances currentTeamId to the next alive
+// team (auto mode only). Mutates `patch` in-place and returns it.
+function _applyTurnRotation(ls, patch){
+  if((ls.turnMode||'auto') !== 'auto') return patch;
+  const round = (tc.doc.rounds||[])[ls.currentRoundIdx]||{teams:[]};
+  const alive = (round.teams||[]).filter(id=>!(ls.eliminatedTeamIds||[]).includes(id));
+  if(!alive.length) return patch;
+  const i = alive.indexOf(ls.currentTeamId);
+  patch.currentTeamId = alive[(i+1) % alive.length];
+  return patch;
+}
+
+async function tcFireEvent(type){
+  const ls = tcEnsureLive(tc.doc);
+  const patch = {lastEvent: {type, teamId: ls.currentTeamId||'', ts: Date.now()}};
+
+  if(type === 'correct' && ls.currentTeamId){
+    // Award points
+    const delta = Math.max(0, _tcQScore || 1);
+    const scores = Object.assign({}, ls.teamScores||{});
+    scores[ls.currentTeamId] = (scores[ls.currentTeamId]||0) + delta;
+    patch.teamScores = scores;
+    // Reveal answer, stop timer, clear question, rotate to next team
+    patch.answerRevealed = true;
+    patch.timerStartedAt = 0; patch.timerPaused = false; patch.pausedRemaining = 0;
+    patch.currentQuestion = null; patch.questionRevealed = false; patch.answerRevealed = false;
+    _applyTurnRotation(ls, patch);
+    _tcTimeoutFiredFor = ''; _tcQScore = 1;
+    toast(`✨ صح! +${delta} نقطة — دور الفريق التالي`, 'ok');
+
+  } else if(type === 'wrong'){
+    // Stop timer, clear question, rotate to next team — no score change
+    patch.timerStartedAt = 0; patch.timerPaused = false; patch.pausedRemaining = 0;
+    patch.currentQuestion = null; patch.questionRevealed = false; patch.answerRevealed = false;
+    _applyTurnRotation(ls, patch);
+    _tcTimeoutFiredFor = ''; _tcQScore = 1;
+    toast('❌ غلط — دور الفريق التالي', 'ok');
+
+  } else if(type === 'timeout'){
+    toast('⏱️ انتهى الوقت', 'ok');
+  } else {
+    toast(({celebrate:'🎉 احتفال'})[type]||'', 'ok');
+  }
+
+  await tcSaveLive(patch);
+}
+
+// Shared helper: build a "reveal now" patch — auto-starts timer if configured.
+// Used by all question-selection flows that show the question directly.
+function _revealNowPatch(dur){
+  const patch = {questionRevealed:true, answerRevealed:false};
+  if(dur){
+    patch.timerStartedAt = Date.now();
+    patch.timerPaused = false;
+    patch.pausedRemaining = 0;
+  }
+  return patch;
+}
+
+async function tcRevealQuestion(){
+  const ls = tcEnsureLive(tc.doc);
+  const patch = {questionRevealed:true};
+  // Auto-start the timer when the question is shown — only if a duration is set
+  // and the timer hasn't already been started/paused.
+  if(ls.timerDuration && !ls.timerStartedAt && !ls.timerPaused){
+    patch.timerStartedAt = Date.now();
+    patch.timerPaused = false;
+    patch.pausedRemaining = 0;
+  }
+  await tcSaveLive(patch);
+}
+async function tcRevealAnswer(){ await tcSaveLive({answerRevealed:true}); }
+async function tcClearQuestion(){
+  const ls = tcEnsureLive(tc.doc);
+  _tcTimeoutFiredFor = ''; _tcQScore = 1;
+  const patch = {currentQuestion:null, questionRevealed:false, answerRevealed:false, timerStartedAt:0, timerPaused:false, pausedRemaining:0};
+  // Auto turn mode: rotate to next non-eliminated team
+  if((ls.turnMode||'auto') === 'auto'){
+    const round = (tc.doc.rounds||[])[ls.currentRoundIdx]||{teams:[]};
+    const alive = (round.teams||[]).filter(id=>!(ls.eliminatedTeamIds||[]).includes(id));
+    if(alive.length){
+      const i = alive.indexOf(ls.currentTeamId);
+      patch.currentTeamId = alive[(i+1)%alive.length];
+    }
+  }
+  await tcSaveLive(patch);
+}
+
+// ── Timer ─────────────────────────────────────────────────────
+async function tcTimerStart(){
+  const ls = tcEnsureLive(tc.doc);
+  if(!ls.timerDuration){ toast('لا مؤقت لهذا السؤال — استخدم "مدة مخصصة"','err'); return; }
+  if(ls.timerPaused && ls.pausedRemaining>0){
+    const newStart = Date.now() - (ls.timerDuration - ls.pausedRemaining)*1000;
+    await tcSaveLive({timerStartedAt:newStart, timerPaused:false, pausedRemaining:0});
+  } else {
+    await tcSaveLive({timerStartedAt:Date.now(), timerPaused:false, pausedRemaining:0});
+  }
+}
+async function tcTimerPause(){
+  const ls = tcEnsureLive(tc.doc);
+  if(!ls.timerStartedAt || ls.timerPaused) return;
+  const t = tcComputeTimer(ls);
+  await tcSaveLive({timerPaused:true, pausedRemaining:t.remaining});
+}
+async function tcTimerAdd(sec){
+  const ls = tcEnsureLive(tc.doc);
+  const newDur = Math.max(0, (ls.timerDuration||0)+sec);
+  if(ls.timerPaused){
+    await tcSaveLive({timerDuration:newDur, pausedRemaining: Math.max(0,(ls.pausedRemaining||0)+sec)});
+  } else {
+    await tcSaveLive({timerDuration:newDur});
+  }
+}
+async function tcTimerStop(){ await tcSaveLive({timerStartedAt:0, timerPaused:false, pausedRemaining:0}); }
+async function tcSetCustomTimer(){
+  const v = parseInt(document.getElementById('tc-timer-custom').value);
+  if(isNaN(v)||v<0){ toast('قيمة غير صحيحة','err'); return; }
+  await tcSaveLive({timerDuration:v, timerStartedAt:0, timerPaused:false, pausedRemaining:0});
+  toast('✅ المؤقت: '+v+' ثانية','ok');
+}
+
+// ── End round / advance teams ────────────────────────────────
+function tcOpenAdvancing(){
+  const ls = tcEnsureLive(tc.doc);
+  const rounds = tc.doc.rounds||[];
+  const round = rounds[ls.currentRoundIdx]; if(!round){ toast('لا دور','err'); return; }
+  const adv = round.advance||1;
+  const scores = ls.teamScores||{};
+  const ranked = (round.teams||[]).map(id=>{
+    const t = teams.find(x=>x._id===id) || {name:id, logo:'❓'};
+    return {id, sc:scores[id]||0, t};
+  }).sort((a,b)=>b.sc-a.sc);
+  const auto = ranked.slice(0,adv).map(r=>r.id);
+  document.getElementById('mtcadv-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-medal"></i> اختر المتأهلين للدور القادم</h2><button class="btnx" onclick="closeM('modal-tc-adv')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">يصعد ${adv} فريق. الترتيب التلقائي محدد بناءً على النقاط — يمكنك تعديله.</div>
+      <div id="tc-adv-list">${ranked.map((r,i)=>{
+        const isAuto = auto.includes(r.id);
+        return `<label style="display:flex;align-items:center;gap:10px;padding:10px;border-radius:8px;background:rgba(255,255,255,.03);margin-bottom:5px;cursor:pointer">
+          <input type="checkbox" class="tc-adv-check" data-id="${r.id}" ${isAuto?'checked':''} style="width:18px;height:18px;accent-color:var(--gold)">
+          <span style="font-weight:900;color:var(--gold);width:32px">${i===0?'🥇':i===1?'🥈':i===2?'🥉':'#'+(i+1)}</span>
+          <span style="font-size:20px">${r.t.logo||'⚔️'}</span>
+          <span style="flex:1;font-weight:700">${esc(r.t.name)}</span>
+          <span style="font-weight:900;color:var(--gold)">${r.sc}</span>
+        </label>`;
+      }).join('')}</div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn bp" onclick="tcConfirmEndRound()"><i class="fas fa-check"></i> أنهِ الدور</button>
+        <button class="btn bg" onclick="closeM('modal-tc-adv')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-tc-adv').style.display='flex';
+}
+async function tcConfirmEndRound(){
+  const advancing = [...document.querySelectorAll('.tc-adv-check:checked')].map(c=>c.dataset.id);
+  const ls = tcEnsureLive(tc.doc);
+  const rounds = tc.doc.rounds||[];
+  const round = rounds[ls.currentRoundIdx]; if(!round) return;
+  const scores = ls.teamScores||{};
+  const ranking = (round.teams||[]).map(id=>({teamId:id, score:scores[id]||0})).sort((a,b)=>b.score-a.score);
+  const eliminated = (round.teams||[]).filter(id=>!advancing.includes(id));
+  const results = (ls.roundResults||[]).filter(r=>r.roundIdx!==ls.currentRoundIdx);
+  results.push({roundIdx:ls.currentRoundIdx, ranking, advancing, completedAt:Date.now()});
+
+  const isLastConfiguredRound = (ls.currentRoundIdx + 1) >= rounds.length;
+  // Auto-create final showdown if we ran out of rounds but >1 teams advanced
+  let nextRounds = rounds;
+  if(isLastConfiguredRound && advancing.length > 1){
+    const finalRound = {
+      name: 'النهائي 🏆',
+      teams: advancing,
+      advance: 1,
+      questionTypes: round.questionTypes || ['general'],
+      questionsPerType: round.questionsPerType || 5,
+      isFinal: true
+    };
+    nextRounds = [...rounds, finalRound];
+    try{
+      await db.collection('tournaments').doc(tc.id).update({rounds: nextRounds});
+    }catch(e){ console.error(e); toast('فشل إنشاء الدور النهائي','err'); return; }
+    toast('🏆 تم إنشاء الدور النهائي تلقائياً','ok');
+  }
+
+  const stillHasMore = (ls.currentRoundIdx + 1) < nextRounds.length;
+  await tcSaveLive({
+    status: stillHasMore ? 'roundEnd' : 'finished',
+    roundResults: results,
+    eliminatedTeamIds: [...new Set([...(ls.eliminatedTeamIds||[]), ...eliminated])],
+    currentQuestion:null, questionRevealed:false, answerRevealed:false,
+    timerStartedAt:0, timerPaused:false, pausedRemaining:0
+  });
+  closeM('modal-tc-adv');
+  if(!stillHasMore) toast('🎉 انتهت البطولة','ok');
+  else toast('🏁 تم إنهاء الدور','ok');
+}
+async function tcNextRound(){
+  const ls = tcEnsureLive(tc.doc);
+  const rounds = tc.doc.rounds||[];
+  if(ls.currentRoundIdx+1 >= rounds.length){ toast('انتهت كل الأدوار','err'); return; }
+  const nextRound = rounds[ls.currentRoundIdx+1];
+  const scores = Object.assign({}, ls.teamScores||{});
+  (nextRound.teams||[]).forEach(id=>{ if(scores[id]===undefined) scores[id]=0; });
+  await tcSaveLive({
+    currentRoundIdx: ls.currentRoundIdx+1,
+    currentTeamId:'', currentQuestion:null, questionRevealed:false, answerRevealed:false,
+    timerStartedAt:0, timerPaused:false, pausedRemaining:0,
+    status:'playing', teamScores:scores
+  });
+  toast('▶️ بدأ الدور '+(ls.currentRoundIdx+2),'ok');
+}
+
+function exportTQJson(){
+  if(!tqBank.length){ toast('لا يوجد أسئلة للتصدير','err'); return; }
+  const data = tqBank.map(q=>{
+    const o = {type:q.type, text:q.text, answer:q.answer||'', notes:q.notes||''};
+    if(Array.isArray(q.options) && q.options.length){ o.options = q.options; if(typeof q.correctIndex==='number') o.correctIndex = q.correctIndex; }
+    return o;
+  });
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'tournament_questions_'+Date.now()+'.json';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+  toast('✅ تم التصدير','ok');
+}
+
+// ════════════════════════════════
+//  BRACKET SYSTEM (Champions League style)
+// ════════════════════════════════
+
+// Build a single-elimination bracket from a list of team IDs.
+// 'bye' string = padding slot (auto-advance). null = TBD (match not played yet).
+function bracketBuild(teamIds){
+  const n = teamIds.length; if(n < 2) return null;
+  const numRounds = Math.ceil(Math.log2(Math.max(2, n)));
+  const size = 1 << numRounds; // next power of 2
+
+  // Pad with 'bye' strings — distinguishes from null (= TBD)
+  const slots = [...teamIds];
+  while(slots.length < size) slots.push('bye');
+
+  const rounds = [];
+
+  // Round 0 from slots
+  const r0 = [];
+  for(let m = 0; m < size / 2; m++){
+    const t1 = slots[m * 2];
+    const t2 = slots[m * 2 + 1];
+    let winner = null;
+    if(t1 === 'bye' && t2 === 'bye') winner = 'bye'; // double bye
+    else if(t1 === 'bye') winner = t2;               // t2 advances
+    else if(t2 === 'bye') winner = t1;               // t1 advances
+    r0.push({ id: `r0m${m}`, t1, t2, winner });
+  }
+  rounds.push(r0);
+
+  // Build subsequent rounds, pre-populating winners of already-resolved (bye) matches
+  for(let r = 1; r < numRounds; r++){
+    const prev = rounds[r - 1];
+    const matchCount = prev.length / 2;
+    const round = [];
+    for(let m = 0; m < matchCount; m++){
+      const pm1 = prev[m * 2];
+      const pm2 = prev[m * 2 + 1];
+      // Use prev winner only if it's a real team (not 'bye' and not null/TBD)
+      const t1 = (pm1.winner && pm1.winner !== 'bye') ? pm1.winner : null;
+      const t2 = (pm2.winner && pm2.winner !== 'bye') ? pm2.winner : null;
+      let winner = null;
+      // Auto-advance if one side is a double-bye void
+      if(pm1.winner === 'bye' && pm2.winner === 'bye') winner = 'bye';
+      else if(pm1.winner === 'bye' && t2) winner = t2;  // pm1 was void, pm2 real team advances
+      else if(pm2.winner === 'bye' && t1) winner = t1;  // pm2 was void, pm1 real team advances
+      round.push({ id: `r${r}m${m}`, t1, t2, winner });
+    }
+    rounds.push(round);
+  }
+  return { teams: teamIds, size, rounds, champion: null };
+}
+
+// Collect teams from round results (teams that advanced in any round).
+// Falls back to all teams in round 0 if no results yet.
+function bracketGetTeams(){
+  if(!tc.doc) return [];
+  const ls = tcEnsureLive(tc.doc);
+  const results = ls.roundResults||[];
+  const advancing = [];
+  results.forEach(res => {
+    (res.advancing||[]).forEach(id => { if(!advancing.includes(id)) advancing.push(id); });
+  });
+  if(advancing.length >= 2) return advancing;
+  // Fall back to all teams in current round
+  const round = (tc.doc.rounds||[])[ls.currentRoundIdx]||{};
+  return round.teams||[];
+}
+
+// Open bracket modal — init if not yet created, and auto-save to Firestore
+async function tcOpenBracket(){
+  if(!tc.doc){ toast('افتح بطولة أولاً','err'); return; }
+  const b = tc.doc.bracket;
+  if(!b || !b.rounds || !b.rounds.length){
+    const teamIds = bracketGetTeams();
+    if(teamIds.length < 2){ toast('يجب أن يكون هناك فريقان على الأقل للبراكيت','err'); return; }
+    const newBracket = bracketBuild(teamIds);
+    tc.doc.bracket = newBracket;
+    // Auto-save so live viewer sees it immediately
+    try{
+      await db.collection('tournaments').doc(tc.id).update({ bracket: newBracket });
+    }catch(e){ console.error('bracket auto-save:', e); }
+  }
+  tcRenderBracketModal();
+  document.getElementById('modal-tc-bracket').style.display = 'flex';
+}
+
+// Randomize team positions (reshuffle the bracket)
+function bracketRandomize(){
+  if(!tc.doc) return;
+  const teamIds = (tc.doc.bracket ? [...tc.doc.bracket.teams] : bracketGetTeams());
+  if(teamIds.length < 2){ toast('لا فرق كافية','err'); return; }
+  // Fisher-Yates shuffle
+  for(let i = teamIds.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [teamIds[i], teamIds[j]] = [teamIds[j], teamIds[i]];
+  }
+  tc.doc.bracket = bracketBuild(teamIds);
+  tcRenderBracketModal();
+}
+
+// Reset bracket with fresh teams
+function bracketReset(){
+  if(!tc.doc) return;
+  const teamIds = bracketGetTeams();
+  if(teamIds.length < 2){ toast('لا فرق كافية','err'); return; }
+  if(!confirm('هل تريد إعادة تعيين البراكيت؟ سيتم فقدان النتائج الحالية.')) return;
+  tc.doc.bracket = bracketBuild(teamIds);
+  tcRenderBracketModal();
+}
+
+// Move a team up or down in the bracket seed order, then rebuild
+function bracketMoveTeam(idx, dir){
+  const b = tc.doc.bracket; if(!b) return;
+  const arr = [...b.teams];
+  const dest = idx + dir;
+  if(dest < 0 || dest >= arr.length) return;
+  [arr[idx], arr[dest]] = [arr[dest], arr[idx]];
+  tc.doc.bracket = bracketBuild(arr);
+  tcRenderBracketModal();
+}
+
+// Remove a team from the bracket seed list, then rebuild
+function bracketRemoveTeam(idx){
+  const b = tc.doc.bracket; if(!b) return;
+  const arr = [...b.teams];
+  if(arr.length <= 2){ toast('البراكيت يحتاج فريقين على الأقل','err'); return; }
+  arr.splice(idx, 1);
+  tc.doc.bracket = bracketBuild(arr);
+  tcRenderBracketModal();
+}
+
+// Add a team to the bracket, then rebuild
+function bracketAddTeam(){
+  const b = tc.doc.bracket; if(!b) return;
+  const sel = document.getElementById('bk-add-sel');
+  if(!sel || !sel.value) return;
+  const teamId = sel.value;
+  if(b.teams.includes(teamId)){ toast('هذا الفريق موجود في البراكيت بالفعل','err'); return; }
+  const arr = [...b.teams, teamId];
+  tc.doc.bracket = bracketBuild(arr);
+  tcRenderBracketModal();
+}
+
+// Auto-advance a team through rounds where the opposing path is all byes.
+// Called after setting a winner — propagates through bye-void slots.
+function _bracketAutoAdvance(rounds, r, m){
+  if(r >= rounds.length) return;
+  const match = rounds[r][m];
+  if(match.winner) return; // already resolved
+  if(r === 0) return;      // round 0 sources from slots, not prev rounds
+  const pm1 = rounds[r - 1][m * 2];
+  const pm2 = rounds[r - 1][m * 2 + 1];
+  let autoWinner = null;
+  if(pm1 && pm1.winner === 'bye' && match.t2) autoWinner = match.t2;  // pm1 was void
+  if(pm2 && pm2.winner === 'bye' && match.t1) autoWinner = match.t1;  // pm2 was void
+  if(!autoWinner) return;
+  rounds[r][m].winner = autoWinner;
+  // Propagate to next round
+  const nextR = r + 1;
+  if(nextR < rounds.length){
+    const nextM = Math.floor(m / 2);
+    const slot = m % 2 === 0 ? 't1' : 't2';
+    rounds[nextR][nextM][slot] = autoWinner;
+    _bracketAutoAdvance(rounds, nextR, nextM);
+  }
+}
+
+// Set winner for a match and advance them to the next round
+function bracketSetWinner(matchId, teamId){
+  const b = tc.doc.bracket; if(!b) return;
+  // Deep-clone rounds to avoid direct mutation
+  const rounds = b.rounds.map(r => r.map(m => Object.assign({}, m)));
+  let foundR = -1, foundM = -1;
+  outer: for(let r = 0; r < rounds.length; r++){
+    for(let m = 0; m < rounds[r].length; m++){
+      if(rounds[r][m].id === matchId){ foundR = r; foundM = m; break outer; }
+    }
+  }
+  if(foundR < 0){ toast('مباراة غير موجودة','err'); return; }
+  rounds[foundR][foundM].winner = teamId;
+  // Advance winner to next round
+  const nextR = foundR + 1;
+  if(nextR < rounds.length){
+    const nextM = Math.floor(foundM / 2);
+    const slot = foundM % 2 === 0 ? 't1' : 't2';
+    rounds[nextR][nextM][slot] = teamId;
+    // Check if the next-round match can now auto-advance through byes
+    _bracketAutoAdvance(rounds, nextR, nextM);
+  } else {
+    // Was the final — set champion
+    b.champion = teamId;
+  }
+  b.rounds = rounds;
+  bracketSaveToFirestore(b);
+}
+
+// Undo a winner choice
+function bracketClearWinner(matchId){
+  const b = tc.doc.bracket; if(!b) return;
+  const rounds = b.rounds.map(r => r.map(m => Object.assign({}, m)));
+  let foundR = -1, foundM = -1;
+  outer: for(let r = 0; r < rounds.length; r++){
+    for(let m = 0; m < rounds[r].length; m++){
+      if(rounds[r][m].id === matchId){ foundR = r; foundM = m; break outer; }
+    }
+  }
+  if(foundR < 0) return;
+  const oldWinner = rounds[foundR][foundM].winner;
+  rounds[foundR][foundM].winner = null;
+  // Remove from next round slot
+  const nextR = foundR + 1;
+  if(nextR < rounds.length){
+    const nextM = Math.floor(foundM / 2);
+    const slot = foundM % 2 === 0 ? 't1' : 't2';
+    if(rounds[nextR][nextM][slot] === oldWinner) rounds[nextR][nextM][slot] = null;
+    // Also clear next round winner if it was propagated
+    if(rounds[nextR][nextM].winner === oldWinner) rounds[nextR][nextM].winner = null;
+  } else {
+    if(b.champion === oldWinner) b.champion = null;
+  }
+  b.rounds = rounds;
+  bracketSaveToFirestore(b);
+}
+
+// Manually assign a team to a specific slot in a match (drag-and-drop equivalent)
+function bracketAssignTeam(matchId, slot, teamId){
+  const b = tc.doc.bracket; if(!b) return;
+  const rounds = b.rounds.map(r => r.map(m => Object.assign({}, m)));
+  outer: for(let r = 0; r < rounds.length; r++){
+    for(let m = 0; m < rounds[r].length; m++){
+      if(rounds[r][m].id === matchId){
+        rounds[r][m][slot] = teamId || null;
+        break outer;
+      }
+    }
+  }
+  b.rounds = rounds;
+  tc.doc.bracket = b;
+  tcRenderBracketModal();
+}
+
+// Save bracket to Firestore
+async function bracketSaveToFirestore(b){
+  tc.doc.bracket = b;
+  try{
+    await db.collection('tournaments').doc(tc.id).update({ bracket: b });
+    toast('✅ تم حفظ البراكيت','ok');
+    tcRenderBracketModal();
+  }catch(e){ console.error(e); toast('فشل حفظ البراكيت','err'); }
+}
+
+// Render the bracket modal
+function tcRenderBracketModal(){
+  const b = tc.doc && tc.doc.bracket;
+  const box = document.getElementById('mtcbracket-box');
+  if(!box) return;
+
+  const tName = id => {
+    if(!id || id === 'bye') return null;
+    const t = teams.find(x => x._id === id);
+    return t ? { logo: t.logo||'⚔️', name: t.name } : { logo: '❓', name: id };
+  };
+
+  const roundLabel = (r, total) => {
+    if(r === total - 1) return '🏆 النهائي';
+    if(r === total - 2) return total >= 3 ? 'نصف النهائي' : 'الدور الأول';
+    if(r === total - 3) return 'ربع النهائي';
+    if(r === total - 4) return 'ثمن النهائي';
+    return `الدور ${r + 1}`;
+  };
+
+  if(!b || !b.rounds || !b.rounds.length){
+    box.innerHTML = `
+      <div class="mhead"><h2><i class="fas fa-sitemap"></i> براكيت كأس البطولة</h2><button class="btnx" onclick="closeM('modal-tc-bracket')"><i class="fas fa-times"></i></button></div>
+      <div class="mbody" style="text-align:center;padding:40px">
+        <div style="font-size:40px;margin-bottom:14px">🏆</div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:8px">لم يتم إنشاء البراكيت بعد</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:20px">سيتم بناء البراكيت تلقائياً من الفرق المتأهلة، أو يمكنك البناء اليدوي.</div>
+        <button class="btn bp" onclick="bracketReset()"><i class="fas fa-sitemap"></i> إنشاء البراكيت</button>
+      </div>`;
+    return;
+  }
+
+  // Champion banner
+  const champ = b.champion ? tName(b.champion) : null;
+  const champHtml = champ ? `
+    <div class="bk-champion-card">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">🏆 بطل البطولة</div>
+      <div style="font-size:24px;font-weight:900;color:var(--gold)">${champ.logo} ${esc(champ.name)}</div>
+    </div>` : '';
+
+  // ── Team Seed Editor ─────────────────────────────────────
+  const bracketTeams = b.teams || [];
+  // Teams in the whole tournament but not yet in the bracket
+  const allTourTeams = (() => {
+    const allIds = new Set();
+    (tc.doc.rounds||[]).forEach(r => (r.teams||[]).forEach(id => allIds.add(id)));
+    return [...allIds];
+  })();
+  const notInBracket = allTourTeams.filter(id => !bracketTeams.includes(id));
+  const addOpts = notInBracket.map(id => {
+    const t = tName(id);
+    return t ? `<option value="${id}">${t.logo} ${esc(t.name)}</option>` : '';
+  }).join('');
+
+  const seedListHtml = bracketTeams.map((id, idx) => {
+    const t = tName(id);
+    const tLabel = t ? `${t.logo} ${esc(t.name)}` : esc(id);
+    return `<div style="display:flex;align-items:center;gap:7px;padding:6px 10px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;margin-bottom:4px">
+      <span style="font-size:12px;font-weight:900;color:var(--muted2);min-width:20px">${idx + 1}</span>
+      <span style="flex:1;font-size:12px;font-weight:700">${tLabel}</span>
+      <button class="btn bg bxs" ${idx===0?'disabled':''} onclick="bracketMoveTeam(${idx},-1)" style="padding:2px 6px"><i class="fas fa-arrow-up" style="font-size:10px"></i></button>
+      <button class="btn bg bxs" ${idx===bracketTeams.length-1?'disabled':''} onclick="bracketMoveTeam(${idx},1)" style="padding:2px 6px"><i class="fas fa-arrow-down" style="font-size:10px"></i></button>
+      <button class="btn bd bxs" onclick="bracketRemoveTeam(${idx})" style="padding:2px 6px" title="إزالة"><i class="fas fa-times" style="font-size:10px"></i></button>
+    </div>`;
+  }).join('');
+
+  const seedEditorHtml = `
+    <details style="margin-bottom:14px;border:1px solid var(--border2);border-radius:10px;overflow:hidden">
+      <summary style="padding:10px 14px;font-size:12px;font-weight:800;color:var(--gold);cursor:pointer;background:rgba(212,160,23,.06);user-select:none;list-style:none;display:flex;align-items:center;gap:8px">
+        <i class="fas fa-list-ol"></i> ترتيب الفرق وتخصيص المتسابقين
+        <span style="font-size:10px;color:var(--muted);font-weight:400;margin-right:auto">(${bracketTeams.length} فريق في البراكيت)</span>
+        <i class="fas fa-chevron-down" style="font-size:10px;opacity:.5"></i>
+      </summary>
+      <div style="padding:12px 14px;background:rgba(0,0,0,.02)">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">رقم الفريق = موضعه في البراكيت (1 vs 2 في أول مباراة، 3 vs 4 في الثانية…)</div>
+        ${seedListHtml}
+        ${addOpts ? `<div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+          <select id="bk-add-sel" class="einp" style="flex:1;font-size:12px">
+            <option value="">— أضف فريقاً —</option>${addOpts}
+          </select>
+          <button class="btn bp bsm" onclick="bracketAddTeam()"><i class="fas fa-plus"></i> إضافة</button>
+        </div>` : ''}
+        <div style="display:flex;gap:6px;margin-top:10px">
+          <button class="btn bsm" style="background:rgba(124,58,237,.12);color:var(--purple);border-color:rgba(124,58,237,.4)" onclick="bracketRandomize()"><i class="fas fa-shuffle"></i> ترتيب عشوائي</button>
+          <button class="btn bd bsm" onclick="bracketReset()"><i class="fas fa-rotate-left"></i> إعادة تهيئة</button>
+        </div>
+      </div>
+    </details>`;
+
+  // ── Bracket Tree ─────────────────────────────────────────
+  const total = b.rounds.length;
+  const colsHtml = b.rounds.map((round, r) => {
+    const matchesHtml = round.map(match => {
+      // Hidden double-bye
+      if(match.winner === 'bye' && match.t1 === 'bye' && match.t2 === 'bye')
+        return `<div style="height:40px;opacity:.15;border:1px dashed var(--border);border-radius:8px;margin:3px 0"></div>`;
+      const isT1Bye = match.t1 === 'bye', isT2Bye = match.t2 === 'bye';
+      const isT1Tbd = match.t1 === null, isT2Tbd = match.t2 === null;
+      const t1info = (!isT1Bye && !isT1Tbd) ? tName(match.t1) : null;
+      const t2info = (!isT2Bye && !isT2Tbd) ? tName(match.t2) : null;
+      const canWin = match.t1 && match.t1 !== 'bye' && match.t2 && match.t2 !== 'bye' && !match.winner;
+      const w1 = match.winner && match.winner === match.t1;
+      const w2 = match.winner && match.winner === match.t2;
+      const byeAuto = (isT1Bye || isT2Bye) && match.winner && match.winner !== 'bye';
+
+      const label1 = isT1Bye ? '— BYE' : isT1Tbd ? '⋯ في الانتظار' : `${t1info.logo} ${esc(t1info.name)}`;
+      const label2 = isT2Bye ? '— BYE' : isT2Tbd ? '⋯ في الانتظار' : `${t2info.logo} ${esc(t2info.name)}`;
+
+      const row = (label, isWin, isLose, isBye, isTbd, matchT, extraNote) =>
+        `<div class="bk-team-row ${isWin?'bk-winner':isLose?'bk-loser':''} ${isBye||isTbd?'bk-bye':canWin&&matchT?'clickable':''}"
+          ${canWin && matchT ? `onclick="bracketSetWinner('${match.id}','${matchT}')" title="اضغط لتحديد هذا الفريق فائزاً"` : ''}>
+          <span style="flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${label}${extraNote?`<span style="font-size:9px;opacity:.5;margin-right:4px">${extraNote}</span>`:''}</span>
+          ${isWin ? '<span style="flex-shrink:0">👑</span>' : ''}
+        </div>`;
+
+      const r1 = row(label1, w1, match.winner&&!w1&&match.winner!=='bye', isT1Bye, isT1Tbd, match.t1, byeAuto&&!w1?'(تأهل تلقائياً)':'');
+      const r2 = row(label2, w2, match.winner&&!w2&&match.winner!=='bye', isT2Bye, isT2Tbd, match.t2, byeAuto&&!w2?'(تأهل تلقائياً)':'');
+      const clr = (match.winner && match.winner !== 'bye') ? `
+        <div style="text-align:center;padding:2px;background:rgba(239,68,68,.05)">
+          <button class="btn bd bxs" style="font-size:9px;padding:1px 7px" onclick="bracketClearWinner('${match.id}')"><i class="fas fa-undo"></i> تراجع</button>
+        </div>` : '';
+
+      return `<div class="bk-match">${r1}<div class="bk-vs-bar">VS</div>${r2}${clr}</div>`;
+    }).join('');
+
+    return `<div class="bk-round-col">
+      <div class="bk-round-label">${roundLabel(r, total)}</div>
+      <div class="bk-matches">${matchesHtml}</div>
+    </div>`;
+  }).join('<div class="bk-connector"><div class="bk-conn-group"></div></div>');
+
+  box.innerHTML = `
+    <div class="mhead" style="flex-shrink:0">
+      <h2><i class="fas fa-sitemap" style="color:var(--purple)"></i> براكيت كأس البطولة</h2>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="btn bp bsm" onclick="bracketSaveToFirestore(tc.doc.bracket)" title="حفظ وإرسال للشاشة"><i class="fas fa-satellite-dish"></i> نشر</button>
+        <button class="btnx" onclick="closeM('modal-tc-bracket')"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+    <div class="mbody" style="overflow-y:auto;flex:1;padding-top:14px">
+      ${champHtml}
+      ${seedEditorHtml}
+      <div style="font-size:11px;color:var(--muted);margin-bottom:10px"><i class="fas fa-hand-pointer"></i> اضغط على اسم فريق في البراكيت لتحديده فائزاً في تلك المباراة</div>
+      <div class="bk-tree" style="min-height:160px">${colsHtml}</div>
+    </div>`;
 }
 
 // Track admin identity for reply attribution

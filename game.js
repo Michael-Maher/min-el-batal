@@ -72,6 +72,8 @@ const GameState = {
     team: '',
     teamLogo: '',
     teamColor: '',
+    pendingTeamDocId: '',
+    pendingTeamName: '',
     redeemedRewards: [],
     dailyLoginDate: '',       // last daily login XP date 'YYYY-MM-DD'
     miniGameScores: {},       // { 'faith_0_mg_trueFalse': 15, ... }
@@ -340,6 +342,16 @@ function submitLogin() {
                 GameState.team = localBackup.team || '';
                 GameState.teamLogo = localBackup.teamLogo || '';
                 GameState.teamColor = localBackup.teamColor || '';
+            }
+            // Pending join request: prefer local, then cloud
+            if (!GameState.pendingTeamDocId) {
+                GameState.pendingTeamDocId = (localBackup.pendingTeamDocId || existingData.pendingTeamDocId || '');
+                GameState.pendingTeamName = (localBackup.pendingTeamName || existingData.pendingTeamName || '');
+            }
+            // If player already has a team, clear any stale pending request
+            if (GameState.team) {
+                GameState.pendingTeamDocId = '';
+                GameState.pendingTeamName = '';
             }
             // Save merged state to localStorage and back to cloud so all devices stay in sync
             saveToLocalStorage(true);
@@ -959,6 +971,8 @@ function saveToCloud() {
         miniGameScores: GameState.miniGameScores || {},
         stationScores: GameState.stationScores || {},
         teamLastAction: GameState.teamLastAction || 0,
+        pendingTeamDocId: GameState.pendingTeamDocId || '',
+        pendingTeamName: GameState.pendingTeamName || '',
         dailySpinDate: GameState.dailySpinDate || '',
         dailyBonusSpin: GameState.dailyBonusSpin || false,
         blitzWeeklyScore: GameState.blitzWeeklyScore || 0,
@@ -5612,6 +5626,7 @@ function logout() {
     GameState.dailyLoginDate = '';
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
+    _duplicateCheckDone = false;
     // Reset login form fields
     var fields = ['login-username', 'login-password', 'player-name', 'player-username', 'player-email', 'player-phone', 'player-password', 'player-password-confirm'];
     fields.forEach(function(id) { var el = document.getElementById(id); if (el) el.value = ''; });
@@ -5823,9 +5838,48 @@ function redeemReward(rewardId) {
 // --- Team System (Full UI) ---
 var TEAM_LOGOS = ['⚔️','🛡️','🔥','⭐','🏆','💎','✝️','🕊️','⚡','🦁','🐉','👑','🎯','💪','🌟','🗡️'];
 
+var _duplicateCheckDone = false;
+function cleanupDuplicateTeamMemberships() {
+    if (_duplicateCheckDone || !firebaseDb || !GameState.playerPhone) return;
+    _duplicateCheckDone = true;
+    firebaseDb.collection('teams').where('members', 'array-contains', GameState.playerPhone).get().then(function(snap) {
+        if (snap.size <= 1) return;
+        var foundTeams = [];
+        snap.forEach(function(doc) { foundTeams.push({ id: doc.id, data: doc.data() }); });
+        // If we know the player's current team, keep that one; otherwise keep most recent
+        var keepTeam = foundTeams.find(function(t) { return t.data.name === GameState.team; }) || foundTeams[0];
+        var toLeave = foundTeams.filter(function(t) { return t.id !== keepTeam.id; });
+        toLeave.forEach(function(t) {
+            var members = (t.data.members || []).filter(function(m) { return m !== GameState.playerPhone; });
+            var memberNames = (t.data.memberNames || []).filter(function(n) { return n !== GameState.playerName; });
+            if (members.length === 0) {
+                firebaseDb.collection('teams').doc(t.id).delete().catch(function(){});
+            } else {
+                var admins = (t.data.admins || []).filter(function(a) { return a !== GameState.playerPhone; });
+                if (admins.length === 0 && members.length > 0) admins = [members[0]];
+                firebaseDb.collection('teams').doc(t.id).update({ members: members, memberNames: memberNames, admins: admins }).catch(function(){});
+            }
+        });
+        // Make sure GameState reflects the kept team
+        if (!GameState.team && keepTeam) {
+            GameState.team = keepTeam.data.name;
+            GameState.teamLogo = keepTeam.data.logo || '⚔️';
+            GameState.teamColor = keepTeam.data.color || '#6C5CE7';
+            GameState.teamLastAction = Date.now();
+            GameState.pendingTeamDocId = '';
+            GameState.pendingTeamName = '';
+            saveToLocalStorage();
+            renderTeamsScreen();
+        }
+    }).catch(function(e) { console.error('Duplicate team check:', e); });
+}
+
 function renderTeamsScreen() {
     var container = document.getElementById('teams-screen-body');
     if (!container) return;
+
+    // Run a one-time duplicate membership check in background
+    cleanupDuplicateTeamMemberships();
 
     var html = '';
 
@@ -5996,7 +6050,10 @@ function loadOpenTeams() {
             if (isMyTeam || isMember) {
                 html += '<span class="open-team-status">✅ فريقك</span>';
             } else if (hasPendingRequest) {
-                html += '<span class="open-team-status" style="color:var(--gold)">⏳ في الانتظار</span>';
+                html += '<div style="text-align:center">';
+                html += '<span class="open-team-status" style="color:var(--gold);display:block;margin-bottom:6px">⏳ في الانتظار</span>';
+                html += '<button class="btn btn-danger btn-sm" onclick="cancelJoinRequest(\'' + doc.id.replace(/'/g, "\\'") + '\')"><span><i class="fas fa-times"></i> إلغاء</span></button>';
+                html += '</div>';
             } else if (isFull) {
                 html += '<span class="open-team-status full">ممتلئ</span>';
             } else {
@@ -6091,6 +6148,15 @@ function approveJoinRequest(docId, phone, name) {
         }).then(function() {
             showToast('تم قبول ' + name + ' في الفريق! ✅', 'success');
             loadMyTeamMembers();
+            // Update the approved player's profile so their team syncs on next load
+            firebaseDb.collection('players').doc(phone).set({
+                team: t.name,
+                teamLogo: t.logo || '⚔️',
+                teamColor: t.color || '#6C5CE7',
+                teamLastAction: Date.now(),
+                pendingTeamDocId: '',
+                pendingTeamName: ''
+            }, { merge: true }).catch(function(e) { console.error('Player team update failed:', e); });
         });
     }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
 }
@@ -6105,6 +6171,13 @@ function rejectJoinRequest(docId, phone) {
     }).then(function() {
         showToast('تم رفض الطلب', 'info');
         loadMyTeamMembers();
+        // Clear the rejected player's pending state
+        if (firebaseDb) {
+            firebaseDb.collection('players').doc(phone).set({
+                pendingTeamDocId: '',
+                pendingTeamName: ''
+            }, { merge: true }).catch(function(e) { console.error('Reject clear failed:', e); });
+        }
     }).catch(function(e) { console.error(e); });
 }
 
@@ -6214,10 +6287,68 @@ function saveEditTeam(docId) {
 
 function requestJoinTeam(docId) {
     if (GameState.team) {
-        showToast('لازم تترك فريقك الأول قبل ما تنضم لفريق تاني', 'error');
+        showAlreadyInTeamDialog('member', GameState.team, GameState.team.replace(/[\/\\\.#\[\]\*]/g, '_'));
+        return;
+    }
+    if (GameState.pendingTeamDocId && GameState.pendingTeamDocId !== docId) {
+        showAlreadyInTeamDialog('pending', GameState.pendingTeamName, GameState.pendingTeamDocId);
         return;
     }
     joinTeamByDocId(docId);
+}
+
+function showAlreadyInTeamDialog(type, teamName, teamDocId) {
+    var existing = document.getElementById('already-team-overlay');
+    if (existing) existing.remove();
+    var isPending = type === 'pending';
+    var icon = isPending ? '⏳' : '🛡️';
+    var title = isPending ? 'طلب انضمام معلق' : 'أنت في فريق بالفعل';
+    var subtitle = isPending
+        ? 'طلبت الانضمام لفريق <strong style="color:var(--gold)">' + teamName + '</strong><br>وطلبك لسه قيد المراجعة'
+        : 'أنت بالفعل عضو في فريق <strong style="color:var(--gold)">' + teamName + '</strong>';
+    var actionLabel = isPending
+        ? '<i class="fas fa-times-circle"></i> إلغاء الطلب'
+        : '<i class="fas fa-sign-out-alt"></i> اترك الفريق';
+    var actionOnclick = isPending
+        ? 'cancelJoinRequest(\'' + teamDocId.replace(/'/g, "\\'") + '\')'
+        : 'leaveTeamAndClose()';
+
+    var overlay = document.createElement('div');
+    overlay.id = 'already-team-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+    overlay.innerHTML = '<div style="background:var(--bg-card,#1e2a3a);border:2px solid var(--border,#2a3a4a);border-radius:20px;padding:28px 24px;max-width:320px;width:100%;text-align:center;font-family:Cairo,sans-serif;direction:rtl">' +
+        '<div style="font-size:52px;margin-bottom:14px">' + icon + '</div>' +
+        '<h3 style="color:var(--gold,#f0c040);font-size:18px;font-weight:900;margin-bottom:10px">' + title + '</h3>' +
+        '<p style="color:var(--text-muted,#aaa);font-size:14px;line-height:1.7;margin-bottom:22px">' + subtitle + '</p>' +
+        '<div style="display:flex;flex-direction:column;gap:10px">' +
+        '<button class="btn btn-danger" style="width:100%;justify-content:center" onclick="' + actionOnclick + ';document.getElementById(\'already-team-overlay\').remove()"><span>' + actionLabel + '</span></button>' +
+        '<button class="btn btn-secondary" style="width:100%;justify-content:center" onclick="document.getElementById(\'already-team-overlay\').remove()"><span>إلغاء</span></button>' +
+        '</div></div>';
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    document.body.appendChild(overlay);
+}
+
+function leaveTeamAndClose() {
+    leaveTeam();
+}
+
+function cancelJoinRequest(docId) {
+    var phone = GameState.playerPhone;
+    function clearLocal() {
+        GameState.pendingTeamDocId = '';
+        GameState.pendingTeamName = '';
+        saveToLocalStorage();
+        showToast('تم إلغاء طلب الانضمام', 'info');
+        renderTeamsScreen();
+    }
+    if (!firebaseDb) { clearLocal(); return; }
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        if (!doc.exists) { clearLocal(); return Promise.resolve(); }
+        var joinRequests = (doc.data().joinRequests || []).filter(function(r) { return r.phone !== phone; });
+        return firebaseDb.collection('teams').doc(docId).update({ joinRequests: joinRequests });
+    }).then(function() {
+        clearLocal();
+    }).catch(function(e) { console.error(e); showToast('حصل مشكلة', 'error'); });
 }
 
 function joinTeamByDocId(docId) {
@@ -6238,6 +6369,9 @@ function joinTeamByDocId(docId) {
         return firebaseDb.collection('teams').doc(docId).update({
             joinRequests: joinRequests
         }).then(function() {
+            GameState.pendingTeamDocId = docId;
+            GameState.pendingTeamName = teamData.name;
+            saveToLocalStorage();
             showToast('تم إرسال طلب الانضمام لفريق ' + teamData.name + '! استنى موافقة الأدمن', 'success');
             renderTeamsScreen();
         });
@@ -6292,7 +6426,10 @@ function joinTeamByName(teamName) {
         return firebaseDb.collection('teams').doc(docId).update({
             joinRequests: joinRequests
         }).then(function() {
-            showToast('تم إرسال طلب الانضمام! استنى موافقة الأدمن', 'success');
+            GameState.pendingTeamDocId = docId;
+            GameState.pendingTeamName = teamData.name;
+            saveToLocalStorage();
+            showToast('تم إرسال طلب الانضمام لفريق ' + teamData.name + '! استنى موافقة الأدمن', 'success');
             renderTeamsScreen();
         });
     }).catch(function(e) {
@@ -6351,6 +6488,8 @@ function createTeam() {
             GameState.teamLogo = logo;
             GameState.teamColor = color;
             GameState.teamLastAction = Date.now();
+            GameState.pendingTeamDocId = '';
+            GameState.pendingTeamName = '';
             _teamImageData = '';
             saveToLocalStorage(); // saves to cloud too
             syncLeaderboard();

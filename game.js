@@ -526,69 +526,57 @@ function checkLockOrPopup(key, title) {
     document.head.appendChild(s);
 })();
 
-// Apply lock interception to dashboard cards once renderHomeHub runs
+// Apply admin lock visuals to dashboard hub cards and patch onclick for level1
 function applyDashboardLockUI() {
     var hub = document.getElementById('home-hub-screen');
     if (!hub) return;
-    // Map of card selector → { key, title }
     var map = [
-        { sel: '.hub-card-locked',                        key: 'card_level1',           title: 'المستوى الأول' },
-        { sel: '[onclick*="level2-subjects-screen"]',     key: 'card_level2',           title: 'المستوى الثاني' },
-        { sel: '[onclick*="compete-screen"]',             key: 'card_compete',          title: 'المنافسات الجماعية' },
-        { sel: '[onclick*="openQuestionsScreen"]',        key: 'card_myQuestions',      title: 'اسأل الخدّام' },
-        { sel: '[onclick*="openFriendsQuestionsScreen"]', key: 'card_friendsQuestions', title: 'أسئلة أصحابك' }
+        { sel: '.hub-card-locked',                                 key: 'card_level1',           title: 'المستوى الأول',        patchOnclick: true },
+        { sel: '.hub-card[onclick*="level2-subjects-screen"]',     key: 'card_level2',           title: 'المستوى الثاني' },
+        { sel: '.hub-card[onclick*="compete-screen"]',             key: 'card_compete',          title: 'المنافسات الجماعية' },
+        { sel: '.hub-card[onclick*="openQuestionsScreen"]',        key: 'card_myQuestions',      title: 'اسأل الخدّام' },
+        { sel: '.hub-card[onclick*="openFriendsQuestionsScreen"]', key: 'card_friendsQuestions', title: 'أسئلة أصحابك' },
     ];
-    map.forEach(function(m){
+    map.forEach(function(m) {
         var card = hub.querySelector(m.sel);
         if (!card) return;
-        // Save original onclick once
-        if (!card._origOnclickStr) {
-            card._origOnclickStr = card.getAttribute('onclick') || '';
+        var locked = isContentLocked(m.key);
+
+        // ── Visual: opacity + lock badge ──
+        card.style.opacity = locked ? '0.62' : '';
+        var badge = card.querySelector('.dyn-lock-badge');
+        if (locked && !badge) {
+            var b = document.createElement('div');
+            b.className = 'dyn-lock-badge';
+            b.style.cssText = 'position:absolute;top:10px;right:10px;background:rgba(220,38,38,.92);color:#fff;border-radius:50%;width:34px;height:34px;display:flex;align-items:center;justify-content:center;font-size:16px;z-index:20;box-shadow:0 3px 12px rgba(0,0,0,.5)';
+            b.textContent = '🔒';
+            var bg = card.querySelector('.hub-card-bg');
+            (bg || card).appendChild(b);
+        } else if (!locked && badge) {
+            badge.remove();
         }
-        // For card_level1 we KEEP its original behavior unless admin explicitly unlocks
-        if (m.key === 'card_level1') {
-            if (!isContentLocked(m.key)) {
-                // admin unlocked it — but level1 isn't built yet; show admin's message if any, else default
-                var st = (GameState.contentLocks||{})[m.key];
-                if (st && st.message) {
-                    card.onclick = (function(msg, title){
-                        return function(){ showLockedPopup(title, msg); };
-                    })(st.message, m.title);
-                } else {
-                    // Restore original locked-toast behavior
-                    var orig = card._origOnclickStr;
-                    card.onclick = function(){ try { eval(orig); } catch(e){} };
-                }
-            } else {
-                // Use admin lock message
-                card.onclick = (function(key, title){
-                    return function(){ showLockedPopup(title, lockedMessage(key)); };
-                })(m.key, m.title);
-            }
-            return;
+
+        // ── Onclick: only patch card_level1 (doesn't use showScreen) ──
+        // All other screens are blocked at the showScreen() level.
+        if (!m.patchOnclick) return;
+        if (!card._origOnclick) {
+            card._origOnclick = card.getAttribute('onclick') || '';
         }
-        if (isContentLocked(m.key)) {
-            card.onclick = (function(key, title){
-                return function(){ showLockedPopup(title, lockedMessage(key)); };
+        if (locked) {
+            card.onclick = (function(key, title) {
+                return function() { showLockedPopup(title, lockedMessage(key)); };
             })(m.key, m.title);
-            card.style.opacity = '0.7';
-            card.style.cursor = 'pointer';
-            // Add small lock badge if not already present
-            if (!card.querySelector('.dyn-lock-badge')) {
-                var b = document.createElement('div');
-                b.className = 'dyn-lock-badge';
-                b.style.cssText = 'position:absolute;top:10px;right:10px;background:rgba(220,38,38,.95);color:#fff;border-radius:50%;width:32px;height:32px;display:flex;align-items:center;justify-content:center;font-size:14px;z-index:10;box-shadow:0 3px 10px rgba(0,0,0,.3)';
-                b.innerHTML = '<i class="fas fa-lock"></i>';
-                var bg = card.querySelector('.hub-card-bg');
-                if (bg) bg.appendChild(b);
-            }
         } else {
-            // Restore original onclick
-            var orig2 = card._origOnclickStr;
-            card.onclick = function(ev){ try { eval(orig2); } catch(e){} };
-            card.style.opacity = '';
-            var ex = card.querySelector('.dyn-lock-badge');
-            if (ex) ex.remove();
+            // Admin has a custom message even when "unlocked" (level1 never truly opens)
+            var st = (GameState.contentLocks || {})[m.key];
+            if (st && st.message) {
+                card.onclick = (function(msg, title) {
+                    return function() { showLockedPopup(title, msg); };
+                })(st.message, m.title);
+            } else {
+                // Restore original attribute handler (the "قريباً" toast)
+                if (card._origOnclick) card.setAttribute('onclick', card._origOnclick);
+            }
         }
     });
 }
@@ -2618,6 +2606,21 @@ function showToast(msg, durOrType, type) {
 }
 
 function showScreen(id) {
+    // Admin content lock gate — block navigation to locked screens from any path
+    if (typeof isContentLocked === 'function') {
+        var _LOCK_GATE = {
+            'level2-subjects-screen':  ['card_level2',           'المستوى الثاني'],
+            'level2-map-screen':       ['card_level2',           'المستوى الثاني'],
+            'compete-screen':          ['card_compete',          'المنافسات الجماعية'],
+            'questions-screen':        ['card_myQuestions',      'اسأل الخدّام'],
+            'friends-questions-screen':['card_friendsQuestions', 'أسئلة أصحابك'],
+        };
+        var _lg = _LOCK_GATE[id];
+        if (_lg && isContentLocked(_lg[0])) {
+            showLockedPopup(_lg[1], lockedMessage(_lg[0]));
+            return;
+        }
+    }
     document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
     var el = document.getElementById(id);
     if (el) {

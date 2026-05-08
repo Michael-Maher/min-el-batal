@@ -2623,6 +2623,7 @@ function openPM(phone) {
       <button class="pm-tab" onclick="pmTab(4)">🎒 المخزن</button>
       <button class="pm-tab" onclick="pmTab(5)">📅 النشاط</button>
       <button class="pm-tab" onclick="pmTab(6)">📊 تلخيص</button>
+      <button class="pm-tab" onclick="pmTab(7)">✍️ ملخصات</button>
     </div>
     <div class="mbody" id="pm-tab-0">${renderEditTab(p)}</div>
     <div class="mbody" id="pm-tab-1" style="display:none">${renderLessonsTab(p)}</div>
@@ -2631,13 +2632,14 @@ function openPM(phone) {
     <div class="mbody" id="pm-tab-4" style="display:none">${renderInventoryTab(p)}</div>
     <div class="mbody" id="pm-tab-5" style="display:none">${renderActivityTab(p)}</div>
     <div class="mbody" id="pm-tab-6" style="display:none">${renderSummaryTab(p)}</div>
+    <div class="mbody" id="pm-tab-7" style="display:none">${renderLessonSummariesTab(p)}</div>
   `;
   document.getElementById('modal-player').style.display='flex';
 }
 
 function pmTab(n) {
   document.querySelectorAll('.pm-tab').forEach((t,i)=>t.classList.toggle('active',i===n));
-  [0,1,2,3,4,5,6].forEach(i=>{const el=document.getElementById('pm-tab-'+i);if(el)el.style.display=i===n?'block':'none';});
+  [0,1,2,3,4,5,6,7].forEach(i=>{const el=document.getElementById('pm-tab-'+i);if(el)el.style.display=i===n?'block':'none';});
 }
 
 function renderEditTab(p) {
@@ -3560,67 +3562,6 @@ function renderSummaryTab(p) {
     html+=_sec('الآيات المحفوظة / المميّزة','📜',hvHtml);
   }
 
-  // ── Lesson summaries written by player ──
-  var ls=p.lessonSummaries||{};
-  var lsKeys=Object.keys(ls);
-  if(lsKeys.length){
-    var lsHtml='<div style="font-size:11px;color:var(--muted);margin-bottom:12px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:8px;display:flex;align-items:center;gap:6px">✍️ <strong style="color:var(--text)">'+lsKeys.length+'</strong> ملخص مُسلَّم</div>';
-    var subKeys4=['faith','bible','life','ritual'];
-    subKeys4.forEach(function(sk){
-      var sub=SUBJECTS[sk];
-      var subSums=lsKeys.filter(function(k){return k.startsWith(sk+'_');}).sort(function(a,b){return(parseInt(a.split('_')[1])||0)-(parseInt(b.split('_')[1])||0);});
-      if(!subSums.length) return;
-      lsHtml+='<div style="margin-bottom:18px">';
-      lsHtml+='<div style="font-size:12px;font-weight:700;margin-bottom:8px;padding:7px 10px;background:'+subColors[sk]+'15;border-radius:9px;border-right:3px solid '+subColors[sk]+';display:flex;align-items:center;justify-content:space-between">';
-      lsHtml+='<span>'+sub.icon+' '+sub.name+'</span>';
-      lsHtml+='<span style="background:'+subColors[sk]+'28;border-radius:99px;padding:2px 9px;font-size:11px;color:'+subColors[sk]+'">'+subSums.length+' / 6</span>';
-      lsHtml+='</div>';
-      subSums.forEach(function(k){
-        var v=ls[k]||{};
-        var idx=parseInt(k.split('_')[1])||0;
-        var lname=(sub.lessons&&sub.lessons[idx])?sub.lessons[idx]:('الدرس '+(idx+1));
-        var hasText=v.text&&typeof v.text==='string'&&v.text.trim().length>0;
-        var hasImage=v.image&&typeof v.image==='string'&&v.image.length>20;
-        var hasAudio=v.audio&&typeof v.audio==='string'&&v.audio.length>20;
-        lsHtml+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:11px;padding:13px;margin-bottom:8px">';
-        // Header row
-        lsHtml+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">';
-        lsHtml+='<div style="font-size:12px;font-weight:700;color:'+subColors[sk]+'">د'+(idx+1)+' — '+esc(lname)+'</div>';
-        lsHtml+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">';
-        if(hasText) lsHtml+='<span style="font-size:10px;background:rgba(96,165,250,.12);border-radius:99px;padding:2px 7px;color:#60a5fa">📝 نص</span>';
-        if(hasImage) lsHtml+='<span style="font-size:10px;background:rgba(52,211,153,.12);border-radius:99px;padding:2px 7px;color:#34d399">🖼️ صورة</span>';
-        if(hasAudio) lsHtml+='<span style="font-size:10px;background:rgba(251,191,36,.12);border-radius:99px;padding:2px 7px;color:#fbbf24">🎵 صوت</span>';
-        lsHtml+='<span style="font-size:10px;color:var(--muted)">'+esc(v.date||'—')+'</span>';
-        lsHtml+='</div></div>';
-        // Text content
-        if(hasText){
-          lsHtml+='<div style="background:rgba(96,165,250,.06);border-right:3px solid rgba(96,165,250,.35);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;line-height:1.8;color:var(--text);direction:rtl;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto">'+esc(v.text)+'</div>';
-        }
-        // Image
-        if(hasImage){
-          lsHtml+='<div style="margin-bottom:8px;text-align:center"><img src="'+v.image+'" alt="ملخص صورة" loading="lazy" style="max-width:100%;max-height:320px;border-radius:9px;object-fit:contain;background:rgba(0,0,0,.25);border:1px solid var(--border)"></div>';
-        }
-        // Audio player
-        if(hasAudio){
-          lsHtml+='<div style="margin-top:4px"><audio controls preload="none" style="width:100%;height:36px;border-radius:6px" src="'+v.audio+'"></audio></div>';
-        }
-        if(!hasText&&!hasImage&&!hasAudio){
-          lsHtml+='<div style="font-size:11px;color:var(--muted);font-style:italic">لا يوجد محتوى</div>';
-        }
-        lsHtml+='</div>';
-      });
-      lsHtml+='</div>';
-    });
-    // Any summaries with unrecognized subject keys
-    var unrecSums=lsKeys.filter(function(k){return!subKeys4.some(function(sk){return k.startsWith(sk+'_');});});
-    if(unrecSums.length){
-      lsHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:8px;border-right:3px solid #888">📝 أخرى</div>';
-      unrecSums.forEach(function(k){var v=ls[k]||{};lsHtml+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:5px;font-size:11px"><span style="color:#60a5fa;font-weight:700">'+esc(k)+'</span>'+(v.text?'<div style="color:var(--muted);margin-top:3px;white-space:pre-wrap">'+esc(v.text.substring(0,300))+'</div>':'')+'</div>';});
-      lsHtml+='</div>';
-    }
-    html+=_sec('تلخيص الدروس','✍️',lsHtml);
-  }
-
   // ── Any unknown / extra fields not covered above ──
   var knownKeys=new Set(['playerName','playerPhone','username','email','gender','academicYear','character','profileAvatar','currentLevel','stars','gems','xp','streak','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels','missionsCompleted','powerUps','armor','equippedArmor','equippedFrame','ownedFrames','equippedTitle','ownedTitles','theme','mapTheme','team','teamLogo','teamColor','teamLastAction','characterTiers','levelsData','stationScores','miniGameScores','watchedVideos','lessonSummaries','bibleReadingLog','devotionLog','dailyVerseLog','exerciseLog','lampData','paulJourneyData','paulJourneyStation','bibleChapter','highlightedVerses','weeklyChallengeLog','dailyLoginDate','dailySpinDate','dailyBonusSpin','todayVerseSpinDate','todayVerse','blitzWeeklyScore','blitzWeeklyKey','bossFoughtDate','loginStreak','claimedStreakRewards','redeemedRewards','missionsCompleted','level2Data','passwordHash','_id','lastUpdated','createdAt','dailyBonusSpin','teamLastAction']);
   var extraKeys=Object.keys(p).filter(function(k){return!knownKeys.has(k);});
@@ -3641,6 +3582,81 @@ function renderSummaryTab(p) {
     <button class="btn bg bsm" style="margin-top:8px" onclick="navigator.clipboard.writeText(document.getElementById('raw-json-pre').textContent).then(function(){toast('تم النسخ ✓','ok');})"><i class="fas fa-copy"></i> نسخ JSON</button>
   </details>`;
 
+  return html;
+}
+
+function renderLessonSummariesTab(p) {
+  var subKeys=['faith','bible','life','ritual'];
+  var subColors={faith:'#e74c3c',bible:'#3b82f6',life:'#10b981',ritual:'#8b5cf6'};
+  var ls=p.lessonSummaries||{};
+  var lsKeys=Object.keys(ls);
+  if(!lsKeys.length){
+    return '<div style="text-align:center;padding:40px 20px;color:var(--muted)"><div style="font-size:48px;margin-bottom:12px">✍️</div><div style="font-size:14px;font-weight:700">لا توجد ملخصات بعد</div><div style="font-size:12px;margin-top:6px">هذا اللاعب لم يسلّم أي تلخيص للدروس حتى الآن</div></div>';
+  }
+  var totalText=lsKeys.filter(function(k){var v=ls[k]||{};return v.text&&v.text.trim();}).length;
+  var totalImg=lsKeys.filter(function(k){var v=ls[k]||{};return v.image&&v.image.length>20;}).length;
+  var totalAudio=lsKeys.filter(function(k){var v=ls[k]||{};return v.audio&&v.audio.length>20;}).length;
+  var html='';
+  // Stats bar
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">';
+  html+='<div style="background:rgba(124,106,247,.08);border:1px solid rgba(124,106,247,.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:900;color:var(--accent2)">'+lsKeys.length+'</div><div style="font-size:10px;color:var(--muted)">إجمالي الملخصات</div></div>';
+  html+='<div style="background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:900;color:#60a5fa">'+totalText+'</div><div style="font-size:10px;color:var(--muted)">📝 نصي</div></div>';
+  html+='<div style="background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:900;color:#34d399">'+totalImg+'</div><div style="font-size:10px;color:var(--muted)">🖼️ صور</div></div>';
+  html+='<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:10px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:900;color:#fbbf24">'+totalAudio+'</div><div style="font-size:10px;color:var(--muted)">🎵 صوتي</div></div>';
+  html+='</div>';
+  // Summaries grouped by subject
+  subKeys.forEach(function(sk){
+    var sub=SUBJECTS[sk];
+    var subSums=lsKeys.filter(function(k){return k.startsWith(sk+'_');}).sort(function(a,b){return(parseInt(a.split('_')[1])||0)-(parseInt(b.split('_')[1])||0);});
+    if(!subSums.length) return;
+    html+='<div style="margin-bottom:20px">';
+    html+='<div style="font-size:13px;font-weight:700;margin-bottom:10px;padding:8px 12px;background:'+subColors[sk]+'15;border-radius:10px;border-right:3px solid '+subColors[sk]+';display:flex;align-items:center;justify-content:space-between">';
+    html+='<span>'+sub.icon+' '+sub.name+'</span>';
+    html+='<span style="background:'+subColors[sk]+'28;border-radius:99px;padding:2px 10px;font-size:11px;color:'+subColors[sk]+'">'+subSums.length+' / 6 دروس</span>';
+    html+='</div>';
+    subSums.forEach(function(k){
+      var v=ls[k]||{};
+      var idx=parseInt(k.split('_')[1])||0;
+      var lname=(sub.lessons&&sub.lessons[idx])?sub.lessons[idx]:('الدرس '+(idx+1));
+      var hasText=v.text&&typeof v.text==='string'&&v.text.trim().length>0;
+      var hasImage=v.image&&typeof v.image==='string'&&v.image.length>20;
+      var hasAudio=v.audio&&typeof v.audio==='string'&&v.audio.length>20;
+      html+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">';
+      // Header
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">';
+      html+='<div style="font-size:13px;font-weight:700;color:'+subColors[sk]+'">درس '+(idx+1)+' — '+esc(lname)+'</div>';
+      html+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">';
+      if(hasText)  html+='<span style="font-size:10px;background:rgba(96,165,250,.14);border-radius:99px;padding:3px 9px;color:#60a5fa;font-weight:700">📝 نص</span>';
+      if(hasImage) html+='<span style="font-size:10px;background:rgba(52,211,153,.14);border-radius:99px;padding:3px 9px;color:#34d399;font-weight:700">🖼️ صورة</span>';
+      if(hasAudio) html+='<span style="font-size:10px;background:rgba(251,191,36,.14);border-radius:99px;padding:3px 9px;color:#fbbf24;font-weight:700">🎵 صوت</span>';
+      html+='<span style="font-size:10px;color:var(--muted);background:rgba(255,255,255,.05);border-radius:99px;padding:3px 8px">📅 '+esc(v.date||'—')+'</span>';
+      html+='</div></div>';
+      // Text
+      if(hasText){
+        html+='<div style="background:rgba(96,165,250,.06);border-right:3px solid rgba(96,165,250,.4);border-radius:8px;padding:11px 13px;margin-bottom:10px;font-size:12px;line-height:1.85;color:var(--text);direction:rtl;white-space:pre-wrap;word-break:break-word;max-height:240px;overflow-y:auto">'+esc(v.text)+'</div>';
+      }
+      // Image
+      if(hasImage){
+        html+='<div style="margin-bottom:10px;text-align:center"><img src="'+v.image+'" alt="ملخص صورة" loading="lazy" style="max-width:100%;max-height:340px;border-radius:10px;object-fit:contain;background:rgba(0,0,0,.25);border:1px solid var(--border)"></div>';
+      }
+      // Audio
+      if(hasAudio){
+        html+='<audio controls preload="none" style="width:100%;margin-top:4px" src="'+v.audio+'"></audio>';
+      }
+      if(!hasText&&!hasImage&&!hasAudio){
+        html+='<div style="font-size:11px;color:var(--muted);font-style:italic;text-align:center;padding:8px">لا يوجد محتوى محفوظ</div>';
+      }
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  // Unrecognized keys
+  var unrecSums=lsKeys.filter(function(k){return!subKeys.some(function(sk){return k.startsWith(sk+'_');});});
+  if(unrecSums.length){
+    html+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:7px;padding:7px 10px;background:rgba(255,255,255,.04);border-radius:8px;border-right:3px solid #888">📝 أخرى</div>';
+    unrecSums.forEach(function(k){var v=ls[k]||{};html+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:5px;font-size:11px"><span style="color:#60a5fa;font-weight:700">'+esc(k)+'</span>'+(v.text?'<div style="color:var(--muted);margin-top:3px;white-space:pre-wrap">'+esc(v.text.substring(0,300))+'</div>':'')+'</div>';});
+    html+='</div>';
+  }
   return html;
 }
 

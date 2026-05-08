@@ -121,22 +121,63 @@ Dedupe: store `lastCelebrationKey` on player doc per event type so we don't doub
 
 ## Phase 1 implementation checklist
 
-- [ ] `firestore.rules` updated with `posts` + `comments` rules
-- [ ] `SOCIAL_FEED_SCHEMA.md` (this file) committed
-- [ ] `game.js`: helper `subscribeFeed`, `unsubscribeFeed`, `toggleReaction`, `addComment`, `postCelebration`
-- [ ] `game.js`: `_LOCK_GATE` updated for `social-screen`
-- [ ] `game.js`: `applyDashboardLockUI()` map updated for `card_social`
-- [ ] `game.js`: auto-celebration hooks in 5 places
-- [ ] `index.html`: hub card on home screen
-- [ ] `index.html`: `#social-screen` with feed list container
-- [ ] `index.html`: `#social-post-screen` with detail layout
-- [ ] `style.css`: feed styling
-- [ ] `admin.html`: `LOCK_KEYS` includes `card_social`
-- [ ] `admin.html`: `📢 المنشورات` admin tab with create/list UI
-- [ ] Firebase Storage rules for `social/posts/`
-- [ ] Manual TTL setup in Firebase Console (document this in the deploy notes)
-- [ ] Test end-to-end on staging hosting
-- [ ] Merge to `main` and deploy
+- [x] `firestore.rules` updated with `posts` + `comments` rules
+- [x] `CLAUDE.md` + `SOCIAL_FEED.md` (this file) committed
+- [x] `game.js`: helpers `subscribeFeed`, `unsubscribeFeed`, `toggleReaction`, `submitComment`, `postCelebration`, `formatRelativeTime`, `escapeAttr`, `linkifyText`
+- [x] `game.js`: `_LOCK_GATE` updated for `social-screen` and `social-post-screen`
+- [x] `game.js`: `applyDashboardLockUI()` map updated for `card_social`
+- [x] `game.js`: auto-celebration hook for **subject_complete** wired in `updateStationScore()`
+- [ ] `game.js`: remaining auto-celebration hooks (streak_7, streak_30, stars_milestone, tournament_win) — **deferred to next session**
+- [x] `index.html`: hub card on home screen
+- [x] `index.html`: `#social-screen` with feed list container
+- [x] `index.html`: `#social-post-screen` with detail layout
+- [x] `style.css`: feed styling appended at end
+- [x] `admin.html`: `LOCK_CARDS` includes `card_social`
+- [x] `admin.html`: PAGES + sidebar nav + `page-posts` HTML container
+- [x] `admin.html`: `renderPosts`, `openCreatePostModal`, `savePost`, `togglePinPost`, `deletePost`, image compress+upload
+- [x] `admin.html`: Firebase Storage SDK (compat) script tag added
+- [ ] **Manual TTL setup in Firebase Console** — see deploy notes below
+- [ ] **Firebase Storage rules** — see deploy notes below
+- [ ] Test end-to-end after deploy
+- [ ] Merge `feature/social-feed` → `main`
+
+## Manual setup needed before merging to main
+
+### 1. Enable Firestore TTL (one-time, free)
+1. Open https://console.firebase.google.com/project/min-el-batal/firestore/ttl
+2. Add policy on collection `posts`, field `expiresAt`.
+3. Add policy on collection-group `comments`, field `expiresAt`.
+
+Pinned posts have `expiresAt = null`, so they never get deleted.
+
+### 2. Enable Firebase Storage (if not already)
+1. Open https://console.firebase.google.com/project/min-el-batal/storage
+2. Click "Get Started" if first time, accept default bucket.
+3. Set storage rules to match Firestore (open for now):
+```
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /social/posts/{postId} {
+      allow read, write: if true;
+    }
+    match /{allPaths=**} {
+      allow read: if true;
+    }
+  }
+}
+```
+
+### 3. Optional — orphan image cleanup
+Without a Cloud Function, post images in storage stay even after their Firestore doc is TTL-deleted. Two options:
+- (Easier) Add a manual cleanup chore once a month via the Storage console.
+- (Better) Add a Cloud Function in `functions/index.js` that triggers on `posts/{postId}` delete and deletes `social/posts/{postId}.jpg`. Defer to Phase 2.
+
+## Deferred (do in follow-up commit)
+- Wire `streak_7`, `streak_30`, `stars_milestone` auto-celebrations
+- Wire `tournament_win` auto-celebration
+- Pull-to-refresh on feed
+- Unread badge counter on the hub card
 
 ## Phase 2 (later, do not start yet)
 - Player text posts with admin moderation queue

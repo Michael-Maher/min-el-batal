@@ -350,6 +350,21 @@
                     </div>
                 </div>
 
+                <!-- Social Feed - منشورات -->
+                <div class="hub-card hub-card-social" onclick="openSocialScreen()">
+                    <div class="hub-card-bg" style="background:linear-gradient(135deg,#1f2247 0%,#3b3b9d 50%,#5b3aa8 100%)">
+                        <div class="hub-card-overlay hub-card-overlay-light"></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">📢</div>
+                            <h3 style="font-size:21px;margin-bottom:2px">المنشورات</h3>
+                            <p style="font-size:13px;opacity:.88;margin-bottom:10px">آخر إعلانات الخدّام وإنجازات أصحابك</p>
+                            <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#6366f1,#a855f7);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(99,102,241,.55)"><i class="fas fa-bullhorn"></i> اقرأ وتفاعل</div>
+                        </div>
+                        <div class="hub-card-shine"></div>
+                        <div id="social-unread-badge" class="questions-unread-badge" style="display:none">0</div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="hub-footer-btns">
@@ -545,6 +560,38 @@
                 </div>
             </div>
             <div id="friends-questions-body" class="fqs-body"></div>
+        </div>
+    </div>
+
+    <!-- ============ SOCIAL FEED (المنشورات) ============ -->
+    <div id="social-screen" class="screen">
+        <div class="screen-inner" style="padding:0">
+            <div class="social-hero">
+                <button class="back-btn social-back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <div class="social-hero-content">
+                    <div class="social-hero-icon">📢</div>
+                    <h2 class="social-hero-title">المنشورات</h2>
+                    <p class="social-hero-sub">إعلانات الخدّام، تأملات يومية، وإنجازات أصحابك</p>
+                </div>
+            </div>
+            <div id="social-feed-body" class="social-feed-body">
+                <div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المنشورات…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ SINGLE POST DETAIL ============ -->
+    <div id="social-post-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('social-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-comment-dots"></i> منشور</h2>
+            </div>
+            <div id="social-post-body" class="social-post-body"></div>
+            <div class="social-comment-composer" id="social-comment-composer">
+                <textarea id="social-comment-input" maxlength="200" rows="2" placeholder="اكتب تعليقك… (٢٠٠ حرف كحد أقصى)"></textarea>
+                <button class="btn btn-primary" onclick="submitComment()"><i class="fas fa-paper-plane"></i> إرسال</button>
+            </div>
         </div>
     </div>
 

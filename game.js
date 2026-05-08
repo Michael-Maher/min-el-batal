@@ -539,6 +539,7 @@ function applyDashboardLockUI() {
         { sel: '.hub-card[onclick*="compete-screen"]',             key: 'card_compete',          title: 'المنافسات الجماعية' },
         { sel: '.hub-card[onclick*="openQuestionsScreen"]',        key: 'card_myQuestions',      title: 'اسأل الخدّام' },
         { sel: '.hub-card[onclick*="openFriendsQuestionsScreen"]', key: 'card_friendsQuestions', title: 'أسئلة أصحابك' },
+        { sel: '.hub-card[onclick*="openSocialScreen"]',           key: 'card_social',           title: 'المنشورات' },
     ];
     map.forEach(function(m) {
         var card = hub.querySelector(m.sel);
@@ -2617,12 +2618,18 @@ function showScreen(id) {
             'compete-screen':          ['card_compete',          'المنافسات الجماعية'],
             'questions-screen':        ['card_myQuestions',      'اسأل الخدّام'],
             'friends-questions-screen':['card_friendsQuestions', 'أسئلة أصحابك'],
+            'social-screen':           ['card_social',           'المنشورات'],
+            'social-post-screen':      ['card_social',           'المنشورات'],
         };
         var _lg = _LOCK_GATE[id];
         if (_lg && isContentLocked(_lg[0])) {
             showLockedPopup(_lg[1], lockedMessage(_lg[0]));
             return;
         }
+    }
+    // Cleanup social feed listener when leaving the social area
+    if (typeof socialState !== 'undefined' && id !== 'social-screen' && id !== 'social-post-screen') {
+        try { if (typeof unsubscribeFeed === 'function') unsubscribeFeed(); } catch(e){}
     }
     document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
     var el = document.getElementById(id);
@@ -12224,6 +12231,21 @@ function saveMiniGameScore(type, score) {
             showCelebration('🏆', 'فتحت المحطة الجاية!', '#00B894');
             launchConfetti(3000);
         }, 500);
+
+        // Check if this completes the entire subject (all 6 stations crossed threshold)
+        try {
+            var subjKey = stationKey.split('_')[0];
+            if (subjKey && typeof LEVEL2_SUBJECTS !== 'undefined' && LEVEL2_SUBJECTS[subjKey]) {
+                var allDone = true;
+                for (var i = 0; i < 6; i++) {
+                    var sc = getStationScore(subjKey + '_' + i);
+                    if (!sc || sc.total < STATION_UNLOCK_THRESHOLD) { allDone = false; break; }
+                }
+                if (allDone && typeof postCelebration === 'function') {
+                    postCelebration('subject_complete', { subject: subjKey, subjectName: LEVEL2_SUBJECTS[subjKey].name });
+                }
+            }
+        } catch(e) { console.warn('subject_complete check failed', e); }
     }
 }
 
@@ -22132,4 +22154,320 @@ function openSharedThread(threadId) {
             if (msgsBox) msgsBox.innerHTML = '<div class="qa-empty"><p>تعذّر التحميل</p></div>';
         });
 }
+}
+
+// ============================================================
+// SOCIAL FEED (Phase 1: admin/system posts + reactions + comments)
+// See SOCIAL_FEED.md for the full spec.
+// ============================================================
+var socialState = {
+    _feedUnsub: null,
+    _commentsUnsub: null,
+    posts: [],
+    currentPostId: null,
+    lastSeenAt: 0,
+    POST_LIMIT: 20,
+    REACTIONS: ['❤️', '🙏', '✝️', '🔥', '⭐']
+};
+
+function openSocialScreen() {
+    showScreen('social-screen');  // lock gate handles card_social
+    subscribeFeed();
+    try { localStorage.setItem('minElBatal_socialLastSeen', String(Date.now())); } catch(e){}
+    var badge = document.getElementById('social-unread-badge');
+    if (badge) badge.style.display = 'none';
+}
+
+function subscribeFeed() {
+    if (!firebaseDb) return;
+    if (socialState._feedUnsub) { try { socialState._feedUnsub(); } catch(e){} socialState._feedUnsub = null; }
+    var body = document.getElementById('social-feed-body');
+    if (body) body.innerHTML = '<div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المنشورات…</div>';
+    try {
+        socialState._feedUnsub = firebaseDb.collection('posts')
+            .orderBy('createdAt', 'desc')
+            .limit(socialState.POST_LIMIT)
+            .onSnapshot(function(snap) {
+                var posts = [];
+                snap.forEach(function(d) { var v = d.data(); v._id = d.id; posts.push(v); });
+                // pinned first
+                posts.sort(function(a, b) {
+                    if ((a.pinned ? 1 : 0) !== (b.pinned ? 1 : 0)) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
+                    var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                    var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                    return tb - ta;
+                });
+                socialState.posts = posts;
+                renderSocialFeed(posts);
+            }, function(err) {
+                console.warn('[social] feed error', err);
+                if (body) body.innerHTML = '<div class="social-feed-empty"><div class="social-feed-empty-icon">⚠️</div>تعذّر التحميل، حاول تاني</div>';
+            });
+    } catch(e) {
+        console.warn('subscribeFeed failed', e);
+    }
+}
+
+function unsubscribeFeed() {
+    if (socialState._feedUnsub) { try { socialState._feedUnsub(); } catch(e){} socialState._feedUnsub = null; }
+    if (socialState._commentsUnsub) { try { socialState._commentsUnsub(); } catch(e){} socialState._commentsUnsub = null; }
+    socialState.currentPostId = null;
+}
+
+function renderSocialFeed(posts) {
+    var body = document.getElementById('social-feed-body');
+    if (!body) return;
+    if (!posts || !posts.length) {
+        body.innerHTML = '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>لا توجد منشورات حالياً<br><span style="font-size:12px;opacity:.7">تابع المنشورات من الخدّام والإنجازات قريباً</span></div>';
+        return;
+    }
+    body.innerHTML = posts.map(renderSocialPost).join('');
+}
+
+function renderSocialPost(post) {
+    var name = escapeHtmlSimple(post.authorName || 'مجهول');
+    var avatar = post.authorAvatar || 'images/default-avatar.png';
+    var roleBadge = '';
+    if (post.authorRole === 'admin')      roleBadge = '<span class="social-post-role-admin"><i class="fas fa-shield-halved"></i> خادم</span>';
+    else if (post.authorRole === 'system') roleBadge = '<span class="social-post-role-system"><i class="fas fa-star"></i> إنجاز</span>';
+    var pinTag = post.pinned ? '<span class="social-post-pinned-tag"><i class="fas fa-thumbtack"></i> مثبت</span>' : '';
+    var time = formatRelativeTime(post.createdAt);
+    var text = escapeHtmlSimple(post.text || '');
+    var img = post.imageUrl ? '<img class="social-post-image" loading="lazy" src="' + escapeAttr(post.imageUrl) + '" alt="">' : '';
+    var counts = post.reactionCounts || {};
+    var myPhone = GameState.playerPhone || '';
+    var myReaction = (post.reactions || {})[myPhone] || '';
+    var actions = socialState.REACTIONS.map(function(emoji) {
+        var count = counts[emoji] || 0;
+        var active = myReaction === emoji ? ' active' : '';
+        var countHtml = count > 0 ? '<span class="social-reaction-count">' + count + '</span>' : '';
+        return '<button class="social-reaction-btn' + active + '" onclick="event.stopPropagation();toggleReaction(\'' + post._id + '\',\'' + emoji + '\')">' + emoji + countHtml + '</button>';
+    }).join('');
+    return '<div class="social-post' + (post.pinned ? ' social-post-pinned' : '') + '" onclick="openSocialPost(\'' + post._id + '\')">'
+        + '<div class="social-post-header">'
+        +   '<img class="social-post-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
+        +   '<div class="social-post-author">'
+        +     '<div class="social-post-author-name">' + name + ' ' + roleBadge + ' ' + pinTag + '</div>'
+        +     '<div class="social-post-time">' + time + '</div>'
+        +   '</div>'
+        + '</div>'
+        + (text ? '<div class="social-post-text">' + linkifyText(text) + '</div>' : '')
+        + img
+        + '<div class="social-post-actions">'
+        +   actions
+        +   '<button class="social-comment-btn" onclick="event.stopPropagation();openSocialPost(\'' + post._id + '\')"><i class="fas fa-comment"></i> ' + (post.commentCount || 0) + '</button>'
+        + '</div>'
+        + '</div>';
+}
+
+function openSocialPost(postId) {
+    socialState.currentPostId = postId;
+    showScreen('social-post-screen');
+    var post = socialState.posts.find(function(p) { return p._id === postId; });
+    var body = document.getElementById('social-post-body');
+    if (post && body) {
+        body.innerHTML = renderSocialPost(post)
+            + '<div class="social-comments-title"><i class="fas fa-comments"></i> التعليقات (' + (post.commentCount || 0) + ')</div>'
+            + '<div id="social-comments-list" class="social-comments-list"><div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i></div></div>';
+    } else if (body) {
+        // Fallback: load post from Firestore directly
+        body.innerHTML = '<div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل…</div>';
+        if (firebaseDb) {
+            firebaseDb.collection('posts').doc(postId).get().then(function(d) {
+                if (!d.exists) { body.innerHTML = '<div class="social-feed-empty">المنشور لم يعد متاحاً</div>'; return; }
+                var p = d.data(); p._id = d.id;
+                body.innerHTML = renderSocialPost(p)
+                    + '<div class="social-comments-title"><i class="fas fa-comments"></i> التعليقات (' + (p.commentCount || 0) + ')</div>'
+                    + '<div id="social-comments-list" class="social-comments-list"></div>';
+            });
+        }
+    }
+    subscribeCommentsFor(postId);
+}
+
+function subscribeCommentsFor(postId) {
+    if (!firebaseDb) return;
+    if (socialState._commentsUnsub) { try { socialState._commentsUnsub(); } catch(e){} socialState._commentsUnsub = null; }
+    try {
+        socialState._commentsUnsub = firebaseDb.collection('posts').doc(postId).collection('comments')
+            .orderBy('createdAt', 'asc')
+            .limit(100)
+            .onSnapshot(function(snap) {
+                var list = [];
+                snap.forEach(function(d) { var v = d.data(); v._id = d.id; list.push(v); });
+                renderComments(list);
+            }, function(err) { console.warn('[social] comments error', err); });
+    } catch(e) { console.warn('subscribeCommentsFor failed', e); }
+}
+
+function renderComments(list) {
+    var box = document.getElementById('social-comments-list');
+    if (!box) return;
+    if (!list.length) {
+        box.innerHTML = '<div class="social-feed-empty" style="padding:18px 12px;font-size:12px">لا توجد تعليقات بعد. كن أول من يعلق! 💬</div>';
+        return;
+    }
+    box.innerHTML = list.map(function(c) {
+        var name = escapeHtmlSimple(c.authorName || 'مجهول');
+        var avatar = c.authorAvatar || 'images/default-avatar.png';
+        var time = formatRelativeTime(c.createdAt);
+        var text = linkifyText(escapeHtmlSimple(c.text || ''));
+        return '<div class="social-comment">'
+            + '<img class="social-comment-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
+            + '<div class="social-comment-body">'
+            +   '<div class="social-comment-meta"><span class="social-comment-author">' + name + '</span><span class="social-comment-time">' + time + '</span></div>'
+            +   '<div class="social-comment-text">' + text + '</div>'
+            + '</div>'
+            + '</div>';
+    }).join('');
+}
+
+function toggleReaction(postId, emoji) {
+    if (!firebaseDb) return;
+    if (!GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
+    if (GameState.status === 'blocked' || GameState.status === 'suspended') {
+        showToast('حسابك موقوف، التفاعل غير متاح', 'error'); return;
+    }
+    var phone = GameState.playerPhone;
+    var ref = firebaseDb.collection('posts').doc(postId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(ref).then(function(doc) {
+            if (!doc.exists) return;
+            var data = doc.data() || {};
+            var reactions = data.reactions || {};
+            var counts = data.reactionCounts || {};
+            var prev = reactions[phone];
+            if (prev === emoji) {
+                // toggle off
+                delete reactions[phone];
+                counts[emoji] = Math.max(0, (counts[emoji] || 0) - 1);
+            } else {
+                if (prev) counts[prev] = Math.max(0, (counts[prev] || 0) - 1);
+                reactions[phone] = emoji;
+                counts[emoji] = (counts[emoji] || 0) + 1;
+            }
+            tx.update(ref, { reactions: reactions, reactionCounts: counts });
+        });
+    }).catch(function(err) { console.warn('[social] toggleReaction error', err); showToast('خطأ في التفاعل', 'error'); });
+}
+
+function submitComment() {
+    var input = document.getElementById('social-comment-input');
+    if (!input || !socialState.currentPostId) return;
+    var text = (input.value || '').trim();
+    if (!text) { showToast('اكتب تعليق الأول', 'warning'); return; }
+    if (text.length > 200) { showToast('التعليق طويل جداً (٢٠٠ حرف كحد أقصى)', 'warning'); return; }
+    if (!firebaseDb || !GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
+    if (GameState.status === 'blocked' || GameState.status === 'suspended') {
+        showToast('حسابك موقوف، التعليق غير متاح', 'error'); return;
+    }
+    var postId = socialState.currentPostId;
+    var ch = CHARACTERS[GameState.character];
+    var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
+    var nowMs = Date.now();
+    var expiresAt = new Date(nowMs + 7 * 24 * 60 * 60 * 1000);
+    var comment = {
+        authorId: GameState.playerPhone,
+        authorName: GameState.playerName || 'مجهول',
+        authorAvatar: avatar,
+        text: text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
+        reportCount: 0
+    };
+    var postRef = firebaseDb.collection('posts').doc(postId);
+    postRef.collection('comments').add(comment).then(function() {
+        return postRef.update({ commentCount: firebase.firestore.FieldValue.increment(1) });
+    }).then(function() {
+        input.value = '';
+        showToast('تم إضافة التعليق ✅', 'success');
+    }).catch(function(err) { console.warn('[social] addComment error', err); showToast('خطأ في الإرسال', 'error'); });
+}
+
+// ============================================================
+// AUTO-CELEBRATIONS — system posts on milestones
+// ============================================================
+function postCelebration(type, vars) {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    // Dedupe: never post the same celebration key twice for the same player.
+    var dedupeKey = type + ':' + (vars && vars.subject ? vars.subject : (vars && vars.value ? vars.value : ''));
+    GameState.celebrationsPosted = GameState.celebrationsPosted || {};
+    if (GameState.celebrationsPosted[dedupeKey]) return;
+    GameState.celebrationsPosted[dedupeKey] = true;
+    try { saveToCloud(); } catch(e){}
+    var ch = CHARACTERS[GameState.character];
+    var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
+    var name = GameState.playerName || 'بطل';
+    var firstName = name.split(' ')[0];
+    var text = '';
+    switch (type) {
+        case 'subject_complete':
+            text = '🎉 ' + firstName + ' خلّص مادة ' + (vars.subjectName || vars.subject) + '! ربنا يفرحك ✨';
+            break;
+        case 'streak_7':
+            text = '🔥 ' + firstName + ' مكمّل ٧ أيام متواصلة في اللعبة!';
+            break;
+        case 'streak_30':
+            text = '👑 ' + firstName + ' مكمّل ٣٠ يوم متواصل! بطل حقيقي';
+            break;
+        case 'stars_milestone':
+            text = '⭐ ' + firstName + ' وصل لـ ' + (vars.value || '') + ' نجمة!';
+            break;
+        case 'tournament_win':
+            text = '🏆 ' + firstName + ' كسب بطولة! مبروك يا بطل';
+            break;
+        default:
+            return;
+    }
+    var nowMs = Date.now();
+    var expiresAt = new Date(nowMs + 7 * 24 * 60 * 60 * 1000);
+    firebaseDb.collection('posts').add({
+        authorId: 'system',
+        authorName: name,
+        authorAvatar: avatar,
+        authorRole: 'system',
+        type: 'celebration',
+        text: text,
+        imageUrl: null,
+        reactions: {},
+        reactionCounts: {},
+        commentCount: 0,
+        pinned: false,
+        status: 'approved',
+        reportCount: 0,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
+        celebrationKey: dedupeKey
+    }).catch(function(err) { console.warn('[social] postCelebration error', err); });
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function formatRelativeTime(ts) {
+    if (!ts) return '';
+    var ms = ts.toMillis ? ts.toMillis() : (ts.seconds ? ts.seconds * 1000 : (typeof ts === 'number' ? ts : 0));
+    if (!ms) return '';
+    var diff = Math.max(0, Date.now() - ms);
+    var s = Math.floor(diff / 1000);
+    if (s < 60) return 'الآن';
+    var m = Math.floor(s / 60);
+    if (m < 60) return 'منذ ' + m + ' دقيقة';
+    var h = Math.floor(m / 60);
+    if (h < 24) return 'منذ ' + h + ' ساعة';
+    var d = Math.floor(h / 24);
+    if (d < 7) return 'منذ ' + d + ' يوم';
+    var w = Math.floor(d / 7);
+    return 'منذ ' + w + ' أسبوع';
+}
+
+function escapeAttr(s) {
+    return String(s == null ? '' : s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function linkifyText(s) {
+    // Already-escaped string — only auto-link http(s) URLs, preserve newlines via CSS
+    return String(s == null ? '' : s).replace(/(https?:\/\/[^\s]+)/g, function(u) {
+        return '<a href="' + escapeAttr(u) + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:underline">' + u + '</a>';
+    });
 }

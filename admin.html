@@ -1413,6 +1413,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
         <button class="nav-btn" onclick="goPage('rewards')" id="nav-rewards"><i class="fas fa-gift"></i> طلبات الجوائز</button>
         <button class="nav-btn" onclick="goPage('rooms')"><i class="fas fa-bolt"></i> غرف المنافسة</button>
         <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
+        <button class="nav-btn" onclick="goPage('posts')"><i class="fas fa-newspaper"></i> المنشورات</button>
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
         <button class="nav-btn" onclick="goPage('locks')" id="nav-locks"><i class="fas fa-lock"></i> الإقفال والإتاحة</button>
         <button class="nav-btn" onclick="goPage('reports')" id="nav-reports"><i class="fas fa-flag"></i> التقارير <span class="nav-badge" id="nav-reports-badge" style="display:none">0</span></button>
@@ -1501,6 +1502,18 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
         <button class="btn bp" onclick="openCreateTeamModal()"><i class="fas fa-plus"></i> فريق جديد</button>
       </div>
       <div class="tgrid" id="tgrid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- POSTS / SOCIAL FEED -->
+    <div class="page" id="page-posts">
+      <div class="ph">
+        <div><h2><i class="fas fa-bullhorn" style="color:var(--accent2)"></i> المنشورات</h2><p>إعلانات وتأملات من الخدّام، تظهر للاعبين في الفيد الاجتماعي. تنتهي تلقائياً بعد ٧ أيام (إلا المثبتة)</p></div>
+        <button class="btn bp" onclick="openCreatePostModal()"><i class="fas fa-plus"></i> منشور جديد</button>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <div class="ch"><h3><i class="fas fa-list" style="color:var(--gold)"></i> كل المنشورات</h3></div>
+        <div class="cb" id="posts-list"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+      </div>
     </div>
 
     <!-- LOCKS -->
@@ -1904,6 +1917,11 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
   <div class="modal" style="max-width:520px" id="mlock-box"></div>
 </div>
 
+<!-- CREATE/EDIT POST MODAL -->
+<div id="modal-post" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-post')">
+  <div class="modal" style="max-width:600px" id="mpost-box"></div>
+</div>
+
 <!-- REPORT DETAIL MODAL -->
 <div id="modal-report" class="modal-ov" style="display:none" onclick="if(event.target===this)closeM('modal-report')">
   <div class="modal" style="max-width:560px" id="mreport-box"></div>
@@ -1953,6 +1971,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
 
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
 <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <script>
 // ════════════════════════════════
@@ -1989,7 +2008,8 @@ const PAGES = [
   { key:'locks',    label:'الإقفال والإتاحة', icon:'fa-lock' },
   { key:'reports',  label:'التقارير',         icon:'fa-flag' },
   { key:'tournaments', label:'البطولات',      icon:'fa-trophy' },
-  { key:'tqbank',   label:'بنك أسئلة البطولة', icon:'fa-database' }
+  { key:'tqbank',   label:'بنك أسئلة البطولة', icon:'fa-database' },
+  { key:'posts',    label:'المنشورات',        icon:'fa-bullhorn' }
 ];
 function defaultPerms(){ var p={}; PAGES.forEach(function(x){ p[x.key]=true; }); return p; }
 function hasPerm(key){
@@ -2284,6 +2304,7 @@ async function loadAll() {
   try { renderInsights(); } catch(e) { console.warn('renderInsights error:', e); }
   applyF(); renderTeams(); renderRewards(); renderRooms(); renderAnnounce(); renderAdminMgmt(); updateSegmentCount();
   try { renderLocks(); } catch(e) { console.warn('renderLocks error:', e); }
+  try { renderPosts(); } catch(e) { console.warn('renderPosts error:', e); }
   try { rptTab(currentReportTab); } catch(e) { console.warn('renderReports error:', e); }
   try { renderTournaments(); renderTQBank(); fillTQTypeFilter(); } catch(e) { console.warn('renderTournaments/Bank error:', e); }
   updateBadges();
@@ -2295,8 +2316,8 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين'};
 function goPage(name) {
   // Permission gate (admins-page is gated separately by being hidden from non-supers)
   // tour-console inherits tournaments perm
@@ -3929,7 +3950,8 @@ const LOCK_CARDS = [
   { key:'card_level2',          name:'كارت المستوى الثاني',    icon:'fa-graduation-cap' },
   { key:'card_compete',         name:'كارت المنافسات',          icon:'fa-bolt' },
   { key:'card_myQuestions',     name:'كارت "اسأل الخدّام"',     icon:'fa-comments' },
-  { key:'card_friendsQuestions',name:'كارت "أسئلة أصحابك"',     icon:'fa-users' }
+  { key:'card_friendsQuestions',name:'كارت "أسئلة أصحابك"',     icon:'fa-users' },
+  { key:'card_social',          name:'كارت "المنشورات"',         icon:'fa-bullhorn' }
 ];
 const LOCK_LEVELS = [1,2,3,4,5].map(n=>({key:'level_'+n, name:'المستوى '+n}));
 const LOCK_SUBJECTS = Object.keys(SUBJECTS).map(k=>({key:'subject_'+k, name:SUBJECTS[k].icon+' '+SUBJECTS[k].name, sk:k}));
@@ -4015,6 +4037,211 @@ async function toggleLockQuick(key, name){
     contentLocks[key] = upd[key];
     renderLocks(); toast(next?'🔒 تم القفل':'✅ تم الفتح','ok');
   }catch(e){console.error(e);toast('خطأ','err');}
+}
+
+// ════════════════════════════════
+//  SOCIAL POSTS (admin authoring)
+// ════════════════════════════════
+let _postsUnsub = null;
+let allPosts = [];
+
+function renderPosts() {
+  const box = document.getElementById('posts-list');
+  if (!box) return;
+  if (_postsUnsub) { try { _postsUnsub(); } catch(e){} _postsUnsub = null; }
+  box.innerHTML = '<div class="loading"><i class="fas fa-spinner"></i></div>';
+  _postsUnsub = db.collection('posts').orderBy('createdAt', 'desc').limit(100).onSnapshot(function(snap) {
+    const posts = [];
+    snap.forEach(function(d) { const v = d.data(); v._id = d.id; posts.push(v); });
+    allPosts = posts;
+    drawPostsList(posts);
+  }, function(err) {
+    console.warn('posts onSnapshot error', err);
+    box.innerHTML = '<div class="loading">تعذّر التحميل</div>';
+  });
+}
+
+function drawPostsList(posts) {
+  const box = document.getElementById('posts-list');
+  if (!box) return;
+  if (!posts.length) {
+    box.innerHTML = '<div style="text-align:center;padding:30px;color:var(--muted)"><div style="font-size:42px;margin-bottom:10px">📭</div>لا توجد منشورات بعد. ابدأ بمنشور جديد!</div>';
+    return;
+  }
+  box.innerHTML = posts.map(function(p) {
+    const role = p.authorRole === 'admin' ? '<span style="background:linear-gradient(135deg,#6366f1,#a855f7);color:#fff;font-size:9px;font-weight:900;padding:2px 7px;border-radius:99px">خادم</span>'
+              : p.authorRole === 'system' ? '<span style="background:linear-gradient(135deg,#10b981,#34d399);color:#062b1c;font-size:9px;font-weight:900;padding:2px 7px;border-radius:99px">إنجاز</span>' : '';
+    const when = p.createdAt && p.createdAt.toDate ? p.createdAt.toDate().toLocaleString('ar-EG') : '';
+    const exp  = p.expiresAt && p.expiresAt.toDate ? p.expiresAt.toDate().toLocaleString('ar-EG') : 'لا ينتهي';
+    const counts = p.reactionCounts || {};
+    const reactionsLine = Object.keys(counts).filter(function(k){return counts[k]>0;}).map(function(k){return k+' '+counts[k];}).join(' · ') || '—';
+    const txt = esc(p.text || '').substring(0,200);
+    return '<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
+      +   '<strong style="font-size:13px">'+esc(p.authorName||'مجهول')+'</strong>'
+      +   role
+      +   (p.pinned?'<span style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1408;font-size:9px;font-weight:900;padding:2px 7px;border-radius:99px"><i class="fas fa-thumbtack"></i> مثبت</span>':'')
+      +   '<span style="font-size:11px;color:var(--muted);margin-right:auto">'+esc(when)+'</span>'
+      + '</div>'
+      + (txt ? '<div style="font-size:13.5px;line-height:1.7;white-space:pre-wrap;margin-bottom:8px">'+txt+'</div>' : '')
+      + (p.imageUrl ? '<img src="'+esc(p.imageUrl)+'" loading="lazy" style="max-width:100%;max-height:240px;border-radius:8px;margin-bottom:8px;object-fit:contain;background:rgba(0,0,0,.2)">' : '')
+      + '<div style="font-size:11px;color:var(--muted);margin-bottom:8px">💬 '+(p.commentCount||0)+' تعليق · '+reactionsLine+' · ⏱️ ينتهي '+esc(exp)+'</div>'
+      + '<div style="display:flex;gap:6px;flex-wrap:wrap">'
+      +   '<button class="btn bg bxs" onclick="togglePinPost(\''+p._id+'\','+(p.pinned?'true':'false')+')"><i class="fas fa-thumbtack"></i> '+(p.pinned?'إلغاء التثبيت':'تثبيت')+'</button>'
+      +   (p.authorRole === 'admin' ? '<button class="btn bp bxs" onclick="openCreatePostModal(\''+p._id+'\')"><i class="fas fa-pen"></i> تعديل</button>' : '')
+      +   '<button class="btn bd bxs" onclick="deletePost(\''+p._id+'\')"><i class="fas fa-trash"></i> حذف</button>'
+      + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function openCreatePostModal(postId) {
+  const editing = postId ? allPosts.find(function(x){return x._id===postId;}) : null;
+  const text = editing ? esc(editing.text || '') : '';
+  const pinned = editing ? !!editing.pinned : false;
+  const expiryDays = 7;
+  document.getElementById('mpost-box').innerHTML = `
+    <div class="mhead"><h2><i class="fas fa-bullhorn" style="color:var(--accent2)"></i> ${editing?'تعديل منشور':'منشور جديد'}</h2><button class="btnx" onclick="closeM('modal-post')"><i class="fas fa-times"></i></button></div>
+    <div class="mbody">
+      <div class="erow"><span class="elbl">نص المنشور</span>
+        <textarea class="einp antxt" id="post-text" placeholder="اكتب الإعلان أو التأمل... (٥٠٠ حرف كحد أقصى)" maxlength="500" style="min-height:130px">${text}</textarea>
+      </div>
+      <div class="erow"><span class="elbl">صورة (اختيارية)</span>
+        <input type="file" class="einp" id="post-img" accept="image/*" style="padding:7px">
+        <div id="post-img-preview" style="margin-top:8px"></div>
+      </div>
+      ${editing && editing.imageUrl ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">📷 صورة موجودة. ارفع صورة جديدة لاستبدالها.</div>` : ''}
+      <div class="erow"><span class="elbl">المدة قبل الانتهاء (أيام)</span>
+        <input class="einp" id="post-days" type="number" min="1" max="365" value="${expiryDays}">
+      </div>
+      <div class="erow"><span class="elbl">تثبيت</span>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+          <input type="checkbox" id="post-pinned" ${pinned?'checked':''}> <span>اعرض في أعلى الفيد دائماً (لا ينتهي)</span>
+        </label>
+      </div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn bp" onclick="savePost('${editing?editing._id:''}')"><i class="fas fa-paper-plane"></i> ${editing?'حفظ التعديل':'انشر'}</button>
+        <button class="btn bg" onclick="closeM('modal-post')">إلغاء</button>
+      </div>
+    </div>`;
+  document.getElementById('modal-post').style.display='flex';
+  // Image preview
+  const imgInp = document.getElementById('post-img');
+  imgInp.addEventListener('change', function(e) {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      document.getElementById('post-img-preview').innerHTML = '<img src="'+ev.target.result+'" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid var(--border)">';
+    };
+    reader.readAsDataURL(f);
+  });
+}
+
+async function savePost(editingId) {
+  const text = document.getElementById('post-text').value.trim();
+  const days = Math.max(1, Math.min(365, parseInt(document.getElementById('post-days').value) || 7));
+  const pinned = document.getElementById('post-pinned').checked;
+  const file = document.getElementById('post-img').files[0];
+  if (!text && !file && !editingId) { toast('أضف نص أو صورة','err'); return; }
+  try {
+    let imageUrl = null;
+    if (editingId) {
+      const cur = allPosts.find(function(x){return x._id===editingId;});
+      if (cur) imageUrl = cur.imageUrl;
+    }
+    if (file) {
+      // Compress to ~1280px max width, 0.85 jpeg quality
+      imageUrl = await compressAndUploadPostImage(file, editingId || ('p_'+Date.now()));
+    }
+    const expiresAt = pinned ? null : firebase.firestore.Timestamp.fromDate(new Date(Date.now() + days*24*60*60*1000));
+    const data = {
+      text: text,
+      imageUrl: imageUrl || null,
+      pinned: pinned,
+      expiresAt: expiresAt
+    };
+    if (editingId) {
+      await db.collection('posts').doc(editingId).update(data);
+      toast('✅ تم حفظ التعديل','ok');
+    } else {
+      await db.collection('posts').add(Object.assign({
+        authorId:    me.phone || 'admin',
+        authorName:  me.name  || 'الخدّام',
+        authorAvatar: me.avatar || 'images/default-avatar.png',
+        authorRole:  'admin',
+        type:        'announcement',
+        reactions:   {},
+        reactionCounts: {},
+        commentCount: 0,
+        status:      'approved',
+        reportCount: 0,
+        createdAt:   firebase.firestore.FieldValue.serverTimestamp()
+      }, data));
+      toast('📢 تم النشر','ok');
+    }
+    closeM('modal-post');
+  } catch(e) {
+    console.error('savePost error', e);
+    toast('خطأ في الحفظ','err');
+  }
+}
+
+async function compressAndUploadPostImage(file, postId) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        const maxW = 1280;
+        const scale = Math.min(1, maxW / img.width);
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(async function(blob) {
+          try {
+            const ref = firebase.storage().ref().child('social/posts/'+postId+'.jpg');
+            const snap = await ref.put(blob, { contentType: 'image/jpeg' });
+            const url = await snap.ref.getDownloadURL();
+            resolve(url);
+          } catch(e) { reject(e); }
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function togglePinPost(postId, currentlyPinned) {
+  try {
+    const update = { pinned: !currentlyPinned };
+    if (!currentlyPinned) {
+      update.expiresAt = null; // pinning removes expiry
+    } else {
+      update.expiresAt = firebase.firestore.Timestamp.fromDate(new Date(Date.now() + 7*24*60*60*1000));
+    }
+    await db.collection('posts').doc(postId).update(update);
+    toast(currentlyPinned?'✅ تم إلغاء التثبيت':'📌 تم التثبيت','ok');
+  } catch(e) { console.error(e); toast('خطأ','err'); }
+}
+
+async function deletePost(postId) {
+  if (!confirm('تأكد حذف المنشور؟ هيتم حذف كل التعليقات معاه.')) return;
+  try {
+    // Delete comments first (subcollection)
+    const cs = await db.collection('posts').doc(postId).collection('comments').get();
+    const batch = db.batch();
+    cs.forEach(function(c){ batch.delete(c.ref); });
+    await batch.commit();
+    await db.collection('posts').doc(postId).delete();
+    // Delete storage image (best effort)
+    try { await firebase.storage().ref().child('social/posts/'+postId+'.jpg').delete(); } catch(e){}
+    toast('🗑️ تم الحذف','ok');
+  } catch(e) { console.error(e); toast('خطأ في الحذف','err'); }
 }
 
 // ════════════════════════════════

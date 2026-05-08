@@ -116,6 +116,9 @@ function initFirebase() {
             firebaseApp = firebase.initializeApp(firebaseConfig);
             firebaseDb = firebase.firestore();
             console.log('Firebase initialized successfully');
+            // Subscribe to admin content locks immediately — must work for all
+            // login paths (manual, auto-login from "remember me", migration, upgrade).
+            try { subscribeContentLocks(); } catch(e) { console.warn('subscribeContentLocks early call failed', e); }
         } else {
             console.warn('Firebase SDK not loaded');
         }

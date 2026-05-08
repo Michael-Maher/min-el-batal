@@ -476,6 +476,7 @@ function subscribeContentLocks() {
     try {
         _locksUnsub = firebaseDb.collection('gameContent').doc('locks').onSnapshot(function(snap){
             GameState.contentLocks = (snap && snap.exists) ? (snap.data() || {}) : {};
+            try { applyDashboardLockUI(); } catch(e){}
         }, function(err){ console.warn('locks snap err', err); });
     } catch(e) { console.warn('subscribeContentLocks failed', e); }
 }

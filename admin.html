@@ -3564,9 +3564,61 @@ function renderSummaryTab(p) {
   var ls=p.lessonSummaries||{};
   var lsKeys=Object.keys(ls);
   if(lsKeys.length){
-    var lsHtml='<div style="display:flex;flex-direction:column;gap:5px">'+
-      lsKeys.slice(0,20).map(function(k){var v=ls[k];return'<div style="background:rgba(96,165,250,.05);border-radius:7px;padding:7px 10px;font-size:11px"><span style="color:#60a5fa;font-weight:700">'+esc(k)+'</span>'+(v?'<div style="color:var(--muted);margin-top:3px">'+esc((typeof v==='string'?v:JSON.stringify(v)).substring(0,100))+'</div>':'')+'</div>';}).join('')+'</div>';
-    html+=_sec('ملخصات الدروس المكتوبة','✍️',lsHtml);
+    var lsHtml='<div style="font-size:11px;color:var(--muted);margin-bottom:12px;padding:6px 10px;background:rgba(255,255,255,.03);border-radius:8px;display:flex;align-items:center;gap:6px">✍️ <strong style="color:var(--text)">'+lsKeys.length+'</strong> ملخص مُسلَّم</div>';
+    var subKeys4=['faith','bible','life','ritual'];
+    subKeys4.forEach(function(sk){
+      var sub=SUBJECTS[sk];
+      var subSums=lsKeys.filter(function(k){return k.startsWith(sk+'_');}).sort(function(a,b){return(parseInt(a.split('_')[1])||0)-(parseInt(b.split('_')[1])||0);});
+      if(!subSums.length) return;
+      lsHtml+='<div style="margin-bottom:18px">';
+      lsHtml+='<div style="font-size:12px;font-weight:700;margin-bottom:8px;padding:7px 10px;background:'+subColors[sk]+'15;border-radius:9px;border-right:3px solid '+subColors[sk]+';display:flex;align-items:center;justify-content:space-between">';
+      lsHtml+='<span>'+sub.icon+' '+sub.name+'</span>';
+      lsHtml+='<span style="background:'+subColors[sk]+'28;border-radius:99px;padding:2px 9px;font-size:11px;color:'+subColors[sk]+'">'+subSums.length+' / 6</span>';
+      lsHtml+='</div>';
+      subSums.forEach(function(k){
+        var v=ls[k]||{};
+        var idx=parseInt(k.split('_')[1])||0;
+        var lname=(sub.lessons&&sub.lessons[idx])?sub.lessons[idx]:('الدرس '+(idx+1));
+        var hasText=v.text&&typeof v.text==='string'&&v.text.trim().length>0;
+        var hasImage=v.image&&typeof v.image==='string'&&v.image.length>20;
+        var hasAudio=v.audio&&typeof v.audio==='string'&&v.audio.length>20;
+        lsHtml+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:11px;padding:13px;margin-bottom:8px">';
+        // Header row
+        lsHtml+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:6px">';
+        lsHtml+='<div style="font-size:12px;font-weight:700;color:'+subColors[sk]+'">د'+(idx+1)+' — '+esc(lname)+'</div>';
+        lsHtml+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">';
+        if(hasText) lsHtml+='<span style="font-size:10px;background:rgba(96,165,250,.12);border-radius:99px;padding:2px 7px;color:#60a5fa">📝 نص</span>';
+        if(hasImage) lsHtml+='<span style="font-size:10px;background:rgba(52,211,153,.12);border-radius:99px;padding:2px 7px;color:#34d399">🖼️ صورة</span>';
+        if(hasAudio) lsHtml+='<span style="font-size:10px;background:rgba(251,191,36,.12);border-radius:99px;padding:2px 7px;color:#fbbf24">🎵 صوت</span>';
+        lsHtml+='<span style="font-size:10px;color:var(--muted)">'+esc(v.date||'—')+'</span>';
+        lsHtml+='</div></div>';
+        // Text content
+        if(hasText){
+          lsHtml+='<div style="background:rgba(96,165,250,.06);border-right:3px solid rgba(96,165,250,.35);border-radius:8px;padding:10px 12px;margin-bottom:8px;font-size:12px;line-height:1.8;color:var(--text);direction:rtl;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow-y:auto">'+esc(v.text)+'</div>';
+        }
+        // Image
+        if(hasImage){
+          lsHtml+='<div style="margin-bottom:8px;text-align:center"><img src="'+v.image+'" alt="ملخص صورة" loading="lazy" style="max-width:100%;max-height:320px;border-radius:9px;object-fit:contain;background:rgba(0,0,0,.25);border:1px solid var(--border)"></div>';
+        }
+        // Audio player
+        if(hasAudio){
+          lsHtml+='<div style="margin-top:4px"><audio controls preload="none" style="width:100%;height:36px;border-radius:6px" src="'+v.audio+'"></audio></div>';
+        }
+        if(!hasText&&!hasImage&&!hasAudio){
+          lsHtml+='<div style="font-size:11px;color:var(--muted);font-style:italic">لا يوجد محتوى</div>';
+        }
+        lsHtml+='</div>';
+      });
+      lsHtml+='</div>';
+    });
+    // Any summaries with unrecognized subject keys
+    var unrecSums=lsKeys.filter(function(k){return!subKeys4.some(function(sk){return k.startsWith(sk+'_');});});
+    if(unrecSums.length){
+      lsHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:8px;border-right:3px solid #888">📝 أخرى</div>';
+      unrecSums.forEach(function(k){var v=ls[k]||{};lsHtml+='<div style="background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:8px;padding:9px 11px;margin-bottom:5px;font-size:11px"><span style="color:#60a5fa;font-weight:700">'+esc(k)+'</span>'+(v.text?'<div style="color:var(--muted);margin-top:3px;white-space:pre-wrap">'+esc(v.text.substring(0,300))+'</div>':'')+'</div>';});
+      lsHtml+='</div>';
+    }
+    html+=_sec('تلخيص الدروس','✍️',lsHtml);
   }
 
   // ── Any unknown / extra fields not covered above ──

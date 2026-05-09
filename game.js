@@ -5680,6 +5680,11 @@ function checkDailyLoginXP() {
         GameState.gems = (GameState.gems || 0) + 5;
         var streakMsg = GameState.loginStreak > 1 ? ' 🔥 ' + GameState.loginStreak + ' أيام متواصلة!' : '';
         showToast('مرحباً! 💎 +5 جواهر يومية' + streakMsg, 'success');
+        // Auto-celebration milestones
+        try {
+            if (GameState.loginStreak === 7  && typeof postCelebration === 'function') postCelebration('streak_7',  {});
+            if (GameState.loginStreak === 30 && typeof postCelebration === 'function') postCelebration('streak_30', {});
+        } catch(e){}
         saveToCloud();
     }
 }
@@ -9536,6 +9541,18 @@ function renderHomeHub() {
 
     // Check daily login gems bonus
     checkDailyLoginXP();
+
+    // Auto-celebration: star milestones (dedupe is handled inside postCelebration)
+    try {
+        if (typeof postCelebration === 'function') {
+            var stars = GameState.stars || 0;
+            if (stars >= 5000) postCelebration('stars_milestone', { value: 5000 });
+            else if (stars >= 1000) postCelebration('stars_milestone', { value: 1000 });
+        }
+    } catch(e){}
+
+    // Refresh unread social badge
+    try { updateSocialUnreadBadge(); } catch(e){}
 
     // Render daily verse card
     renderTodayVerse();
@@ -15147,7 +15164,11 @@ function renderCompeteResults(room) {
         html += '<img src="' + winnerCh.image + '" class="compete-winner-avatar">';
         html += '<h3 class="compete-winner-name">' + (winner.name || 'البطل') + '</h3>';
         html += '<p class="compete-winner-score">⭐ ' + (winner.score || 0) + ' نقطة</p>';
-        if (isMe) html += '<div class="compete-winner-me">🎉 أنت الفائز!</div>';
+        if (isMe) {
+            html += '<div class="compete-winner-me">🎉 أنت الفائز!</div>';
+            // Auto-celebration: first compete win ever (dedupe ensures one-time post)
+            try { if (typeof postCelebration === 'function') postCelebration('tournament_win', {}); } catch(e){}
+        }
         html += '</div>';
     }
 
@@ -22470,4 +22491,33 @@ function linkifyText(s) {
     return String(s == null ? '' : s).replace(/(https?:\/\/[^\s]+)/g, function(u) {
         return '<a href="' + escapeAttr(u) + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:underline">' + u + '</a>';
     });
+}
+
+// Show "new posts" indicator on the hub card. One Firestore read per hub view.
+// Throttled so navigating in/out of the hub doesn't spam reads.
+var _socialBadgeLastCheck = 0;
+function updateSocialUnreadBadge() {
+    var badge = document.getElementById('social-unread-badge');
+    if (!badge || !firebaseDb) return;
+    var now = Date.now();
+    if (now - _socialBadgeLastCheck < 60000) return; // throttle: 1 check / minute max
+    _socialBadgeLastCheck = now;
+    var lastSeen = 0;
+    try { lastSeen = parseInt(localStorage.getItem('minElBatal_socialLastSeen') || '0'); } catch(e){}
+    firebaseDb.collection('posts')
+        .orderBy('createdAt', 'desc')
+        .limit(1)
+        .get()
+        .then(function(snap) {
+            if (snap.empty) { badge.style.display = 'none'; return; }
+            var doc = snap.docs[0].data();
+            var ms = doc.createdAt && doc.createdAt.toMillis ? doc.createdAt.toMillis() : 0;
+            if (ms > lastSeen) {
+                badge.style.display = 'flex';
+                badge.textContent = '•';
+            } else {
+                badge.style.display = 'none';
+            }
+        })
+        .catch(function() {});
 }

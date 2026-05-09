@@ -127,7 +127,10 @@ Dedupe: store `lastCelebrationKey` on player doc per event type so we don't doub
 - [x] `game.js`: `_LOCK_GATE` updated for `social-screen` and `social-post-screen`
 - [x] `game.js`: `applyDashboardLockUI()` map updated for `card_social`
 - [x] `game.js`: auto-celebration hook for **subject_complete** wired in `updateStationScore()`
-- [ ] `game.js`: remaining auto-celebration hooks (streak_7, streak_30, stars_milestone, tournament_win) — **deferred to next session**
+- [x] `game.js`: **streak_7 / streak_30** wired in `checkDailyLoginXP()`
+- [x] `game.js`: **stars_milestone** (1000 / 5000) wired in `renderHomeHub()` (dedupe inside postCelebration prevents double-post)
+- [x] `game.js`: **tournament_win** wired in compete winner block
+- [x] `game.js`: `updateSocialUnreadBadge()` (1 throttled read/minute, dot indicator on hub card)
 - [x] `index.html`: hub card on home screen
 - [x] `index.html`: `#social-screen` with feed list container
 - [x] `index.html`: `#social-post-screen` with detail layout
@@ -173,11 +176,10 @@ Without a Cloud Function, post images in storage stay even after their Firestore
 - (Easier) Add a manual cleanup chore once a month via the Storage console.
 - (Better) Add a Cloud Function in `functions/index.js` that triggers on `posts/{postId}` delete and deletes `social/posts/{postId}.jpg`. Defer to Phase 2.
 
-## Deferred (do in follow-up commit)
-- Wire `streak_7`, `streak_30`, `stars_milestone` auto-celebrations
-- Wire `tournament_win` auto-celebration
-- Pull-to-refresh on feed
-- Unread badge counter on the hub card
+## Deferred / nice-to-have
+- Pull-to-refresh on feed (skipped — onSnapshot already gives live updates)
+- Cloud Function for orphan storage image cleanup (Phase 2)
+- Player-authored posts with moderation queue (Phase 2)
 
 ## Phase 2 (later, do not start yet)
 - Player text posts with admin moderation queue

@@ -2,6 +2,9 @@
   "firestore": {
     "rules": "firestore.rules"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "functions": {
     "source": "functions",
     "runtime": "nodejs22",
@@ -13,6 +16,7 @@
       "firebase.json",
       ".firebaserc",
       "firestore.rules",
+      "storage.rules",
       "**/node_modules/**",
       ".git/**",
       ".claude/**",

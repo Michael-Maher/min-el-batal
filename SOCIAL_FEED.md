@@ -144,7 +144,7 @@ Dedupe: store `lastCelebrationKey` on player doc per event type so we don't doub
 - [ ] Test end-to-end after deploy
 - [ ] Merge `feature/social-feed` → `main`
 
-## Manual setup needed before merging to main
+## Manual setup before merging to main
 
 ### 1. Enable Firestore TTL (one-time, free)
 1. Open https://console.firebase.google.com/project/min-el-batal/firestore/ttl
@@ -153,28 +153,23 @@ Dedupe: store `lastCelebrationKey` on player doc per event type so we don't doub
 
 Pinned posts have `expiresAt = null`, so they never get deleted.
 
-### 2. Enable Firebase Storage (if not already)
+### 2. Enable Firebase Storage (one-time)
 1. Open https://console.firebase.google.com/project/min-el-batal/storage
-2. Click "Get Started" if first time, accept default bucket.
-3. Set storage rules to match Firestore (open for now):
-```
-rules_version = '2';
-service firebase.storage {
-  match /b/{bucket}/o {
-    match /social/posts/{postId} {
-      allow read, write: if true;
-    }
-    match /{allPaths=**} {
-      allow read: if true;
-    }
-  }
-}
-```
+2. Click "Get Started", accept default bucket location.
+3. After the bucket exists, deploy storage rules from CLI:
+   ```bash
+   firebase deploy --only storage
+   ```
+   (Rules now live in `storage.rules`, wired in `firebase.json`. 6 MB cap + image-mimetype check enforced server-side.)
 
-### 3. Optional — orphan image cleanup
-Without a Cloud Function, post images in storage stay even after their Firestore doc is TTL-deleted. Two options:
-- (Easier) Add a manual cleanup chore once a month via the Storage console.
-- (Better) Add a Cloud Function in `functions/index.js` that triggers on `posts/{postId}` delete and deletes `social/posts/{postId}.jpg`. Defer to Phase 2.
+### 3. Deploy the new Cloud Functions
+```bash
+firebase deploy --only functions
+```
+This pushes `onPostCommentCreated` (push to post author on new comment),
+`onPostCreated` (push to all players on new admin post), and `onPostDeleted`
+(auto-cleanup of storage image + orphan comments when a post is deleted —
+fires on both manual delete and TTL-driven delete).
 
 ## Deferred / nice-to-have
 - Pull-to-refresh on feed (skipped — onSnapshot already gives live updates)
@@ -203,6 +198,14 @@ Without a Cloud Function, post images in storage stay even after their Firestore
 - New-post notification only fires for `authorRole === 'admin'` and `status === 'approved'` to avoid celebration spam and pending-post leaks.
 - Tag filter is purely client-side over the cached feed — no extra queries.
 - Rate limit on player posts is per-device (localStorage). Good enough to prevent accidental spam; not a hard server-side guarantee.
+- Storage rules cap uploads at 6 MB and reject non-image MIME types — defends against the bucket being used for arbitrary files.
+
+## Final extras (completed this session)
+- [x] **`storage.rules`** — declarative storage rules; deployed via `firebase deploy --only storage`.
+- [x] **`firebase.json`** — `storage` section wired so `firebase deploy` picks up the rules and they're excluded from hosting.
+- [x] **`onPostDeleted` Cloud Function** — best-effort delete of `social/posts/{postId}.jpg` + cascade-delete of `comments` subcollection on Firestore post delete (both manual delete and TTL-driven delete).
+- [x] **Social notification preference toggle** — added to existing `showNotificationSettings()` UI as `social` key, alongside competitions/lessons/reminders/streakReminder. Already respected by both `onPostCommentCreated` and `onPostCreated`.
+- [x] **"منشوراتي" (My Posts) screen** — players can see all their posts with status badges (pending/approved/flagged/rejected) and counters. Pending/rejected posts can be deleted by the player. Lock-gated under `card_social`.
 
 ## Decisions log
 - 2026-05-08: Defaults locked in. Admin + system posts only for v1; comments allowed; 7d TTL; ❤️ 🙏 ✝️ 🔥 ⭐ reactions.

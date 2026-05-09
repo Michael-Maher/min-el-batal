@@ -14138,3 +14138,17 @@ body {
 
 /* Composer modal layered as a screen */
 #social-composer-modal { background: var(--bg); }
+
+/* ===== social toolbar (My Posts button row) ===== */
+.social-toolbar {
+    display: flex; gap: 8px; padding: 10px 14px 0;
+    flex-wrap: wrap;
+}
+.social-toolbar-btn {
+    background: rgba(99,102,241,.10); border: 1px solid rgba(99,102,241,.3);
+    color: var(--accent2); font-family: inherit; font-size: 12px; font-weight: 700;
+    padding: 7px 14px; border-radius: 99px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 6px;
+    transition: all .15s;
+}
+.social-toolbar-btn:hover { background: rgba(99,102,241,.18); border-color: rgba(168,85,247,.5); }

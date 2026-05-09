@@ -2620,6 +2620,7 @@ function showScreen(id) {
             'friends-questions-screen':['card_friendsQuestions', 'أسئلة أصحابك'],
             'social-screen':           ['card_social',           'المنشورات'],
             'social-post-screen':      ['card_social',           'المنشورات'],
+            'my-posts-screen':         ['card_social',           'المنشورات'],
         };
         var _lg = _LOCK_GATE[id];
         if (_lg && isContentLocked(_lg[0])) {
@@ -18584,6 +18585,7 @@ function renderNotifSettings(prefs) {
     var items = [
         { key: 'competitions', icon: '⚡', label: 'مسابقات جديدة', desc: 'لما حد يعمل مسابقة' },
         { key: 'lessons', icon: '📚', label: 'دروس جديدة', desc: 'لما ينزل محتوى جديد' },
+        { key: 'social', icon: '📢', label: 'المنشورات والتعليقات', desc: 'منشور جديد من الخدّام أو تعليق على منشورك' },
         { key: 'reminders', icon: '📖', label: 'تذكير التداريب', desc: 'لو معملتش تداريبك اليومية أو الأسبوعية' },
         { key: 'streakReminder', icon: '🔥', label: 'حماية السلسلة', desc: 'لو سلسلتك المتتابعة هتتقطع' },
     ];
@@ -22522,6 +22524,96 @@ function linkifyText(s) {
 // PLAYER POSTS (Phase 3) — composer + moderation queue + rate limit
 // ============================================================
 var PLAYER_POSTS_PER_DAY = 3;
+
+function openMyPostsScreen() {
+    showScreen('my-posts-screen');
+    loadMyPosts();
+}
+
+function loadMyPosts() {
+    var body = document.getElementById('my-posts-body');
+    if (!body) return;
+    if (!firebaseDb || !GameState.playerPhone) {
+        body.innerHTML = '<div class="social-feed-empty">لازم تسجل دخول الأول</div>';
+        return;
+    }
+    body.innerHTML = '<div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل…</div>';
+    firebaseDb.collection('posts')
+        .where('authorId', '==', GameState.playerPhone)
+        .limit(50)
+        .get()
+        .then(function(snap) {
+            var posts = [];
+            snap.forEach(function(d) { var v = d.data(); v._id = d.id; posts.push(v); });
+            posts.sort(function(a, b) {
+                var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                return tb - ta;
+            });
+            renderMyPostsList(posts);
+        })
+        .catch(function(err) {
+            console.warn('[social] loadMyPosts error', err);
+            body.innerHTML = '<div class="social-feed-empty">تعذّر التحميل</div>';
+        });
+}
+
+function renderMyPostsList(posts) {
+    var body = document.getElementById('my-posts-body');
+    if (!body) return;
+    if (!posts.length) {
+        body.innerHTML = '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>ليس لديك منشورات بعد<br><span style="font-size:12px;opacity:.7">جرب تكتب منشور جديد من زر القلم في الفيد</span></div>';
+        return;
+    }
+    var counts = { pending: 0, approved: 0, rejected: 0, flagged: 0 };
+    posts.forEach(function(p) {
+        var st = p.status || 'approved';
+        if (counts[st] !== undefined) counts[st]++;
+    });
+    var summary =
+        '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">'
+        + '<div style="background:rgba(251,191,36,.10);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:900;color:#fbbf24">' + counts.pending + '</div><div style="font-size:10px;color:var(--muted)">⏳ بانتظار</div></div>'
+        + '<div style="background:rgba(52,211,153,.10);border:1px solid rgba(52,211,153,.3);border-radius:10px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:900;color:#34d399">' + counts.approved + '</div><div style="font-size:10px;color:var(--muted)">✅ منشور</div></div>'
+        + '<div style="background:rgba(239,68,68,.10);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:900;color:#ef4444">' + counts.flagged + '</div><div style="font-size:10px;color:var(--muted)">🚩 مُبلَّغ</div></div>'
+        + '<div style="background:rgba(156,163,175,.10);border:1px solid rgba(156,163,175,.3);border-radius:10px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:900;color:#9ca3af">' + counts.rejected + '</div><div style="font-size:10px;color:var(--muted)">🚫 مرفوض</div></div>'
+        + '</div>';
+    var html = summary + posts.map(function(p) {
+        var st = p.status || 'approved';
+        var statusBadge = st === 'pending'  ? '<span style="background:rgba(251,191,36,.18);color:#fbbf24;font-size:10px;font-weight:900;padding:3px 9px;border-radius:99px"><i class="fas fa-clock"></i> بانتظار المراجعة</span>'
+                         : st === 'approved' ? '<span style="background:rgba(52,211,153,.18);color:#34d399;font-size:10px;font-weight:900;padding:3px 9px;border-radius:99px"><i class="fas fa-check"></i> منشور</span>'
+                         : st === 'flagged'  ? '<span style="background:rgba(239,68,68,.18);color:#ef4444;font-size:10px;font-weight:900;padding:3px 9px;border-radius:99px"><i class="fas fa-flag"></i> مُبلَّغ — تحت المراجعة</span>'
+                         : st === 'rejected' ? '<span style="background:rgba(156,163,175,.18);color:#9ca3af;font-size:10px;font-weight:900;padding:3px 9px;border-radius:99px"><i class="fas fa-ban"></i> مرفوض</span>' : '';
+        var time = formatRelativeTime(p.createdAt);
+        var text = escapeHtmlSimple(p.text || '');
+        var img = p.imageUrl ? '<img loading="lazy" src="' + escapeAttr(p.imageUrl) + '" style="max-width:100%;max-height:240px;border-radius:9px;margin-top:8px;object-fit:contain;background:rgba(0,0,0,.2)">' : '';
+        var canDelete = (st === 'pending' || st === 'rejected');
+        var del = canDelete ? '<button class="btn btn-secondary" style="margin-top:10px;font-size:12px;padding:6px 12px" onclick="deleteMyPost(\'' + p._id + '\')"><i class="fas fa-trash"></i> حذف</button>' : '';
+        return '<div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:13px;margin-bottom:10px">'
+            + '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
+            +   statusBadge
+            +   '<span style="font-size:11px;color:var(--muted);margin-right:auto">' + time + '</span>'
+            + '</div>'
+            + (text ? '<div style="font-size:13.5px;line-height:1.7;white-space:pre-wrap;color:var(--text)">' + linkifyText(text) + '</div>' : '')
+            + img
+            + del
+            + '</div>';
+    }).join('');
+    body.innerHTML = html;
+}
+
+function deleteMyPost(postId) {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    if (!confirm('حذف هذا المنشور نهائياً؟')) return;
+    firebaseDb.collection('posts').doc(postId).get().then(function(d) {
+        if (!d.exists) { showToast('المنشور غير موجود', 'error'); return; }
+        if (d.data().authorId !== GameState.playerPhone) { showToast('لا يمكن حذف منشور غيرك', 'error'); return; }
+        return firebaseDb.collection('posts').doc(postId).delete().then(function() {
+            showToast('تم الحذف ✅', 'success');
+            loadMyPosts();
+        });
+    }).catch(function(err) { console.warn('deleteMyPost error', err); showToast('خطأ في الحذف', 'error'); });
+}
+
 
 function openPlayerPostComposer() {
     if (!GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }

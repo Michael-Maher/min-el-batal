@@ -623,3 +623,51 @@ exports.onPostCreated = functions
             console.error('[onPostCreated] error:', err);
         }
     });
+
+// ============================================================
+// 9. POST DELETED → cleanup storage image + orphan comments
+//    Triggers on manual delete AND on TTL auto-deletion.
+// ============================================================
+exports.onPostDeleted = functions
+    .region('europe-west1')
+    .firestore.document('posts/{postId}')
+    .onDelete(async (snap, context) => {
+        var postId = context.params.postId;
+        var post = snap.data() || {};
+        var ops = [];
+
+        // 1) Delete storage image (best-effort — file may not exist)
+        try {
+            var bucket = admin.storage().bucket();
+            ops.push(
+                bucket.file('social/posts/' + postId + '.jpg').delete().catch(function(e) {
+                    if (e && e.code !== 404) console.warn('[onPostDeleted] storage delete error:', e.message);
+                })
+            );
+        } catch (e) {
+            console.warn('[onPostDeleted] storage cleanup setup failed:', e);
+        }
+
+        // 2) Delete orphan comments subcollection (TTL on comments handles most,
+        //    but on manual delete we want immediate cleanup)
+        try {
+            var cs = await db.collection('posts').doc(postId).collection('comments').get();
+            if (!cs.empty) {
+                var batches = [];
+                var batch = db.batch();
+                var count = 0;
+                cs.forEach(function(d) {
+                    batch.delete(d.ref);
+                    count++;
+                    if (count % 450 === 0) { batches.push(batch.commit()); batch = db.batch(); }
+                });
+                batches.push(batch.commit());
+                ops.push(Promise.all(batches));
+            }
+        } catch (e) {
+            console.warn('[onPostDeleted] comments cleanup error:', e);
+        }
+
+        await Promise.all(ops);
+        console.log('[onPostDeleted] cleaned up', postId);
+    });

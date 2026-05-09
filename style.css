@@ -14075,3 +14075,66 @@ body {
     .social-feed-body { padding: 10px; gap: 10px; }
     .social-post-text { font-size: 13.5px; padding: 4px 12px 10px; }
 }
+
+/* ===== social report buttons ===== */
+.social-report-btn {
+    background: transparent; border: none; color: var(--muted);
+    font-size: 12px; cursor: pointer; padding: 6px 9px;
+    border-radius: 8px; transition: all .15s; font-family: inherit;
+}
+.social-report-btn:hover { color: var(--red); background: rgba(239,68,68,.10); }
+.social-report-btn-inline {
+    background: transparent; border: none; color: var(--muted);
+    font-size: 10px; cursor: pointer; padding: 2px 6px;
+    border-radius: 6px; margin-right: auto; opacity: .6; transition: opacity .15s; font-family: inherit;
+}
+.social-report-btn-inline:hover { opacity: 1; color: var(--red); }
+
+/* ===== social tags + filter chips ===== */
+.social-tag-filter {
+    display: flex; gap: 6px; padding: 10px 14px 0;
+    overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none;
+}
+.social-tag-filter::-webkit-scrollbar { display: none; }
+.social-tag-chip {
+    flex-shrink: 0;
+    background: rgba(255,255,255,.05); border: 1px solid var(--border);
+    color: var(--text); font-family: inherit; font-size: 12px; font-weight: 700;
+    padding: 6px 12px; border-radius: 99px; cursor: pointer;
+    transition: all .15s; white-space: nowrap;
+}
+.social-tag-chip:hover { background: rgba(168,85,247,.12); border-color: rgba(168,85,247,.4); }
+.social-tag-chip.active {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff; border-color: transparent;
+    box-shadow: 0 2px 10px rgba(168,85,247,.4);
+}
+
+.social-post-tags {
+    display: flex; gap: 5px; flex-wrap: wrap;
+    padding: 0 14px 8px;
+}
+.social-post-tag {
+    background: rgba(168,85,247,.10); border: 1px solid rgba(168,85,247,.25);
+    color: #a855f7; font-family: inherit; font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 99px; cursor: pointer;
+    transition: all .15s;
+}
+.social-post-tag:hover { background: rgba(168,85,247,.22); }
+
+/* FAB compose */
+.social-fab-compose {
+    position: fixed; bottom: 22px; left: 22px; z-index: 5;
+    width: 56px; height: 56px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border: none; color: #fff; font-size: 20px; cursor: pointer;
+    box-shadow: 0 6px 24px rgba(168,85,247,.55);
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s; font-family: inherit;
+}
+.social-fab-compose:active { transform: scale(.94); }
+
+#social-screen { position: relative; }
+
+/* Composer modal layered as a screen */
+#social-composer-modal { background: var(--bg); }

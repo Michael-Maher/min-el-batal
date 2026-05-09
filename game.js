@@ -22210,7 +22210,13 @@ function subscribeFeed() {
             .limit(socialState.POST_LIMIT)
             .onSnapshot(function(snap) {
                 var posts = [];
-                snap.forEach(function(d) { var v = d.data(); v._id = d.id; posts.push(v); });
+                snap.forEach(function(d) {
+                    var v = d.data(); v._id = d.id;
+                    // Hide flagged/pending/rejected from player feed
+                    var st = v.status || 'approved';
+                    if (st !== 'approved') return;
+                    posts.push(v);
+                });
                 // pinned first
                 posts.sort(function(a, b) {
                     if ((a.pinned ? 1 : 0) !== (b.pinned ? 1 : 0)) return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0);
@@ -22238,11 +22244,19 @@ function unsubscribeFeed() {
 function renderSocialFeed(posts) {
     var body = document.getElementById('social-feed-body');
     if (!body) return;
-    if (!posts || !posts.length) {
-        body.innerHTML = '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>لا توجد منشورات حالياً<br><span style="font-size:12px;opacity:.7">تابع المنشورات من الخدّام والإنجازات قريباً</span></div>';
+    try { renderTagFilter(posts); } catch(e){}
+    var filtered = posts;
+    if (socialState.activeTag) {
+        filtered = posts.filter(function(p) { return (p.tags || []).indexOf(socialState.activeTag) !== -1; });
+    }
+    if (!filtered.length) {
+        var msg = socialState.activeTag
+            ? '<div class="social-feed-empty"><div class="social-feed-empty-icon">🏷️</div>لا توجد منشورات بهذا الها شتاج</div>'
+            : '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>لا توجد منشورات حالياً<br><span style="font-size:12px;opacity:.7">تابع المنشورات من الخدّام والإنجازات قريباً</span></div>';
+        body.innerHTML = msg;
         return;
     }
-    body.innerHTML = posts.map(renderSocialPost).join('');
+    body.innerHTML = filtered.map(renderSocialPost).join('');
 }
 
 function renderSocialPost(post) {
@@ -22264,6 +22278,12 @@ function renderSocialPost(post) {
         var countHtml = count > 0 ? '<span class="social-reaction-count">' + count + '</span>' : '';
         return '<button class="social-reaction-btn' + active + '" onclick="event.stopPropagation();toggleReaction(\'' + post._id + '\',\'' + emoji + '\')">' + emoji + countHtml + '</button>';
     }).join('');
+    var tagsHtml = '';
+    if (post.tags && post.tags.length) {
+        tagsHtml = '<div class="social-post-tags">' + post.tags.map(function(t) {
+            return '<button class="social-post-tag" onclick="event.stopPropagation();filterByTag(\'' + escapeAttr(t) + '\');showScreen(\'social-screen\')">#' + escapeHtmlSimple(t) + '</button>';
+        }).join('') + '</div>';
+    }
     return '<div class="social-post' + (post.pinned ? ' social-post-pinned' : '') + '" onclick="openSocialPost(\'' + post._id + '\')">'
         + '<div class="social-post-header">'
         +   '<img class="social-post-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
@@ -22273,10 +22293,12 @@ function renderSocialPost(post) {
         +   '</div>'
         + '</div>'
         + (text ? '<div class="social-post-text">' + linkifyText(text) + '</div>' : '')
+        + tagsHtml
         + img
         + '<div class="social-post-actions">'
         +   actions
         +   '<button class="social-comment-btn" onclick="event.stopPropagation();openSocialPost(\'' + post._id + '\')"><i class="fas fa-comment"></i> ' + (post.commentCount || 0) + '</button>'
+        +   '<button class="social-report-btn" title="إبلاغ" onclick="event.stopPropagation();reportPost(\'' + post._id + '\')"><i class="fas fa-flag"></i></button>'
         + '</div>'
         + '</div>';
 }
@@ -22328,7 +22350,10 @@ function renderComments(list) {
         box.innerHTML = '<div class="social-feed-empty" style="padding:18px 12px;font-size:12px">لا توجد تعليقات بعد. كن أول من يعلق! 💬</div>';
         return;
     }
+    var postId = socialState.currentPostId;
     box.innerHTML = list.map(function(c) {
+        var st = c.status || 'approved';
+        if (st === 'flagged') return ''; // hidden from players
         var name = escapeHtmlSimple(c.authorName || 'مجهول');
         var avatar = c.authorAvatar || 'images/default-avatar.png';
         var time = formatRelativeTime(c.createdAt);
@@ -22336,11 +22361,11 @@ function renderComments(list) {
         return '<div class="social-comment">'
             + '<img class="social-comment-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
             + '<div class="social-comment-body">'
-            +   '<div class="social-comment-meta"><span class="social-comment-author">' + name + '</span><span class="social-comment-time">' + time + '</span></div>'
+            +   '<div class="social-comment-meta"><span class="social-comment-author">' + name + '</span><span class="social-comment-time">' + time + '</span><button class="social-report-btn-inline" title="إبلاغ" onclick="reportComment(\'' + postId + '\',\'' + c._id + '\')"><i class="fas fa-flag"></i></button></div>'
             +   '<div class="social-comment-text">' + text + '</div>'
             + '</div>'
             + '</div>';
-    }).join('');
+    }).filter(Boolean).join('');
 }
 
 function toggleReaction(postId, emoji) {
@@ -22491,6 +22516,256 @@ function linkifyText(s) {
     return String(s == null ? '' : s).replace(/(https?:\/\/[^\s]+)/g, function(u) {
         return '<a href="' + escapeAttr(u) + '" target="_blank" rel="noopener" style="color:var(--accent2);text-decoration:underline">' + u + '</a>';
     });
+}
+
+// ============================================================
+// PLAYER POSTS (Phase 3) — composer + moderation queue + rate limit
+// ============================================================
+var PLAYER_POSTS_PER_DAY = 3;
+
+function openPlayerPostComposer() {
+    if (!GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
+    if (GameState.status === 'blocked' || GameState.status === 'suspended') {
+        showToast('حسابك موقوف، النشر غير متاح', 'error'); return;
+    }
+    var modal = document.getElementById('social-composer-modal');
+    if (!modal) return;
+    modal.style.display = 'block';
+    modal.classList.add('active');
+    // Reset form
+    var ta = document.getElementById('social-composer-text');
+    var imgInp = document.getElementById('social-composer-img');
+    var preview = document.getElementById('social-composer-img-preview');
+    var nameLbl = document.getElementById('social-composer-img-name');
+    if (ta) ta.value = '';
+    if (imgInp) imgInp.value = '';
+    if (preview) preview.innerHTML = '';
+    if (nameLbl) nameLbl.textContent = '';
+    // Show rate-limit status
+    var used = countPlayerPostsToday();
+    var rate = document.getElementById('social-composer-rate');
+    if (rate) rate.textContent = 'مسموح ' + PLAYER_POSTS_PER_DAY + ' منشورات / اليوم — استعملت ' + used + '/' + PLAYER_POSTS_PER_DAY;
+    // Image preview handler
+    if (imgInp) {
+        imgInp.onchange = function(e) {
+            var f = e.target.files && e.target.files[0];
+            if (!f) { if (preview) preview.innerHTML = ''; if (nameLbl) nameLbl.textContent = ''; return; }
+            if (f.size > 5 * 1024 * 1024) { showToast('الصورة كبيرة، اختار أصغر من ٥ ميجا', 'warning'); imgInp.value = ''; return; }
+            if (nameLbl) nameLbl.textContent = f.name;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                if (preview) preview.innerHTML = '<img src="' + ev.target.result + '" style="max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--border)">';
+            };
+            reader.readAsDataURL(f);
+        };
+    }
+}
+
+function closePlayerPostComposer() {
+    var modal = document.getElementById('social-composer-modal');
+    if (modal) { modal.style.display = 'none'; modal.classList.remove('active'); }
+}
+
+function countPlayerPostsToday() {
+    var today = new Date().toISOString().split('T')[0];
+    var rec = {};
+    try { rec = JSON.parse(localStorage.getItem('minElBatal_playerPostsRate') || '{}'); } catch(e){}
+    return rec[today] || 0;
+}
+
+function bumpPlayerPostRate() {
+    var today = new Date().toISOString().split('T')[0];
+    var rec = {};
+    try { rec = JSON.parse(localStorage.getItem('minElBatal_playerPostsRate') || '{}'); } catch(e){}
+    rec[today] = (rec[today] || 0) + 1;
+    try { localStorage.setItem('minElBatal_playerPostsRate', JSON.stringify(rec)); } catch(e){}
+}
+
+function extractHashtags(text) {
+    var tags = [];
+    var re = /#([؀-ۿ\w]{2,30})/g;
+    var m;
+    while ((m = re.exec(text)) !== null) {
+        var t = m[1].toLowerCase();
+        if (tags.indexOf(t) === -1) tags.push(t);
+        if (tags.length >= 6) break;
+    }
+    return tags;
+}
+
+async function submitPlayerPost() {
+    if (!firebaseDb || !GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
+    if (GameState.status === 'blocked' || GameState.status === 'suspended') {
+        showToast('حسابك موقوف، النشر غير متاح', 'error'); return;
+    }
+    if (countPlayerPostsToday() >= PLAYER_POSTS_PER_DAY) {
+        showToast('وصلت الحد اليومي (' + PLAYER_POSTS_PER_DAY + ' منشورات). جرّب بكره.', 'warning'); return;
+    }
+    var ta = document.getElementById('social-composer-text');
+    var imgInp = document.getElementById('social-composer-img');
+    var text = ta ? ta.value.trim() : '';
+    var file = imgInp && imgInp.files ? imgInp.files[0] : null;
+    if (!text && !file) { showToast('اكتب نص أو ضيف صورة', 'warning'); return; }
+    if (text.length > 500) { showToast('النص طويل جداً (٥٠٠ حرف كحد أقصى)', 'warning'); return; }
+
+    // Disable button while uploading
+    var btn = document.querySelector('#social-composer-modal .btn-primary');
+    var origHtml = btn ? btn.innerHTML : '';
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال…'; }
+
+    try {
+        var ch = CHARACTERS[GameState.character];
+        var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
+        var nowMs = Date.now();
+        var expiresAt = new Date(nowMs + 7 * 24 * 60 * 60 * 1000);
+        var tags = extractHashtags(text);
+        // Create the doc first to get an id (for storage path)
+        var ref = await firebaseDb.collection('posts').add({
+            authorId: GameState.playerPhone,
+            authorName: GameState.playerName || 'مجهول',
+            authorAvatar: avatar,
+            authorRole: 'player',
+            type: 'testimony',
+            text: text,
+            imageUrl: null,
+            tags: tags,
+            reactions: {},
+            reactionCounts: {},
+            commentCount: 0,
+            pinned: false,
+            status: 'pending',  // requires admin approval
+            reportCount: 0,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt)
+        });
+        if (file) {
+            try {
+                var url = await compressAndUploadImage(file, ref.id);
+                await ref.update({ imageUrl: url });
+            } catch(e) {
+                console.warn('image upload failed, post still saved without image', e);
+            }
+        }
+        bumpPlayerPostRate();
+        showToast('تم إرسال منشورك للمراجعة ✅ هيظهر بعد موافقة الخدّام', 'success');
+        closePlayerPostComposer();
+    } catch(e) {
+        console.warn('[social] submitPlayerPost error', e);
+        showToast('خطأ في الإرسال', 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = origHtml; }
+    }
+}
+
+function compressAndUploadImage(file, postId) {
+    return new Promise(function(resolve, reject) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+            var img = new Image();
+            img.onload = function() {
+                var maxW = 1280;
+                var scale = Math.min(1, maxW / img.width);
+                var w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+                var canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                canvas.toBlob(function(blob) {
+                    if (!blob) { reject(new Error('compress failed')); return; }
+                    try {
+                        var ref = firebase.storage().ref().child('social/posts/' + postId + '.jpg');
+                        ref.put(blob, { contentType: 'image/jpeg' }).then(function(snap) {
+                            return snap.ref.getDownloadURL();
+                        }).then(resolve).catch(reject);
+                    } catch(e) { reject(e); }
+                }, 'image/jpeg', 0.85);
+            };
+            img.onerror = reject;
+            img.src = ev.target.result;
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Hashtag filter UI on the feed top
+function renderTagFilter(posts) {
+    var box = document.getElementById('social-tag-filter');
+    if (!box) return;
+    var counts = {};
+    posts.forEach(function(p) {
+        (p.tags || []).forEach(function(t) { counts[t] = (counts[t] || 0) + 1; });
+    });
+    var tags = Object.keys(counts).sort(function(a,b){ return counts[b]-counts[a]; }).slice(0, 8);
+    if (!tags.length) { box.innerHTML = ''; return; }
+    var active = socialState.activeTag || '';
+    var html = '<button class="social-tag-chip' + (!active ? ' active' : '') + '" onclick="filterByTag(\'\')">الكل</button>';
+    html += tags.map(function(t) {
+        var a = (active === t) ? ' active' : '';
+        return '<button class="social-tag-chip' + a + '" onclick="filterByTag(\'' + escapeAttr(t) + '\')">#' + escapeHtmlSimple(t) + ' <span style="opacity:.65;font-size:10px">' + counts[t] + '</span></button>';
+    }).join('');
+    box.innerHTML = html;
+}
+
+function filterByTag(tag) {
+    socialState.activeTag = tag;
+    renderSocialFeed(socialState.posts);
+}
+
+// ============================================================
+// REPORT / FLAG (Phase 2)
+// ============================================================
+var REPORT_FLAG_THRESHOLD = 3;
+
+function reportPost(postId) {
+    if (!firebaseDb || !GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
+    if (!confirm('هل تريد الإبلاغ عن هذا المنشور؟ سيراجعه الخدّام.')) return;
+    var phone = GameState.playerPhone;
+    var ref = firebaseDb.collection('posts').doc(postId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(ref).then(function(doc) {
+            if (!doc.exists) return;
+            var data = doc.data() || {};
+            var reports = data.reports || {};
+            if (reports[phone]) return 'already';
+            reports[phone] = Date.now();
+            var reportCount = Object.keys(reports).length;
+            var update = { reports: reports, reportCount: reportCount };
+            if (reportCount >= REPORT_FLAG_THRESHOLD && data.status !== 'flagged') {
+                update.status = 'flagged';
+            }
+            tx.update(ref, update);
+            return 'ok';
+        });
+    }).then(function(result) {
+        if (result === 'already') showToast('سبق وأبلغت عن هذا المنشور', 'info');
+        else showToast('تم إرسال البلاغ ✅ شكراً', 'success');
+    }).catch(function(err) { console.warn('[social] reportPost error', err); showToast('خطأ في الإرسال', 'error'); });
+}
+
+function reportComment(postId, commentId) {
+    if (!firebaseDb || !GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
+    if (!confirm('هل تريد الإبلاغ عن هذا التعليق؟')) return;
+    var phone = GameState.playerPhone;
+    var ref = firebaseDb.collection('posts').doc(postId).collection('comments').doc(commentId);
+    firebaseDb.runTransaction(function(tx) {
+        return tx.get(ref).then(function(doc) {
+            if (!doc.exists) return;
+            var data = doc.data() || {};
+            var reports = data.reports || {};
+            if (reports[phone]) return 'already';
+            reports[phone] = Date.now();
+            var reportCount = Object.keys(reports).length;
+            var update = { reports: reports, reportCount: reportCount };
+            if (reportCount >= REPORT_FLAG_THRESHOLD && data.status !== 'flagged') {
+                update.status = 'flagged';
+            }
+            tx.update(ref, update);
+            return 'ok';
+        });
+    }).then(function(result) {
+        if (result === 'already') showToast('سبق وأبلغت عن هذا التعليق', 'info');
+        else showToast('تم إرسال البلاغ ✅', 'success');
+    }).catch(function(err) { console.warn('[social] reportComment error', err); showToast('خطأ في الإرسال', 'error'); });
 }
 
 // Show "new posts" indicator on the hub card. One Firestore read per hub view.

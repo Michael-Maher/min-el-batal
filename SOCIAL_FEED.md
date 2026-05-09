@@ -181,11 +181,28 @@ Without a Cloud Function, post images in storage stay even after their Firestore
 - Cloud Function for orphan storage image cleanup (Phase 2)
 - Player-authored posts with moderation queue (Phase 2)
 
-## Phase 2 (later, do not start yet)
-- Player text posts with admin moderation queue
-- Player image uploads
-- Report system + flagged content tab
-- Push notifications when someone replies to your comment
+## Phase 2 — DONE
+
+- [x] **Report system** — `reportPost(postId)` and `reportComment(postId, commentId)` in game.js. Each player can only report once (tracked in `reports` map). Status auto-flips to `flagged` at 3 reports, hiding the content from the player feed but keeping it visible to admins for review.
+- [x] **Flag/Approve workflow** — Admin moderation tab (built into the posts page) shows pending + flagged with quick approve/reject buttons. `setPostStatus()` and `setCommentStatus()` reset reports on dismissal.
+- [x] **Per-comment moderation** — `openPostComments(postId)` modal in admin shows all comments with delete + un-flag actions.
+- [x] **Comment notification** — `onPostCommentCreated` Cloud Function (functions/index.js): when a player comments on someone's post, the post author gets a push (skips self-comments, skips system posts, respects notifPrefs.social).
+- [x] **New post notification** — `onPostCreated` Cloud Function: when an approved admin post is created, all players with FCM tokens get a push (respects notifPrefs.social).
+
+## Phase 3 — DONE
+
+- [x] **Player composer** — FAB on the social screen opens `social-composer-modal`. Text up to 500 chars + optional image (5 MB max, compressed client-side to 1280px).
+- [x] **Pending workflow** — All player posts default to `status: 'pending'`. Hidden from the player feed (which filters `status === 'approved'`). Show up in admin's "المراجعة" tab with approve/reject buttons.
+- [x] **Rate limit** — `PLAYER_POSTS_PER_DAY = 3`. Tracked in localStorage per day (`minElBatal_playerPostsRate`). Composer shows used/total. Server-side enforcement is via Firestore rules (left open for now).
+- [x] **Hashtag detection** — `extractHashtags(text)` pulls up to 6 `#tags` (Arabic + Latin). Stored as `tags: []` on the post. Same logic in admin's `savePost()`.
+- [x] **Tag filter chips** — Top of feed shows the 8 most-used tags as chips. Click a tag → filter feed to posts containing it. Tags also clickable inside post cards.
+- [x] **Storage SDK in player app** — `firebase-storage-compat.js` added to index.html.
+
+## Cost & noise mitigations applied
+- Feed query filters `status === 'approved'` client-side, so flagged/pending/rejected never reach players.
+- New-post notification only fires for `authorRole === 'admin'` and `status === 'approved'` to avoid celebration spam and pending-post leaks.
+- Tag filter is purely client-side over the cached feed — no extra queries.
+- Rate limit on player posts is per-device (localStorage). Good enough to prevent accidental spam; not a hard server-side guarantee.
 
 ## Decisions log
 - 2026-05-08: Defaults locked in. Admin + system posts only for v1; comments allowed; 7d TTL; ❤️ 🙏 ✝️ 🔥 ⭐ reactions.

@@ -14152,3 +14152,56 @@ body {
     transition: all .15s;
 }
 .social-toolbar-btn:hover { background: rgba(99,102,241,.18); border-color: rgba(168,85,247,.5); }
+
+/* ===== social comments preview in feed card ===== */
+.social-post-preview-area {
+    border-top: 1px solid var(--border);
+    padding: 10px 14px 12px;
+}
+.social-preview-comments { display: flex; flex-direction: column; gap: 7px; margin-bottom: 8px; }
+.social-preview-comment { display: flex; gap: 8px; align-items: flex-start; }
+.social-preview-comment-avatar {
+    width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+    background: rgba(255,255,255,.06); border: 1px solid var(--border);
+}
+.social-preview-comment-body {
+    font-size: 12.5px; line-height: 1.5; color: var(--text); flex: 1; min-width: 0;
+    word-break: break-word;
+}
+.social-preview-comment-name { font-weight: 800; margin-left: 4px; }
+.social-preview-comment-text { opacity: .85; }
+.social-see-all-btn {
+    background: transparent; border: none; color: var(--accent2);
+    font-family: inherit; font-size: 12px; font-weight: 700; padding: 3px 0 9px;
+    cursor: pointer; display: block; transition: opacity .15s;
+}
+.social-see-all-btn:hover { opacity: .7; }
+.social-quick-comment {
+    display: flex; gap: 8px; align-items: center;
+    border-top: 1px solid var(--border); padding-top: 10px;
+}
+.social-quick-comment-input {
+    flex: 1; background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    border-radius: 20px; padding: 7px 14px; color: var(--text);
+    font-family: inherit; font-size: 13px; direction: rtl;
+    transition: border-color .15s;
+}
+.social-quick-comment-input:focus { outline: none; border-color: var(--accent2); }
+.social-quick-comment-send {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    border: none; color: #fff; border-radius: 50%;
+    width: 34px; height: 34px; cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: opacity .15s; font-family: inherit;
+}
+.social-quick-comment-send:hover { opacity: .85; }
+.social-quick-comment-send:active { transform: scale(.9); }
+
+/* ===== admin profile page ===== */
+.btn-profile {
+    display: block; width: 100%; padding: 8px; text-align: center;
+    background: transparent; border: 1px solid var(--border); border-radius: 8px;
+    color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer;
+    font-family: inherit; margin-bottom: 8px; transition: all .15s;
+}
+.btn-profile:hover { color: var(--text); border-color: var(--accent2); }

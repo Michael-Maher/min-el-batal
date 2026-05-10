@@ -1429,6 +1429,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       </div>
     </nav>
     <div class="sidebar-foot">
+      <button class="btn-profile" onclick="goProfile()"><i class="fas fa-user-circle"></i> ملفي الشخصي</button>
       <button class="btn-logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
     </div>
   </aside>
@@ -1887,6 +1888,50 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       <div class="card" id="ampanel-rejected" style="display:none"><div class="loading"><i class="fas fa-spinner"></i></div></div>
     </div>
 
+    <!-- PROFILE -->
+    <div class="page" id="page-profile">
+      <div class="ph"><h2><i class="fas fa-user-circle" style="color:var(--accent2)"></i> ملفي الشخصي</h2><p>تعديل الاسم والصورة وكلمة السر</p></div>
+      <div class="g2">
+        <div class="card">
+          <div class="ch"><h3><i class="fas fa-id-card"></i> المعلومات الشخصية</h3></div>
+          <div class="cb" style="padding:20px">
+            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:22px">
+              <div id="profile-av-wrap" style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:40px;background:rgba(255,255,255,.04)"></div>
+              <input type="file" id="profile-av-file" accept="image/*" style="display:none" onchange="previewAdminAvatar(this)">
+              <button class="btn bg bsm" onclick="document.getElementById('profile-av-file').click()"><i class="fas fa-camera"></i> تغيير الصورة</button>
+              <div id="profile-av-note" style="font-size:11px;color:var(--muted);text-align:center"></div>
+            </div>
+            <div style="margin-bottom:14px">
+              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">الاسم</label>
+              <input type="text" id="profile-name-inp" class="finput" placeholder="اكتب اسمك">
+            </div>
+            <div style="margin-bottom:16px;font-size:12px;color:var(--muted)">رقم التليفون: <span id="profile-phone-disp" dir="ltr" style="font-weight:700;color:var(--text)"></span></div>
+            <button class="btn bp" style="width:100%" onclick="saveProfileInfo(event)"><i class="fas fa-save"></i> حفظ المعلومات</button>
+            <div id="profile-info-msg" style="margin-top:8px;font-size:12px;text-align:center"></div>
+          </div>
+        </div>
+        <div class="card" id="profile-pass-card">
+          <div class="ch"><h3><i class="fas fa-key"></i> تغيير كلمة السر</h3></div>
+          <div class="cb" style="padding:20px">
+            <div style="margin-bottom:12px">
+              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">كلمة السر الحالية</label>
+              <input type="password" id="profile-old-pass" class="finput" placeholder="كلمة السر الحالية">
+            </div>
+            <div style="margin-bottom:12px">
+              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">كلمة السر الجديدة</label>
+              <input type="password" id="profile-new-pass" class="finput" placeholder="٦ حروف على الأقل">
+            </div>
+            <div style="margin-bottom:16px">
+              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">تأكيد كلمة السر</label>
+              <input type="password" id="profile-new-pass2" class="finput" placeholder="أعد كتابة كلمة السر الجديدة">
+            </div>
+            <button class="btn bp" style="width:100%" onclick="saveProfilePassword(event)"><i class="fas fa-key"></i> تغيير كلمة السر</button>
+            <div id="profile-pass-msg" style="margin-top:8px;font-size:12px;text-align:center"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </main>
 </div>
 
@@ -2080,7 +2125,9 @@ function showScreen(id) {
 //  SESSION
 // ════════════════════════════════
 function saveSession(admin, keep) {
+  const prev = loadSession();
   const data = { phone:admin.phone, name:admin.name, role:admin.role, _id:admin._id||'super',
+                 avatar: admin.avatar || (prev && prev.phone===admin.phone ? prev.avatar : null) || null,
                  perms: admin.perms || (admin.role==='superadmin' ? null : defaultPerms()),
                  expires: Date.now() + (keep ? 30*86400000 : 8*3600000) };
   localStorage.setItem(SESSION_KEY, JSON.stringify(data));
@@ -2123,7 +2170,7 @@ async function tryLogin() {
       const d = snap.docs[0].data();
       if (d.passwordHash !== hash) { showErr('l-err','كلمة السر غلط'); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return; }
       if (d.status !== 'active')   { showErr('l-err','حسابك لسه تحت المراجعة أو تم رفضه'); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return; }
-      me = { phone:d.phone, name:d.name, role:d.role||'admin', _id:snap.docs[0].id, perms: d.perms || defaultPerms() };
+      me = { phone:d.phone, name:d.name, role:d.role||'admin', _id:snap.docs[0].id, avatar: d.avatar||null, perms: d.perms || defaultPerms() };
       saveSession(me, keep);
       enterApp(); btn.disabled=false; btn.innerHTML='<i class="fas fa-shield-halved"></i> دخول'; return;
     }
@@ -2143,7 +2190,12 @@ function enterApp() {
   // Update who badge
   document.getElementById('wb-name').textContent = me.name;
   document.getElementById('wb-role').textContent = me.role==='superadmin'?'👑 المسؤول الأعلى':'🛡️ أدمن';
-  document.getElementById('wb-ico').textContent  = me.role==='superadmin'?'👑':'🛡️';
+  var wbIco = document.getElementById('wb-ico');
+  if (me.avatar) {
+    wbIco.innerHTML = '<img src="'+me.avatar+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">';
+  } else {
+    wbIco.textContent = me.role==='superadmin'?'👑':'🛡️';
+  }
   // Apply permissions to nav buttons (superadmin sees everything)
   applyNavPermissions();
   document.getElementById('super-info').textContent = SUPER.name+' · '+SUPER.phone;
@@ -2163,6 +2215,144 @@ function doLogout() {
   document.getElementById('l-pass').value='';
   document.getElementById('l-err').style.display='none';
   showScreen('screen-login');
+}
+
+// ════════════════════════════════
+//  PROFILE
+// ════════════════════════════════
+var _profileAvatarFile = null;
+
+function goProfile() {
+  document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+  document.getElementById('page-profile').classList.add('active');
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').style.display='none';
+  document.getElementById('tb-title').childNodes[0].textContent='ملفي الشخصي ';
+  document.getElementById('tb-sub').textContent='الإعدادات';
+  _profileAvatarFile = null;
+  document.getElementById('profile-name-inp').value = me.name || '';
+  document.getElementById('profile-phone-disp').textContent = me.phone || '';
+  var wrap = document.getElementById('profile-av-wrap');
+  if (me.avatar) {
+    wrap.innerHTML = '<img src="'+me.avatar+'" style="width:100%;height:100%;object-fit:cover">';
+  } else {
+    wrap.textContent = me.role==='superadmin' ? '👑' : '🛡️';
+  }
+  var passCard = document.getElementById('profile-pass-card');
+  if (passCard) passCard.style.display = me.role==='superadmin' ? 'none' : '';
+  ['profile-info-msg','profile-pass-msg','profile-av-note'].forEach(function(id){
+    var el=document.getElementById(id); if(el){ el.textContent=''; el.style.color=''; }
+  });
+  ['profile-old-pass','profile-new-pass','profile-new-pass2'].forEach(function(id){
+    var el=document.getElementById(id); if(el) el.value='';
+  });
+}
+
+function previewAdminAvatar(input) {
+  var file = input.files && input.files[0];
+  if (!file) return;
+  var note = document.getElementById('profile-av-note');
+  if (file.size > 5*1024*1024) { note.textContent='الصورة كبيرة جداً (الحد ٥MB)'; note.style.color='var(--red)'; return; }
+  _profileAvatarFile = file;
+  note.textContent='✅ صورة جاهزة للرفع، اضغط "حفظ المعلومات"'; note.style.color='var(--green)';
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('profile-av-wrap').innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveProfileInfo(ev) {
+  var name = document.getElementById('profile-name-inp').value.trim();
+  var msg = document.getElementById('profile-info-msg');
+  msg.style.color='var(--red)'; msg.textContent='';
+  if (!name) { msg.textContent='اكتب الاسم'; return; }
+  var btn = ev.currentTarget; btn.disabled=true; btn.textContent='جاري الحفظ...';
+  try {
+    var avatarUrl = me.avatar || null;
+    if (_profileAvatarFile) {
+      try {
+        avatarUrl = await _uploadAdminAvatar(_profileAvatarFile, me.phone);
+        _profileAvatarFile = null;
+        document.getElementById('profile-av-note').textContent='';
+      } catch(e) {
+        msg.textContent='فشل رفع الصورة: '+e.message;
+        btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> حفظ المعلومات'; return;
+      }
+    }
+    if (me.role !== 'superadmin' && me._id) {
+      var upd = { name: name };
+      if (avatarUrl) upd.avatar = avatarUrl;
+      await db.collection('admins').doc(me._id).update(upd);
+    }
+    me.name = name;
+    if (avatarUrl) me.avatar = avatarUrl;
+    saveSession(me, false);
+    document.getElementById('wb-name').textContent = name;
+    var wbIco = document.getElementById('wb-ico');
+    if (avatarUrl) {
+      wbIco.innerHTML='<img src="'+avatarUrl+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">';
+    }
+    msg.style.color='var(--green)'; msg.textContent='✅ تم الحفظ بنجاح';
+  } catch(e) {
+    console.error(e); msg.textContent='خطأ: '+e.message;
+  }
+  btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> حفظ المعلومات';
+}
+
+async function saveProfilePassword(ev) {
+  if (me.role==='superadmin') return;
+  var oldPass = document.getElementById('profile-old-pass').value;
+  var newPass = document.getElementById('profile-new-pass').value;
+  var newPass2= document.getElementById('profile-new-pass2').value;
+  var msg = document.getElementById('profile-pass-msg');
+  msg.style.color='var(--red)'; msg.textContent='';
+  if (!oldPass) { msg.textContent='اكتب كلمة السر الحالية'; return; }
+  if (!newPass || newPass.length<6) { msg.textContent='كلمة السر الجديدة لازم ٦ حروف على الأقل'; return; }
+  if (newPass!==newPass2) { msg.textContent='كلمة السر الجديدة مش متطابقة'; return; }
+  var btn = ev.currentTarget; btn.disabled=true; btn.textContent='جاري التحقق...';
+  try {
+    const snap = await db.collection('admins').where('phone','==',me.phone).limit(1).get();
+    if (snap.empty) { msg.textContent='حساب غير موجود'; btn.disabled=false; btn.innerHTML='<i class="fas fa-key"></i> تغيير كلمة السر'; return; }
+    var adminDoc = snap.docs[0];
+    if (adminDoc.data().passwordHash !== hp(me.phone+oldPass)) {
+      msg.textContent='كلمة السر الحالية غلط'; btn.disabled=false; btn.innerHTML='<i class="fas fa-key"></i> تغيير كلمة السر'; return;
+    }
+    await db.collection('admins').doc(adminDoc.id).update({ passwordHash: hp(me.phone+newPass) });
+    ['profile-old-pass','profile-new-pass','profile-new-pass2'].forEach(function(id){ document.getElementById(id).value=''; });
+    msg.style.color='var(--green)'; msg.textContent='✅ تم تغيير كلمة السر بنجاح';
+  } catch(e) {
+    console.error(e); msg.textContent='خطأ: '+e.message;
+  }
+  btn.disabled=false; btn.innerHTML='<i class="fas fa-key"></i> تغيير كلمة السر';
+}
+
+async function _uploadAdminAvatar(file, phone) {
+  return new Promise(function(resolve, reject) {
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        const maxSide = 256;
+        const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+        const w = Math.round(img.width*scale), h = Math.round(img.height*scale);
+        const canvas = document.createElement('canvas');
+        canvas.width=w; canvas.height=h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        canvas.toBlob(async function(blob) {
+          try {
+            const ref = firebase.storage().ref().child('admin-avatars/'+phone+'.jpg');
+            const snap = await ref.put(blob, { contentType:'image/jpeg' });
+            resolve(await snap.ref.getDownloadURL());
+          } catch(e) { reject(e); }
+        }, 'image/jpeg', 0.90);
+      };
+      img.onerror = reject;
+      img.src = ev.target.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 // ════════════════════════════════

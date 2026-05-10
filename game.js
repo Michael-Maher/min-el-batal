@@ -22286,6 +22286,32 @@ function renderSocialPost(post) {
             return '<button class="social-post-tag" onclick="event.stopPropagation();filterByTag(\'' + escapeAttr(t) + '\');showScreen(\'social-screen\')">#' + escapeHtmlSimple(t) + '</button>';
         }).join('') + '</div>';
     }
+
+    // Comments preview (last 3 from denormalized recentComments field)
+    var previewComments = post.recentComments || [];
+    var commentsPreviewHtml = '';
+    if (previewComments.length > 0) {
+        commentsPreviewHtml = '<div class="social-preview-comments">'
+            + previewComments.map(function(c) {
+                var cName = escapeHtmlSimple(c.authorName || 'مجهول');
+                var cAvatar = c.authorAvatar || 'images/default-avatar.png';
+                var cText = linkifyText(escapeHtmlSimple(c.text || ''));
+                return '<div class="social-preview-comment">'
+                    + '<img class="social-preview-comment-avatar" src="' + escapeAttr(cAvatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
+                    + '<div class="social-preview-comment-body"><span class="social-preview-comment-name">' + cName + '</span><span class="social-preview-comment-text">' + cText + '</span></div>'
+                    + '</div>';
+            }).join('')
+            + '</div>';
+    }
+    var commentCount = post.commentCount || 0;
+    var seeAllBtn = commentCount > 3
+        ? '<button class="social-see-all-btn" onclick="openSocialPost(\'' + post._id + '\')"><i class="fas fa-comments"></i> شوف كل التعليقات (' + commentCount + ')</button>'
+        : (commentCount > 0 && previewComments.length === 0 ? '<button class="social-see-all-btn" onclick="openSocialPost(\'' + post._id + '\')"><i class="fas fa-comments"></i> شوف التعليقات (' + commentCount + ')</button>' : '');
+    var quickComment = '<div class="social-quick-comment">'
+        + '<input class="social-quick-comment-input" id="sqc-' + post._id + '" type="text" placeholder="اكتب تعليق..." maxlength="200" onkeydown="if(event.key===\'Enter\')submitQuickComment(\'' + post._id + '\')">'
+        + '<button class="social-quick-comment-send" onclick="submitQuickComment(\'' + post._id + '\')"><i class="fas fa-paper-plane"></i></button>'
+        + '</div>';
+
     return '<div class="social-post' + (post.pinned ? ' social-post-pinned' : '') + '" onclick="openSocialPost(\'' + post._id + '\')">'
         + '<div class="social-post-header">'
         +   '<img class="social-post-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
@@ -22299,8 +22325,13 @@ function renderSocialPost(post) {
         + img
         + '<div class="social-post-actions">'
         +   actions
-        +   '<button class="social-comment-btn" onclick="event.stopPropagation();openSocialPost(\'' + post._id + '\')"><i class="fas fa-comment"></i> ' + (post.commentCount || 0) + '</button>'
+        +   '<button class="social-comment-btn" onclick="event.stopPropagation();openSocialPost(\'' + post._id + '\')"><i class="fas fa-comment"></i> ' + commentCount + '</button>'
         +   '<button class="social-report-btn" title="إبلاغ" onclick="event.stopPropagation();reportPost(\'' + post._id + '\')"><i class="fas fa-flag"></i></button>'
+        + '</div>'
+        + '<div class="social-post-preview-area" onclick="event.stopPropagation()">'
+        +   commentsPreviewHtml
+        +   seeAllBtn
+        +   quickComment
         + '</div>'
         + '</div>';
 }
@@ -22399,17 +22430,11 @@ function toggleReaction(postId, emoji) {
     }).catch(function(err) { console.warn('[social] toggleReaction error', err); showToast('خطأ في التفاعل', 'error'); });
 }
 
-function submitComment() {
-    var input = document.getElementById('social-comment-input');
-    if (!input || !socialState.currentPostId) return;
-    var text = (input.value || '').trim();
-    if (!text) { showToast('اكتب تعليق الأول', 'warning'); return; }
-    if (text.length > 200) { showToast('التعليق طويل جداً (٢٠٠ حرف كحد أقصى)', 'warning'); return; }
+function _doAddComment(postId, text, inputEl) {
     if (!firebaseDb || !GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'warning'); return; }
     if (GameState.status === 'blocked' || GameState.status === 'suspended') {
         showToast('حسابك موقوف، التعليق غير متاح', 'error'); return;
     }
-    var postId = socialState.currentPostId;
     var ch = CHARACTERS[GameState.character];
     var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
     var nowMs = Date.now();
@@ -22424,12 +22449,48 @@ function submitComment() {
         reportCount: 0
     };
     var postRef = firebaseDb.collection('posts').doc(postId);
+    if (inputEl) inputEl.disabled = true;
     postRef.collection('comments').add(comment).then(function() {
-        return postRef.update({ commentCount: firebase.firestore.FieldValue.increment(1) });
+        // Update recentComments preview (last 3) + increment commentCount atomically
+        return firebaseDb.runTransaction(function(tx) {
+            return tx.get(postRef).then(function(doc) {
+                if (!doc.exists) return;
+                var data = doc.data() || {};
+                var recent = (data.recentComments || []).slice();
+                recent.push({ authorName: comment.authorName, authorAvatar: avatar, text: text });
+                if (recent.length > 3) recent = recent.slice(-3);
+                tx.update(postRef, {
+                    commentCount: firebase.firestore.FieldValue.increment(1),
+                    recentComments: recent
+                });
+            });
+        });
     }).then(function() {
-        input.value = '';
+        if (inputEl) { inputEl.value = ''; inputEl.disabled = false; }
         showToast('تم إضافة التعليق ✅', 'success');
-    }).catch(function(err) { console.warn('[social] addComment error', err); showToast('خطأ في الإرسال', 'error'); });
+    }).catch(function(err) {
+        console.warn('[social] addComment error', err);
+        if (inputEl) inputEl.disabled = false;
+        showToast('خطأ في الإرسال', 'error');
+    });
+}
+
+function submitComment() {
+    var input = document.getElementById('social-comment-input');
+    if (!input || !socialState.currentPostId) return;
+    var text = (input.value || '').trim();
+    if (!text) { showToast('اكتب تعليق الأول', 'warning'); return; }
+    if (text.length > 200) { showToast('التعليق طويل جداً (٢٠٠ حرف كحد أقصى)', 'warning'); return; }
+    _doAddComment(socialState.currentPostId, text, input);
+}
+
+function submitQuickComment(postId) {
+    var input = document.getElementById('sqc-' + postId);
+    if (!input) return;
+    var text = (input.value || '').trim();
+    if (!text) { showToast('اكتب تعليق الأول', 'warning'); return; }
+    if (text.length > 200) { showToast('التعليق طويل جداً (٢٠٠ حرف كحد أقصى)', 'warning'); return; }
+    _doAddComment(postId, text, input);
 }
 
 // ============================================================

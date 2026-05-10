@@ -22262,15 +22262,35 @@ function renderSocialFeed(posts) {
 }
 
 function renderSocialPost(post) {
+    var kind = post.kind || 'text';
     var name = escapeHtmlSimple(post.authorName || 'مجهول');
     var avatar = post.authorAvatar || 'images/default-avatar.png';
     var roleBadge = '';
     if (post.authorRole === 'admin')      roleBadge = '<span class="social-post-role-admin"><i class="fas fa-shield-halved"></i> خادم</span>';
     else if (post.authorRole === 'system') roleBadge = '<span class="social-post-role-system"><i class="fas fa-star"></i> إنجاز</span>';
     var pinTag = post.pinned ? '<span class="social-post-pinned-tag"><i class="fas fa-thumbtack"></i> مثبت</span>' : '';
+    var kindBadge = renderKindBadge(kind);
     var time = formatRelativeTime(post.createdAt);
-    var text = escapeHtmlSimple(post.text || '');
-    var img = post.imageUrl ? '<img class="social-post-image" loading="lazy" src="' + escapeAttr(post.imageUrl) + '" alt="">' : '';
+
+    // Body — type-specific
+    var bodyHtml = '';
+    switch (kind) {
+        case 'achievement':  bodyHtml = renderAchievementBody(post); break;
+        case 'competition':  bodyHtml = renderCompetitionBody(post); break;
+        case 'verse':        bodyHtml = renderVerseBody(post); break;
+        case 'video':        bodyHtml = renderVideoBody(post); break;
+        default:             bodyHtml = renderTextBody(post); break;
+    }
+
+    // Tags (shared)
+    var tagsHtml = '';
+    if (post.tags && post.tags.length) {
+        tagsHtml = '<div class="social-post-tags">' + post.tags.map(function(t) {
+            return '<button class="social-post-tag" onclick="event.stopPropagation();filterByTag(\'' + escapeAttr(t) + '\');showScreen(\'social-screen\')">#' + escapeHtmlSimple(t) + '</button>';
+        }).join('') + '</div>';
+    }
+
+    // Reactions (shared)
     var counts = post.reactionCounts || {};
     var myPhone = GameState.playerPhone || '';
     var myReaction = (post.reactions || {})[myPhone] || '';
@@ -22280,14 +22300,8 @@ function renderSocialPost(post) {
         var countHtml = count > 0 ? '<span class="social-reaction-count">' + count + '</span>' : '';
         return '<button class="social-reaction-btn' + active + '" onclick="event.stopPropagation();toggleReaction(\'' + post._id + '\',\'' + emoji + '\')">' + emoji + countHtml + '</button>';
     }).join('');
-    var tagsHtml = '';
-    if (post.tags && post.tags.length) {
-        tagsHtml = '<div class="social-post-tags">' + post.tags.map(function(t) {
-            return '<button class="social-post-tag" onclick="event.stopPropagation();filterByTag(\'' + escapeAttr(t) + '\');showScreen(\'social-screen\')">#' + escapeHtmlSimple(t) + '</button>';
-        }).join('') + '</div>';
-    }
 
-    // Comments preview (last 3 from denormalized recentComments field)
+    // Comments preview (shared)
     var previewComments = post.recentComments || [];
     var commentsPreviewHtml = '';
     if (previewComments.length > 0) {
@@ -22312,17 +22326,19 @@ function renderSocialPost(post) {
         + '<button class="social-quick-comment-send" onclick="submitQuickComment(\'' + post._id + '\')"><i class="fas fa-paper-plane"></i></button>'
         + '</div>';
 
-    return '<div class="social-post' + (post.pinned ? ' social-post-pinned' : '') + '" onclick="openSocialPost(\'' + post._id + '\')">'
+    var classes = ['social-post', 'social-post-kind-' + kind];
+    if (post.pinned) classes.push('social-post-pinned');
+
+    return '<div class="' + classes.join(' ') + '" onclick="openSocialPost(\'' + post._id + '\')">'
         + '<div class="social-post-header">'
         +   '<img class="social-post-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
         +   '<div class="social-post-author">'
-        +     '<div class="social-post-author-name">' + name + ' ' + roleBadge + ' ' + pinTag + '</div>'
+        +     '<div class="social-post-author-name">' + name + ' ' + roleBadge + ' ' + kindBadge + ' ' + pinTag + '</div>'
         +     '<div class="social-post-time">' + time + '</div>'
         +   '</div>'
         + '</div>'
-        + (text ? '<div class="social-post-text">' + linkifyText(text) + '</div>' : '')
+        + bodyHtml
         + tagsHtml
-        + img
         + '<div class="social-post-actions">'
         +   actions
         +   '<button class="social-comment-btn" onclick="event.stopPropagation();openSocialPost(\'' + post._id + '\')"><i class="fas fa-comment"></i> ' + commentCount + '</button>'
@@ -22334,6 +22350,135 @@ function renderSocialPost(post) {
         +   quickComment
         + '</div>'
         + '</div>';
+}
+
+// ── Body renderers per post kind ──
+function renderTextBody(post) {
+    var text = escapeHtmlSimple(post.text || '');
+    var img = post.imageUrl ? '<img class="social-post-image" loading="lazy" src="' + escapeAttr(post.imageUrl) + '" alt="">' : '';
+    return (text ? '<div class="social-post-text">' + linkifyText(text) + '</div>' : '') + img;
+}
+
+function renderAchievementBody(post) {
+    var meta = post.meta || {};
+    var title = escapeHtmlSimple(meta.title || 'إنجاز جديد');
+    var icon = meta.icon || '🏆';
+    var color = meta.color || 'gold';
+    var text = escapeHtmlSimple(post.text || '');
+    var img = post.imageUrl ? '<img class="social-post-image" loading="lazy" src="' + escapeAttr(post.imageUrl) + '" alt="">' : '';
+    return '<div class="social-card-achievement social-card-achievement-' + color + '">'
+        + '<div class="ach-shine"></div>'
+        + '<div class="ach-icon">' + icon + '</div>'
+        + '<div class="ach-title">' + title + '</div>'
+        + (text ? '<div class="ach-text">' + linkifyText(text) + '</div>' : '')
+        + '</div>'
+        + img;
+}
+
+function renderCompetitionBody(post) {
+    var meta = post.meta || {};
+    var title = escapeHtmlSimple(meta.title || 'منافسة جديدة');
+    var prize = escapeHtmlSimple(meta.prize || '');
+    var endsMs = meta.endsAtMs || 0;
+    var nowMs = Date.now();
+    var live = endsMs > nowMs;
+    var ctaTarget = meta.ctaTarget || 'compete-screen';
+    var text = escapeHtmlSimple(post.text || '');
+    var countdown = live ? formatCountdown(endsMs - nowMs) : 'انتهت';
+    var img = post.imageUrl ? '<img class="social-post-image" loading="lazy" src="' + escapeAttr(post.imageUrl) + '" alt="">' : '';
+    return '<div class="social-card-competition' + (live ? '' : ' social-card-competition-ended') + '">'
+        + (live
+            ? '<div class="comp-live"><span class="comp-live-dot"></span> مباشر</div>'
+            : '<div class="comp-ended-tag"><i class="fas fa-clock"></i> انتهت</div>')
+        + '<div class="comp-icon"><i class="fas fa-bolt"></i></div>'
+        + '<div class="comp-title">' + title + '</div>'
+        + (text ? '<div class="comp-text">' + linkifyText(text) + '</div>' : '')
+        + '<div class="comp-meta-grid">'
+        +   (prize ? '<div class="comp-meta-item"><i class="fas fa-gift"></i><div><div class="comp-meta-lbl">الجائزة</div><div class="comp-meta-val">' + prize + '</div></div></div>' : '')
+        +   (endsMs ? '<div class="comp-meta-item"><i class="fas fa-hourglass-half"></i><div><div class="comp-meta-lbl">' + (live ? 'متبقي' : 'انتهت') + '</div><div class="comp-meta-val comp-countdown" data-ends="' + endsMs + '">' + countdown + '</div></div></div>' : '')
+        + '</div>'
+        + (live ? '<button class="comp-cta" onclick="event.stopPropagation();showScreen(\'' + ctaTarget + '\')"><i class="fas fa-play"></i> انضم الآن</button>' : '')
+        + '</div>'
+        + img;
+}
+
+function renderVerseBody(post) {
+    var meta = post.meta || {};
+    var verseText = escapeHtmlSimple(meta.verseText || '');
+    var verseRef = escapeHtmlSimple(meta.verseRef || '');
+    var theme = meta.theme || 'gold';
+    var reflection = escapeHtmlSimple(meta.reflection || '');
+    var promo = escapeHtmlSimple(post.text || '');
+    return (promo ? '<div class="social-post-text">' + linkifyText(promo) + '</div>' : '')
+        + '<div class="social-card-verse social-card-verse-' + theme + '">'
+        +   '<div class="verse-cross">✝</div>'
+        +   '<div class="verse-quote-mark">"</div>'
+        +   '<div class="verse-text">' + verseText + '</div>'
+        +   (verseRef ? '<div class="verse-ref">— ' + verseRef + '</div>' : '')
+        + '</div>'
+        + (reflection ? '<div class="verse-reflection"><div class="verse-reflection-label"><i class="fas fa-pray"></i> تأمل</div><div class="verse-reflection-text">' + linkifyText(reflection) + '</div></div>' : '');
+}
+
+function renderVideoBody(post) {
+    var meta = post.meta || {};
+    var videoId = meta.videoId || '';
+    var title = escapeHtmlSimple(meta.title || '');
+    var text = escapeHtmlSimple(post.text || '');
+    var thumb = videoId ? 'https://img.youtube.com/vi/' + videoId + '/hqdefault.jpg' : '';
+    var html = '<div class="social-card-video" onclick="event.stopPropagation();playVideoInPost(\'' + post._id + '\',\'' + escapeAttr(videoId) + '\')">'
+        + '<div class="vid-thumb-wrap" id="vid-thumb-' + post._id + '">'
+        +   (thumb ? '<img class="vid-thumb" src="' + thumb + '" loading="lazy">' : '<div class="vid-thumb-placeholder"><i class="fas fa-video"></i></div>')
+        +   '<div class="vid-play-btn"><i class="fas fa-play"></i></div>'
+        +   '<div class="vid-yt-tag"><i class="fab fa-youtube"></i> يوتيوب</div>'
+        + '</div>'
+        + (title ? '<div class="vid-title">' + title + '</div>' : '')
+        + '</div>';
+    if (text) html += '<div class="social-post-text">' + linkifyText(text) + '</div>';
+    return html;
+}
+
+function playVideoInPost(postId, videoId) {
+    var wrap = document.getElementById('vid-thumb-' + postId);
+    if (!wrap || !videoId) return;
+    wrap.innerHTML = '<iframe class="vid-iframe" src="https://www.youtube.com/embed/' + videoId + '?autoplay=1&rel=0" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>';
+}
+
+function renderKindBadge(kind) {
+    switch (kind) {
+        case 'achievement': return '<span class="social-post-kind-badge kind-ach"><i class="fas fa-trophy"></i> إنجاز</span>';
+        case 'competition': return '<span class="social-post-kind-badge kind-comp"><i class="fas fa-bolt"></i> منافسة</span>';
+        case 'verse':       return '<span class="social-post-kind-badge kind-verse">✝ آية وتأمل</span>';
+        case 'video':       return '<span class="social-post-kind-badge kind-video"><i class="fas fa-video"></i> فيديو</span>';
+        default: return '';
+    }
+}
+
+function formatCountdown(ms) {
+    if (ms <= 0) return 'انتهى';
+    var s = Math.floor(ms / 1000);
+    var d = Math.floor(s / 86400); s -= d*86400;
+    var h = Math.floor(s / 3600); s -= h*3600;
+    var m = Math.floor(s / 60); s -= m*60;
+    if (d > 0) return d + ' يوم ' + (h > 0 ? h + ' س' : '');
+    if (h > 0) return h + ' س ' + m + ' د';
+    if (m > 0) return m + ' د ' + s + ' ث';
+    return s + ' ث';
+}
+
+// Live ticker for competition countdowns (every 15s while feed visible)
+if (typeof window !== 'undefined' && !window._socialCountdownTicker) {
+    window._socialCountdownTicker = setInterval(function() {
+        var sock = document.getElementById('social-screen');
+        var detail = document.getElementById('social-post-screen');
+        var visible = (sock && sock.classList.contains('active')) || (detail && detail.classList.contains('active'));
+        if (!visible) return;
+        document.querySelectorAll('.comp-countdown').forEach(function(el) {
+            var endsMs = parseInt(el.getAttribute('data-ends')) || 0;
+            if (!endsMs) return;
+            var diff = endsMs - Date.now();
+            el.textContent = diff > 0 ? formatCountdown(diff) : 'انتهت';
+        });
+    }, 15000);
 }
 
 function openSocialPost(postId) {

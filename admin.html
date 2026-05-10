@@ -380,6 +380,33 @@ tbody td{padding:10px 13px;vertical-align:middle}
 .antxt{background:rgba(255,255,255,.05);border:1px solid var(--border2);border-radius:9px;padding:11px 13px;color:var(--text);font-family:'Cairo',sans-serif;font-size:13px;resize:vertical;min-height:90px;outline:none;width:100%;transition:border-color var(--trans)}
 .antxt:focus{border-color:var(--accent)}
 
+/* Post kind selector (in composer modal) */
+.kind-selector{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.kind-btn{flex:1;min-width:88px;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:10px;padding:9px 10px;color:var(--muted);font-family:inherit;font-size:11.5px;font-weight:800;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:all .15s}
+.kind-btn:hover{color:var(--text);border-color:var(--accent)}
+.kind-btn.active{background:linear-gradient(135deg,rgba(99,102,241,.18),rgba(168,85,247,.18));border-color:var(--accent2);color:var(--text);box-shadow:0 2px 10px rgba(168,85,247,.2)}
+.kind-btn i{font-size:16px}
+.kind-fields{padding:6px 0 4px;margin-bottom:6px}
+.emoji-picker{display:flex;flex-wrap:wrap;gap:5px;flex:1}
+.emo-pick{width:34px;height:34px;background:rgba(255,255,255,.04);border:1px solid var(--border2);border-radius:7px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:inherit;line-height:1;transition:all .12s}
+.emo-pick:hover{border-color:var(--accent)}
+.emo-pick.active{background:linear-gradient(135deg,rgba(99,102,241,.22),rgba(168,85,247,.22));border-color:var(--accent2);transform:scale(1.08)}
+.color-picker{display:flex;gap:7px;flex:1}
+.col-pick{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;font-family:inherit;transition:transform .12s,border-color .12s}
+.col-pick:hover{transform:scale(1.12)}
+.col-pick.active{border-color:#fff;box-shadow:0 0 0 2px var(--accent2)}
+.col-gold{background:linear-gradient(135deg,#fbbf24,#d97706)}
+.col-purple{background:linear-gradient(135deg,#a855f7,#6d28d9)}
+.col-blue{background:linear-gradient(135deg,#60a5fa,#2563eb)}
+.col-green{background:linear-gradient(135deg,#34d399,#059669)}
+.col-rose{background:linear-gradient(135deg,#fb7185,#e11d48)}
+.col-teal{background:linear-gradient(135deg,#5eead4,#0d9488)}
+.kind-badge-mini{display:inline-flex;align-items:center;gap:4px;font-size:9px;font-weight:900;padding:2px 7px;border-radius:99px;vertical-align:middle}
+.kind-badge-mini.km-ach{background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1408}
+.kind-badge-mini.km-comp{background:linear-gradient(135deg,#ef4444,#f97316);color:#fff}
+.kind-badge-mini.km-verse{background:linear-gradient(135deg,#fbbf24,#f0c674);color:#3a2810}
+.kind-badge-mini.km-video{background:linear-gradient(135deg,#dc2626,#7c2d12);color:#fff}
+
 /* ══ QUESTIONS (Q&A) ══ */
 .nav-badge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:18px;padding:0 6px;border-radius:10px;background:#ef4444;color:#fff;font-weight:800;font-size:10px;margin-inline-start:auto}
 .qtabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -4303,14 +4330,27 @@ function drawPostsList(posts) {
     const cardBg = status === 'flagged' ? 'rgba(239,68,68,.04)' : status === 'pending' ? 'rgba(251,191,36,.04)' : 'rgba(255,255,255,.03)';
     const cardBd = status === 'flagged' ? 'rgba(239,68,68,.4)'  : status === 'pending' ? 'rgba(251,191,36,.4)'  : 'var(--border)';
 
+    const kindLabel = p.kind === 'achievement' ? '<span class="kind-badge-mini km-ach"><i class="fas fa-trophy"></i> إنجاز</span>'
+                    : p.kind === 'competition' ? '<span class="kind-badge-mini km-comp"><i class="fas fa-bolt"></i> منافسة</span>'
+                    : p.kind === 'verse'       ? '<span class="kind-badge-mini km-verse">✝ آية</span>'
+                    : p.kind === 'video'       ? '<span class="kind-badge-mini km-video"><i class="fas fa-video"></i> فيديو</span>'
+                    : '';
+    const meta = p.meta || {};
+    const metaLine = p.kind === 'achievement' ? (meta.icon || '🏆') + ' ' + esc(meta.title || '')
+                  : p.kind === 'competition' ? '⚔️ ' + esc(meta.title || '') + (meta.prize ? ' · 🎁 ' + esc(meta.prize) : '')
+                  : p.kind === 'verse'       ? '📖 ' + (esc(meta.verseRef || '') || '—')
+                  : p.kind === 'video'       ? '🎬 ' + esc(meta.title || meta.videoUrl || '')
+                  : '';
     return '<div style="background:'+cardBg+';border:1px solid '+cardBd+';border-radius:12px;padding:13px;margin-bottom:10px">'
       + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">'
       +   '<strong style="font-size:13px">'+esc(p.authorName||'مجهول')+'</strong>'
       +   role
+      +   kindLabel
       +   statusBadge
       +   (p.pinned?'<span style="background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#1a1408;font-size:9px;font-weight:900;padding:2px 7px;border-radius:99px"><i class="fas fa-thumbtack"></i> مثبت</span>':'')
       +   '<span style="font-size:11px;color:var(--muted);margin-right:auto">'+esc(when)+'</span>'
       + '</div>'
+      + (metaLine ? '<div style="font-size:13px;font-weight:800;color:var(--accent2);margin-bottom:6px">'+metaLine+'</div>' : '')
       + (txt ? '<div style="font-size:13.5px;line-height:1.7;white-space:pre-wrap;margin-bottom:8px">'+txt+'</div>' : '')
       + (tags ? '<div style="margin-bottom:8px">'+tags+'</div>' : '')
       + (p.imageUrl ? '<img src="'+esc(p.imageUrl)+'" loading="lazy" style="max-width:100%;max-height:240px;border-radius:8px;margin-bottom:8px;object-fit:contain;background:rgba(0,0,0,.2)">' : '')
@@ -4397,22 +4437,114 @@ async function deleteComment(postId, commentId) {
   } catch(e) { console.error(e); toast('خطأ', 'err'); }
 }
 
+var _postKind = 'text';
+
 function openCreatePostModal(postId) {
   const editing = postId ? allPosts.find(function(x){return x._id===postId;}) : null;
   const text = editing ? esc(editing.text || '') : '';
   const pinned = editing ? !!editing.pinned : false;
   const expiryDays = 7;
+  _postKind = (editing && editing.kind) || 'text';
+  const meta = (editing && editing.meta) || {};
+  const ACH_ICONS = ['🏆','⭐','🥇','🎖️','👑','🔥','💪','🎯','🌟','💎','🏅','🚀'];
+  const ACH_COLORS = ['gold','purple','blue','green','rose'];
+  const VERSE_THEMES = ['gold','blue','teal','rose'];
+  const _achIcon = meta.icon || '🏆';
+  const _achColor = meta.color || 'gold';
+  const _verseTheme = meta.theme || 'gold';
+
   document.getElementById('mpost-box').innerHTML = `
     <div class="mhead"><h2><i class="fas fa-bullhorn" style="color:var(--accent2)"></i> ${editing?'تعديل منشور':'منشور جديد'}</h2><button class="btnx" onclick="closeM('modal-post')"><i class="fas fa-times"></i></button></div>
     <div class="mbody">
-      <div class="erow"><span class="elbl">نص المنشور</span>
-        <textarea class="einp antxt" id="post-text" placeholder="اكتب الإعلان أو التأمل... (٥٠٠ حرف كحد أقصى)" maxlength="500" style="min-height:130px">${text}</textarea>
+      <div class="kind-selector">
+        <button class="kind-btn" data-k="text"        onclick="selectPostKind('text')"><i class="fas fa-pen"></i> منشور</button>
+        <button class="kind-btn" data-k="achievement" onclick="selectPostKind('achievement')"><i class="fas fa-trophy"></i> إنجاز</button>
+        <button class="kind-btn" data-k="competition" onclick="selectPostKind('competition')"><i class="fas fa-bolt"></i> منافسة</button>
+        <button class="kind-btn" data-k="verse"       onclick="selectPostKind('verse')">✝ آية/تأمل</button>
+        <button class="kind-btn" data-k="video"       onclick="selectPostKind('video')"><i class="fas fa-video"></i> فيديو</button>
       </div>
-      <div class="erow"><span class="elbl">صورة (اختيارية)</span>
+
+      <!-- ACHIEVEMENT FIELDS -->
+      <div id="kind-fields-achievement" class="kind-fields" style="display:none">
+        <div class="erow"><span class="elbl">عنوان الإنجاز</span>
+          <input class="einp" id="ach-title" placeholder="مثال: بطل الإسبوع" maxlength="50" value="${esc(meta.title||'')}">
+        </div>
+        <div class="erow" style="align-items:flex-start"><span class="elbl" style="margin-top:6px">أيقونة</span>
+          <div class="emoji-picker">
+            ${ACH_ICONS.map(function(e){ return '<button type="button" class="emo-pick'+(_achIcon===e?' active':'')+'" onclick="setAchIcon(\''+e+'\')">'+e+'</button>'; }).join('')}
+          </div>
+        </div>
+        <input type="hidden" id="ach-icon" value="${_achIcon}">
+        <div class="erow"><span class="elbl">لون الكارت</span>
+          <div class="color-picker">
+            ${ACH_COLORS.map(function(c){ return '<button type="button" class="col-pick col-'+c+(_achColor===c?' active':'')+'" onclick="setAchColor(\''+c+'\')" title="'+c+'"></button>'; }).join('')}
+          </div>
+        </div>
+        <input type="hidden" id="ach-color" value="${_achColor}">
+      </div>
+
+      <!-- COMPETITION FIELDS -->
+      <div id="kind-fields-competition" class="kind-fields" style="display:none">
+        <div class="erow"><span class="elbl">عنوان المنافسة</span>
+          <input class="einp" id="comp-title" placeholder="مثال: منافسة الإيمان" maxlength="60" value="${esc(meta.title||'')}">
+        </div>
+        <div class="erow"><span class="elbl">الجائزة</span>
+          <input class="einp" id="comp-prize" placeholder="مثال: ٥٠٠ نجمة + لقب" maxlength="60" value="${esc(meta.prize||'')}">
+        </div>
+        <div class="erow"><span class="elbl">تنتهي في</span>
+          <input class="einp" id="comp-ends" type="datetime-local" value="${meta.endsAtMs?_toLocalDt(meta.endsAtMs):''}" style="direction:ltr">
+        </div>
+        <div class="erow"><span class="elbl">شاشة الانضمام</span>
+          <select class="einp" id="comp-target">
+            <option value="compete-screen" ${(meta.ctaTarget==='compete-screen'||!meta.ctaTarget)?'selected':''}>المنافسات الجماعية</option>
+            <option value="home-hub-screen" ${meta.ctaTarget==='home-hub-screen'?'selected':''}>الشاشة الرئيسية</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- VERSE FIELDS -->
+      <div id="kind-fields-verse" class="kind-fields" style="display:none">
+        <div class="erow" style="align-items:flex-start"><span class="elbl" style="margin-top:8px">نص الآية</span>
+          <textarea class="einp antxt" id="verse-text" placeholder="اكتب نص الآية..." maxlength="400" style="min-height:80px">${esc(meta.verseText||'')}</textarea>
+        </div>
+        <div class="erow"><span class="elbl">المرجع</span>
+          <input class="einp" id="verse-ref" placeholder="مثال: يوحنا ٣:١٦" maxlength="40" value="${esc(meta.verseRef||'')}">
+        </div>
+        <div class="erow" style="align-items:flex-start"><span class="elbl" style="margin-top:8px">تأمل (اختياري)</span>
+          <textarea class="einp antxt" id="verse-reflection" placeholder="تأمل قصير على الآية..." maxlength="350" style="min-height:60px">${esc(meta.reflection||'')}</textarea>
+        </div>
+        <div class="erow"><span class="elbl">لون الكارت</span>
+          <div class="color-picker">
+            ${VERSE_THEMES.map(function(c){ return '<button type="button" class="col-pick col-'+c+(_verseTheme===c?' active':'')+'" onclick="setVerseTheme(\''+c+'\')" title="'+c+'"></button>'; }).join('')}
+          </div>
+        </div>
+        <input type="hidden" id="verse-theme" value="${_verseTheme}">
+      </div>
+
+      <!-- VIDEO FIELDS -->
+      <div id="kind-fields-video" class="kind-fields" style="display:none">
+        <div class="erow"><span class="elbl">عنوان الفيديو</span>
+          <input class="einp" id="vid-title" placeholder="مثال: عظة عن الإيمان" maxlength="80" value="${esc(meta.title||'')}">
+        </div>
+        <div class="erow"><span class="elbl">رابط يوتيوب</span>
+          <input class="einp" id="vid-url" placeholder="https://youtube.com/watch?v=..." dir="ltr" value="${esc(meta.videoUrl||'')}">
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin:-2px 0 8px 118px"><i class="fab fa-youtube" style="color:#ff0000"></i> يوتيوب فقط (يدعم روابط watch / youtu.be / shorts)</div>
+      </div>
+
+      <!-- COMMON: text -->
+      <div class="erow" id="row-text" style="align-items:flex-start"><span class="elbl" id="post-text-label" style="margin-top:8px">نص المنشور</span>
+        <textarea class="einp antxt" id="post-text" placeholder="اكتب الإعلان أو التأمل... (٥٠٠ حرف كحد أقصى)" maxlength="500" style="min-height:100px">${text}</textarea>
+      </div>
+
+      <!-- COMMON: image -->
+      <div class="erow" id="row-image"><span class="elbl">صورة (اختيارية)</span>
         <input type="file" class="einp" id="post-img" accept="image/*" style="padding:7px">
-        <div id="post-img-preview" style="margin-top:8px"></div>
       </div>
-      ${editing && editing.imageUrl ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">📷 صورة موجودة. ارفع صورة جديدة لاستبدالها.</div>` : ''}
+      <div id="post-img-preview" style="margin:0 0 10px 118px"></div>
+      ${editing && editing.imageUrl ? `<div style="font-size:11px;color:var(--muted);margin:0 0 8px 118px">📷 صورة موجودة. ارفع صورة جديدة لاستبدالها.</div>` : ''}
+
+      <!-- COMMON: meta -->
       <div class="erow"><span class="elbl">المدة قبل الانتهاء (أيام)</span>
         <input class="einp" id="post-days" type="number" min="1" max="365" value="${expiryDays}">
       </div>
@@ -4421,15 +4553,16 @@ function openCreatePostModal(postId) {
           <input type="checkbox" id="post-pinned" ${pinned?'checked':''}> <span>اعرض في أعلى الفيد دائماً (لا ينتهي)</span>
         </label>
       </div>
+
       <div style="display:flex;gap:9px;margin-top:14px">
         <button class="btn bp" onclick="savePost('${editing?editing._id:''}')"><i class="fas fa-paper-plane"></i> ${editing?'حفظ التعديل':'انشر'}</button>
         <button class="btn bg" onclick="closeM('modal-post')">إلغاء</button>
       </div>
     </div>`;
   document.getElementById('modal-post').style.display='flex';
-  // Image preview
+  selectPostKind(_postKind);
   const imgInp = document.getElementById('post-img');
-  imgInp.addEventListener('change', function(e) {
+  if (imgInp) imgInp.addEventListener('change', function(e) {
     const f = e.target.files[0];
     if (!f) return;
     const reader = new FileReader();
@@ -4440,38 +4573,129 @@ function openCreatePostModal(postId) {
   });
 }
 
+function selectPostKind(k) {
+  _postKind = k;
+  document.querySelectorAll('.kind-btn').forEach(function(b){ b.classList.toggle('active', b.getAttribute('data-k')===k); });
+  document.querySelectorAll('.kind-fields').forEach(function(f){ f.style.display='none'; });
+  var fields = document.getElementById('kind-fields-'+k);
+  if (fields) fields.style.display='block';
+  // image field is meaningful for text/achievement/competition; not for verse/video
+  var rowImage = document.getElementById('row-image');
+  if (rowImage) rowImage.style.display = (k==='verse' || k==='video') ? 'none' : '';
+  // text body label/placeholder
+  var label = document.getElementById('post-text-label');
+  var ta = document.getElementById('post-text');
+  if (label && ta) {
+    if (k==='achievement')      { label.textContent='وصف الإنجاز';          ta.placeholder='تفاصيل أو تهنئة قصيرة...'; }
+    else if (k==='competition') { label.textContent='وصف المنافسة';         ta.placeholder='اكتب تفاصيل المنافسة...'; }
+    else if (k==='verse')       { label.textContent='تعليق ترويجي (اختياري)'; ta.placeholder='عبارة قصيرة فوق الكارت... (اختياري)'; }
+    else if (k==='video')       { label.textContent='وصف الفيديو (اختياري)'; ta.placeholder='اكتب وصف للفيديو...'; }
+    else                        { label.textContent='نص المنشور';           ta.placeholder='اكتب الإعلان أو التأمل... (٥٠٠ حرف كحد أقصى)'; }
+  }
+}
+
+function setAchIcon(e) {
+  var inp = document.getElementById('ach-icon'); if (inp) inp.value = e;
+  document.querySelectorAll('#kind-fields-achievement .emo-pick').forEach(function(b){ b.classList.toggle('active', b.textContent.trim()===e); });
+}
+function setAchColor(c) {
+  var inp = document.getElementById('ach-color'); if (inp) inp.value = c;
+  document.querySelectorAll('#kind-fields-achievement .col-pick').forEach(function(b){ b.classList.toggle('active', b.classList.contains('col-'+c)); });
+}
+function setVerseTheme(c) {
+  var inp = document.getElementById('verse-theme'); if (inp) inp.value = c;
+  document.querySelectorAll('#kind-fields-verse .col-pick').forEach(function(b){ b.classList.toggle('active', b.classList.contains('col-'+c)); });
+}
+
+function _toLocalDt(ms) {
+  var d = new Date(ms);
+  var pad = function(n){return n<10?'0'+n:''+n;};
+  return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+}
+
+function _ytExtract(url) {
+  if (!url) return '';
+  var m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/);
+  return m ? m[1] : '';
+}
+
 async function savePost(editingId) {
+  const kind = _postKind || 'text';
   const text = document.getElementById('post-text').value.trim();
   const days = Math.max(1, Math.min(365, parseInt(document.getElementById('post-days').value) || 7));
   const pinned = document.getElementById('post-pinned').checked;
-  const file = document.getElementById('post-img').files[0];
-  if (!text && !file && !editingId) { toast('أضف نص أو صورة','err'); return; }
+  const fileInp = document.getElementById('post-img');
+  const file = fileInp && fileInp.files && fileInp.files[0];
+
+  // Per-kind validation + meta build
+  let meta = {};
+  if (kind === 'achievement') {
+    const t = (document.getElementById('ach-title').value || '').trim();
+    if (!t) { toast('اكتب عنوان الإنجاز','err'); return; }
+    meta = { title: t, icon: document.getElementById('ach-icon').value || '🏆', color: document.getElementById('ach-color').value || 'gold' };
+  } else if (kind === 'competition') {
+    const t = (document.getElementById('comp-title').value || '').trim();
+    if (!t) { toast('اكتب عنوان المنافسة','err'); return; }
+    const endsLocal = document.getElementById('comp-ends').value;
+    const endsMs = endsLocal ? new Date(endsLocal).getTime() : 0;
+    meta = {
+      title: t,
+      prize: (document.getElementById('comp-prize').value || '').trim(),
+      endsAtMs: endsMs,
+      ctaTarget: document.getElementById('comp-target').value || 'compete-screen'
+    };
+  } else if (kind === 'verse') {
+    const v = (document.getElementById('verse-text').value || '').trim();
+    if (!v) { toast('اكتب نص الآية','err'); return; }
+    meta = {
+      verseText: v,
+      verseRef: (document.getElementById('verse-ref').value || '').trim(),
+      reflection: (document.getElementById('verse-reflection').value || '').trim(),
+      theme: document.getElementById('verse-theme').value || 'gold'
+    };
+  } else if (kind === 'video') {
+    const url = (document.getElementById('vid-url').value || '').trim();
+    if (!url) { toast('أضف رابط الفيديو','err'); return; }
+    const vid = _ytExtract(url);
+    if (!vid) { toast('رابط الفيديو غير صحيح (يدعم يوتيوب فقط)','err'); return; }
+    meta = {
+      title: (document.getElementById('vid-title').value || '').trim(),
+      videoUrl: url,
+      videoId: vid,
+      platform: 'youtube'
+    };
+  } else {
+    if (!text && !file && !editingId) { toast('أضف نص أو صورة','err'); return; }
+  }
+
   try {
     let imageUrl = null;
     if (editingId) {
       const cur = allPosts.find(function(x){return x._id===editingId;});
-      if (cur) imageUrl = cur.imageUrl;
+      if (cur) imageUrl = cur.imageUrl || null;
     }
-    if (file) {
-      // Compress to ~1280px max width, 0.85 jpeg quality
+    if (file && (kind==='text' || kind==='achievement' || kind==='competition')) {
       imageUrl = await compressAndUploadPostImage(file, editingId || ('p_'+Date.now()));
     }
     const expiresAt = pinned ? null : firebase.firestore.Timestamp.fromDate(new Date(Date.now() + days*24*60*60*1000));
-    // Extract hashtags from text
+    // Hashtag extraction across all text fields
+    const tagSource = [text, meta.verseText||'', meta.reflection||'', meta.title||''].join(' ');
     const tags = [];
     const re = /#([؀-ۿ\w]{2,30})/g;
     let mm;
-    while ((mm = re.exec(text)) !== null) {
+    while ((mm = re.exec(tagSource)) !== null) {
       const t = mm[1].toLowerCase();
       if (tags.indexOf(t) === -1) tags.push(t);
       if (tags.length >= 6) break;
     }
     const data = {
+      kind: kind,
       text: text,
       imageUrl: imageUrl || null,
       pinned: pinned,
       expiresAt: expiresAt,
-      tags: tags
+      tags: tags,
+      meta: meta
     };
     if (editingId) {
       await db.collection('posts').doc(editingId).update(data);
@@ -4482,10 +4706,11 @@ async function savePost(editingId) {
         authorName:  me.name  || 'الخدّام',
         authorAvatar: me.avatar || 'images/default-avatar.png',
         authorRole:  'admin',
-        type:        'announcement',
+        type:        kind==='text'?'announcement':kind,
         reactions:   {},
         reactionCounts: {},
         commentCount: 0,
+        recentComments: [],
         status:      'approved',
         reportCount: 0,
         createdAt:   firebase.firestore.FieldValue.serverTimestamp()

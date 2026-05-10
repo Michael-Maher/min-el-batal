@@ -14478,3 +14478,133 @@ body {
 
 /* Verse posts shouldn't have edge padding from text */
 .social-post-kind-verse .social-post-text { padding: 4px 14px 8px; }
+
+/* ═══════════════════════════════════════════════════════
+   SOCIAL FEED — KIND TABS
+   ═══════════════════════════════════════════════════════ */
+.social-tabs {
+    display: flex; gap: 6px; padding: 10px 12px 0;
+    overflow-x: auto; scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+.social-tabs::-webkit-scrollbar { display: none; }
+.social-tab {
+    flex-shrink: 0;
+    background: rgba(255,255,255,.05);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: inherit; font-size: 12px; font-weight: 700;
+    padding: 7px 13px; border-radius: 99px;
+    cursor: pointer; transition: all .15s;
+    display: inline-flex; align-items: center; gap: 5px;
+    white-space: nowrap;
+}
+.social-tab:hover { color: var(--text); background: rgba(99,102,241,.08); }
+.social-tab.active {
+    background: linear-gradient(135deg, #6366f1, #a855f7);
+    color: #fff; border-color: transparent;
+    box-shadow: 0 3px 12px rgba(168,85,247,.4);
+}
+
+/* ═══════════════════════════════════════════════════════
+   LIVE COMPETE ROOMS (in Competitions tab)
+   ═══════════════════════════════════════════════════════ */
+.social-rooms-section {
+    padding: 12px 14px 4px;
+}
+.social-rooms-title {
+    font-size: 12px; font-weight: 900; color: var(--accent2);
+    margin-bottom: 10px; padding: 0 2px;
+    display: flex; align-items: center; gap: 7px;
+    text-transform: uppercase; letter-spacing: .5px;
+}
+.social-rooms-title-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 8px #22c55e;
+    animation: livePulse 1.4s ease-in-out infinite;
+}
+.social-rooms-empty {
+    text-align: center; padding: 18px 12px;
+    background: rgba(255,255,255,.03);
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    color: var(--muted); font-size: 12.5px;
+    margin-bottom: 10px;
+}
+.social-room-card {
+    position: relative;
+    background: linear-gradient(135deg,#1e293b 0%,#0f172a 100%);
+    border: 1px solid rgba(34,197,94,.35);
+    border-radius: 14px;
+    padding: 14px 14px 12px;
+    margin-bottom: 10px;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(34,197,94,.1);
+    overflow: hidden;
+}
+.social-room-card::before {
+    content:''; position:absolute; inset:0;
+    background: radial-gradient(circle at top left, rgba(34,197,94,.12) 0%, transparent 55%);
+    pointer-events: none;
+}
+.social-room-head {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 10px; position: relative; z-index: 1;
+}
+.social-room-live {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(34,197,94,.95); color: #fff;
+    font-size: 9.5px; font-weight: 900;
+    padding: 3px 8px; border-radius: 99px;
+}
+.social-room-live-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #fff; animation: livePulse 1.2s ease-in-out infinite;
+}
+.social-room-code {
+    font-family: 'Courier New', monospace;
+    font-size: 11.5px; font-weight: 900;
+    background: rgba(255,255,255,.08);
+    padding: 3px 9px; border-radius: 6px;
+    color: #fbbf24; letter-spacing: 1px;
+    direction: ltr;
+}
+.social-room-host {
+    font-size: 11px; color: rgba(255,255,255,.6);
+    margin-right: auto;
+}
+.social-room-title {
+    font-size: 15px; font-weight: 900;
+    margin-bottom: 8px;
+    position: relative; z-index: 1;
+}
+.social-room-meta {
+    display: flex; gap: 14px; align-items: center;
+    margin-bottom: 12px; flex-wrap: wrap;
+    position: relative; z-index: 1;
+}
+.social-room-meta-item {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; color: rgba(255,255,255,.78);
+}
+.social-room-meta-item i { color: #fbbf24; font-size: 13px; }
+.social-room-meta-val { font-weight: 900; color: #fff; }
+.social-room-join-btn {
+    display: block; width: 100%;
+    background: linear-gradient(135deg,#22c55e,#16a34a);
+    border: none; color: #fff; border-radius: 10px;
+    padding: 10px; font-family: inherit;
+    font-size: 13.5px; font-weight: 900;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(34,197,94,.35);
+    transition: transform .12s, box-shadow .12s;
+    position: relative; z-index: 1;
+}
+.social-room-join-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(34,197,94,.5); }
+.social-room-join-btn:active { transform: scale(.98); }
+.social-room-join-btn:disabled {
+    background: rgba(107,114,128,.4);
+    box-shadow: none;
+    cursor: not-allowed; opacity: .7;
+}

@@ -577,7 +577,15 @@
             <div class="social-toolbar">
                 <button class="social-toolbar-btn" onclick="openMyPostsScreen()"><i class="fas fa-clipboard-list"></i> منشوراتي</button>
             </div>
+            <div class="social-tabs" id="social-tabs">
+                <button class="social-tab active" data-stab="all"         onclick="setSocialTab('all')"><i class="fas fa-th-large"></i> الكل</button>
+                <button class="social-tab"        data-stab="achievement" onclick="setSocialTab('achievement')"><i class="fas fa-trophy"></i> إنجازات</button>
+                <button class="social-tab"        data-stab="competition" onclick="setSocialTab('competition')"><i class="fas fa-bolt"></i> منافسات</button>
+                <button class="social-tab"        data-stab="verse"       onclick="setSocialTab('verse')">✝ آيات وتأملات</button>
+                <button class="social-tab"        data-stab="video"       onclick="setSocialTab('video')"><i class="fas fa-video"></i> فيديوهات</button>
+            </div>
             <div id="social-tag-filter" class="social-tag-filter"></div>
+            <div id="social-rooms-section" class="social-rooms-section" style="display:none"></div>
             <div id="social-feed-body" class="social-feed-body">
                 <div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المنشورات…</div>
             </div>

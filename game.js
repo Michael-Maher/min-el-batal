@@ -22186,7 +22186,10 @@ function openSharedThread(threadId) {
 var socialState = {
     _feedUnsub: null,
     _commentsUnsub: null,
+    _roomsUnsub: null,
     posts: [],
+    rooms: [],
+    activeTab: 'all',
     currentPostId: null,
     lastSeenAt: 0,
     POST_LIMIT: 20,
@@ -22240,7 +22243,106 @@ function subscribeFeed() {
 function unsubscribeFeed() {
     if (socialState._feedUnsub) { try { socialState._feedUnsub(); } catch(e){} socialState._feedUnsub = null; }
     if (socialState._commentsUnsub) { try { socialState._commentsUnsub(); } catch(e){} socialState._commentsUnsub = null; }
+    if (socialState._roomsUnsub) { try { socialState._roomsUnsub(); } catch(e){} socialState._roomsUnsub = null; }
     socialState.currentPostId = null;
+}
+
+function setSocialTab(tab) {
+    socialState.activeTab = tab || 'all';
+    document.querySelectorAll('.social-tab').forEach(function(b) {
+        b.classList.toggle('active', b.getAttribute('data-stab') === socialState.activeTab);
+    });
+    // Manage rooms subscription: only active on competitions tab
+    if (socialState.activeTab === 'competition') {
+        subscribeCompeteRooms();
+    } else {
+        unsubscribeCompeteRooms();
+        var rs = document.getElementById('social-rooms-section');
+        if (rs) { rs.style.display = 'none'; rs.innerHTML = ''; }
+    }
+    renderSocialFeed(socialState.posts);
+}
+
+function subscribeCompeteRooms() {
+    if (!firebaseDb) return;
+    if (socialState._roomsUnsub) return; // already subscribed
+    var section = document.getElementById('social-rooms-section');
+    if (section) {
+        section.style.display = 'block';
+        section.innerHTML = '<div class="social-rooms-title"><span class="social-rooms-title-dot"></span> غرف مفتوحة الآن</div><div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل الغرف…</div>';
+    }
+    try {
+        socialState._roomsUnsub = firebaseDb.collection('compete_rooms')
+            .where('status', '==', 'lobby')
+            .limit(20)
+            .onSnapshot(function(snap) {
+                var rooms = [];
+                snap.forEach(function(d) { var v = d.data(); v._id = d.id; rooms.push(v); });
+                // newest first by createdAt
+                rooms.sort(function(a, b) {
+                    var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                    var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                    return tb - ta;
+                });
+                socialState.rooms = rooms;
+                renderRoomsSection();
+            }, function(err) {
+                console.warn('[social] rooms error', err);
+                if (section) section.innerHTML = '<div class="social-rooms-empty">تعذّر تحميل الغرف</div>';
+            });
+    } catch(e) { console.warn('subscribeCompeteRooms failed', e); }
+}
+
+function unsubscribeCompeteRooms() {
+    if (socialState._roomsUnsub) { try { socialState._roomsUnsub(); } catch(e){} socialState._roomsUnsub = null; }
+    socialState.rooms = [];
+}
+
+function renderRoomsSection() {
+    var section = document.getElementById('social-rooms-section');
+    if (!section) return;
+    var rooms = socialState.rooms || [];
+    var head = '<div class="social-rooms-title"><span class="social-rooms-title-dot"></span> غرف مفتوحة الآن (' + rooms.length + ')</div>';
+    if (!rooms.length) {
+        section.innerHTML = head + '<div class="social-rooms-empty"><div style="font-size:32px;margin-bottom:6px">🎯</div>لا توجد غرف مفتوحة حالياً<br><span style="font-size:11px;opacity:.7">ابدأ غرفة جديدة من شاشة المنافسات</span></div>';
+        return;
+    }
+    section.innerHTML = head + rooms.map(renderCompeteRoomCard).join('');
+}
+
+function renderCompeteRoomCard(room) {
+    var code = escapeHtmlSimple(room.code || room._id || '');
+    var host = escapeHtmlSimple(room.hostName || 'مجهول');
+    var title = escapeHtmlSimple(room.filterLabel || 'منافسة عامة');
+    var playerCount = room.players ? Object.keys(room.players).length : 0;
+    var mine = GameState.playerPhone && room.players && room.players[GameState.playerPhone];
+    var alreadyJoined = !!mine;
+    var btnLabel = alreadyJoined ? '<i class="fas fa-door-open"></i> ادخل تاني' : '<i class="fas fa-play"></i> انضم الآن';
+    return '<div class="social-room-card">'
+        + '<div class="social-room-head">'
+        +   '<span class="social-room-live"><span class="social-room-live-dot"></span> مباشر</span>'
+        +   '<span class="social-room-code">' + code + '</span>'
+        +   '<span class="social-room-host">من <strong>' + host + '</strong></span>'
+        + '</div>'
+        + '<div class="social-room-title"><i class="fas fa-bolt" style="color:#fbbf24"></i> ' + title + '</div>'
+        + '<div class="social-room-meta">'
+        +   '<span class="social-room-meta-item"><i class="fas fa-users"></i> <span class="social-room-meta-val">' + playerCount + '</span> لاعب</span>'
+        +   (room.mode ? '<span class="social-room-meta-item"><i class="fas fa-gamepad"></i> ' + escapeHtmlSimple(room.mode) + '</span>' : '')
+        + '</div>'
+        + '<button class="social-room-join-btn" onclick="joinRoomFromSocial(\'' + escapeAttr(code) + '\')">' + btnLabel + '</button>'
+        + '</div>';
+}
+
+function joinRoomFromSocial(code) {
+    if (!code) return;
+    if (GameState.status === 'blocked' || GameState.status === 'suspended') {
+        showToast('حسابك موقوف، الانضمام غير متاح', 'error'); return;
+    }
+    if (typeof autoJoinRoom === 'function') {
+        autoJoinRoom(code);
+    } else {
+        showToast('خطأ غير متوقع', 'error');
+    }
 }
 
 function renderSocialFeed(posts) {
@@ -22248,13 +22350,25 @@ function renderSocialFeed(posts) {
     if (!body) return;
     try { renderTagFilter(posts); } catch(e){}
     var filtered = posts;
+    // Filter by active kind tab
+    var tab = socialState.activeTab || 'all';
+    if (tab !== 'all') {
+        filtered = filtered.filter(function(p) { return (p.kind || 'text') === tab; });
+    }
+    // Filter by active hashtag (cross-cuts with kind filter)
     if (socialState.activeTag) {
-        filtered = posts.filter(function(p) { return (p.tags || []).indexOf(socialState.activeTag) !== -1; });
+        filtered = filtered.filter(function(p) { return (p.tags || []).indexOf(socialState.activeTag) !== -1; });
     }
     if (!filtered.length) {
-        var msg = socialState.activeTag
-            ? '<div class="social-feed-empty"><div class="social-feed-empty-icon">🏷️</div>لا توجد منشورات بهذا الها شتاج</div>'
-            : '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>لا توجد منشورات حالياً<br><span style="font-size:12px;opacity:.7">تابع المنشورات من الخدّام والإنجازات قريباً</span></div>';
+        var msg;
+        if (socialState.activeTag) {
+            msg = '<div class="social-feed-empty"><div class="social-feed-empty-icon">🏷️</div>لا توجد منشورات بهذا الهاشتاج</div>';
+        } else if (tab !== 'all') {
+            var tabNames = { achievement:'إنجازات', competition:'منافسات', verse:'آيات وتأملات', video:'فيديوهات' };
+            msg = '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>لا توجد منشورات في تصنيف ' + (tabNames[tab] || tab) + ' حالياً</div>';
+        } else {
+            msg = '<div class="social-feed-empty"><div class="social-feed-empty-icon">📭</div>لا توجد منشورات حالياً<br><span style="font-size:12px;opacity:.7">تابع المنشورات من الخدّام والإنجازات قريباً</span></div>';
+        }
         body.innerHTML = msg;
         return;
     }

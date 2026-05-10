@@ -350,6 +350,21 @@
                     </div>
                 </div>
 
+                <!-- Social Feed - منشورات -->
+                <div class="hub-card hub-card-social" onclick="openSocialScreen()">
+                    <div class="hub-card-bg" style="background:linear-gradient(135deg,#1f2247 0%,#3b3b9d 50%,#5b3aa8 100%)">
+                        <div class="hub-card-overlay hub-card-overlay-light"></div>
+                        <div class="hub-card-content">
+                            <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">📢</div>
+                            <h3 style="font-size:21px;margin-bottom:2px">المنشورات</h3>
+                            <p style="font-size:13px;opacity:.88;margin-bottom:10px">آخر إعلانات الخدّام وإنجازات أصحابك</p>
+                            <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#6366f1,#a855f7);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(99,102,241,.55)"><i class="fas fa-bullhorn"></i> اقرأ وتفاعل</div>
+                        </div>
+                        <div class="hub-card-shine"></div>
+                        <div id="social-unread-badge" class="questions-unread-badge" style="display:none">0</div>
+                    </div>
+                </div>
+
             </div>
 
             <div class="hub-footer-btns">
@@ -545,6 +560,78 @@
                 </div>
             </div>
             <div id="friends-questions-body" class="fqs-body"></div>
+        </div>
+    </div>
+
+    <!-- ============ SOCIAL FEED (المنشورات) ============ -->
+    <div id="social-screen" class="screen">
+        <div class="screen-inner" style="padding:0">
+            <div class="social-hero">
+                <button class="back-btn social-back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <div class="social-hero-content">
+                    <div class="social-hero-icon">📢</div>
+                    <h2 class="social-hero-title">المنشورات</h2>
+                    <p class="social-hero-sub">إعلانات الخدّام، تأملات يومية، وإنجازات أصحابك</p>
+                </div>
+            </div>
+            <div class="social-toolbar">
+                <button class="social-toolbar-btn" onclick="openMyPostsScreen()"><i class="fas fa-clipboard-list"></i> منشوراتي</button>
+            </div>
+            <div id="social-tag-filter" class="social-tag-filter"></div>
+            <div id="social-feed-body" class="social-feed-body">
+                <div class="social-feed-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المنشورات…</div>
+            </div>
+            <button class="social-fab-compose" onclick="openPlayerPostComposer()" title="منشور جديد"><i class="fas fa-pen"></i></button>
+        </div>
+    </div>
+
+    <!-- ============ MY POSTS (player-side) ============ -->
+    <div id="my-posts-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('social-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-clipboard-list"></i> منشوراتي</h2>
+            </div>
+            <div id="my-posts-body" style="padding:14px"></div>
+        </div>
+    </div>
+
+    <!-- ============ PLAYER POST COMPOSER MODAL ============ -->
+    <div id="social-composer-modal" class="screen" style="display:none">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="closePlayerPostComposer()"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-pen"></i> منشور جديد</h2>
+            </div>
+            <div style="padding:14px">
+                <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--text);margin-bottom:14px;line-height:1.7">
+                    <i class="fas fa-info-circle" style="color:#fbbf24"></i>
+                    منشورك هيتم مراجعته من الخدّام قبل ما يظهر في الفيد. خلّي الكلام لطيف ومحترم 🙏
+                </div>
+                <textarea id="social-composer-text" maxlength="500" rows="5" placeholder="اكتب منشورك… (٥٠٠ حرف كحد أقصى)&#10;استخدم #ها_شتاج لتصنيف موضوعك" style="width:100%;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;padding:12px;font-family:inherit;font-size:14px;line-height:1.7;color:var(--text);resize:none;direction:rtl;margin-bottom:12px"></textarea>
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+                    <label class="btn btn-secondary" style="cursor:pointer;font-size:13px;padding:8px 14px"><i class="fas fa-image"></i> أضف صورة <input type="file" id="social-composer-img" accept="image/*" style="display:none"></label>
+                    <span id="social-composer-img-name" style="font-size:11px;color:var(--muted)"></span>
+                </div>
+                <div id="social-composer-img-preview" style="margin-bottom:12px"></div>
+                <div id="social-composer-rate" style="font-size:11px;color:var(--muted);margin-bottom:10px;text-align:center"></div>
+                <button class="btn btn-primary" onclick="submitPlayerPost()" style="width:100%;font-size:15px;padding:12px"><i class="fas fa-paper-plane"></i> إرسال للمراجعة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ SINGLE POST DETAIL ============ -->
+    <div id="social-post-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('social-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-comment-dots"></i> منشور</h2>
+            </div>
+            <div id="social-post-body" class="social-post-body"></div>
+            <div class="social-comment-composer" id="social-comment-composer">
+                <textarea id="social-comment-input" maxlength="200" rows="2" placeholder="اكتب تعليقك… (٢٠٠ حرف كحد أقصى)"></textarea>
+                <button class="btn btn-primary" onclick="submitComment()"><i class="fas fa-paper-plane"></i> إرسال</button>
+            </div>
         </div>
     </div>
 
@@ -1596,6 +1683,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
     <script src="game.js"></script>

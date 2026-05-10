@@ -1,0 +1,16 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Social feed post images — admin uploads + player composer uploads
+    match /social/posts/{postId} {
+      allow read: if true;
+      allow write: if request.resource.size < 6 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+    // Default: read-only public, no client write
+    match /{allPaths=**} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}

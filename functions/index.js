@@ -546,3 +546,128 @@ exports.updateNotifPrefs = functions
         });
         return { success: true };
     });
+
+// ============================================================
+// 7. NEW COMMENT ON POST → Notify post author
+// ============================================================
+exports.onPostCommentCreated = functions
+    .region('europe-west1')
+    .firestore.document('posts/{postId}/comments/{commentId}')
+    .onCreate(async (snap, context) => {
+        var comment = snap.data();
+        var postId = context.params.postId;
+
+        try {
+            var postSnap = await db.collection('posts').doc(postId).get();
+            if (!postSnap.exists) return;
+            var post = postSnap.data();
+
+            // Don't notify on self-comment
+            if (post.authorId === comment.authorId) return;
+            // Only notify if the post author is a real player (not 'system' / 'admin' generic)
+            if (!post.authorId || post.authorId === 'system' || post.authorId === 'admin') return;
+
+            var authorDoc = await db.collection('players').doc(post.authorId).get();
+            if (!authorDoc.exists) return;
+            var author = authorDoc.data();
+            if (!author.fcmToken) return;
+            if (author.notifPrefs && author.notifPrefs.social === false) return;
+
+            var preview = (comment.text || '').substring(0, 80);
+            var notif = {
+                title: 'تعليق جديد على منشورك 💬',
+                body:  (comment.authorName || 'حد') + ': ' + preview,
+            };
+            await safeSend(author.fcmToken, notif, { type: 'post_comment', postId: postId }, post.authorId);
+            console.log('[Notif] post_comment sent to', post.authorId);
+        } catch (err) {
+            console.error('[onPostCommentCreated] error:', err);
+        }
+    });
+
+// ============================================================
+// 8. NEW ADMIN POST → Notify subscribed players (throttled)
+// ============================================================
+exports.onPostCreated = functions
+    .region('europe-west1')
+    .firestore.document('posts/{postId}')
+    .onCreate(async (snap, context) => {
+        var post = snap.data();
+        // Only notify on approved admin posts (skip system/celebrations to avoid noise,
+        // and skip pending player posts which need approval first)
+        if (post.authorRole !== 'admin') return;
+        if (post.status && post.status !== 'approved') return;
+
+        try {
+            var playersSnap = await db.collection('players').get();
+            var preview = (post.text || '').substring(0, 100);
+            var msg = {
+                title: 'منشور جديد من الخدّام 📢',
+                body: preview || 'ادخل شوف المنشور الجديد',
+            };
+            var promises = [];
+            var sent = 0;
+            playersSnap.forEach(function(doc) {
+                var p = doc.data();
+                if (!p.fcmToken) return;
+                if (p.status === 'blocked' || p.status === 'suspended') return;
+                if (p.notifPrefs && p.notifPrefs.social === false) return;
+                promises.push(
+                    safeSend(p.fcmToken, msg, { type: 'new_post', postId: context.params.postId }, doc.id)
+                        .then(function(ok) { if (ok) sent++; })
+                );
+            });
+            await Promise.all(promises);
+            console.log('[Notif] new admin post sent to', sent);
+        } catch (err) {
+            console.error('[onPostCreated] error:', err);
+        }
+    });
+
+// ============================================================
+// 9. POST DELETED → cleanup storage image + orphan comments
+//    Triggers on manual delete AND on TTL auto-deletion.
+// ============================================================
+exports.onPostDeleted = functions
+    .region('europe-west1')
+    .firestore.document('posts/{postId}')
+    .onDelete(async (snap, context) => {
+        var postId = context.params.postId;
+        var post = snap.data() || {};
+        var ops = [];
+
+        // 1) Delete storage image (best-effort — file may not exist)
+        try {
+            var bucket = admin.storage().bucket();
+            ops.push(
+                bucket.file('social/posts/' + postId + '.jpg').delete().catch(function(e) {
+                    if (e && e.code !== 404) console.warn('[onPostDeleted] storage delete error:', e.message);
+                })
+            );
+        } catch (e) {
+            console.warn('[onPostDeleted] storage cleanup setup failed:', e);
+        }
+
+        // 2) Delete orphan comments subcollection (TTL on comments handles most,
+        //    but on manual delete we want immediate cleanup)
+        try {
+            var cs = await db.collection('posts').doc(postId).collection('comments').get();
+            if (!cs.empty) {
+                var batches = [];
+                var batch = db.batch();
+                var count = 0;
+                cs.forEach(function(d) {
+                    batch.delete(d.ref);
+                    count++;
+                    if (count % 450 === 0) { batches.push(batch.commit()); batch = db.batch(); }
+                });
+                batches.push(batch.commit());
+                ops.push(Promise.all(batches));
+            }
+        } catch (e) {
+            console.warn('[onPostDeleted] comments cleanup error:', e);
+        }
+
+        await Promise.all(ops);
+        console.log('[onPostDeleted] cleaned up', postId);
+    });

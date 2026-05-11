@@ -5683,8 +5683,9 @@ function checkDailyLoginXP() {
         showToast('مرحباً! 💎 +5 جواهر يومية' + streakMsg, 'success');
         // Auto-celebration milestones
         try {
-            if (GameState.loginStreak === 7  && typeof postCelebration === 'function') postCelebration('streak_7',  {});
-            if (GameState.loginStreak === 30 && typeof postCelebration === 'function') postCelebration('streak_30', {});
+            if (GameState.loginStreak === 7   && typeof postCelebration === 'function') postCelebration('streak_7',   {});
+            if (GameState.loginStreak === 30  && typeof postCelebration === 'function') postCelebration('streak_30',  {});
+            if (GameState.loginStreak === 100 && typeof postCelebration === 'function') postCelebration('streak_100', {});
         } catch(e){}
         saveToCloud();
     }
@@ -9547,8 +9548,9 @@ function renderHomeHub() {
     try {
         if (typeof postCelebration === 'function') {
             var stars = GameState.stars || 0;
-            if (stars >= 5000) postCelebration('stars_milestone', { value: 5000 });
-            else if (stars >= 1000) postCelebration('stars_milestone', { value: 1000 });
+            if (stars >= 10000) postCelebration('stars_milestone', { value: 10000 });
+            if (stars >= 5000)  postCelebration('stars_milestone', { value: 5000  });
+            if (stars >= 1000)  postCelebration('stars_milestone', { value: 1000  });
         }
     } catch(e){}
 
@@ -12250,14 +12252,42 @@ function saveMiniGameScore(type, score) {
             launchConfetti(3000);
         }, 500);
 
+        // Lesson-complete celebration (per station)
+        try {
+            if (typeof postCelebration === 'function') {
+                var parts = stationKey.split('_');
+                var subj = parts[0], idx = parseInt(parts[1]);
+                var subjData = (typeof LEVEL2_SUBJECTS !== 'undefined' && LEVEL2_SUBJECTS[subj]) ? LEVEL2_SUBJECTS[subj] : null;
+                var lessonName = subjData && subjData.lessons && subjData.lessons[idx] ? subjData.lessons[idx] : '';
+                var subjName = subjData ? subjData.name : '';
+                postCelebration('lesson_complete', { lessonKey: stationKey, lessonName: lessonName, subjectName: subjName });
+                // First-lesson milestone (very first time hitting the threshold)
+                var doneCount = _countCompletedLessons();
+                if (doneCount === 1) {
+                    postCelebration('first_lesson', {});
+                }
+                // Lessons-count milestones
+                [5, 10, 25, 50, 100].forEach(function(m) {
+                    if (doneCount >= m) postCelebration('lessons_milestone', { value: m });
+                });
+                // Perfect-score celebration (station total at the max cap)
+                try {
+                    var sc = current;
+                    if (sc && typeof STATION_MAX_SCORE === 'number' && sc.total >= STATION_MAX_SCORE) {
+                        postCelebration('perfect_lesson', { lessonKey: stationKey, lessonName: lessonName });
+                    }
+                } catch(e) {}
+            }
+        } catch(e) { console.warn('lesson_complete celebration failed', e); }
+
         // Check if this completes the entire subject (all 6 stations crossed threshold)
         try {
             var subjKey = stationKey.split('_')[0];
             if (subjKey && typeof LEVEL2_SUBJECTS !== 'undefined' && LEVEL2_SUBJECTS[subjKey]) {
                 var allDone = true;
                 for (var i = 0; i < 6; i++) {
-                    var sc = getStationScore(subjKey + '_' + i);
-                    if (!sc || sc.total < STATION_UNLOCK_THRESHOLD) { allDone = false; break; }
+                    var sc2 = getStationScore(subjKey + '_' + i);
+                    if (!sc2 || sc2.total < STATION_UNLOCK_THRESHOLD) { allDone = false; break; }
                 }
                 if (allDone && typeof postCelebration === 'function') {
                     postCelebration('subject_complete', { subject: subjKey, subjectName: LEVEL2_SUBJECTS[subjKey].name });
@@ -22755,51 +22785,70 @@ function submitQuickComment(postId) {
 // ============================================================
 // AUTO-CELEBRATIONS — system posts on milestones
 // ============================================================
+// Per-type config for celebrations (title, icon, color theme, text builder)
+var CELEBRATION_CONFIG = {
+    subject_complete: { title:'مادة مكتملة!', icon:'🎓', color:'purple',
+        text: function(n,v){ return n + ' خلّص مادة ' + (v.subjectName||v.subject||'') + '! ربنا يفرحك ✨'; } },
+    lesson_complete:  { title:'درس مكتمل!', icon:'📚', color:'green',
+        text: function(n,v){ return n + ' خلّص درس ' + (v.lessonName||'') + (v.subjectName?' في '+v.subjectName:'') + ' 🎉'; } },
+    perfect_lesson:   { title:'إتقان كامل!', icon:'💯', color:'purple',
+        text: function(n,v){ return n + ' حقق ١٠٠٪ في ' + (v.lessonName||'درس') + '! إنجاز رهيب'; } },
+    first_lesson:     { title:'البداية!', icon:'🌱', color:'green',
+        text: function(n){ return n + ' بدأ رحلته في مين البطل! اللهم بارك 🙏'; } },
+    lessons_milestone:{ title:function(v){return (v.value||'')+' دروس!';}, icon:'🎯', color:'blue',
+        text: function(n,v){ return n + ' خلّص ' + (v.value||'') + ' درس! ربنا معاك 💪'; } },
+    streak_7:         { title:'٧ أيام متواصلة!', icon:'🔥', color:'rose',
+        text: function(n){ return n + ' مكمّل ٧ أيام متواصلة في اللعبة!'; } },
+    streak_30:        { title:'بطل ٣٠ يوم!', icon:'👑', color:'gold',
+        text: function(n){ return n + ' مكمّل ٣٠ يوم متواصل! بطل حقيقي'; } },
+    streak_100:       { title:'أسطورة المثابرة!', icon:'💎', color:'blue',
+        text: function(n){ return n + ' مكمّل ١٠٠ يوم متواصل! 🌟'; } },
+    stars_milestone:  { title:function(v){return (v.value||'')+' نجمة! ⭐';}, icon:'⭐', color:'gold',
+        text: function(n,v){ return n + ' وصل لـ ' + (v.value||'') + ' نجمة!'; } },
+    tournament_win:   { title:'بطل البطولة!', icon:'🏆', color:'gold',
+        text: function(n){ return n + ' كسب بطولة! مبروك يا بطل'; } },
+    boss_win:         { title:'انتصار على العملاق!', icon:'⚔️', color:'rose',
+        text: function(n){ return n + ' هزم العملاق! بطل قوي'; } },
+    level1_complete:  { title:'خلّصت المستوى ١!', icon:'🚀', color:'blue',
+        text: function(n){ return n + ' خلّص المستوى الأول! هاتجيب الأخر يا بطل'; } }
+};
+
 function postCelebration(type, vars) {
     if (!firebaseDb || !GameState.playerPhone) return;
+    vars = vars || {};
     // Dedupe: never post the same celebration key twice for the same player.
-    var dedupeKey = type + ':' + (vars && vars.subject ? vars.subject : (vars && vars.value ? vars.value : ''));
+    var dedupeKey = type + ':' + (vars.subject || vars.value || vars.lessonKey || '');
     GameState.celebrationsPosted = GameState.celebrationsPosted || {};
     if (GameState.celebrationsPosted[dedupeKey]) return;
     GameState.celebrationsPosted[dedupeKey] = true;
     try { saveToCloud(); } catch(e){}
+
+    var cfg = CELEBRATION_CONFIG[type];
+    if (!cfg) return;
+
     var ch = CHARACTERS[GameState.character];
     var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
-    var name = GameState.playerName || 'بطل';
-    var firstName = name.split(' ')[0];
-    var text = '';
-    switch (type) {
-        case 'subject_complete':
-            text = '🎉 ' + firstName + ' خلّص مادة ' + (vars.subjectName || vars.subject) + '! ربنا يفرحك ✨';
-            break;
-        case 'streak_7':
-            text = '🔥 ' + firstName + ' مكمّل ٧ أيام متواصلة في اللعبة!';
-            break;
-        case 'streak_30':
-            text = '👑 ' + firstName + ' مكمّل ٣٠ يوم متواصل! بطل حقيقي';
-            break;
-        case 'stars_milestone':
-            text = '⭐ ' + firstName + ' وصل لـ ' + (vars.value || '') + ' نجمة!';
-            break;
-        case 'tournament_win':
-            text = '🏆 ' + firstName + ' كسب بطولة! مبروك يا بطل';
-            break;
-        default:
-            return;
-    }
+    var fullName = GameState.playerName || 'بطل';
+    var firstName = fullName.split(' ')[0];
+    var title = typeof cfg.title === 'function' ? cfg.title(vars) : cfg.title;
+    var bodyText = cfg.text(firstName, vars);
+
     var nowMs = Date.now();
     var expiresAt = new Date(nowMs + 7 * 24 * 60 * 60 * 1000);
     firebaseDb.collection('posts').add({
-        authorId: 'system',
-        authorName: name,
+        authorId: GameState.playerPhone,
+        authorName: fullName,
         authorAvatar: avatar,
         authorRole: 'system',
+        kind: 'achievement',
         type: 'celebration',
-        text: text,
+        text: bodyText,
         imageUrl: null,
+        meta: { title: title, icon: cfg.icon, color: cfg.color },
         reactions: {},
         reactionCounts: {},
         commentCount: 0,
+        recentComments: [],
         pinned: false,
         status: 'approved',
         reportCount: 0,
@@ -22807,6 +22856,20 @@ function postCelebration(type, vars) {
         expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
         celebrationKey: dedupeKey
     }).catch(function(err) { console.warn('[social] postCelebration error', err); });
+}
+
+// Count total lessons (stations) the player has unlocked/completed across all subjects.
+function _countCompletedLessons() {
+    try {
+        if (!GameState.stationScores) return 0;
+        var thresh = (typeof STATION_UNLOCK_THRESHOLD === 'number') ? STATION_UNLOCK_THRESHOLD : 60;
+        var count = 0;
+        Object.keys(GameState.stationScores).forEach(function(k) {
+            var s = GameState.stationScores[k];
+            if (s && (s.total || 0) >= thresh) count++;
+        });
+        return count;
+    } catch(e) { return 0; }
 }
 
 // ============================================================

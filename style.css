@@ -14480,30 +14480,76 @@ body {
 .social-post-kind-verse .social-post-text { padding: 4px 14px 8px; }
 
 /* ═══════════════════════════════════════════════════════
-   SOCIAL FEED — KIND TABS
+   SOCIAL FEED — KIND TABS (gamified)
    ═══════════════════════════════════════════════════════ */
 .social-tabs {
-    display: flex; gap: 6px; padding: 10px 12px 0;
+    display: flex; gap: 8px; padding: 12px 12px 6px;
     overflow-x: auto; scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
 }
 .social-tabs::-webkit-scrollbar { display: none; }
 .social-tab {
-    flex-shrink: 0;
-    background: rgba(255,255,255,.05);
-    border: 1px solid var(--border);
+    flex-shrink: 0; min-width: 78px;
+    background: rgba(255,255,255,.04);
+    border: 1.5px solid var(--border);
+    border-radius: 14px;
+    padding: 9px 10px 8px;
+    cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    font-family: inherit; font-size: 11px; font-weight: 800;
     color: var(--muted);
-    font-family: inherit; font-size: 12px; font-weight: 700;
-    padding: 7px 13px; border-radius: 99px;
-    cursor: pointer; transition: all .15s;
-    display: inline-flex; align-items: center; gap: 5px;
+    transition: all .22s cubic-bezier(.34,1.56,.64,1);
+    position: relative;
     white-space: nowrap;
 }
-.social-tab:hover { color: var(--text); background: rgba(99,102,241,.08); }
+.social-tab-ico {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; line-height: 1;
+    background: rgba(255,255,255,.06);
+    transition: all .22s;
+}
+.social-tab[data-stab="all"] .social-tab-ico         { color: #a855f7; }
+.social-tab[data-stab="achievement"] .social-tab-ico { color: #fbbf24; }
+.social-tab[data-stab="competition"] .social-tab-ico { color: #ef4444; }
+.social-tab[data-stab="verse"] .social-tab-ico       { color: #f59e0b; }
+.social-tab[data-stab="video"] .social-tab-ico       { color: #dc2626; }
+.social-tab:hover {
+    transform: translateY(-2px);
+    background: rgba(99,102,241,.07);
+    border-color: rgba(168,85,247,.3);
+}
+.social-tab:hover .social-tab-ico { transform: scale(1.08); }
 .social-tab.active {
-    background: linear-gradient(135deg, #6366f1, #a855f7);
-    color: #fff; border-color: transparent;
-    box-shadow: 0 3px 12px rgba(168,85,247,.4);
+    color: #fff;
+    border-color: transparent;
+    transform: translateY(-2px) scale(1.02);
+}
+.social-tab.active .social-tab-ico {
+    background: rgba(255,255,255,.22);
+    color: #fff;
+    transform: scale(1.1);
+    box-shadow: 0 0 0 2px rgba(255,255,255,.3);
+}
+.social-tab[data-stab="all"].active         { background: linear-gradient(135deg,#a855f7,#6366f1); box-shadow: 0 6px 18px rgba(168,85,247,.5); }
+.social-tab[data-stab="achievement"].active { background: linear-gradient(135deg,#fbbf24,#d97706); box-shadow: 0 6px 18px rgba(251,191,36,.55); color: #1a1408; }
+.social-tab[data-stab="competition"].active { background: linear-gradient(135deg,#ef4444,#dc2626); box-shadow: 0 6px 18px rgba(239,68,68,.5); }
+.social-tab[data-stab="verse"].active       { background: linear-gradient(135deg,#f59e0b,#b45309); box-shadow: 0 6px 18px rgba(245,158,11,.5); }
+.social-tab[data-stab="video"].active       { background: linear-gradient(135deg,#dc2626,#7c2d12); box-shadow: 0 6px 18px rgba(220,38,38,.5); }
+.social-tab.active::after {
+    content: ''; position: absolute; bottom: -5px; left: 50%;
+    transform: translateX(-50%);
+    width: 6px; height: 6px; border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 6px currentColor;
+}
+.social-tab-count {
+    position: absolute; top: 3px; right: 5px;
+    background: rgba(239,68,68,.95); color: #fff;
+    font-size: 9px; font-weight: 900;
+    min-width: 16px; height: 16px;
+    border-radius: 99px; padding: 0 4px;
+    display: flex; align-items: center; justify-content: center;
 }
 
 /* ═══════════════════════════════════════════════════════

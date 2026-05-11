@@ -2217,11 +2217,12 @@ function enterApp() {
   // Update who badge
   document.getElementById('wb-name').textContent = me.name;
   document.getElementById('wb-role').textContent = me.role==='superadmin'?'👑 المسؤول الأعلى':'🛡️ أدمن';
-  var wbIco = document.getElementById('wb-ico');
-  if (me.avatar) {
-    wbIco.innerHTML = '<img src="'+me.avatar+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">';
+  if (typeof _setStableAvatar === 'function') {
+    _setStableAvatar('wb-ico', me.avatar || null, me.role==='superadmin'?'👑':'🛡️', 28);
   } else {
-    wbIco.textContent = me.role==='superadmin'?'👑':'🛡️';
+    var wbIco = document.getElementById('wb-ico');
+    if (me.avatar) wbIco.innerHTML = '<img loading="eager" src="'+me.avatar+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">';
+    else wbIco.textContent = me.role==='superadmin'?'👑':'🛡️';
   }
   // Apply permissions to nav buttons (superadmin sees everything)
   applyNavPermissions();
@@ -2259,12 +2260,7 @@ function goProfile() {
   _profileAvatarFile = null;
   document.getElementById('profile-name-inp').value = me.name || '';
   document.getElementById('profile-phone-disp').textContent = me.phone || '';
-  var wrap = document.getElementById('profile-av-wrap');
-  if (me.avatar) {
-    wrap.innerHTML = '<img src="'+me.avatar+'" style="width:100%;height:100%;object-fit:cover">';
-  } else {
-    wrap.textContent = me.role==='superadmin' ? '👑' : '🛡️';
-  }
+  _setStableAvatar('profile-av-wrap', me.avatar || null, me.role==='superadmin' ? '👑' : '🛡️', 80);
   var passCard = document.getElementById('profile-pass-card');
   if (passCard) passCard.style.display = me.role==='superadmin' ? 'none' : '';
   ['profile-info-msg','profile-pass-msg','profile-av-note'].forEach(function(id){
@@ -2284,9 +2280,35 @@ function previewAdminAvatar(input) {
   note.textContent='✅ صورة جاهزة للرفع، اضغط "حفظ المعلومات"'; note.style.color='var(--green)';
   var reader = new FileReader();
   reader.onload = function(e) {
-    document.getElementById('profile-av-wrap').innerHTML='<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+    _setStableAvatar('profile-av-wrap', e.target.result, '', 80);
   };
   reader.readAsDataURL(file);
+}
+
+// Idempotent avatar setter: only rebuild DOM when the URL actually changes.
+function _setStableAvatar(parentId, url, fallbackText, size) {
+  var parent = document.getElementById(parentId);
+  if (!parent) return;
+  if (url) {
+    var sz = size || 28;
+    parent.style.width = sz+'px'; parent.style.height = sz+'px';
+    parent.style.borderRadius = '50%'; parent.style.overflow = 'hidden';
+    parent.style.display = 'flex'; parent.style.alignItems = 'center'; parent.style.justifyContent = 'center';
+    parent.style.flexShrink = '0';
+    parent.style.background = 'rgba(255,255,255,.06)';
+    var img = parent.querySelector('img');
+    if (img && img.getAttribute('src') === url) return; // unchanged — don't reload
+    if (img) {
+      img.setAttribute('src', url);
+    } else {
+      parent.innerHTML = '<img loading="eager" decoding="async" src="'+url+'" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display=\'none\'">';
+    }
+  } else {
+    parent.style.width = ''; parent.style.height = '';
+    parent.style.borderRadius = ''; parent.style.overflow = '';
+    parent.style.display = ''; parent.style.background = '';
+    parent.textContent = fallbackText || '';
+  }
 }
 
 async function saveProfileInfo(ev) {
@@ -2297,9 +2319,11 @@ async function saveProfileInfo(ev) {
   var btn = ev.currentTarget; btn.disabled=true; btn.textContent='جاري الحفظ...';
   try {
     var avatarUrl = me.avatar || null;
+    var avatarChanged = false;
     if (_profileAvatarFile) {
       try {
         avatarUrl = await _uploadAdminAvatar(_profileAvatarFile, me.phone);
+        avatarChanged = true;
         _profileAvatarFile = null;
         document.getElementById('profile-av-note').textContent='';
       } catch(e) {
@@ -2307,19 +2331,40 @@ async function saveProfileInfo(ev) {
         btn.disabled=false; btn.innerHTML='<i class="fas fa-save"></i> حفظ المعلومات'; return;
       }
     }
+    var nameChanged = (me.name !== name);
     if (me.role !== 'superadmin' && me._id) {
       var upd = { name: name };
       if (avatarUrl) upd.avatar = avatarUrl;
       await db.collection('admins').doc(me._id).update(upd);
     }
+    // Propagate name/avatar update to all existing posts authored by this admin.
+    // Without this, old posts keep the stale authorName/authorAvatar.
+    if ((nameChanged || avatarChanged) && me.phone) {
+      try {
+        const snap = await db.collection('posts').where('authorId','==',me.phone).get();
+        if (!snap.empty) {
+          // Commit in batches of 450 (Firestore limit is 500 writes per batch)
+          const docs = snap.docs;
+          for (let i = 0; i < docs.length; i += 450) {
+            const batch = db.batch();
+            const slice = docs.slice(i, i + 450);
+            slice.forEach(d => {
+              const u = { authorName: name };
+              if (avatarUrl) u.authorAvatar = avatarUrl;
+              batch.update(d.ref, u);
+            });
+            await batch.commit();
+          }
+          console.log('[profile] updated '+docs.length+' posts with new author info');
+        }
+      } catch(e) { console.warn('failed to propagate name/avatar to posts:', e); }
+    }
     me.name = name;
     if (avatarUrl) me.avatar = avatarUrl;
     saveSession(me, false);
     document.getElementById('wb-name').textContent = name;
-    var wbIco = document.getElementById('wb-ico');
-    if (avatarUrl) {
-      wbIco.innerHTML='<img src="'+avatarUrl+'" style="width:28px;height:28px;border-radius:50%;object-fit:cover">';
-    }
+    _setStableAvatar('wb-ico', avatarUrl, me.role==='superadmin'?'👑':'🛡️', 28);
+    _setStableAvatar('profile-av-wrap', avatarUrl, me.role==='superadmin'?'👑':'🛡️', 80);
     msg.style.color='var(--green)'; msg.textContent='✅ تم الحفظ بنجاح';
   } catch(e) {
     console.error(e); msg.textContent='خطأ: '+e.message;

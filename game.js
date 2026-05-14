@@ -22473,6 +22473,10 @@ function renderSocialPost(post) {
     var classes = ['social-post', 'social-post-kind-' + kind];
     if (post.pinned) classes.push('social-post-pinned');
 
+    var shareBtnHtml = (kind === 'verse')
+        ? '<button class="social-share-btn" title="مشاركة" onclick="event.stopPropagation();openVerseShareMenu(\'' + post._id + '\')"><i class="fas fa-share-nodes"></i></button>'
+        : '';
+
     return '<div class="' + classes.join(' ') + '" onclick="openSocialPost(\'' + post._id + '\')">'
         + '<div class="social-post-header">'
         +   '<img class="social-post-avatar" src="' + escapeAttr(avatar) + '" onerror="this.src=\'images/default-avatar.png\'">'
@@ -22486,6 +22490,7 @@ function renderSocialPost(post) {
         + '<div class="social-post-actions">'
         +   actions
         +   '<button class="social-comment-btn" onclick="event.stopPropagation();openSocialPost(\'' + post._id + '\')"><i class="fas fa-comment"></i> ' + commentCount + '</button>'
+        +   shareBtnHtml
         +   '<button class="social-report-btn" title="إبلاغ" onclick="event.stopPropagation();reportPost(\'' + post._id + '\')"><i class="fas fa-flag"></i></button>'
         + '</div>'
         + '<div class="social-post-preview-area" onclick="event.stopPropagation()">'
@@ -22607,6 +22612,437 @@ function formatCountdown(ms) {
     if (h > 0) return h + ' س ' + m + ' د';
     if (m > 0) return m + ' د ' + s + ' ث';
     return s + ' ث';
+}
+
+// ── Verse share (text or image) ──────────────────────────────────────────
+function _findVersePost(postId) {
+    var p = (socialState.posts || []).find(function(x) { return x._id === postId; });
+    return p || null;
+}
+
+function openVerseShareMenu(postId) {
+    var post = _findVersePost(postId);
+    if (!post) { showToast('المنشور غير متاح', 'warning'); return; }
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay verse-share-overlay';
+    overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
+    overlay.innerHTML =
+        '<div class="modal-card verse-share-card" onclick="event.stopPropagation()">' +
+            '<div class="verse-share-head">' +
+                '<div class="verse-share-icon">✝</div>' +
+                '<div class="verse-share-title">شارك الآية</div>' +
+                '<div class="verse-share-sub">اختار طريقة المشاركة</div>' +
+            '</div>' +
+            '<div class="verse-share-options">' +
+                '<button class="verse-share-opt verse-share-opt-text" onclick="shareVerseAsText(\'' + post._id + '\');this.closest(\'.modal-overlay\').remove()">' +
+                    '<div class="verse-share-opt-icon"><i class="fas fa-align-right"></i></div>' +
+                    '<div class="verse-share-opt-body">' +
+                        '<div class="verse-share-opt-title">مشاركة كنص</div>' +
+                        '<div class="verse-share-opt-desc">ابعت الآية والتأمل ككلام</div>' +
+                    '</div>' +
+                '</button>' +
+                '<button class="verse-share-opt verse-share-opt-image" onclick="shareVerseAsImage(\'' + post._id + '\');this.closest(\'.modal-overlay\').remove()">' +
+                    '<div class="verse-share-opt-icon"><i class="fas fa-image"></i></div>' +
+                    '<div class="verse-share-opt-body">' +
+                        '<div class="verse-share-opt-title">مشاركة كصورة</div>' +
+                        '<div class="verse-share-opt-desc">صورة جميلة جاهزة للمشاركة</div>' +
+                    '</div>' +
+                '</button>' +
+            '</div>' +
+            '<button class="btn btn-secondary verse-share-cancel" onclick="this.closest(\'.modal-overlay\').remove()"><span>إلغاء</span></button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
+}
+
+function _verseShareTextBlock(post) {
+    var meta = post.meta || {};
+    var verseText = (meta.verseText || '').trim();
+    var verseRef = (meta.verseRef || '').trim();
+    var reflection = (meta.reflection || '').trim();
+    var lines = [];
+    if (verseText) lines.push('"' + verseText + '"');
+    if (verseRef) lines.push('— ' + verseRef);
+    if (reflection) {
+        lines.push('');
+        lines.push('🙏 تأمل:');
+        lines.push(reflection);
+    }
+    lines.push('');
+    lines.push('— من تطبيق مين البطل');
+    return lines.join('\n');
+}
+
+function shareVerseAsText(postId) {
+    var post = _findVersePost(postId);
+    if (!post) { showToast('المنشور غير متاح', 'warning'); return; }
+    var text = _verseShareTextBlock(post);
+    if (navigator.share) {
+        navigator.share({ title: 'آية وتأمل', text: text }).catch(function() {});
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(text).then(function() {
+            showToast('تم نسخ الآية! 📋', 'success');
+        }).catch(function() { showToast(text, 'info'); });
+    } else {
+        showToast(text, 'info');
+    }
+}
+
+function _verseThemeColors(theme) {
+    switch (theme) {
+        case 'blue': return { c1: '#dbeafe', c2: '#a3c4ed', c3: '#6794d8', text: '#1a3060', accent: '#1e3a8a' };
+        case 'teal': return { c1: '#ccfbf1', c2: '#7cd9c1', c3: '#3aa78a', text: '#0d3a30', accent: '#065f46' };
+        case 'rose': return { c1: '#fde6e7', c2: '#f5b5b9', c3: '#dc6b73', text: '#5a1a20', accent: '#9f1239' };
+        case 'gold':
+        default:     return { c1: '#fdf4d4', c2: '#f5e3a4', c3: '#e6c870', text: '#4a3210', accent: '#854d0e' };
+    }
+}
+
+// Word-wrap text to fit a max width on canvas, returns array of lines
+function _wrapCanvasText(ctx, text, maxWidth) {
+    var paragraphs = String(text || '').split(/\n/);
+    var lines = [];
+    paragraphs.forEach(function(para) {
+        if (!para.trim()) { lines.push(''); return; }
+        var words = para.split(/\s+/);
+        var current = '';
+        for (var i = 0; i < words.length; i++) {
+            var test = current ? current + ' ' + words[i] : words[i];
+            if (ctx.measureText(test).width <= maxWidth) {
+                current = test;
+            } else {
+                if (current) lines.push(current);
+                // single word longer than maxWidth — push as-is
+                current = words[i];
+            }
+        }
+        if (current) lines.push(current);
+    });
+    return lines;
+}
+
+function _loadVerseLogo() {
+    if (window._verseLogoImg && window._verseLogoImg.complete && window._verseLogoImg.naturalWidth) {
+        return Promise.resolve(window._verseLogoImg);
+    }
+    return new Promise(function(resolve) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() { window._verseLogoImg = img; resolve(img); };
+        img.onerror = function() { resolve(null); };
+        img.src = 'images/Logo-opt.png';
+    });
+}
+
+function _loadVerseQR() {
+    if (window._verseQRImg && window._verseQRImg.complete && window._verseQRImg.naturalWidth) {
+        return Promise.resolve(window._verseQRImg);
+    }
+    return new Promise(function(resolve) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() { window._verseQRImg = img; resolve(img); };
+        img.onerror = function() { resolve(null); };
+        img.src = 'images/game-qr.png';
+    });
+}
+
+function generateVerseImage(post, logoImg, qrImg) {
+    var meta = post.meta || {};
+    var verseText = (meta.verseText || '').trim();
+    var verseRef = (meta.verseRef || '').trim();
+    var reflection = (meta.reflection || '').trim();
+    var colors = _verseThemeColors(meta.theme || 'gold');
+
+    var W = 1080, H = 1350;
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+
+    // Background gradient
+    var bg = ctx.createLinearGradient(0, 0, W, H);
+    bg.addColorStop(0, colors.c1);
+    bg.addColorStop(0.55, colors.c2);
+    bg.addColorStop(1, colors.c3);
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Decorative radial light
+    var glow = ctx.createRadialGradient(W/2, 280, 50, W/2, 280, 700);
+    glow.addColorStop(0, 'rgba(255,255,255,0.45)');
+    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, W, H);
+
+    // Inner rounded frame
+    var pad = 50;
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
+    ctx.lineWidth = 3;
+    var fx = pad, fy = pad, fw = W - pad*2, fh = H - pad*2, fr = 36;
+    ctx.beginPath();
+    ctx.moveTo(fx + fr, fy);
+    ctx.lineTo(fx + fw - fr, fy);
+    ctx.quadraticCurveTo(fx + fw, fy, fx + fw, fy + fr);
+    ctx.lineTo(fx + fw, fy + fh - fr);
+    ctx.quadraticCurveTo(fx + fw, fy + fh, fx + fw - fr, fy + fh);
+    ctx.lineTo(fx + fr, fy + fh);
+    ctx.quadraticCurveTo(fx, fy + fh, fx, fy + fh - fr);
+    ctx.lineTo(fx, fy + fr);
+    ctx.quadraticCurveTo(fx, fy, fx + fr, fy);
+    ctx.stroke();
+
+    // Logo at top — circular badge with white ring
+    if (logoImg) {
+        var logoCx = W/2, logoCy = 175, logoR = 80;
+        ctx.save();
+        // White circular background behind logo
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.beginPath();
+        ctx.arc(logoCx, logoCy, logoR + 10, 0, Math.PI * 2);
+        ctx.fill();
+        // Soft accent ring
+        ctx.strokeStyle = colors.accent;
+        ctx.globalAlpha = 0.65;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(logoCx, logoCy, logoR + 10, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        // Clip to circle and draw image
+        ctx.beginPath();
+        ctx.arc(logoCx, logoCy, logoR, 0, Math.PI * 2);
+        ctx.clip();
+        var iw = logoImg.naturalWidth || logoImg.width;
+        var ih = logoImg.naturalHeight || logoImg.height;
+        var scale = (logoR * 2) / Math.min(iw, ih);
+        var dw = iw * scale, dh = ih * scale;
+        ctx.drawImage(logoImg, logoCx - dw/2, logoCy - dh/2, dw, dh);
+        ctx.restore();
+    } else {
+        // Fallback: cross glyph
+        ctx.fillStyle = colors.accent;
+        ctx.globalAlpha = 0.85;
+        ctx.font = '900 96px "Cairo", Georgia, serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('✝', W/2, 170);
+        ctx.globalAlpha = 1;
+    }
+
+    // "آية وتأمل" label below logo
+    ctx.fillStyle = colors.accent;
+    ctx.globalAlpha = 0.95;
+    ctx.font = '900 42px "Cairo", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.direction = 'rtl';
+    ctx.fillText('آية وتأمل', W/2, 310);
+    // small underline accent
+    ctx.globalAlpha = 0.55;
+    ctx.fillRect(W/2 - 60, 340, 120, 3);
+    ctx.globalAlpha = 1;
+
+    // Verse text — auto-fit
+    ctx.fillStyle = colors.text;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.direction = 'rtl';
+
+    // Vertical band budget:
+    //  - logo+label  : 85 .. 365
+    //  - verse text  : 380 .. 840  (max 460px)
+    //  - verse ref   : 870 .. 920
+    //  - reflection  : 920 .. 1090 (170px)
+    //  - footer (QR) : 1110 .. 1300
+
+    var maxWidth = W - 200;
+    var verseFontSize = 56;
+    var lines = [];
+    while (verseFontSize >= 30) {
+        ctx.font = '800 ' + verseFontSize + 'px "Cairo", Georgia, serif';
+        lines = _wrapCanvasText(ctx, '"' + verseText + '"', maxWidth);
+        var totalH = lines.length * (verseFontSize * 1.55);
+        if (totalH <= 460) break;
+        verseFontSize -= 3;
+    }
+    var lineH = verseFontSize * 1.55;
+    var blockH = lines.length * lineH;
+    var startY = 380 + Math.max(0, (460 - blockH) / 2);
+    lines.forEach(function(ln, i) {
+        ctx.fillText(ln, W/2, startY + i * lineH);
+    });
+
+    // Verse reference (with underline) — fixed band ~870
+    if (verseRef) {
+        ctx.font = '800 38px "Cairo", Georgia, serif';
+        ctx.fillStyle = colors.accent;
+        var refLabel = '— ' + verseRef + ' —';
+        ctx.fillText(refLabel, W/2, 870);
+    }
+
+    // Reflection block — fixed band 920..1090
+    if (reflection) {
+        var rBlockTop = 920;
+        var rBlockH = 170;
+        // background panel
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        var rx = 90, ry = rBlockTop, rw = W - 180, rh = rBlockH, rr = 22;
+        ctx.beginPath();
+        ctx.moveTo(rx + rr, ry);
+        ctx.lineTo(rx + rw - rr, ry);
+        ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
+        ctx.lineTo(rx + rw, ry + rh - rr);
+        ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
+        ctx.lineTo(rx + rr, ry + rh);
+        ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
+        ctx.lineTo(rx, ry + rr);
+        ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+        ctx.fill();
+        // right-side accent bar (RTL)
+        ctx.fillStyle = colors.accent;
+        ctx.fillRect(rx + rw - 8, ry + 16, 6, rh - 32);
+
+        // label
+        ctx.fillStyle = colors.accent;
+        ctx.font = '900 24px "Cairo", sans-serif';
+        ctx.textAlign = 'right';
+        ctx.fillText('🙏 تأمل', rx + rw - 28, ry + 22);
+
+        // body — auto-fit
+        ctx.fillStyle = colors.text;
+        ctx.textAlign = 'center';
+        var refFontSize = 30;
+        var refLines = [];
+        while (refFontSize >= 18) {
+            ctx.font = '600 ' + refFontSize + 'px "Cairo", sans-serif';
+            refLines = _wrapCanvasText(ctx, reflection, rw - 80);
+            var rTotalH = refLines.length * (refFontSize * 1.55);
+            if (rTotalH <= rh - 80) break;
+            refFontSize -= 2;
+        }
+        // truncate if still too long
+        var maxLines = Math.floor((rh - 80) / (refFontSize * 1.55));
+        if (refLines.length > maxLines) {
+            refLines = refLines.slice(0, maxLines);
+            if (refLines.length) refLines[refLines.length - 1] += '…';
+        }
+        var rLineH = refFontSize * 1.55;
+        var rTopText = ry + 70;
+        refLines.forEach(function(ln, i) {
+            ctx.fillText(ln, W/2, rTopText + i * rLineH);
+        });
+    }
+
+    // Footer band: QR on bottom-left, brand text on bottom-right
+    var qrSize = 175;
+    var qrX = 80, qrY = H - qrSize - 60; // small bottom margin
+    if (qrImg) {
+        // White rounded card behind QR for contrast on any theme
+        var qPad = 12, qR = 16;
+        ctx.fillStyle = '#ffffff';
+        var bx = qrX - qPad, by = qrY - qPad, bw = qrSize + qPad*2, bh = qrSize + qPad*2;
+        ctx.beginPath();
+        ctx.moveTo(bx + qR, by);
+        ctx.lineTo(bx + bw - qR, by);
+        ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + qR);
+        ctx.lineTo(bx + bw, by + bh - qR);
+        ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - qR, by + bh);
+        ctx.lineTo(bx + qR, by + bh);
+        ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - qR);
+        ctx.lineTo(bx, by + qR);
+        ctx.quadraticCurveTo(bx, by, bx + qR, by);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+    }
+
+    // Brand text — right-aligned, vertically centered next to QR
+    var textRightX = W - 90;
+    var brandCenterY = qrY + qrSize / 2;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.direction = 'rtl';
+
+    // Small "افتح اللعبة" cue above brand
+    ctx.fillStyle = colors.accent;
+    ctx.globalAlpha = 0.65;
+    ctx.font = '700 20px "Cairo", sans-serif';
+    ctx.fillText('امسح للّعب', textRightX, brandCenterY - 50);
+
+    ctx.globalAlpha = 0.95;
+    ctx.font = '900 38px "Cairo", sans-serif';
+    ctx.fillText('مين البطل', textRightX, brandCenterY);
+
+    ctx.globalAlpha = 0.7;
+    ctx.font = '600 22px "Cairo", sans-serif';
+    ctx.fillText('min-el-batal.web.app', textRightX, brandCenterY + 42);
+    ctx.globalAlpha = 1;
+
+    return canvas;
+}
+
+function shareVerseAsImage(postId) {
+    var post = _findVersePost(postId);
+    if (!post) { showToast('المنشور غير متاح', 'warning'); return; }
+    showToast('جاري تجهيز الصورة…', 'info');
+
+    Promise.all([_loadVerseLogo(), _loadVerseQR()]).then(function(imgs) {
+        var logo = imgs[0], qr = imgs[1];
+        var canvas;
+        try {
+            canvas = generateVerseImage(post, logo, qr);
+        } catch (err) {
+            console.error('verse image generation failed', err);
+            showToast('حصل خطأ في تجهيز الصورة', 'error');
+            return;
+        }
+        canvas.toBlob(function(blob) {
+            if (!blob) { showToast('حصل خطأ في تجهيز الصورة', 'error'); return; }
+            var fileName = 'min-el-batal-verse.png';
+            var file = null;
+            try { file = new File([blob], fileName, { type: 'image/png' }); } catch (e) {}
+
+            // Try native share with image file
+            if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({
+                    files: [file],
+                    title: 'آية وتأمل',
+                    text: _verseShareTextBlock(post)
+                }).then(function() {
+                    showToast('تم!', 'success');
+                }).catch(function() {
+                    _verseImagePreview(blob, post);
+                });
+                return;
+            }
+            // Fallback: open preview with download + copy buttons
+            _verseImagePreview(blob, post);
+        }, 'image/png', 0.95);
+    });
+}
+
+function _verseImagePreview(blob, post) {
+    var url = URL.createObjectURL(blob);
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay verse-share-overlay';
+    overlay.onclick = function(e) {
+        if (e.target === overlay) { URL.revokeObjectURL(url); overlay.remove(); }
+    };
+    var dlId = 'vsp-dl-' + Date.now();
+    overlay.innerHTML =
+        '<div class="modal-card verse-preview-card" onclick="event.stopPropagation()">' +
+            '<div class="verse-preview-head">صورة الآية جاهزة</div>' +
+            '<img class="verse-preview-img" src="' + url + '" alt="">' +
+            '<div class="verse-preview-actions">' +
+                '<a id="' + dlId + '" class="btn btn-primary" href="' + url + '" download="min-el-batal-verse.png"><span><i class="fas fa-download"></i> تحميل</span></a>' +
+                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-overlay\').querySelector(\'a\').click()"><span><i class="fas fa-share-nodes"></i> حفظ ومشاركة</span></button>' +
+            '</div>' +
+            '<button class="btn btn-secondary verse-share-cancel" onclick="URL.revokeObjectURL(\'' + url + '\');this.closest(\'.modal-overlay\').remove()"><span>إغلاق</span></button>' +
+        '</div>';
+    document.body.appendChild(overlay);
+    setTimeout(function() { overlay.classList.add('active'); }, 10);
 }
 
 // Live ticker for competition countdowns (every 15s while feed visible)

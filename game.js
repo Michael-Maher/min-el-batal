@@ -22836,10 +22836,16 @@ function generateVerseImage(post, logoImg, qrImg) {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.direction = 'rtl';
-    ctx.fillText('آية وتأمل', W/2, 310);
+    ctx.fillText('آية وتأمل', W/2, 305);
     // small underline accent
-    ctx.globalAlpha = 0.55;
-    ctx.fillRect(W/2 - 60, 340, 120, 3);
+    ctx.globalAlpha = 0.45;
+    ctx.fillRect(W/2 - 60, 332, 120, 2);
+    ctx.globalAlpha = 1;
+    // game link — clickable prompt for viewers
+    ctx.fillStyle = colors.accent;
+    ctx.globalAlpha = 0.72;
+    ctx.font = '700 24px "Cairo", sans-serif';
+    ctx.fillText('حمّل اللعبة: min-el-batal.web.app', W/2, 358);
     ctx.globalAlpha = 1;
 
     // Verse text — auto-fit

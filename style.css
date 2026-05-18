@@ -6462,7 +6462,7 @@ body {
 /* Three stat chips */
 .pic-chips {
     display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-columns: 1fr 1fr;
     gap: 7px;
     padding: 2px 12px 12px;
 }
@@ -6480,6 +6480,7 @@ body {
 .pic-chip--stars  { background: rgba(253,203,110,0.12); border-color: rgba(253,203,110,0.32); }
 .pic-chip--gems   { background: rgba(116,185,255,0.12); border-color: rgba(116,185,255,0.32); }
 .pic-chip--streak { background: rgba(253,121,168,0.12); border-color: rgba(253,121,168,0.32); }
+.pic-chip--online { background: rgba(52,211,153,0.12);  border-color: rgba(52,211,153,0.32); }
 .pic-chip-icon { font-size: 22px; line-height: 1; }
 .pic-chip-val {
     font-size: 16px;
@@ -6489,6 +6490,18 @@ body {
 .pic-chip--stars  .pic-chip-val { color: var(--gold); }
 .pic-chip--gems   .pic-chip-val { color: #74b9ff; }
 .pic-chip--streak .pic-chip-val { color: #fd79a8; }
+.pic-chip--online .pic-chip-val { color: #34d399; }
+.pic-chip-online-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 0 3px rgba(52,211,153,0.25);
+    animation: onlinePulse 2s ease-in-out infinite;
+    display: inline-block; flex-shrink: 0;
+}
+@keyframes onlinePulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(52,211,153,0.25); }
+    50%       { box-shadow: 0 0 0 7px rgba(52,211,153,0.08); }
+}
 .pic-chip-lbl {
     font-size: 9px;
     color: var(--text-muted);

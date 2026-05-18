@@ -372,6 +372,7 @@ function submitLogin() {
             checkPendingRoomJoin();
             try { subscribeContentLocks(); } catch(e){}
             try { logPlayerEvent('login', { device: navigator.userAgent.slice(0,80) }); } catch(e){}
+            try { startGlobalPresence(); } catch(e){}
         })
         .catch(function(err) {
             console.error('Login error:', err);
@@ -715,6 +716,7 @@ function submitRegister() {
             checkAdminAnnouncements();
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
             if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
+            try { startGlobalPresence(); } catch(e){}
             })
             .catch(function(err) {
                 console.error('Registration save error:', err);
@@ -764,6 +766,7 @@ function migrateOldAccount(docId, newData, btn) {
         showScreen('home-hub-screen');
         syncLeaderboard();
         requestNotificationsAfterLogin();
+        try { startGlobalPresence(); } catch(e){}
     }).catch(function(err) {
         console.error('Migration error:', err);
         showToast('حصل مشكلة، حاول تاني', 'error');
@@ -896,6 +899,7 @@ function submitOldAccountUpgrade(docId, phone) {
             checkAdminAnnouncements();
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
             if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
+            try { startGlobalPresence(); } catch(e){}
         }).catch(function(err) {
             console.error('Upgrade error:', err);
             showToast('حصل مشكلة، حاول تاني', 'error');
@@ -5610,6 +5614,7 @@ function confetti() {
 
 // --- Logout ---
 function logout() {
+    try { stopGlobalPresence(); } catch(e){}
     GameState.playerName = '';
     GameState.playerPhone = '';
     GameState.username = '';
@@ -14508,6 +14513,47 @@ function stopPlayerPresence() {
     }
 }
 
+// ── Global presence: track all logged-in players ──────────────────────────
+function startGlobalPresence() {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    function writePresence() {
+        if (!firebaseDb || !GameState.playerPhone) return;
+        try {
+            firebaseDb.collection('presence').doc(GameState.playerPhone).set({
+                lastSeen: Date.now(),
+                name: GameState.playerName || ''
+            });
+        } catch(e) {}
+    }
+    writePresence();
+    if (window._globalPresenceInterval) clearInterval(window._globalPresenceInterval);
+    window._globalPresenceInterval = setInterval(writePresence, 120000);
+
+    if (window._presenceUnsub) { try { window._presenceUnsub(); } catch(e){} }
+    window._presenceUnsub = firebaseDb.collection('presence')
+        .onSnapshot(function(snap) {
+            var now = Date.now(), threshold = 5 * 60 * 1000, count = 0;
+            snap.forEach(function(doc) {
+                var d = doc.data();
+                if (d.lastSeen && (now - d.lastSeen) < threshold) count++;
+            });
+            window._onlinePlayerCount = count;
+            var el = document.getElementById('hub-online-count');
+            if (el) el.textContent = count;
+        }, function() {});
+}
+
+function stopGlobalPresence() {
+    if (window._globalPresenceInterval) {
+        clearInterval(window._globalPresenceInterval);
+        window._globalPresenceInterval = null;
+    }
+    if (window._presenceUnsub) { try { window._presenceUnsub(); } catch(e){} window._presenceUnsub = null; }
+    if (firebaseDb && GameState.playerPhone) {
+        try { firebaseDb.collection('presence').doc(GameState.playerPhone).delete(); } catch(e) {}
+    }
+}
+
 // Elect the earliest-joined non-dead player as new host when host disconnects.
 // Prefers recently-active players (lastSeen within 45s) to avoid re-electing
 // another disconnected player.
@@ -22670,6 +22716,7 @@ function _verseShareTextBlock(post) {
     }
     lines.push('');
     lines.push('— من تطبيق مين البطل');
+    lines.push('🔗 https://min-el-batal.web.app');
     return lines.join('\n');
 }
 
@@ -22747,6 +22794,20 @@ function _loadVerseQR() {
     });
 }
 
+function _drawRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+}
+
 function generateVerseImage(post, logoImg, qrImg) {
     var meta = post.meta || {};
     var verseText = (meta.verseText || '').trim();
@@ -22759,226 +22820,275 @@ function generateVerseImage(post, logoImg, qrImg) {
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
 
-    // Background gradient
-    var bg = ctx.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, colors.c1);
-    bg.addColorStop(0.55, colors.c2);
-    bg.addColorStop(1, colors.c3);
+    // Rich multi-stop background gradient
+    var bg = ctx.createLinearGradient(0, 0, W * 0.4, H);
+    bg.addColorStop(0,    colors.c1);
+    bg.addColorStop(0.35, colors.c2);
+    bg.addColorStop(0.72, colors.c3);
+    bg.addColorStop(1,    colors.accent + '55');
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Decorative radial light
-    var glow = ctx.createRadialGradient(W/2, 280, 50, W/2, 280, 700);
-    glow.addColorStop(0, 'rgba(255,255,255,0.45)');
-    glow.addColorStop(1, 'rgba(255,255,255,0)');
+    // Radial glow — centered top
+    var glow = ctx.createRadialGradient(W/2, 320, 60, W/2, 320, 800);
+    glow.addColorStop(0, 'rgba(255,255,255,0.52)');
+    glow.addColorStop(0.6, 'rgba(255,255,255,0.12)');
+    glow.addColorStop(1,   'rgba(255,255,255,0)');
     ctx.fillStyle = glow;
     ctx.fillRect(0, 0, W, H);
 
-    // Inner rounded frame
-    var pad = 50;
-    ctx.strokeStyle = 'rgba(255,255,255,0.55)';
-    ctx.lineWidth = 3;
-    var fx = pad, fy = pad, fw = W - pad*2, fh = H - pad*2, fr = 36;
-    ctx.beginPath();
-    ctx.moveTo(fx + fr, fy);
-    ctx.lineTo(fx + fw - fr, fy);
-    ctx.quadraticCurveTo(fx + fw, fy, fx + fw, fy + fr);
-    ctx.lineTo(fx + fw, fy + fh - fr);
-    ctx.quadraticCurveTo(fx + fw, fy + fh, fx + fw - fr, fy + fh);
-    ctx.lineTo(fx + fr, fy + fh);
-    ctx.quadraticCurveTo(fx, fy + fh, fx, fy + fh - fr);
-    ctx.lineTo(fx, fy + fr);
-    ctx.quadraticCurveTo(fx, fy, fx + fr, fy);
-    ctx.stroke();
+    // Corner accent glow — bottom-right
+    var cornerGlow = ctx.createRadialGradient(W, H, 0, W, H, 600);
+    cornerGlow.addColorStop(0, 'rgba(255,255,255,0.22)');
+    cornerGlow.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = cornerGlow;
+    ctx.fillRect(0, 0, W, H);
 
-    // Logo at top — circular badge with white ring
+    // Subtle dot-grid pattern overlay
+    ctx.fillStyle = 'rgba(255,255,255,0.10)';
+    for (var gx = 60; gx < W - 60; gx += 72) {
+        for (var gy = 60; gy < H - 60; gy += 72) {
+            ctx.beginPath();
+            ctx.arc(gx, gy, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    // Outer rounded border — double ring
+    var pad = 42;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.70)';
+    ctx.lineWidth = 4;
+    _drawRoundRect(ctx, pad, pad, W - pad*2, H - pad*2, 40);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth = 1.5;
+    _drawRoundRect(ctx, pad + 10, pad + 10, W - (pad+10)*2, H - (pad+10)*2, 32);
+    ctx.stroke();
+    ctx.restore();
+
+    // Corner ornaments — small L-shaped brackets at each corner
+    var co = pad + 2, cLen = 55, cW = 5;
+    ctx.fillStyle = 'rgba(255,255,255,0.65)';
+    // top-right (RTL: prominent)
+    ctx.fillRect(W - co - cLen, co, cLen, cW);
+    ctx.fillRect(W - co - cW,   co, cW, cLen);
+    // top-left
+    ctx.fillRect(co, co, cLen, cW);
+    ctx.fillRect(co, co, cW, cLen);
+    // bottom-right
+    ctx.fillRect(W - co - cLen, H - co - cW, cLen, cW);
+    ctx.fillRect(W - co - cW,   H - co - cLen, cW, cLen);
+    // bottom-left
+    ctx.fillRect(co, H - co - cW, cLen, cW);
+    ctx.fillRect(co, H - co - cLen, cW, cLen);
+
+    // Logo — circular badge
+    var logoCy = 185, logoR = 94;
+    ctx.save();
+    // Shadow behind badge
+    ctx.shadowColor = 'rgba(0,0,0,0.18)';
+    ctx.shadowBlur = 24;
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(W/2, logoCy, logoR + 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Accent ring
+    ctx.strokeStyle = colors.accent;
+    ctx.globalAlpha = 0.75;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(W/2, logoCy, logoR + 14, 0, Math.PI * 2);
+    ctx.stroke();
+    // Second thin ring
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(W/2, logoCy, logoR + 22, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
     if (logoImg) {
-        var logoCx = W/2, logoCy = 175, logoR = 80;
-        ctx.save();
-        // White circular background behind logo
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
         ctx.beginPath();
-        ctx.arc(logoCx, logoCy, logoR + 10, 0, Math.PI * 2);
-        ctx.fill();
-        // Soft accent ring
-        ctx.strokeStyle = colors.accent;
-        ctx.globalAlpha = 0.65;
-        ctx.lineWidth = 4;
-        ctx.beginPath();
-        ctx.arc(logoCx, logoCy, logoR + 10, 0, Math.PI * 2);
-        ctx.stroke();
-        ctx.globalAlpha = 1;
-        // Clip to circle and draw image
-        ctx.beginPath();
-        ctx.arc(logoCx, logoCy, logoR, 0, Math.PI * 2);
+        ctx.arc(W/2, logoCy, logoR, 0, Math.PI * 2);
         ctx.clip();
         var iw = logoImg.naturalWidth || logoImg.width;
         var ih = logoImg.naturalHeight || logoImg.height;
-        var scale = (logoR * 2) / Math.min(iw, ih);
-        var dw = iw * scale, dh = ih * scale;
-        ctx.drawImage(logoImg, logoCx - dw/2, logoCy - dh/2, dw, dh);
-        ctx.restore();
+        var sc = (logoR * 2) / Math.min(iw, ih);
+        ctx.drawImage(logoImg, W/2 - iw*sc/2, logoCy - ih*sc/2, iw*sc, ih*sc);
     } else {
-        // Fallback: cross glyph
+        ctx.beginPath();
+        ctx.arc(W/2, logoCy, logoR, 0, Math.PI * 2);
+        ctx.clip();
+        ctx.fillStyle = 'rgba(255,255,255,0.92)';
+        ctx.fill();
         ctx.fillStyle = colors.accent;
-        ctx.globalAlpha = 0.85;
-        ctx.font = '900 96px "Cairo", Georgia, serif';
+        ctx.font = '900 100px "Cairo", Georgia, serif';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillText('✝', W/2, 170);
-        ctx.globalAlpha = 1;
+        ctx.fillText('✝', W/2, logoCy);
     }
+    ctx.restore();
 
-    // "آية وتأمل" label below logo
-    ctx.fillStyle = colors.accent;
-    ctx.globalAlpha = 0.95;
-    ctx.font = '900 42px "Cairo", sans-serif';
+    // "آية وتأمل" header title — large, bold, with glow
+    ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.direction = 'rtl';
-    ctx.fillText('آية وتأمل', W/2, 310);
-    // small underline accent
-    ctx.globalAlpha = 0.55;
-    ctx.fillRect(W/2 - 60, 340, 120, 3);
-    ctx.globalAlpha = 1;
+    ctx.font = '900 54px "Cairo", sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.15)';
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = colors.accent;
+    ctx.fillText('آية وتأمل', W/2, 330);
+    ctx.restore();
+    // Decorative divider under title
+    var divW = 200, divCX = W/2;
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = colors.accent;
+    ctx.fillRect(divCX - divW/2, 358, divW, 3);
+    // Diamond center of divider
+    ctx.fillRect(divCX - 6, 354, 12, 11);
+    ctx.restore();
 
-    // Verse text — auto-fit
+    // ── Verse text block ──────────────────────────────────────
+    // zone: 385 .. 870 (485px)
     ctx.fillStyle = colors.text;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
     ctx.direction = 'rtl';
 
-    // Vertical band budget:
-    //  - logo+label  : 85 .. 365
-    //  - verse text  : 380 .. 840  (max 460px)
-    //  - verse ref   : 870 .. 920
-    //  - reflection  : 920 .. 1090 (170px)
-    //  - footer (QR) : 1110 .. 1300
-
-    var maxWidth = W - 200;
-    var verseFontSize = 56;
+    var maxWidth = W - 160;
+    var verseFontSize = 72;
     var lines = [];
-    while (verseFontSize >= 30) {
+    while (verseFontSize >= 34) {
         ctx.font = '800 ' + verseFontSize + 'px "Cairo", Georgia, serif';
         lines = _wrapCanvasText(ctx, '"' + verseText + '"', maxWidth);
-        var totalH = lines.length * (verseFontSize * 1.55);
-        if (totalH <= 460) break;
+        var totalH = lines.length * (verseFontSize * 1.52);
+        if (totalH <= 485) break;
         verseFontSize -= 3;
     }
-    var lineH = verseFontSize * 1.55;
+    var lineH = verseFontSize * 1.52;
     var blockH = lines.length * lineH;
-    var startY = 380 + Math.max(0, (460 - blockH) / 2);
+    var startY = 385 + Math.max(0, (485 - blockH) / 2);
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.10)';
+    ctx.shadowBlur = 8;
     lines.forEach(function(ln, i) {
         ctx.fillText(ln, W/2, startY + i * lineH);
     });
+    ctx.restore();
 
-    // Verse reference (with underline) — fixed band ~870
+    // ── Verse reference ───────────────────────────────────────
     if (verseRef) {
-        ctx.font = '800 38px "Cairo", Georgia, serif';
+        ctx.save();
+        ctx.font = '800 44px "Cairo", Georgia, serif';
         ctx.fillStyle = colors.accent;
-        var refLabel = '— ' + verseRef + ' —';
-        ctx.fillText(refLabel, W/2, 870);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.direction = 'rtl';
+        ctx.shadowColor = 'rgba(0,0,0,0.12)';
+        ctx.shadowBlur = 6;
+        ctx.fillText('— ' + verseRef + ' —', W/2, 890);
+        ctx.restore();
     }
 
-    // Reflection block — fixed band 920..1090
+    // ── Reflection block ──────────────────────────────────────
     if (reflection) {
-        var rBlockTop = 920;
-        var rBlockH = 170;
-        // background panel
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        var rx = 90, ry = rBlockTop, rw = W - 180, rh = rBlockH, rr = 22;
-        ctx.beginPath();
-        ctx.moveTo(rx + rr, ry);
-        ctx.lineTo(rx + rw - rr, ry);
-        ctx.quadraticCurveTo(rx + rw, ry, rx + rw, ry + rr);
-        ctx.lineTo(rx + rw, ry + rh - rr);
-        ctx.quadraticCurveTo(rx + rw, ry + rh, rx + rw - rr, ry + rh);
-        ctx.lineTo(rx + rr, ry + rh);
-        ctx.quadraticCurveTo(rx, ry + rh, rx, ry + rh - rr);
-        ctx.lineTo(rx, ry + rr);
-        ctx.quadraticCurveTo(rx, ry, rx + rr, ry);
+        var rTop = 942, rH = 192, rX = 80, rWd = W - 160;
+        // Frosted panel
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.62)';
+        _drawRoundRect(ctx, rX, rTop, rWd, rH, 26);
         ctx.fill();
-        // right-side accent bar (RTL)
+        // Inner top highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        _drawRoundRect(ctx, rX + 2, rTop + 2, rWd - 4, 34, 22);
+        ctx.fill();
+        // Right accent bar (RTL)
         ctx.fillStyle = colors.accent;
-        ctx.fillRect(rx + rw - 8, ry + 16, 6, rh - 32);
-
-        // label
+        ctx.fillRect(rX + rWd - 10, rTop + 20, 7, rH - 40);
+        // Label
         ctx.fillStyle = colors.accent;
-        ctx.font = '900 24px "Cairo", sans-serif';
+        ctx.font = '900 28px "Cairo", sans-serif';
         ctx.textAlign = 'right';
-        ctx.fillText('🙏 تأمل', rx + rw - 28, ry + 22);
-
-        // body — auto-fit
+        ctx.textBaseline = 'top';
+        ctx.fillText('🙏 تأمل', rX + rWd - 28, rTop + 20);
+        // Body text
         ctx.fillStyle = colors.text;
         ctx.textAlign = 'center';
-        var refFontSize = 30;
-        var refLines = [];
-        while (refFontSize >= 18) {
-            ctx.font = '600 ' + refFontSize + 'px "Cairo", sans-serif';
-            refLines = _wrapCanvasText(ctx, reflection, rw - 80);
-            var rTotalH = refLines.length * (refFontSize * 1.55);
-            if (rTotalH <= rh - 80) break;
-            refFontSize -= 2;
+        ctx.direction = 'rtl';
+        var rfSize = 32;
+        var rfLines = [];
+        while (rfSize >= 20) {
+            ctx.font = '600 ' + rfSize + 'px "Cairo", sans-serif';
+            rfLines = _wrapCanvasText(ctx, reflection, rWd - 90);
+            if (rfLines.length * (rfSize * 1.5) <= rH - 88) break;
+            rfSize -= 2;
         }
-        // truncate if still too long
-        var maxLines = Math.floor((rh - 80) / (refFontSize * 1.55));
-        if (refLines.length > maxLines) {
-            refLines = refLines.slice(0, maxLines);
-            if (refLines.length) refLines[refLines.length - 1] += '…';
-        }
-        var rLineH = refFontSize * 1.55;
-        var rTopText = ry + 70;
-        refLines.forEach(function(ln, i) {
-            ctx.fillText(ln, W/2, rTopText + i * rLineH);
-        });
+        var maxRLines = Math.floor((rH - 88) / (rfSize * 1.5));
+        if (rfLines.length > maxRLines) { rfLines = rfLines.slice(0, maxRLines); rfLines[rfLines.length-1] += '…'; }
+        var rfLineH = rfSize * 1.5;
+        var rfTop = rTop + 72;
+        rfLines.forEach(function(ln, i) { ctx.fillText(ln, W/2, rfTop + i * rfLineH); });
+        ctx.restore();
     }
 
-    // Footer band: QR on bottom-left, brand text on bottom-right
-    var qrSize = 175;
-    var qrX = 80, qrY = H - qrSize - 60; // small bottom margin
+    // ── Footer: QR + brand ────────────────────────────────────
+    var footerTop = H - 220;
+    // Footer background strip
+    ctx.save();
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    _drawRoundRect(ctx, pad + 10, footerTop, W - (pad+10)*2, H - footerTop - (pad+10), 24);
+    ctx.fill();
+    ctx.restore();
+
+    var qrSize = 160, qrX = 100, qrY = footerTop + 28;
     if (qrImg) {
-        // White rounded card behind QR for contrast on any theme
-        var qPad = 12, qR = 16;
+        // White card behind QR
+        ctx.save();
         ctx.fillStyle = '#ffffff';
-        var bx = qrX - qPad, by = qrY - qPad, bw = qrSize + qPad*2, bh = qrSize + qPad*2;
-        ctx.beginPath();
-        ctx.moveTo(bx + qR, by);
-        ctx.lineTo(bx + bw - qR, by);
-        ctx.quadraticCurveTo(bx + bw, by, bx + bw, by + qR);
-        ctx.lineTo(bx + bw, by + bh - qR);
-        ctx.quadraticCurveTo(bx + bw, by + bh, bx + bw - qR, by + bh);
-        ctx.lineTo(bx + qR, by + bh);
-        ctx.quadraticCurveTo(bx, by + bh, bx, by + bh - qR);
-        ctx.lineTo(bx, by + qR);
-        ctx.quadraticCurveTo(bx, by, bx + qR, by);
+        _drawRoundRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 14);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.10)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
         ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+        ctx.restore();
+        // "امسح للعب" under QR
+        ctx.save();
+        ctx.fillStyle = 'rgba(255,255,255,0.75)';
+        ctx.font = '700 20px "Cairo", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText('امسح للّعب', qrX + qrSize/2, qrY + qrSize + 14);
+        ctx.restore();
     }
 
-    // Brand text — right-aligned, vertically centered next to QR
-    var textRightX = W - 90;
-    var brandCenterY = qrY + qrSize / 2;
+    // Brand block — right side of footer
+    var brandX = W - 95;
+    var brandMidY = footerTop + 28 + qrSize/2;
+    ctx.save();
     ctx.textAlign = 'right';
     ctx.textBaseline = 'middle';
     ctx.direction = 'rtl';
-
-    // Small "افتح اللعبة" cue above brand
-    ctx.fillStyle = colors.accent;
-    ctx.globalAlpha = 0.65;
-    ctx.font = '700 20px "Cairo", sans-serif';
-    ctx.fillText('امسح للّعب', textRightX, brandCenterY - 50);
-
-    ctx.globalAlpha = 0.95;
-    ctx.font = '900 38px "Cairo", sans-serif';
-    ctx.fillText('مين البطل', textRightX, brandCenterY);
-
-    ctx.globalAlpha = 0.7;
-    ctx.font = '600 22px "Cairo", sans-serif';
-    ctx.fillText('min-el-batal.web.app', textRightX, brandCenterY + 42);
-    ctx.globalAlpha = 1;
+    // App name — large
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 52px "Cairo", sans-serif';
+    ctx.shadowColor = 'rgba(0,0,0,0.25)';
+    ctx.shadowBlur = 10;
+    ctx.fillText('مين البطل', brandX, brandMidY - 28);
+    ctx.shadowBlur = 0;
+    // Tag line
+    ctx.fillStyle = 'rgba(255,255,255,0.82)';
+    ctx.font = '700 24px "Cairo", sans-serif';
+    ctx.fillText('تطبيق التعليم المسيحي', brandX, brandMidY + 18);
+    // URL — clearly readable
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.font = '700 22px "Cairo", sans-serif';
+    ctx.fillText('min-el-batal.web.app', brandX, brandMidY + 56);
+    ctx.restore();
 
     return canvas;
 }

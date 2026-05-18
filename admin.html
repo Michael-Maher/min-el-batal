@@ -4799,6 +4799,16 @@ async function compressAndUploadPostImage(file, postId) {
 }
 
 async function togglePinPost(postId, currentlyPinned) {
+  if (!currentlyPinned) {
+    // Enforce max 2 pinned posts
+    try {
+      const pinSnap = await db.collection('posts').where('pinned', '==', true).get();
+      if (pinSnap.size >= 2) {
+        toast('⚠️ الحد الأقصى للتثبيت منشورَين فقط — ألغِ تثبيت منشور أولاً', 'err');
+        return;
+      }
+    } catch(e) { console.error(e); }
+  }
   try {
     const update = { pinned: !currentlyPinned };
     if (!currentlyPinned) {

@@ -22803,11 +22803,27 @@ function shareVerseAsText(postId) {
 
 function _verseThemeColors(theme) {
     switch (theme) {
-        case 'blue': return { c1: '#dbeafe', c2: '#a3c4ed', c3: '#6794d8', text: '#1a3060', accent: '#1e3a8a' };
-        case 'teal': return { c1: '#ccfbf1', c2: '#7cd9c1', c3: '#3aa78a', text: '#0d3a30', accent: '#065f46' };
-        case 'rose': return { c1: '#fde6e7', c2: '#f5b5b9', c3: '#dc6b73', text: '#5a1a20', accent: '#9f1239' };
+        case 'blue': return {
+            bg1: '#03091E', bg2: '#0C1D58', bg3: '#1A3494',
+            glow: 'rgba(80,130,255,0.40)', border: 'rgba(100,160,255,0.65)',
+            text: '#E8F0FF', accent: '#7EB8FF', sub: 'rgba(180,210,255,0.75)'
+        };
+        case 'teal': return {
+            bg1: '#021410', bg2: '#083022', bg3: '#0C5C38',
+            glow: 'rgba(60,200,130,0.38)', border: 'rgba(70,210,140,0.60)',
+            text: '#DFFFEF', accent: '#50D898', sub: 'rgba(140,240,190,0.75)'
+        };
+        case 'rose': return {
+            bg1: '#16050D', bg2: '#3A0E1E', bg3: '#78163C',
+            glow: 'rgba(230,70,110,0.38)', border: 'rgba(240,100,140,0.65)',
+            text: '#FFE8EE', accent: '#FF7AA2', sub: 'rgba(255,170,195,0.75)'
+        };
         case 'gold':
-        default:     return { c1: '#fdf4d4', c2: '#f5e3a4', c3: '#e6c870', text: '#4a3210', accent: '#854d0e' };
+        default: return {
+            bg1: '#140800', bg2: '#3A1C00', bg3: '#7A4500',
+            glow: 'rgba(255,175,40,0.42)', border: 'rgba(255,205,60,0.70)',
+            text: '#FFF8E8', accent: '#FFC940', sub: 'rgba(255,215,130,0.80)'
+        };
     }
 }
 
@@ -22877,283 +22893,307 @@ function _drawRoundRect(ctx, x, y, w, h, r) {
 function generateVerseImage(post, logoImg, qrImg) {
     var meta = post.meta || {};
     var verseText = (meta.verseText || '').trim();
-    var verseRef = (meta.verseRef || '').trim();
+    var verseRef  = (meta.verseRef  || '').trim();
     var reflection = (meta.reflection || '').trim();
-    var colors = _verseThemeColors(meta.theme || 'gold');
+    var c = _verseThemeColors(meta.theme || 'gold');
 
     var W = 1080, H = 1350;
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
 
-    // Rich multi-stop background gradient
-    var bg = ctx.createLinearGradient(0, 0, W * 0.4, H);
-    bg.addColorStop(0,    colors.c1);
-    bg.addColorStop(0.35, colors.c2);
-    bg.addColorStop(0.72, colors.c3);
-    bg.addColorStop(1,    colors.accent + '55');
+    // ── BACKGROUND: deep diagonal gradient ────────────────────
+    var bg = ctx.createLinearGradient(0, 0, W * 0.6, H);
+    bg.addColorStop(0,    c.bg1);
+    bg.addColorStop(0.40, c.bg2);
+    bg.addColorStop(0.75, c.bg3);
+    bg.addColorStop(1,    c.bg2);
     ctx.fillStyle = bg;
     ctx.fillRect(0, 0, W, H);
 
-    // Radial glow — centered top
-    var glow = ctx.createRadialGradient(W/2, 320, 60, W/2, 320, 800);
-    glow.addColorStop(0, 'rgba(255,255,255,0.52)');
-    glow.addColorStop(0.6, 'rgba(255,255,255,0.12)');
-    glow.addColorStop(1,   'rgba(255,255,255,0)');
-    ctx.fillStyle = glow;
+    // Ambient top glow (large radial behind logo)
+    var topGlow = ctx.createRadialGradient(W/2, 220, 0, W/2, 220, 680);
+    topGlow.addColorStop(0,   c.glow);
+    topGlow.addColorStop(0.5, c.glow.replace('0.4', '0.12').replace('0.38', '0.12').replace('0.42', '0.12'));
+    topGlow.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = topGlow;
     ctx.fillRect(0, 0, W, H);
 
-    // Corner accent glow — bottom-right
-    var cornerGlow = ctx.createRadialGradient(W, H, 0, W, H, 600);
-    cornerGlow.addColorStop(0, 'rgba(255,255,255,0.22)');
-    cornerGlow.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = cornerGlow;
+    // Verse-area center glow
+    var midGlow = ctx.createRadialGradient(W/2, 640, 30, W/2, 640, 500);
+    midGlow.addColorStop(0,   c.glow.replace(/[\d.]+\)$/, '0.22)'));
+    midGlow.addColorStop(1,   'rgba(0,0,0,0)');
+    ctx.fillStyle = midGlow;
     ctx.fillRect(0, 0, W, H);
 
-    // Subtle dot-grid pattern overlay
-    ctx.fillStyle = 'rgba(255,255,255,0.10)';
-    for (var gx = 60; gx < W - 60; gx += 72) {
-        for (var gy = 60; gy < H - 60; gy += 72) {
-            ctx.beginPath();
-            ctx.arc(gx, gy, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-        }
-    }
-
-    // Outer rounded border — double ring
-    var pad = 42;
+    // Subtle cross-hatch texture (very faint diagonal lines)
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.70)';
-    ctx.lineWidth = 4;
-    _drawRoundRect(ctx, pad, pad, W - pad*2, H - pad*2, 40);
+    ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+    ctx.lineWidth = 1;
+    for (var li = -H; li < W + H; li += 48) {
+        ctx.beginPath(); ctx.moveTo(li, 0); ctx.lineTo(li + H, H); ctx.stroke();
+    }
+    ctx.restore();
+
+    // ── OUTER FRAME ────────────────────────────────────────────
+    var pad = 38;
+    ctx.save();
+    // Outer glow ring
+    ctx.shadowColor = c.border;
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = c.border;
+    ctx.lineWidth = 3;
+    _drawRoundRect(ctx, pad, pad, W - pad*2, H - pad*2, 44);
     ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
-    ctx.lineWidth = 1.5;
-    _drawRoundRect(ctx, pad + 10, pad + 10, W - (pad+10)*2, H - (pad+10)*2, 32);
+    ctx.shadowBlur = 0;
+    // Inner hairline
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 1;
+    _drawRoundRect(ctx, pad + 12, pad + 12, W - (pad+12)*2, H - (pad+12)*2, 34);
     ctx.stroke();
     ctx.restore();
 
-    // Corner ornaments — small L-shaped brackets at each corner
-    var co = pad + 2, cLen = 55, cW = 5;
-    ctx.fillStyle = 'rgba(255,255,255,0.65)';
-    // top-right (RTL: prominent)
-    ctx.fillRect(W - co - cLen, co, cLen, cW);
-    ctx.fillRect(W - co - cW,   co, cW, cLen);
-    // top-left
-    ctx.fillRect(co, co, cLen, cW);
-    ctx.fillRect(co, co, cW, cLen);
-    // bottom-right
-    ctx.fillRect(W - co - cLen, H - co - cW, cLen, cW);
-    ctx.fillRect(W - co - cW,   H - co - cLen, cW, cLen);
-    // bottom-left
-    ctx.fillRect(co, H - co - cW, cLen, cW);
-    ctx.fillRect(co, H - co - cLen, cW, cLen);
+    // Corner L-brackets (accent colored)
+    var co = pad + 1, cL = 64, cT = 4;
+    ctx.fillStyle = c.border;
+    ctx.fillRect(W - co - cL, co,     cL, cT); ctx.fillRect(W - co - cT, co,     cT, cL); // TR
+    ctx.fillRect(co,           co,     cL, cT); ctx.fillRect(co,           co,     cT, cL); // TL
+    ctx.fillRect(W - co - cL, H-co-cT, cL, cT); ctx.fillRect(W - co - cT, H-co-cL, cT, cL); // BR
+    ctx.fillRect(co,           H-co-cT, cL, cT); ctx.fillRect(co,           H-co-cL, cT, cL); // BL
 
-    // Logo — circular badge
-    var logoCy = 185, logoR = 94;
+    // ── HEADER: logo + title ───────────────────────────────────
+    var logoCy = 190, logoR = 92;
+
+    // Logo outer glow halo
     ctx.save();
-    // Shadow behind badge
-    ctx.shadowColor = 'rgba(0,0,0,0.18)';
-    ctx.shadowBlur = 24;
+    var halo = ctx.createRadialGradient(W/2, logoCy, logoR, W/2, logoCy, logoR + 60);
+    halo.addColorStop(0, c.glow.replace(/[\d.]+\)$/, '0.40)'));
+    halo.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = halo;
+    ctx.beginPath(); ctx.arc(W/2, logoCy, logoR + 60, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+
+    // White background disc
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.45)';
+    ctx.shadowBlur = 30;
     ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(W/2, logoCy, logoR + 14, 0, Math.PI * 2);
-    ctx.fill();
+    ctx.beginPath(); ctx.arc(W/2, logoCy, logoR + 12, 0, Math.PI*2); ctx.fill();
     ctx.shadowBlur = 0;
     // Accent ring
-    ctx.strokeStyle = colors.accent;
-    ctx.globalAlpha = 0.75;
+    ctx.strokeStyle = c.accent;
     ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.arc(W/2, logoCy, logoR + 14, 0, Math.PI * 2);
-    ctx.stroke();
-    // Second thin ring
-    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
-    ctx.globalAlpha = 0.55;
+    ctx.beginPath(); ctx.arc(W/2, logoCy, logoR + 12, 0, Math.PI*2); ctx.stroke();
+    // Thin outer ring
+    ctx.strokeStyle = c.border;
+    ctx.globalAlpha = 0.60;
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(W/2, logoCy, logoR + 22, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(W/2, logoCy, logoR + 22, 0, Math.PI*2); ctx.stroke();
     ctx.globalAlpha = 1;
+    // Logo image
     if (logoImg) {
-        ctx.beginPath();
-        ctx.arc(W/2, logoCy, logoR, 0, Math.PI * 2);
-        ctx.clip();
+        ctx.beginPath(); ctx.arc(W/2, logoCy, logoR, 0, Math.PI*2); ctx.clip();
         var iw = logoImg.naturalWidth || logoImg.width;
         var ih = logoImg.naturalHeight || logoImg.height;
         var sc = (logoR * 2) / Math.min(iw, ih);
         ctx.drawImage(logoImg, W/2 - iw*sc/2, logoCy - ih*sc/2, iw*sc, ih*sc);
     } else {
-        ctx.beginPath();
-        ctx.arc(W/2, logoCy, logoR, 0, Math.PI * 2);
-        ctx.clip();
-        ctx.fillStyle = 'rgba(255,255,255,0.92)';
-        ctx.fill();
-        ctx.fillStyle = colors.accent;
-        ctx.font = '900 100px "Cairo", Georgia, serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.beginPath(); ctx.arc(W/2, logoCy, logoR, 0, Math.PI*2); ctx.clip();
+        ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.fillStyle = c.accent;
+        ctx.font = '900 96px "Cairo", serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('✝', W/2, logoCy);
     }
     ctx.restore();
 
-    // "آية وتأمل" header title — large, bold, with glow
+    // "آية وتأمل" title
     ctx.save();
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.direction = 'rtl';
-    ctx.font = '900 54px "Cairo", sans-serif';
-    ctx.shadowColor = 'rgba(0,0,0,0.15)';
-    ctx.shadowBlur = 12;
-    ctx.fillStyle = colors.accent;
-    ctx.fillText('آية وتأمل', W/2, 330);
-    ctx.restore();
-    // Decorative divider under title
-    var divW = 200, divCX = W/2;
-    ctx.save();
-    ctx.globalAlpha = 0.5;
-    ctx.fillStyle = colors.accent;
-    ctx.fillRect(divCX - divW/2, 358, divW, 3);
-    // Diamond center of divider
-    ctx.fillRect(divCX - 6, 354, 12, 11);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
+    // Text shadow / glow
+    ctx.shadowColor = c.accent; ctx.shadowBlur = 22;
+    ctx.fillStyle = c.accent;
+    ctx.font = '900 58px "Cairo", sans-serif';
+    ctx.fillText('آية وتأمل', W/2, 336);
+    ctx.shadowBlur = 0;
     ctx.restore();
 
-    // ── Verse text block ──────────────────────────────────────
-    // zone: 385 .. 870 (485px)
-    ctx.fillStyle = colors.text;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    ctx.direction = 'rtl';
-
-    var maxWidth = W - 160;
-    var verseFontSize = 72;
-    var lines = [];
-    while (verseFontSize >= 34) {
-        ctx.font = '800 ' + verseFontSize + 'px "Cairo", Georgia, serif';
-        lines = _wrapCanvasText(ctx, '"' + verseText + '"', maxWidth);
-        var totalH = lines.length * (verseFontSize * 1.52);
-        if (totalH <= 485) break;
-        verseFontSize -= 3;
-    }
-    var lineH = verseFontSize * 1.52;
-    var blockH = lines.length * lineH;
-    var startY = 385 + Math.max(0, (485 - blockH) / 2);
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.10)';
-    ctx.shadowBlur = 8;
-    lines.forEach(function(ln, i) {
-        ctx.fillText(ln, W/2, startY + i * lineH);
-    });
-    ctx.restore();
-
-    // ── Verse reference ───────────────────────────────────────
-    if (verseRef) {
+    // Ornamental divider  ── ◆ ✝ ◆ ──
+    (function() {
+        var cy = 376, lineW = 230, dotR = 5, cx = W/2;
         ctx.save();
-        ctx.font = '800 44px "Cairo", Georgia, serif';
-        ctx.fillStyle = colors.accent;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.direction = 'rtl';
-        ctx.shadowColor = 'rgba(0,0,0,0.12)';
-        ctx.shadowBlur = 6;
-        ctx.fillText('— ' + verseRef + ' —', W/2, 890);
+        ctx.fillStyle = c.accent; ctx.globalAlpha = 0.70;
+        // left line
+        ctx.fillRect(cx - lineW, cy - 1.5, lineW - 30, 3);
+        // right line
+        ctx.fillRect(cx + 30,    cy - 1.5, lineW - 30, 3);
+        // left diamond
+        ctx.globalAlpha = 1;
+        ctx.beginPath(); ctx.moveTo(cx - 24, cy); ctx.lineTo(cx - 16, cy - dotR); ctx.lineTo(cx - 8, cy); ctx.lineTo(cx - 16, cy + dotR); ctx.closePath(); ctx.fill();
+        // right diamond
+        ctx.beginPath(); ctx.moveTo(cx + 8, cy); ctx.lineTo(cx + 16, cy - dotR); ctx.lineTo(cx + 24, cy); ctx.lineTo(cx + 16, cy + dotR); ctx.closePath(); ctx.fill();
+        // center cross
+        ctx.fillStyle = '#fff'; ctx.globalAlpha = 0.90;
+        ctx.font = '700 22px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('✝', cx, cy);
         ctx.restore();
-    }
+    })();
 
-    // ── Reflection block ──────────────────────────────────────
-    if (reflection) {
-        var rTop = 942, rH = 192, rX = 80, rWd = W - 160;
-        // Frosted panel
-        ctx.save();
-        ctx.fillStyle = 'rgba(255,255,255,0.62)';
-        _drawRoundRect(ctx, rX, rTop, rWd, rH, 26);
-        ctx.fill();
-        // Inner top highlight
-        ctx.fillStyle = 'rgba(255,255,255,0.45)';
-        _drawRoundRect(ctx, rX + 2, rTop + 2, rWd - 4, 34, 22);
-        ctx.fill();
-        // Right accent bar (RTL)
-        ctx.fillStyle = colors.accent;
-        ctx.fillRect(rX + rWd - 10, rTop + 20, 7, rH - 40);
-        // Label
-        ctx.fillStyle = colors.accent;
-        ctx.font = '900 28px "Cairo", sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'top';
-        ctx.fillText('🙏 تأمل', rX + rWd - 28, rTop + 20);
-        // Body text
-        ctx.fillStyle = colors.text;
-        ctx.textAlign = 'center';
-        ctx.direction = 'rtl';
-        var rfSize = 32;
-        var rfLines = [];
-        while (rfSize >= 20) {
-            ctx.font = '600 ' + rfSize + 'px "Cairo", sans-serif';
-            rfLines = _wrapCanvasText(ctx, reflection, rWd - 90);
-            if (rfLines.length * (rfSize * 1.5) <= rH - 88) break;
-            rfSize -= 2;
-        }
-        var maxRLines = Math.floor((rH - 88) / (rfSize * 1.5));
-        if (rfLines.length > maxRLines) { rfLines = rfLines.slice(0, maxRLines); rfLines[rfLines.length-1] += '…'; }
-        var rfLineH = rfSize * 1.5;
-        var rfTop = rTop + 72;
-        rfLines.forEach(function(ln, i) { ctx.fillText(ln, W/2, rfTop + i * rfLineH); });
-        ctx.restore();
-    }
+    // ── VERSE PANEL ────────────────────────────────────────────
+    // zone: 400 .. 900 (500px)
+    var vZoneTop = 400, vZoneH = 500;
 
-    // ── Footer: QR + brand ────────────────────────────────────
-    var footerTop = H - 220;
-    // Footer background strip
+    // Verse panel frosted background
     ctx.save();
-    ctx.fillStyle = 'rgba(0,0,0,0.12)';
-    _drawRoundRect(ctx, pad + 10, footerTop, W - (pad+10)*2, H - footerTop - (pad+10), 24);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    _drawRoundRect(ctx, 60, vZoneTop - 20, W - 120, vZoneH + 40, 32);
     ctx.fill();
+    // Thin border on panel
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
     ctx.restore();
 
-    var qrSize = 160, qrX = 100, qrY = footerTop + 28;
-    if (qrImg) {
-        // White card behind QR
+    // Giant background quote marks (decorative, very faint)
+    ctx.save();
+    ctx.font = '900 300px Georgia, serif';
+    ctx.fillStyle = c.accent;
+    ctx.globalAlpha = 0.07;
+    ctx.textBaseline = 'top'; ctx.textAlign = 'right';
+    ctx.fillText('“', W - 80, vZoneTop - 60); // "
+    ctx.textAlign = 'left';
+    ctx.fillText('”', 80, vZoneTop + vZoneH - 220); // "
+    ctx.restore();
+
+    // Verse text — auto-size, white, bold
+    var maxVW = W - 180;
+    var vFontSize = 78;
+    var vLines = [];
+    ctx.save();
+    while (vFontSize >= 36) {
+        ctx.font = '800 ' + vFontSize + 'px "Cairo", Georgia, serif';
+        vLines = _wrapCanvasText(ctx, verseText, maxVW);
+        if (vLines.length * (vFontSize * 1.55) <= vZoneH - 20) break;
+        vFontSize -= 3;
+    }
+    var vLineH = vFontSize * 1.55;
+    var vBlockH = vLines.length * vLineH;
+    var vStartY = vZoneTop + Math.max(0, (vZoneH - vBlockH) / 2);
+    ctx.fillStyle = c.text;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.direction = 'rtl';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 12;
+    vLines.forEach(function(ln, i) { ctx.fillText(ln, W/2, vStartY + i * vLineH); });
+    ctx.restore();
+
+    // ── VERSE REFERENCE ────────────────────────────────────────
+    if (verseRef) {
+        var refY = vZoneTop + vZoneH + 40;
+        // Pill background for reference
         ctx.save();
-        ctx.fillStyle = '#ffffff';
-        _drawRoundRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 14);
+        ctx.font = '800 42px "Cairo", Georgia, serif';
+        var refLabel = '— ' + verseRef + ' —';
+        var refW = ctx.measureText(refLabel).width + 70;
+        ctx.fillStyle = c.accent.replace(/^#/, '') ? c.accent : '#FFC940';
+        ctx.globalAlpha = 0.18;
+        _drawRoundRect(ctx, W/2 - refW/2, refY - 30, refW, 64, 32);
         ctx.fill();
-        ctx.strokeStyle = 'rgba(0,0,0,0.08)';
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = c.accent;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
+        ctx.shadowColor = 'rgba(0,0,0,0.30)'; ctx.shadowBlur = 8;
+        ctx.fillText(refLabel, W/2, refY + 2);
+        ctx.restore();
+    }
+
+    // ── REFLECTION BLOCK ───────────────────────────────────────
+    if (reflection) {
+        var rTop = 990, rH = 185, rX = 70, rWd = W - 140;
+        ctx.save();
+        // Frosted dark panel
+        ctx.fillStyle = 'rgba(255,255,255,0.09)';
+        _drawRoundRect(ctx, rX, rTop, rWd, rH, 28);
+        ctx.fill();
+        ctx.strokeStyle = c.border;
+        ctx.globalAlpha = 0.35;
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
-        ctx.restore();
-        // "امسح للعب" under QR
-        ctx.save();
-        ctx.fillStyle = 'rgba(255,255,255,0.75)';
-        ctx.font = '700 20px "Cairo", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'top';
-        ctx.fillText('امسح للّعب', qrX + qrSize/2, qrY + qrSize + 14);
+        ctx.globalAlpha = 1;
+        // Right accent bar
+        ctx.fillStyle = c.accent;
+        ctx.fillRect(rX + rWd - 9, rTop + 18, 6, rH - 36);
+        // Label
+        ctx.font = '900 26px "Cairo", sans-serif';
+        ctx.fillStyle = c.accent;
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top';
+        ctx.fillText('✦ تأمل', rX + rWd - 26, rTop + 18);
+        // Body
+        ctx.fillStyle = c.sub;
+        ctx.textAlign = 'center'; ctx.direction = 'rtl';
+        var rfSz = 31;
+        var rfLines = [];
+        while (rfSz >= 20) {
+            ctx.font = '600 ' + rfSz + 'px "Cairo", sans-serif';
+            rfLines = _wrapCanvasText(ctx, reflection, rWd - 80);
+            if (rfLines.length * (rfSz * 1.52) <= rH - 76) break;
+            rfSz -= 2;
+        }
+        var maxRL = Math.floor((rH - 76) / (rfSz * 1.52));
+        if (rfLines.length > maxRL) { rfLines = rfLines.slice(0, maxRL); rfLines[rfLines.length-1] += '…'; }
+        var rfLH = rfSz * 1.52, rfTop2 = rTop + 62;
+        rfLines.forEach(function(ln, i) { ctx.fillText(ln, W/2, rfTop2 + i * rfLH); });
         ctx.restore();
     }
 
-    // Brand block — right side of footer
-    var brandX = W - 95;
-    var brandMidY = footerTop + 28 + qrSize/2;
+    // ── FOOTER ─────────────────────────────────────────────────
+    var fTop = H - 215, fBot = H - pad - 12;
     ctx.save();
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.direction = 'rtl';
-    // App name — large
+    // Dark semi-transparent strip
+    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    _drawRoundRect(ctx, pad + 12, fTop, W - (pad+12)*2, fBot - fTop, 26);
+    ctx.fill();
+    // Accent top border of footer
+    ctx.strokeStyle = c.border;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.restore();
+
+    var qrSz = 150, qrX = 88, qrY = fTop + 20;
+    if (qrImg) {
+        ctx.save();
+        // White QR card
+        ctx.fillStyle = '#ffffff';
+        _drawRoundRect(ctx, qrX - 8, qrY - 8, qrSz + 16, qrSz + 16, 12);
+        ctx.fill();
+        ctx.drawImage(qrImg, qrX, qrY, qrSz, qrSz);
+        // "امسح للعب" below
+        ctx.fillStyle = c.sub;
+        ctx.font = '700 19px "Cairo", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+        ctx.fillText('امسح للّعب', qrX + qrSz/2, qrY + qrSz + 10);
+        ctx.restore();
+    }
+
+    // Brand: name + tagline + URL (right-aligned, RTL)
+    var bX = W - 80, bMid = fTop + 20 + qrSz/2;
+    ctx.save();
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
+    // App name
+    ctx.font = '900 56px "Cairo", sans-serif';
     ctx.fillStyle = '#ffffff';
-    ctx.font = '900 52px "Cairo", sans-serif';
-    ctx.shadowColor = 'rgba(0,0,0,0.25)';
-    ctx.shadowBlur = 10;
-    ctx.fillText('مين البطل', brandX, brandMidY - 28);
+    ctx.shadowColor = c.glow; ctx.shadowBlur = 16;
+    ctx.fillText('مين البطل', bX, bMid - 38);
     ctx.shadowBlur = 0;
-    // Tag line
-    ctx.fillStyle = 'rgba(255,255,255,0.82)';
-    ctx.font = '700 24px "Cairo", sans-serif';
-    ctx.fillText('تطبيق التعليم المسيحي', brandX, brandMidY + 18);
-    // URL — clearly readable
-    ctx.fillStyle = 'rgba(255,255,255,0.95)';
-    ctx.font = '700 22px "Cairo", sans-serif';
-    ctx.fillText('min-el-batal.web.app', brandX, brandMidY + 56);
+    // Tag
+    ctx.font = '600 22px "Cairo", sans-serif';
+    ctx.fillStyle = c.sub;
+    ctx.fillText('تطبيق التعليم المسيحي', bX, bMid + 4);
+    // URL — accent colored, large
+    ctx.font = '800 26px "Cairo", sans-serif';
+    ctx.fillStyle = c.accent;
+    ctx.shadowColor = c.glow; ctx.shadowBlur = 10;
+    ctx.fillText('min-el-batal.web.app', bX, bMid + 46);
     ctx.restore();
 
     return canvas;
@@ -23201,22 +23241,61 @@ function shareVerseAsImage(postId) {
 
 function _verseImagePreview(blob, post) {
     var url = URL.createObjectURL(blob);
+    var textBlock = _verseShareTextBlock(post);
+    var escapedText = textBlock.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
     var overlay = document.createElement('div');
     overlay.className = 'modal-overlay verse-share-overlay';
     overlay.onclick = function(e) {
         if (e.target === overlay) { URL.revokeObjectURL(url); overlay.remove(); }
     };
-    var dlId = 'vsp-dl-' + Date.now();
-    overlay.innerHTML =
-        '<div class="modal-card verse-preview-card" onclick="event.stopPropagation()">' +
-            '<div class="verse-preview-head">صورة الآية جاهزة</div>' +
-            '<img class="verse-preview-img" src="' + url + '" alt="">' +
-            '<div class="verse-preview-actions">' +
-                '<a id="' + dlId + '" class="btn btn-primary" href="' + url + '" download="min-el-batal-verse.png"><span><i class="fas fa-download"></i> تحميل</span></a>' +
-                '<button class="btn btn-secondary" onclick="this.closest(\'.modal-overlay\').querySelector(\'a\').click()"><span><i class="fas fa-share-nodes"></i> حفظ ومشاركة</span></button>' +
-            '</div>' +
-            '<button class="btn btn-secondary verse-share-cancel" onclick="URL.revokeObjectURL(\'' + url + '\');this.closest(\'.modal-overlay\').remove()"><span>إغلاق</span></button>' +
-        '</div>';
+
+    var card = document.createElement('div');
+    card.className = 'modal-card verse-preview-card';
+    card.onclick = function(e) { e.stopPropagation(); };
+    card.innerHTML =
+        '<div class="verse-preview-head">صورة الآية جاهزة</div>' +
+        '<img class="verse-preview-img" src="' + url + '" alt="">' +
+        '<div class="verse-preview-caption">' +
+            '<pre class="verse-preview-text">' + escapedText + '</pre>' +
+            '<button class="verse-preview-copy-btn"><i class="fas fa-copy"></i> نسخ النص</button>' +
+        '</div>' +
+        '<div class="verse-preview-actions">' +
+            '<a class="btn btn-primary vp-dl-btn" href="' + url + '" download="min-el-batal-verse.png"><span><i class="fas fa-download"></i> تحميل الصورة</span></a>' +
+            '<button class="btn btn-secondary vp-share-btn"><span><i class="fas fa-share-nodes"></i> مشاركة</span></button>' +
+        '</div>' +
+        '<button class="btn btn-ghost verse-share-cancel"><span>إغلاق</span></button>';
+
+    // Copy text button
+    card.querySelector('.verse-preview-copy-btn').onclick = function() {
+        var btn = this;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(textBlock).then(function() {
+                btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ';
+                setTimeout(function() { btn.innerHTML = '<i class="fas fa-copy"></i> نسخ النص'; }, 2000);
+            }).catch(function() {});
+        }
+    };
+
+    // Share button — native share image+text, fall back to download
+    card.querySelector('.vp-share-btn').onclick = function() {
+        var file = null;
+        try { file = new File([blob], 'min-el-batal-verse.png', { type: 'image/png' }); } catch(e) {}
+        if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+            navigator.share({ files: [file], title: 'آية وتأمل', text: textBlock }).catch(function() {
+                card.querySelector('.vp-dl-btn').click();
+            });
+        } else {
+            card.querySelector('.vp-dl-btn').click();
+        }
+    };
+
+    // Close button
+    card.querySelector('.verse-share-cancel').onclick = function() {
+        URL.revokeObjectURL(url); overlay.remove();
+    };
+
+    overlay.appendChild(card);
     document.body.appendChild(overlay);
     setTimeout(function() { overlay.classList.add('active'); }, 10);
 }

@@ -106,7 +106,9 @@ const GameState = {
     statusMessage: '',
     suspendedUntil: 0,
     // Live content locks (subscribed from Firestore)
-    contentLocks: {}
+    contentLocks: {},
+    // Achievement post dedupe — persisted across sessions so milestone posts fire only once
+    celebrationsPosted: {}
 };
 
 // --- Firebase Initialization ---
@@ -988,6 +990,7 @@ function saveToCloud() {
         claimedBundles: GameState.claimedBundles || [],
         gender: GameState.gender || '',
         questionHistory: GameState.questionHistory || {},
+        celebrationsPosted: GameState.celebrationsPosted || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -5610,6 +5613,12 @@ function confetti() {
 
 // --- Logout ---
 function logout() {
+    try { if (typeof stopPresence === 'function') stopPresence(); } catch(e){}
+    try {
+        if (firebaseDb && GameState.playerPhone) {
+            firebaseDb.collection('presence').doc(GameState.playerPhone).delete().catch(function(){});
+        }
+    } catch(e){}
     GameState.playerName = '';
     GameState.playerPhone = '';
     GameState.username = '';
@@ -9553,6 +9562,9 @@ function renderHomeHub() {
             if (stars >= 1000)  postCelebration('stars_milestone', { value: 1000  });
         }
     } catch(e){}
+
+    // Start live presence tracking
+    try { if (typeof startPresence === 'function') startPresence(); } catch(e){}
 
     // Refresh unread social badge
     try { updateSocialUnreadBadge(); } catch(e){}
@@ -22586,6 +22598,66 @@ function renderVideoBody(post) {
     return html;
 }
 
+function sharePost(postId) {
+    var post = (socialState.posts || []).find(function(p) { return p._id === postId; });
+    if (!post) return;
+    var kind = post.kind || 'text';
+    var meta = post.meta || {};
+    var title, lines = [];
+
+    if (kind === 'verse') {
+        var verseText = meta.verseText || '';
+        var verseRef  = meta.verseRef  || '';
+        var reflection = meta.reflection || '';
+        title = '✝ آية وتأمل — مين البطل؟';
+        lines.push('✝ آية وتأمل');
+        lines.push('');
+        if (verseText) lines.push('❝ ' + verseText + ' ❞');
+        if (verseRef)  lines.push('— ' + verseRef);
+        if (reflection) {
+            lines.push('');
+            lines.push('🙏 تأمل:');
+            lines.push(reflection);
+        }
+        lines.push('');
+        lines.push('────────────────');
+        lines.push('🎮 العب معنا في مين البطل؟');
+        lines.push(APP_URL);
+    } else if (kind === 'achievement') {
+        title = '🏆 إنجاز — مين البطل؟';
+        lines.push('🏆 إنجاز رائع!');
+        var achPlayer = post.authorName || '';
+        var achTitle  = meta.title || meta.label || '';
+        if (achPlayer) lines.push(achPlayer + (achTitle ? ' حقق: ' + achTitle : ''));
+        lines.push('');
+        lines.push('🎮 العب معنا في مين البطل؟');
+        lines.push(APP_URL);
+    } else if (kind === 'competition') {
+        title = '⚡ منافسة — مين البطل؟';
+        lines.push('⚡ انضم للمنافسة الآن!');
+        if (meta.name) lines.push(meta.name);
+        if (meta.code) lines.push('كود الغرفة: ' + meta.code);
+        lines.push('');
+        lines.push('🎮 العب معنا في مين البطل؟');
+        lines.push(APP_URL);
+    } else if (kind === 'video') {
+        title = '🎬 فيديو — مين البطل؟';
+        if (meta.title) lines.push('🎬 ' + meta.title);
+        if (post.text)  lines.push(post.text);
+        lines.push('');
+        lines.push('🎮 شاهده في مين البطل؟');
+        lines.push(APP_URL);
+    } else {
+        title = 'مين البطل؟';
+        if (post.text) lines.push(post.text);
+        lines.push('');
+        lines.push('🎮 العب معنا في مين البطل؟');
+        lines.push(APP_URL);
+    }
+
+    qaDoShare(title, lines.join('\n'));
+}
+
 function playVideoInPost(postId, videoId) {
     var wrap = document.getElementById('vid-thumb-' + postId);
     if (!wrap || !videoId) return;
@@ -23292,6 +23364,94 @@ function postCelebration(type, vars) {
         expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
         celebrationKey: dedupeKey
     }).catch(function(err) { console.warn('[social] postCelebration error', err); });
+}
+
+// ══════════════════════════════════════════════════════════
+// LIVE PRESENCE — show who's online in the home hub
+// ══════════════════════════════════════════════════════════
+var presenceState = {
+    heartbeatTimer: null,
+    unsub: null,
+    onlineList: [],
+    visibilityHandlerBound: false
+};
+
+function startPresence() {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    _writePresence();
+    if (presenceState.heartbeatTimer) clearInterval(presenceState.heartbeatTimer);
+    presenceState.heartbeatTimer = setInterval(function() {
+        if (document.visibilityState === 'visible' && GameState.playerPhone) {
+            _writePresence();
+        }
+    }, 60 * 1000);
+    if (!presenceState.visibilityHandlerBound) {
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'visible' && GameState.playerPhone) _writePresence();
+        });
+        presenceState.visibilityHandlerBound = true;
+    }
+    if (presenceState.unsub) { try { presenceState.unsub(); } catch(e){} presenceState.unsub = null; }
+    var cutoff = new Date(Date.now() - 2 * 60 * 1000);
+    try {
+        presenceState.unsub = firebaseDb.collection('presence')
+            .where('lastSeen', '>=', firebase.firestore.Timestamp.fromDate(cutoff))
+            .orderBy('lastSeen', 'desc')
+            .limit(30)
+            .onSnapshot(function(snap) {
+                var list = [];
+                var nowMs = Date.now();
+                snap.forEach(function(d) {
+                    var p = d.data() || {};
+                    if (d.id === GameState.playerPhone) return;
+                    if (p.lastSeen && p.lastSeen.toMillis && (nowMs - p.lastSeen.toMillis()) > 120000) return;
+                    list.push({
+                        phone: d.id,
+                        name: p.name || 'بطل',
+                        avatar: p.avatar || 'images/default-avatar.png'
+                    });
+                });
+                presenceState.onlineList = list;
+                renderOnlineNow();
+            }, function(err) { console.warn('[presence] subscribe error', err); });
+    } catch(e) { console.warn('[presence] start error', e); }
+}
+
+function stopPresence() {
+    if (presenceState.heartbeatTimer) { clearInterval(presenceState.heartbeatTimer); presenceState.heartbeatTimer = null; }
+    if (presenceState.unsub) { try { presenceState.unsub(); } catch(e){} presenceState.unsub = null; }
+    presenceState.onlineList = [];
+    renderOnlineNow();
+}
+
+function _writePresence() {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    var ch = CHARACTERS[GameState.character];
+    var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
+    firebaseDb.collection('presence').doc(GameState.playerPhone).set({
+        name: GameState.playerName || 'بطل',
+        avatar: avatar,
+        lastSeen: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(err) { console.warn('[presence] write error', err); });
+}
+
+function renderOnlineNow() {
+    var widget = document.getElementById('online-now-widget');
+    var list   = document.getElementById('online-now-list');
+    var count  = document.getElementById('online-now-count');
+    if (!widget || !list || !count) return;
+    var data = presenceState.onlineList || [];
+    if (data.length === 0) { widget.style.display = 'none'; return; }
+    widget.style.display = 'block';
+    count.textContent = data.length;
+    list.innerHTML = data.map(function(p) {
+        var av = escapeAttr(p.avatar);
+        var nm = escapeHtmlSimple(p.name);
+        return '<div class="online-player" title="' + nm + '">'
+            +   '<div class="online-player-av"><img loading="lazy" src="' + av + '" onerror="this.src=\'images/default-avatar.png\'"><div class="online-player-dot"></div></div>'
+            +   '<div class="online-player-name">' + nm + '</div>'
+            + '</div>';
+    }).join('');
 }
 
 // Count total lessons (stations) the player has unlocked/completed across all subjects.

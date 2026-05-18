@@ -147,6 +147,29 @@ button{font-family:'Cairo',sans-serif;cursor:pointer}
   background:none;border:none;width:100%;transition:all var(--trans)
 }
 .btn-logout:hover{color:var(--red);background:rgba(248,113,113,.08)}
+/* Profile nav (who-badge as clickable entry) */
+.who-badge{cursor:pointer;transition:background .15s,border-color .15s,box-shadow .15s}
+.who-badge:hover{background:rgba(124,106,247,.22)!important;border-color:rgba(124,106,247,.5)!important}
+.who-badge.wb-active{background:rgba(124,106,247,.25)!important;border-color:var(--accent2)!important;box-shadow:0 0 0 2px rgba(124,106,247,.18)!important}
+.wb-edit-hint{font-size:10px;color:var(--muted2);display:flex;align-items:center;gap:3px;margin-top:3px;opacity:.7}
+/* Profile page */
+.profile-hero-card{overflow:visible;margin-bottom:18px;padding:0}
+.profile-hero-band{height:88px;background:linear-gradient(135deg,rgba(124,106,247,.45) 0%,rgba(99,102,241,.6) 100%);border-radius:var(--radius) var(--radius) 0 0;position:relative;overflow:hidden}
+.profile-hero-band::after{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='20' cy='20' r='1.5' fill='rgba(255,255,255,.08)'/%3E%3C/svg%3E") repeat}
+.profile-hero-body{display:flex;flex-direction:column;align-items:center;padding:0 20px 24px}
+.profile-av-outer{margin-top:-46px;position:relative;cursor:pointer;border-radius:50%;border:4px solid var(--card);box-shadow:0 4px 22px rgba(0,0,0,.4);flex-shrink:0}
+.profile-av-outer:hover .profile-av-cam-ov{opacity:1}
+.profile-av-cam-ov{position:absolute;inset:0;border-radius:50%;background:rgba(0,0,0,.52);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;opacity:0;transition:opacity .2s;pointer-events:none}
+.profile-hero-name{font-size:20px;font-weight:900;margin-top:12px;text-align:center;letter-spacing:-.2px}
+.profile-hero-role-badge{font-size:11px;font-weight:700;padding:3px 14px;border-radius:99px;margin-top:6px;letter-spacing:.3px}
+.profile-hero-role-badge.super{background:rgba(212,160,23,.15);color:var(--gold);border:1px solid rgba(212,160,23,.35)}
+.profile-hero-role-badge.admin{background:rgba(124,106,247,.15);color:var(--accent2);border:1px solid rgba(124,106,247,.35)}
+.profile-hero-phone{font-size:12px;color:var(--muted);margin-top:5px;direction:ltr}
+.profile-cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.profile-field-grp{margin-bottom:14px}
+.profile-lbl{font-size:11px;font-weight:700;color:var(--muted);display:flex;align-items:center;gap:5px;margin-bottom:5px}
+.profile-lbl i{width:12px;text-align:center;flex-shrink:0}
+@media(max-width:640px){.profile-cards-grid{grid-template-columns:1fr}}
 
 .topbar{
   position:fixed;top:0;right:var(--sw);left:0;height:var(--th);
@@ -846,6 +869,9 @@ body::before{
 }
 .sidebar-foot{border-top:1px solid rgba(184,134,11,.15)!important}
 .btn-logout:hover{background:rgba(220,38,38,.08)!important}
+.who-badge:hover{background:rgba(212,160,23,.22)!important;border-color:rgba(212,160,23,.6)!important}
+.who-badge.wb-active{background:rgba(212,160,23,.28)!important;border-color:var(--gold)!important;box-shadow:0 0 0 2px rgba(212,160,23,.18)!important}
+.profile-hero-band{background:linear-gradient(135deg,rgba(212,160,23,.40) 0%,rgba(184,134,11,.55) 100%)!important}
 
 /* TOPBAR */
 .topbar{
@@ -1424,9 +1450,13 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       <div class="sidebar-logo-icon">🛡️</div>
       <div><div class="sidebar-logo" style="padding:0;border:none"><h2 style="font-size:13px;font-weight:900">لوحة الإدارة</h2><p>مين البطل؟</p></div></div>
     </div>
-    <div class="who-badge">
+    <div class="who-badge" onclick="goProfile()" title="الملف الشخصي">
       <div style="font-size:20px" id="wb-ico">👤</div>
-      <div><div class="wb-name" id="wb-name">—</div><div class="wb-role" id="wb-role">—</div></div>
+      <div style="flex:1;min-width:0">
+        <div class="wb-name" id="wb-name">—</div>
+        <div class="wb-role" id="wb-role">—</div>
+        <div class="wb-edit-hint"><i class="fas fa-pen" style="font-size:9px"></i> تعديل الملف الشخصي</div>
+      </div>
     </div>
     <nav class="sidebar-nav">
       <div class="nav-grp">
@@ -1456,7 +1486,6 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       </div>
     </nav>
     <div class="sidebar-foot">
-      <button class="btn-profile" onclick="goProfile()"><i class="fas fa-user-circle"></i> ملفي الشخصي</button>
       <button class="btn-logout" onclick="doLogout()"><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</button>
     </div>
   </aside>
@@ -1918,41 +1947,52 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
     <!-- PROFILE -->
     <div class="page" id="page-profile">
       <div class="ph"><h2><i class="fas fa-user-circle" style="color:var(--accent2)"></i> ملفي الشخصي</h2><p>تعديل الاسم والصورة وكلمة السر</p></div>
-      <div class="g2">
+
+      <!-- Hero card -->
+      <div class="card profile-hero-card">
+        <div class="profile-hero-band"></div>
+        <div class="profile-hero-body">
+          <div class="profile-av-outer" onclick="document.getElementById('profile-av-file').click()">
+            <div id="profile-av-wrap" style="width:92px;height:92px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:46px;background:rgba(255,255,255,.06)"></div>
+            <div class="profile-av-cam-ov"><i class="fas fa-camera"></i></div>
+          </div>
+          <input type="file" id="profile-av-file" accept="image/*" style="display:none" onchange="previewAdminAvatar(this)">
+          <div id="profile-hero-name" class="profile-hero-name">—</div>
+          <div id="profile-hero-role" class="profile-hero-role-badge admin"></div>
+          <div id="profile-hero-phone" class="profile-hero-phone"></div>
+          <div id="profile-av-note" style="font-size:11px;color:var(--muted);text-align:center;margin-top:6px;min-height:16px"></div>
+        </div>
+      </div>
+
+      <!-- Info + Password cards -->
+      <div class="profile-cards-grid">
         <div class="card">
-          <div class="ch"><h3><i class="fas fa-id-card"></i> المعلومات الشخصية</h3></div>
+          <div class="ch"><h3><i class="fas fa-pen-to-square"></i> تعديل المعلومات</h3></div>
           <div class="cb" style="padding:20px">
-            <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:22px">
-              <div id="profile-av-wrap" style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:40px;background:rgba(255,255,255,.04)"></div>
-              <input type="file" id="profile-av-file" accept="image/*" style="display:none" onchange="previewAdminAvatar(this)">
-              <button class="btn bg bsm" onclick="document.getElementById('profile-av-file').click()"><i class="fas fa-camera"></i> تغيير الصورة</button>
-              <div id="profile-av-note" style="font-size:11px;color:var(--muted);text-align:center"></div>
-            </div>
-            <div style="margin-bottom:14px">
-              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">الاسم</label>
+            <div class="profile-field-grp">
+              <label class="profile-lbl"><i class="fas fa-user"></i> الاسم الكامل</label>
               <input type="text" id="profile-name-inp" class="finput" placeholder="اكتب اسمك">
             </div>
-            <div style="margin-bottom:16px;font-size:12px;color:var(--muted)">رقم التليفون: <span id="profile-phone-disp" dir="ltr" style="font-weight:700;color:var(--text)"></span></div>
-            <button class="btn bp" style="width:100%" onclick="saveProfileInfo(event)"><i class="fas fa-save"></i> حفظ المعلومات</button>
+            <button class="btn bp" style="width:100%;margin-top:4px" onclick="saveProfileInfo(event)"><i class="fas fa-save"></i> حفظ المعلومات</button>
             <div id="profile-info-msg" style="margin-top:8px;font-size:12px;text-align:center"></div>
           </div>
         </div>
         <div class="card" id="profile-pass-card">
           <div class="ch"><h3><i class="fas fa-key"></i> تغيير كلمة السر</h3></div>
           <div class="cb" style="padding:20px">
-            <div style="margin-bottom:12px">
-              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">كلمة السر الحالية</label>
+            <div class="profile-field-grp">
+              <label class="profile-lbl"><i class="fas fa-lock"></i> كلمة السر الحالية</label>
               <input type="password" id="profile-old-pass" class="finput" placeholder="كلمة السر الحالية">
             </div>
-            <div style="margin-bottom:12px">
-              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">كلمة السر الجديدة</label>
+            <div class="profile-field-grp">
+              <label class="profile-lbl"><i class="fas fa-lock-open"></i> كلمة السر الجديدة</label>
               <input type="password" id="profile-new-pass" class="finput" placeholder="٦ حروف على الأقل">
             </div>
-            <div style="margin-bottom:16px">
-              <label style="font-size:12px;font-weight:700;color:var(--muted);display:block;margin-bottom:5px">تأكيد كلمة السر</label>
+            <div class="profile-field-grp">
+              <label class="profile-lbl"><i class="fas fa-check-double"></i> تأكيد كلمة السر</label>
               <input type="password" id="profile-new-pass2" class="finput" placeholder="أعد كتابة كلمة السر الجديدة">
             </div>
-            <button class="btn bp" style="width:100%" onclick="saveProfilePassword(event)"><i class="fas fa-key"></i> تغيير كلمة السر</button>
+            <button class="btn bp" style="width:100%;margin-top:4px" onclick="saveProfilePassword(event)"><i class="fas fa-key"></i> تغيير كلمة السر</button>
             <div id="profile-pass-msg" style="margin-top:8px;font-size:12px;text-align:center"></div>
           </div>
         </div>
@@ -2257,10 +2297,25 @@ function goProfile() {
   document.getElementById('sidebar-overlay').style.display='none';
   document.getElementById('tb-title').childNodes[0].textContent='ملفي الشخصي ';
   document.getElementById('tb-sub').textContent='الإعدادات';
+  // Mark who-badge active, clear nav-btn active states
+  document.querySelectorAll('.nav-btn').forEach(function(b){ b.classList.remove('active'); });
+  var wb = document.querySelector('.who-badge');
+  if (wb) wb.classList.add('wb-active');
   _profileAvatarFile = null;
+  // Populate hero
+  var heroName = document.getElementById('profile-hero-name');
+  var heroRole = document.getElementById('profile-hero-role');
+  var heroPhone = document.getElementById('profile-hero-phone');
+  if (heroName) heroName.textContent = me.name || '—';
+  if (heroRole) {
+    var isSup = me.role === 'superadmin';
+    heroRole.textContent = isSup ? '👑 المسؤول الأعلى' : '🛡️ أدمن';
+    heroRole.className = 'profile-hero-role-badge ' + (isSup ? 'super' : 'admin');
+  }
+  if (heroPhone) heroPhone.textContent = me.phone || '';
+  // Populate form
   document.getElementById('profile-name-inp').value = me.name || '';
-  document.getElementById('profile-phone-disp').textContent = me.phone || '';
-  _setStableAvatar('profile-av-wrap', me.avatar || null, me.role==='superadmin' ? '👑' : '🛡️', 80);
+  _setStableAvatar('profile-av-wrap', me.avatar || null, me.role==='superadmin' ? '👑' : '🛡️', 92);
   var passCard = document.getElementById('profile-pass-card');
   if (passCard) passCard.style.display = me.role==='superadmin' ? 'none' : '';
   ['profile-info-msg','profile-pass-msg','profile-av-note'].forEach(function(id){
@@ -2280,7 +2335,7 @@ function previewAdminAvatar(input) {
   note.textContent='✅ صورة جاهزة للرفع، اضغط "حفظ المعلومات"'; note.style.color='var(--green)';
   var reader = new FileReader();
   reader.onload = function(e) {
-    _setStableAvatar('profile-av-wrap', e.target.result, '', 80);
+    _setStableAvatar('profile-av-wrap', e.target.result, '', 92);
   };
   reader.readAsDataURL(file);
 }
@@ -2364,7 +2419,8 @@ async function saveProfileInfo(ev) {
     saveSession(me, false);
     document.getElementById('wb-name').textContent = name;
     _setStableAvatar('wb-ico', avatarUrl, me.role==='superadmin'?'👑':'🛡️', 28);
-    _setStableAvatar('profile-av-wrap', avatarUrl, me.role==='superadmin'?'👑':'🛡️', 80);
+    _setStableAvatar('profile-av-wrap', avatarUrl, me.role==='superadmin'?'👑':'🛡️', 92);
+    var hn=document.getElementById('profile-hero-name'); if(hn) hn.textContent=name;
     msg.style.color='var(--green)'; msg.textContent='✅ تم الحفظ بنجاح';
   } catch(e) {
     console.error(e); msg.textContent='خطأ: '+e.message;
@@ -2602,6 +2658,7 @@ function goPage(name) {
   if(typeof tcStop==='function' && name!=='tour-console') tcStop();
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+  var wb=document.querySelector('.who-badge'); if(wb) wb.classList.remove('wb-active');
   document.getElementById('page-'+name).classList.add('active');
   const nb=document.querySelector(`[onclick="goPage('${name}')"]`);
   if(nb) nb.classList.add('active');

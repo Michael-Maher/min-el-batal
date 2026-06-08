@@ -9679,6 +9679,9 @@ function showFloatingReward(text) {
 
 // --- Confetti System ---
 function launchConfetti(duration) {
+    // Reusable physics-based canvas confetti (game-engine FX) layered on top
+    try { if (typeof CanvasFX !== 'undefined') CanvasFX.confetti(Math.min(duration || 3000, 2600)); } catch (e) {}
+
     var container = document.createElement('div');
     container.className = 'confetti-container';
     document.body.appendChild(container);
@@ -11689,6 +11692,47 @@ function renderMiniGamesSection() {
 
     html += '</div>'; // modern-games-grid
 
+    // === CANVAS ACTION GAMES (game-engine) — only on lessons that have them ===
+    var actGames = getActionGamesForLesson();
+    if (actGames) {
+        html += '<div class="mini-games-header action-header" style="margin-top:24px">';
+        html += '<div class="modern-header-badge action-badge">🎮 أكشن</div>';
+        html += '<h3><i class="fas fa-gamepad"></i> ألعاب الحركة</h3>';
+        html += '<p>ألعاب كانفاس سريعة — اتحكم باللمس! 🏆 مكافآت إضافية</p>';
+        html += '</div>';
+        html += '<div class="mini-games-grid action-games-grid">';
+
+        if (actGames.risingLight) {
+            html += '<div class="mini-game-card mg-action mg-rising" onclick="startMiniGame(\'risingLight\')">';
+            html += '<div class="mg-card-icon">✨</div>';
+            html += '<h4>النور الصاعد</h4>';
+            html += '<p>اجمع النور وابعد عن الظلمة!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-gem"></i> جمز + خبرة</div>';
+            html += getMiniGameBadge('risingLight');
+            html += '</div>';
+        }
+        if (actGames.threeImmersions) {
+            html += '<div class="mini-game-card mg-action mg-immerse" onclick="startMiniGame(\'threeImmersions\')">';
+            html += '<div class="mg-card-icon">💧</div>';
+            html += '<h4>الغطسات الثلاث</h4>';
+            html += '<p>دوس في الوقت الصح!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-gem"></i> جمز + خبرة</div>';
+            html += getMiniGameBadge('threeImmersions');
+            html += '</div>';
+        }
+        if (actGames.prodigalRun) {
+            html += '<div class="mini-game-card mg-action mg-prodigal" onclick="startMiniGame(\'prodigalRun\')">';
+            html += '<div class="mg-card-icon">🏃</div>';
+            html += '<h4>رحلة الابن الضال</h4>';
+            html += '<p>اقفز واجمع الفضائل وارجع للأب!</p>';
+            html += '<div class="mg-card-reward"><i class="fas fa-gem"></i> جمز + خبرة</div>';
+            html += getMiniGameBadge('prodigalRun');
+            html += '</div>';
+        }
+
+        html += '</div>';
+    }
+
     html += '</div>';
     return html;
 }
@@ -12317,6 +12361,11 @@ function startMiniGame(type) {
     if (type === 'verseMemory') { initAudio(); startVerseMemory(true); return; }
     if (type === 'quickQuiz') { initAudio(); startQuickQuizFromLesson(); return; }
     if (type === 'tfBlitz') { initAudio(); startTFBlitzFromLesson(); return; }
+
+    // Canvas action games (game-engine) — bonus arcade games for the last 3 العقيدة lessons
+    if (type === 'risingLight')     { initAudio(); startRisingLight();     return; }
+    if (type === 'threeImmersions') { initAudio(); startThreeImmersions(); return; }
+    if (type === 'prodigalRun')     { initAudio(); startProdigalRun();     return; }
 
     // Modern games (Gen-Z zone)
     if (type === 'swipeTruth')    { initAudio(); startSwipeTruth();    return; }
@@ -24049,4 +24098,625 @@ function updateSocialUnreadBadge() {
             }
         })
         .catch(function() {});
+}
+
+/* ============================================================================
+   CANVAS ACTION GAMES  (built with the game-engine skill)
+   Three distinct arcade mechanics themed to the last 3 العقيدة lessons:
+     faith_3 القيامة والمجيء الثاني → النور الصاعد        (catcher)
+     faith_4 المعمودية والميرون      → الغطسات الثلاث      (timing / rhythm)
+     faith_5 التوبة والاعتراف        → رحلة الابن الضال    (endless runner)
+   Plus CanvasFX: a reusable physics-based particle/confetti engine for wins.
+   These are BONUS games: they award gems + XP and record a best-score badge,
+   but do NOT feed the station-unlock buckets (progression stays untouched).
+   ============================================================================ */
+
+// ---- Reusable canvas particle FX (gravity + rotation + fade) ---------------
+var CanvasFX = (function () {
+    var canvas = null, ctx = null, dpr = 1, parts = [], raf = 0, W = 0, H = 0;
+    var COLORS = ['#6C5CE7', '#00CEC9', '#FDCB6E', '#FD79A8', '#00B894', '#FF6B6B', '#a29bfe', '#74b9ff'];
+    var SHAPES = ['■', '●', '▲', '★', '♦', '✝'];
+
+    function resize() {
+        if (!canvas) return;
+        dpr = Math.min(window.devicePixelRatio || 1, 2);
+        W = window.innerWidth; H = window.innerHeight;
+        canvas.width = W * dpr; canvas.height = H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function ensure() {
+        if (canvas) return;
+        canvas = document.createElement('canvas');
+        canvas.id = 'canvas-fx';
+        canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:99998';
+        document.body.appendChild(canvas);
+        ctx = canvas.getContext('2d');
+        resize();
+        window.addEventListener('resize', resize);
+    }
+    function loop() {
+        if (!ctx) { raf = 0; return; }
+        ctx.clearRect(0, 0, W, H);
+        for (var i = parts.length - 1; i >= 0; i--) {
+            var p = parts[i];
+            p.vy += p.g; p.vx *= 0.99;
+            p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life--;
+            var alpha = Math.max(0, Math.min(1, p.life / p.fade));
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.translate(p.x, p.y);
+            ctx.rotate(p.rot);
+            if (p.text) {
+                ctx.font = '700 ' + p.size + 'px sans-serif';
+                ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                ctx.fillStyle = p.color;
+                ctx.fillText(p.text, 0, 0);
+            } else {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.62);
+            }
+            ctx.restore();
+            if (p.life <= 0 || p.y > H + 50) parts.splice(i, 1);
+        }
+        raf = parts.length ? requestAnimationFrame(loop) : 0;
+    }
+    function start() { if (!raf) raf = requestAnimationFrame(loop); }
+    function burst(x, y, opts) {
+        ensure(); opts = opts || {};
+        var n = opts.count || 30, colors = opts.colors || COLORS, spd = opts.speed || 7.5;
+        for (var i = 0; i < n; i++) {
+            var a = Math.random() * Math.PI * 2, v = spd * (0.4 + Math.random() * 0.9);
+            parts.push({
+                x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 2.5,
+                g: opts.gravity == null ? 0.2 : opts.gravity,
+                rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.45,
+                size: opts.size || (8 + Math.random() * 9),
+                life: 55 + Math.random() * 35, fade: 70,
+                color: colors[(Math.random() * colors.length) | 0],
+                text: opts.emoji || (opts.shapes !== false ? SHAPES[(Math.random() * SHAPES.length) | 0] : null)
+            });
+        }
+        start();
+    }
+    function confetti(duration, opts) {
+        ensure(); opts = opts || {};
+        var end = Date.now() + (duration || 2200);
+        (function spawn() {
+            for (var i = 0; i < 7; i++) {
+                parts.push({
+                    x: Math.random() * W, y: -20,
+                    vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3.5, g: 0.045,
+                    rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.3,
+                    size: 8 + Math.random() * 9, life: 240, fade: 60,
+                    color: COLORS[(Math.random() * COLORS.length) | 0],
+                    text: Math.random() < 0.3 ? SHAPES[(Math.random() * SHAPES.length) | 0] : null
+                });
+            }
+            start();
+            if (Date.now() < end) setTimeout(spawn, 75);
+        })();
+    }
+    function fireworks(n) {
+        ensure();
+        for (var i = 0; i < (n || 4); i++) {
+            (function (k) {
+                setTimeout(function () {
+                    burst(W * (0.2 + Math.random() * 0.6), H * (0.2 + Math.random() * 0.35),
+                        { count: 34, speed: 9, gravity: 0.12 });
+                }, k * 280);
+            })(i);
+        }
+    }
+    return { burst: burst, confetti: confetti, fireworks: fireworks };
+})();
+
+// ---- Shared lightweight action-game engine (loop + input + lifecycle) ------
+var ActionEngine = { raf: 0, last: 0, canvas: null, ctx: null, W: 0, H: 0, dpr: 1, onFrame: null, alive: false, listeners: [] };
+
+function actionGameStop() {
+    if (ActionEngine.raf) cancelAnimationFrame(ActionEngine.raf);
+    ActionEngine.raf = 0; ActionEngine.alive = false; ActionEngine.onFrame = null;
+    (ActionEngine.listeners || []).forEach(function (l) {
+        try { l.el.removeEventListener(l.type, l.fn, l.opts); } catch (e) {}
+    });
+    ActionEngine.listeners = [];
+}
+
+function actionGameShell(title, icon) {
+    var container = document.getElementById('l2-lesson-body');
+    if (!container) return null;
+    var html = '<div class="mini-game-screen action-game-screen">';
+    html += '<div class="mg-header"><div class="mg-title"><i class="fas fa-' + icon + '"></i> ' + title + '</div>';
+    html += '<button class="ag-exit-btn" onclick="exitActionGame()" aria-label="خروج"><i class="fas fa-times"></i></button></div>';
+    html += '<div class="ag-stage"><canvas id="action-canvas"></canvas>';
+    html += '<div class="ag-overlay" id="ag-overlay"></div></div>';
+    html += '<div class="ag-hint" id="ag-hint"></div>';
+    html += '</div>';
+    container.innerHTML = html;
+    return document.getElementById('action-canvas');
+}
+
+function exitActionGame() {
+    actionGameStop();
+    miniGameState.type = null;
+    level2State.currentStage = 'games';
+    renderLevel2Lesson();
+}
+
+function actionGameRun(canvas, onFrame) {
+    var ctx = canvas.getContext('2d');
+    function fit() {
+        var rect = canvas.getBoundingClientRect();
+        var dpr = Math.min(window.devicePixelRatio || 1, 2);
+        ActionEngine.dpr = dpr;
+        ActionEngine.W = rect.width || canvas.offsetWidth || 320;
+        ActionEngine.H = rect.height || canvas.offsetHeight || 480;
+        canvas.width = ActionEngine.W * dpr; canvas.height = ActionEngine.H * dpr;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    fit();
+    var onResize = function () { fit(); };
+    window.addEventListener('resize', onResize);
+    ActionEngine.listeners.push({ el: window, type: 'resize', fn: onResize });
+    ActionEngine.canvas = canvas; ActionEngine.ctx = ctx;
+    ActionEngine.onFrame = onFrame; ActionEngine.alive = true;
+    ActionEngine.last = performance.now();
+    function frame(now) {
+        if (!ActionEngine.alive) return;
+        if (!document.getElementById('action-canvas')) { actionGameStop(); return; }
+        var dt = Math.min((now - ActionEngine.last) / 1000, 0.05);
+        ActionEngine.last = now;
+        try { ActionEngine.onFrame(dt, ctx, ActionEngine.W, ActionEngine.H); }
+        catch (e) { console.warn('action frame error', e); actionGameStop(); return; }
+        ActionEngine.raf = requestAnimationFrame(frame);
+    }
+    ActionEngine.raf = requestAnimationFrame(frame);
+}
+
+function agOn(el, type, fn, opts) {
+    el.addEventListener(type, fn, opts || false);
+    ActionEngine.listeners.push({ el: el, type: type, fn: fn, opts: opts || false });
+}
+function agPoint(e, canvas) {
+    var rect = canvas.getBoundingClientRect();
+    var p = (e.touches && e.touches[0]) || (e.changedTouches && e.changedTouches[0]) || e;
+    return { x: p.clientX - rect.left, y: p.clientY - rect.top };
+}
+function agChip(ctx, cx, cy, text, bg, fg, fontPx) {
+    fontPx = fontPx || 14;
+    ctx.font = '800 ' + fontPx + 'px "Cairo",sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.direction = 'rtl';
+    var w = ctx.measureText(text).width + 22, h = fontPx + 14;
+    agRoundRect(ctx, cx - w / 2, cy - h / 2, w, h, h / 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.fillStyle = fg; ctx.fillText(text, cx, cy + 1);
+    return { w: w, h: h };
+}
+function agRoundRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
+}
+
+// Shared result screen for the action games (overlay on top of the stage)
+function showActionGameResult(opts) {
+    actionGameStop();
+    miniGameState.type = opts.type;
+    miniGameState.score = opts.score;
+    miniGameState.total = opts.max || 0;
+    saveMiniGameScore(opts.type, opts.score);      // best-score badge + gems, buckets untouched
+    if (opts.xp) awardXP(opts.xp, opts.title);
+
+    var pct = opts.max ? Math.round(opts.score / opts.max * 100) : 0;
+    var win = opts.win || pct >= 80;
+    var emoji = win ? '🏆' : (pct >= 55 ? '🌟' : (pct >= 30 ? '👏' : '💪'));
+    var message = opts.message || (win ? 'بطل! أداء رائع!' : (pct >= 55 ? 'برافو عليك!' : (pct >= 30 ? 'كويس، كمّل!' : 'حاول تاني هتعمل أحسن!')));
+
+    var html = '<div class="ag-result">';
+    html += '<div class="ag-result-emoji">' + emoji + '</div>';
+    html += '<h3>' + opts.title + '</h3>';
+    html += '<div class="ag-result-score">' + opts.score + (opts.max ? ' / ' + opts.max : '') + '</div>';
+    html += '<div class="ag-result-msg">' + message + '</div>';
+    if (opts.lines && opts.lines.length) {
+        html += '<div class="ag-result-lines">';
+        opts.lines.forEach(function (l) { html += '<span>' + l + '</span>'; });
+        html += '</div>';
+    }
+    html += '<div class="ag-result-btns">';
+    html += '<button class="btn btn-primary" onclick="startMiniGame(\'' + opts.type + '\')"><span><i class="fas fa-redo"></i> العب تاني</span></button>';
+    html += '<button class="btn btn-secondary" onclick="exitActionGame()"><span><i class="fas fa-arrow-right"></i> رجوع</span></button>';
+    html += '</div></div>';
+
+    var overlay = document.getElementById('ag-overlay');
+    if (overlay) { overlay.innerHTML = html; overlay.classList.add('show'); }
+
+    if (win) {
+        if (typeof playVictorySound === 'function') playVictorySound();
+        CanvasFX.confetti(2200);
+        setTimeout(function () { CanvasFX.fireworks(3); }, 300);
+    } else if (pct >= 40) {
+        if (typeof playCorrectSound === 'function') playCorrectSound();
+        CanvasFX.confetti(1200);
+    }
+}
+
+function getActionGamesForLesson() {
+    var key = level2State.currentSubject + '_' + level2State.currentLesson;
+    return ACTION_GAMES[key] || null;
+}
+
+// ---- Per-lesson content for the action games ------------------------------
+var ACTION_GAMES = {
+    'faith_3': {
+        risingLight: {
+            good: ['قام بالحقيقة', 'النور غلب الظلمة', 'جسد ممجد', 'حياة أبدية', 'أين شوكتك يا موت؟', 'المسيح قام', 'رجاء القيامة', 'الفردوس'],
+            bad: ['الموت', 'باطلة الكرازة', 'اليأس', 'القبر المغلق', 'الظلمة']
+        }
+    },
+    'faith_4': {
+        threeImmersions: {
+            steps: ['باسم الآبِ', 'والابنِ', 'والروحِ القدس'],
+            miron: ['رشم الرأس (٨)', 'رشم اليدين (١٢)', 'رشم الأرجل (١٢)', 'رشم الصدر', 'رشم الظهر']
+        }
+    },
+    'faith_5': {
+        prodigalRun: {
+            virtues: ['صدق', 'محاسبة', 'اعتراف', 'توبة', 'رجوع', 'تواضع'],
+            obstacles: ['تبرير', 'تأجيل', 'خجل', 'يأس', 'كبرياء']
+        }
+    }
+};
+
+/* ======================= GAME 1: النور الصاعد (catcher) ===================== */
+function startRisingLight() {
+    actionGameStop();
+    miniGameState = { type: 'risingLight', score: 0, total: 0 };
+    var data = (getActionGamesForLesson() || {}).risingLight || ACTION_GAMES['faith_3'].risingLight;
+    var canvas = actionGameShell('النور الصاعد ✨', 'sun');
+    if (!canvas) return;
+    var hint = document.getElementById('ag-hint');
+    if (hint) hint.innerHTML = '<i class="fas fa-hand-pointer"></i> حرّك إصبعك يمين وشمال — اجمع النور (✝ ⭐ 🕊) وابعد عن الظلمة (💀 🌑)';
+
+    var GOOD = ['✝', '⭐', '🕊', '☀'], BAD = ['💀', '🌑', '⛈'];
+    var st = {
+        bx: 0.5, bw: 78, items: [], spawnT: 0, every: 0.95,
+        lives: 3, score: 0, light: 0, time: 0, duration: 48, fall: 120,
+        popups: [], flash: 0, target: null, started: false
+    };
+
+    agOn(canvas, 'touchmove', function (e) { e.preventDefault(); st.target = agPoint(e, canvas).x; }, { passive: false });
+    agOn(canvas, 'touchstart', function (e) { e.preventDefault(); st.target = agPoint(e, canvas).x; st.started = true; }, { passive: false });
+    agOn(canvas, 'mousemove', function (e) { st.target = agPoint(e, canvas).x; });
+    agOn(canvas, 'mousedown', function (e) { st.target = agPoint(e, canvas).x; st.started = true; });
+
+    function spawn(W) {
+        var good = Math.random() > 0.34;
+        st.items.push({
+            x: 30 + Math.random() * (W - 60), y: -28,
+            vy: st.fall * (0.78 + Math.random() * 0.6),
+            good: good, emoji: good ? GOOD[(Math.random() * GOOD.length) | 0] : BAD[(Math.random() * BAD.length) | 0],
+            r: 20
+        });
+    }
+    function pop(x, y, txt, color) { st.popups.push({ x: x, y: y, txt: txt, color: color, life: 1 }); }
+
+    actionGameRun(canvas, function (dt, ctx, W, H) {
+        var baseY = H - 56;
+        if (st.target == null) st.target = W * 0.5;
+        st.bx += ((st.target) - st.bx) * Math.min(1, dt * 12);
+        st.bx = Math.max(st.bw / 2, Math.min(W - st.bw / 2, st.bx));
+
+        st.time += dt;
+        var diff = 1 + st.time / 26;
+        st.spawnT += dt;
+        if (st.spawnT >= st.every / diff) { st.spawnT = 0; spawn(W); }
+
+        // background — tomb at dawn
+        var g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#1a1140'); g.addColorStop(0.55, '#241a55'); g.addColorStop(1, '#0c0820');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        // rising rays from the basket
+        ctx.save(); ctx.globalAlpha = 0.10 + st.light / 100 * 0.18;
+        for (var r = 0; r < 7; r++) {
+            ctx.fillStyle = '#FDCB6E';
+            ctx.beginPath(); ctx.moveTo(st.bx, baseY);
+            var a1 = -Math.PI / 2 + (r - 3) * 0.22;
+            ctx.lineTo(st.bx + Math.cos(a1) * H, baseY + Math.sin(a1) * H);
+            ctx.lineTo(st.bx + Math.cos(a1 + 0.06) * H, baseY + Math.sin(a1 + 0.06) * H);
+            ctx.closePath(); ctx.fill();
+        }
+        ctx.restore();
+
+        // items
+        for (var i = st.items.length - 1; i >= 0; i--) {
+            var it = st.items[i];
+            it.y += it.vy * dt;
+            ctx.font = '34px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            if (it.good) { ctx.shadowColor = '#FDCB6E'; ctx.shadowBlur = 16; }
+            ctx.fillText(it.emoji, it.x, it.y);
+            ctx.shadowBlur = 0;
+            if (it.y > baseY - 24 && it.y < baseY + 24 && Math.abs(it.x - st.bx) < st.bw / 2 + it.r) {
+                if (it.good) {
+                    var pts = 3; st.score += pts; st.light = Math.min(100, st.light + 12);
+                    pop(it.x, it.y, '+' + pts, '#FDCB6E');
+                    if (typeof playCorrectSound === 'function') playCorrectSound();
+                    if (st.light >= 100) { st.score += 10; st.light = 0; pop(st.bx, baseY - 40, 'قام! +10', '#00CEC9'); CanvasFX.burst(window.innerWidth * st.bx / W, window.innerHeight * baseY / H, { count: 24, speed: 8 }); }
+                    CanvasFX.burst(canvas.getBoundingClientRect().left + it.x, canvas.getBoundingClientRect().top + it.y, { count: 8, speed: 5, shapes: false, emoji: '✦', colors: ['#FDCB6E', '#fff'] });
+                } else {
+                    st.lives--; st.flash = 0.4; st.light = Math.max(0, st.light - 18);
+                    pop(it.x, it.y, 'غلط', '#FF6B6B');
+                    if (typeof playWrongSound === 'function') playWrongSound();
+                    if (typeof vibrate === 'function') vibrate(80);
+                }
+                st.items.splice(i, 1); continue;
+            }
+            if (it.y > H + 30) st.items.splice(i, 1);
+        }
+
+        // basket — glowing vessel of light
+        ctx.save();
+        var bg2 = ctx.createRadialGradient(st.bx, baseY, 4, st.bx, baseY, st.bw);
+        bg2.addColorStop(0, 'rgba(253,203,110,0.95)'); bg2.addColorStop(1, 'rgba(253,203,110,0)');
+        ctx.fillStyle = bg2; ctx.beginPath(); ctx.arc(st.bx, baseY, st.bw, 0, 7); ctx.fill();
+        ctx.fillStyle = '#fff'; ctx.font = '30px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🏺', st.bx, baseY + 4);
+        ctx.restore();
+
+        // popups
+        for (var p = st.popups.length - 1; p >= 0; p--) {
+            var pu = st.popups[p]; pu.y -= 40 * dt; pu.life -= dt * 1.4;
+            ctx.globalAlpha = Math.max(0, pu.life);
+            ctx.fillStyle = pu.color; ctx.font = '800 18px "Cairo",sans-serif'; ctx.textAlign = 'center';
+            ctx.fillText(pu.txt, pu.x, pu.y); ctx.globalAlpha = 1;
+            if (pu.life <= 0) st.popups.splice(p, 1);
+        }
+
+        // HUD
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.direction = 'rtl';
+        ctx.font = '800 16px "Cairo",sans-serif'; ctx.fillStyle = '#fff';
+        ctx.fillText('النقاط ' + st.score, W - 12, 10);
+        var hearts = ''; for (var hh = 0; hh < st.lives; hh++) hearts += '❤';
+        ctx.textAlign = 'left'; ctx.font = '18px sans-serif'; ctx.fillText(hearts || '·', 12, 10);
+        // light meter
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'; agRoundRect(ctx, 12, 38, W - 24, 8, 4); ctx.fill();
+        ctx.fillStyle = '#FDCB6E'; agRoundRect(ctx, 12, 38, (W - 24) * st.light / 100, 8, 4); ctx.fill();
+
+        if (st.flash > 0) { ctx.fillStyle = 'rgba(255,80,80,' + st.flash * 0.5 + ')'; ctx.fillRect(0, 0, W, H); st.flash -= dt; }
+
+        if (st.lives <= 0 || st.time >= st.duration) {
+            var max = 60;
+            showActionGameResult({
+                type: 'risingLight', title: 'النور الصاعد', score: st.score, max: max,
+                win: st.score >= 40, xp: 10 + Math.round(st.score / 2),
+                lines: ['أعلى لمعان: ' + Math.round(st.light) + '٪', 'النور غلب الموت ✨']
+            });
+        }
+    });
+}
+
+/* ==================== GAME 2: الغطسات الثلاث (timing) ====================== */
+function startThreeImmersions() {
+    actionGameStop();
+    miniGameState = { type: 'threeImmersions', score: 0, total: 0 };
+    var data = (getActionGamesForLesson() || {}).threeImmersions || ACTION_GAMES['faith_4'].threeImmersions;
+    var canvas = actionGameShell('الغطسات الثلاث 💧', 'water');
+    if (!canvas) return;
+    var hint = document.getElementById('ag-hint');
+    if (hint) hint.innerHTML = '<i class="fas fa-hand-pointer"></i> دوس على الشاشة لما المؤشر يكون في المنطقة الخضرا — ٣ غطسات باسم الثالوث ثم رشومات الميرون';
+
+    var labels = (data.steps || []).concat(data.miron || []);
+    var st = {
+        idx: 0, total: labels.length, marker: 0, dir: 1, speed: 0.85,
+        zone: 0.30, score: 0, done: false, results: [], lock: 0, msg: 'استعد...', msgT: 1
+    };
+
+    function tap() {
+        if (st.done || st.lock > 0) return;
+        var dist = Math.abs(st.marker - 0.5);            // green zone centered
+        var half = st.zone / 2;
+        var pts, label;
+        if (dist <= half * 0.4) { pts = 5; label = 'مثالي!'; }
+        else if (dist <= half) { pts = 3; label = 'كويس'; }
+        else { pts = 0; label = 'بره!'; }
+        st.score += pts; st.results.push(pts);
+        st.msg = label + (pts ? ' +' + pts : ''); st.msgT = 0.9; st.lock = 0.55;
+        if (pts >= 3) { if (typeof playCorrectSound === 'function') playCorrectSound(); CanvasFX.burst(canvas.getBoundingClientRect().left + ActionEngine.W / 2, canvas.getBoundingClientRect().top + ActionEngine.H * 0.5, { count: pts === 5 ? 22 : 12, speed: 7, colors: ['#74b9ff', '#00CEC9', '#fff'] }); }
+        else { if (typeof playWrongSound === 'function') playWrongSound(); }
+        st.idx++;
+        st.speed += 0.16; st.zone = Math.max(0.16, st.zone - 0.02);   // ramp difficulty
+        if (st.idx >= st.total) {
+            st.done = true;
+            setTimeout(function () {
+                var max = st.total * 5;
+                showActionGameResult({
+                    type: 'threeImmersions', title: 'الغطسات الثلاث', score: st.score, max: max,
+                    win: st.score >= max * 0.7, xp: 10 + Math.round(st.score / 2),
+                    lines: ['دقّتك: ' + Math.round(st.score / max * 100) + '٪', 'وُلِدتَ من الماء والروح 💧']
+                });
+            }, 650);
+        }
+    }
+    agOn(canvas, 'touchstart', function (e) { e.preventDefault(); tap(); }, { passive: false });
+    agOn(canvas, 'mousedown', function () { tap(); });
+
+    actionGameRun(canvas, function (dt, ctx, W, H) {
+        if (!st.done) { st.marker += st.dir * st.speed * dt; if (st.marker >= 1) { st.marker = 1; st.dir = -1; } if (st.marker <= 0) { st.marker = 0; st.dir = 1; } }
+        if (st.lock > 0) st.lock -= dt;
+        if (st.msgT > 0) st.msgT -= dt;
+
+        var g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#06283d'); g.addColorStop(1, '#1a4a6e');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+        // baptism font (جرن) + water
+        var fontX = W / 2, fontY = H * 0.66, fontR = Math.min(W, H) * 0.30;
+        ctx.fillStyle = 'rgba(116,185,255,0.25)';
+        ctx.beginPath(); ctx.ellipse(fontX, fontY, fontR, fontR * 0.6, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = 'rgba(116,185,255,0.5)';
+        ctx.beginPath(); ctx.ellipse(fontX, fontY - 6, fontR * 0.8, fontR * 0.45, 0, 0, 7); ctx.fill();
+        ctx.font = (fontR * 0.9) + 'px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('🕊', fontX, fontY - fontR * 0.55);
+
+        // candles for completed immersions
+        for (var c = 0; c < 3; c++) {
+            ctx.font = '26px sans-serif';
+            ctx.fillText(c < Math.min(st.idx, 3) ? '🕯' : '▫', W / 2 + (c - 1) * 44, H - 26);
+        }
+
+        // current label
+        var cur = st.done ? 'تمّ! ✨' : labels[st.idx];
+        ctx.fillStyle = '#fff'; ctx.font = '900 22px "Cairo",sans-serif'; ctx.textBaseline = 'top'; ctx.direction = 'rtl';
+        ctx.fillText(cur, W / 2, 14);
+        ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.font = '700 13px "Cairo",sans-serif';
+        ctx.fillText((st.idx < 3 ? 'غطسة ' + (st.idx + 1) + ' من ٣' : 'رشمة الميرون') + ' • النقاط ' + st.score, W / 2, 46);
+
+        // timing bar
+        var barY = H * 0.40, barX = W * 0.10, barW = W * 0.80, barH = 26;
+        ctx.fillStyle = 'rgba(255,255,255,0.12)'; agRoundRect(ctx, barX, barY, barW, barH, barH / 2); ctx.fill();
+        var zw = barW * st.zone, zx = barX + barW / 2 - zw / 2;
+        ctx.fillStyle = 'rgba(0,200,150,0.85)'; agRoundRect(ctx, zx, barY, zw, barH, barH / 2); ctx.fill();
+        var mx = barX + barW * st.marker;
+        ctx.fillStyle = '#fff'; agRoundRect(ctx, mx - 4, barY - 8, 8, barH + 16, 4); ctx.fill();
+
+        if (st.msgT > 0) {
+            ctx.globalAlpha = Math.max(0, Math.min(1, st.msgT * 2));
+            ctx.fillStyle = st.msg.indexOf('بره') >= 0 ? '#FF6B6B' : '#FDCB6E';
+            ctx.font = '900 26px "Cairo",sans-serif'; ctx.textBaseline = 'middle';
+            ctx.fillText(st.msg, W / 2, barY - 34); ctx.globalAlpha = 1;
+        }
+    });
+}
+
+/* =================== GAME 3: رحلة الابن الضال (runner) ===================== */
+function startProdigalRun() {
+    actionGameStop();
+    miniGameState = { type: 'prodigalRun', score: 0, total: 0 };
+    var data = (getActionGamesForLesson() || {}).prodigalRun || ACTION_GAMES['faith_5'].prodigalRun;
+    var canvas = actionGameShell('رحلة الابن الضال 🏃', 'person-walking');
+    if (!canvas) return;
+    var hint = document.getElementById('ag-hint');
+    if (hint) hint.innerHTML = '<i class="fas fa-hand-pointer"></i> دوس للقفز فوق العوائق (تبرير، خجل…) واجمع الفضائل (صدق، توبة…) للوصول لحضن الأب';
+
+    var st = {
+        y: 0, vy: 0, onGround: true, speed: 215, dist: 0, goal: 2400,
+        lives: 3, score: 0, items: [], spawnT: 0, run: 0, flash: 0, ended: false
+    };
+    function jump() {
+        if (st.ended) return;
+        if (st.onGround) { st.vy = -560; st.onGround = false; if (typeof playTone === 'function') playTone(620, 0.08, 'sine'); }
+    }
+    agOn(canvas, 'touchstart', function (e) { e.preventDefault(); jump(); }, { passive: false });
+    agOn(canvas, 'mousedown', function () { jump(); });
+
+    actionGameRun(canvas, function (dt, ctx, W, H) {
+        var ground = H - 46, sonX = W * 0.24, sonR = 22;
+        st.speed = 215 + st.dist / 22;
+        st.run += dt * 10;
+
+        // physics
+        st.vy += 1750 * dt; st.y += st.vy * dt;
+        if (st.y >= 0) { st.y = 0; st.vy = 0; st.onGround = true; }
+
+        // progress / spawning
+        if (!st.ended) {
+            st.dist += st.speed * dt;
+            st.spawnT += dt;
+            var gap = Math.max(0.78, 1.5 - st.dist / 3000);
+            if (st.spawnT >= gap && st.dist < st.goal - 360) {
+                st.spawnT = 0;
+                var obstacle = Math.random() > 0.45;
+                st.items.push({
+                    x: W + 30, obstacle: obstacle,
+                    label: obstacle ? data.obstacles[(Math.random() * data.obstacles.length) | 0]
+                                    : data.virtues[(Math.random() * data.virtues.length) | 0],
+                    yoff: obstacle ? 0 : (70 + Math.random() * 70), hit: false
+                });
+            }
+        }
+
+        // sky + ground
+        var g = ctx.createLinearGradient(0, 0, 0, H);
+        g.addColorStop(0, '#2c1a47'); g.addColorStop(0.6, '#5b3b6e'); g.addColorStop(1, '#3a2550');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = '#FDCB6E'; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(W * 0.8, H * 0.22, 26, 0, 7); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.fillStyle = '#241636'; ctx.fillRect(0, ground + sonR, W, H);
+        ctx.strokeStyle = 'rgba(255,255,255,0.12)'; ctx.lineWidth = 2;
+        var off = (st.dist % 60);
+        for (var d = -off; d < W; d += 60) { ctx.beginPath(); ctx.moveTo(d, ground + sonR + 14); ctx.lineTo(d + 26, ground + sonR + 14); ctx.stroke(); }
+
+        // home + father appear near the goal
+        var rem = st.goal - st.dist;
+        if (rem < 520) {
+            var hx = W + rem * (W * 0.62 / 520) - W * 0.04;
+            ctx.font = '46px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+            ctx.fillText('🏡', hx, ground + 6);
+            ctx.font = '30px sans-serif'; ctx.fillText('👴', hx - 44, ground + 10);
+        }
+
+        // items
+        for (var i = st.items.length - 1; i >= 0; i--) {
+            var it = st.items[i];
+            it.x -= st.speed * dt;
+            var iy = ground - it.yoff;
+            if (it.obstacle) {
+                agChip(ctx, it.x, iy + 4, it.label, '#b23b3b', '#fff', 14);
+                ctx.font = '20px sans-serif'; ctx.textAlign = 'center';
+                ctx.fillText('🪨', it.x, iy + 30);
+            } else {
+                ctx.save(); ctx.shadowColor = '#FDCB6E'; ctx.shadowBlur = 14;
+                agChip(ctx, it.x, iy, it.label, '#1d6f5a', '#d7ffe9', 14);
+                ctx.restore();
+            }
+            // collision (AABB-ish around son)
+            var sy = ground + st.y;
+            if (!it.hit && Math.abs(it.x - sonX) < 30 && Math.abs(iy - sy) < 40) {
+                it.hit = true;
+                if (it.obstacle) {
+                    st.lives--; st.flash = 0.4;
+                    if (typeof playWrongSound === 'function') playWrongSound();
+                    if (typeof vibrate === 'function') vibrate(90);
+                    if (st.lives <= 0 && !st.ended) finish(false);
+                } else {
+                    st.score += 3;
+                    if (typeof playCorrectSound === 'function') playCorrectSound();
+                    CanvasFX.burst(canvas.getBoundingClientRect().left + it.x, canvas.getBoundingClientRect().top + iy, { count: 10, speed: 6, colors: ['#FDCB6E', '#00B894', '#fff'] });
+                }
+            }
+            if (it.x < -60) st.items.splice(i, 1);
+        }
+
+        // the son
+        var sy2 = ground + st.y;
+        ctx.font = '34px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+        var bob = st.onGround ? Math.sin(st.run) * 2 : 0;
+        ctx.fillText(st.onGround ? '🏃' : '🤸', sonX, sy2 + 12 + bob);
+
+        // HUD
+        ctx.textAlign = 'right'; ctx.textBaseline = 'top'; ctx.direction = 'rtl';
+        ctx.fillStyle = '#fff'; ctx.font = '800 16px "Cairo",sans-serif';
+        ctx.fillText('فضائل ' + st.score, W - 12, 10);
+        var hearts = ''; for (var hh = 0; hh < st.lives; hh++) hearts += '❤';
+        ctx.textAlign = 'left'; ctx.font = '18px sans-serif'; ctx.fillText(hearts || '·', 12, 10);
+        ctx.fillStyle = 'rgba(255,255,255,0.15)'; agRoundRect(ctx, 12, 38, W - 24, 8, 4); ctx.fill();
+        ctx.fillStyle = '#00CEC9'; agRoundRect(ctx, 12, 38, (W - 24) * Math.min(1, st.dist / st.goal), 8, 4); ctx.fill();
+
+        if (st.flash > 0) { ctx.fillStyle = 'rgba(255,80,80,' + st.flash * 0.5 + ')'; ctx.fillRect(0, 0, W, H); st.flash -= dt; }
+
+        if (!st.ended && st.dist >= st.goal) finish(true);
+
+        function finish(won) {
+            st.ended = true;
+            var max = 45;
+            showActionGameResult({
+                type: 'prodigalRun', title: 'رحلة الابن الضال', score: st.score, max: max,
+                win: won, xp: 10 + Math.round(st.score / 2) + (won ? 10 : 0),
+                message: won ? 'رجعت لحضن الأب! 🤗' : 'الطريق صعب — حاول تكمّل لحضن الأب',
+                lines: won ? ['وصلت البيت 🏡', 'فرح في السماء بخاطئ يتوب'] : ['المسافة: ' + Math.round(st.dist / st.goal * 100) + '٪']
+            });
+        }
+    });
 }

@@ -108,7 +108,9 @@ const GameState = {
     // Live content locks (subscribed from Firestore)
     contentLocks: {},
     // Achievement post dedupe — persisted across sessions so milestone posts fire only once
-    celebrationsPosted: {}
+    celebrationsPosted: {},
+    // Virtual pet companion (adopt / feed / play / bless / level / dress)
+    pet: null   // { adopted, type, name, level, xp, happiness, fullness, lastCare, lastBlessDate, accessories:[], equipped, totalFed, born }
 };
 
 // --- Firebase Initialization ---
@@ -995,6 +997,7 @@ function saveToCloud() {
         gender: GameState.gender || '',
         questionHistory: GameState.questionHistory || {},
         celebrationsPosted: GameState.celebrationsPosted || {},
+        pet: GameState.pet || null,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -1102,6 +1105,11 @@ function loadFromCloud(phone) {
                                 mL2[sk] = Object.assign({}, lL2[sk] || {}, cL2[sk] || {});
                             });
                             GameState[key] = mL2;
+                        } else if (key === 'pet') {
+                            // Keep the more-progressed pet (higher level, then more feeds) across devices
+                            var cP = data[key] || null, lP = localBackup[key] || GameState[key] || null;
+                            function _petRank(p) { return p ? ((p.level || 1) * 1e6 + (p.totalFed || 0)) : -1; }
+                            GameState[key] = _petRank(cP) >= _petRank(lP) ? cP : lP;
                         } else if (key === 'lampData') {
                             var cL = data[key] || {}, lL = localBackup[key] || GameState[key] || {};
                             GameState[key] = {
@@ -2688,6 +2696,7 @@ function showScreen(id) {
     if (id === 'compete-screen') { applyCompeteFilterDefault(); renderCompeteHub(); cleanStaleRooms(); }
     if (id === 'rewards-shop-screen') { renderRewardsShop(); }
     if (id === 'teams-screen') { renderTeamsScreen(); }
+    if (id === 'pet-screen') { renderPetScreen(); }
 }
 
 function createParticles() {
@@ -8306,6 +8315,7 @@ function showCompanion(mood) {
         el.className = 'companion-widget companion-idle';
         el.innerHTML =
             '<div class="companion-menu" id="companion-menu">' +
+            '  <div class="companion-menu-item" onclick="companionMenuAction(\'pet\')"><span class="mi-emoji">🐾</span><span class="mi-label">صاحبي</span></div>' +
             '  <div class="companion-menu-item" onclick="companionMenuAction(\'tips\')"><span class="mi-emoji">💡</span><span class="mi-label">نصائح</span></div>' +
             '  <div class="companion-menu-item" onclick="companionMenuAction(\'fun\')"><span class="mi-emoji">🎮</span><span class="mi-label">مرح</span></div>' +
             '  <div class="companion-menu-item" onclick="companionMenuAction(\'leaderboard\')"><span class="mi-emoji">🏆</span><span class="mi-label">أبطال</span></div>' +
@@ -8364,9 +8374,9 @@ function companionReact(type) {
     if (!el || !companionState.visible) return;
     companionState.tipIndex = -1;   // reset tip cycle on reaction
     _cmpSetMood(type);
-    if (type === 'happy')     companionSpeak(COMPANION_CORRECT[Math.floor(Math.random() * COMPANION_CORRECT.length)], 1800);
+    if (type === 'happy')     { companionSpeak(COMPANION_CORRECT[Math.floor(Math.random() * COMPANION_CORRECT.length)], 1800); try { petGainXp(2, 1); } catch(e){} }
     else if (type === 'sad')  companionSpeak(COMPANION_WRONG [Math.floor(Math.random() * COMPANION_WRONG.length)],  2000);
-    else if (type === 'streak') companionSpeak(COMPANION_STREAK[Math.floor(Math.random() * COMPANION_STREAK.length)], 2000);
+    else if (type === 'streak') { companionSpeak(COMPANION_STREAK[Math.floor(Math.random() * COMPANION_STREAK.length)], 2000); try { petGainXp(4, 2); } catch(e){} }
     else if (type === 'celebrate') companionSpeak('مبروووك! 🎉🎊', 2500);
     setTimeout(function() { if (el && companionState.visible) _cmpSetMood('idle'); }, 2000);
 }
@@ -8426,7 +8436,9 @@ function companionCloseMenu() {
 
 function companionMenuAction(action) {
     companionCloseMenu();
-    if (action === 'tips') {
+    if (action === 'pet') {
+        showScreen('pet-screen');
+    } else if (action === 'tips') {
         // Jump straight to tip 1 via tapped logic
         companionState.tipIndex = -1;
         companionTapped();
@@ -8437,6 +8449,392 @@ function companionMenuAction(action) {
     } else if (action === 'hide') {
         hideCompanion();
     }
+}
+
+// ============================================================
+// VIRTUAL PET COMPANION  —  "صاحبي الصغير"
+// Adopt a creature, feed it with stars, play, get a daily
+// blessing, level it up, and dress it with accessories.
+// ============================================================
+var PET_TYPES = {
+    lamb:  { name: 'الحَمَل',   emoji: '🐑', glow: '#9ad0ff', line: 'حَمَل وديع زي حَمَل الله',  baby: '🐑' },
+    dove:  { name: 'الحمامة',  emoji: '🕊️', glow: '#bfe3ff', line: 'حمامة الروح القدس',        baby: '🐣' },
+    lion:  { name: 'الأسد',     emoji: '🦁', glow: '#ffcf6b', line: 'أسد من سبط يهوذا',          baby: '🐱' },
+    fish:  { name: 'السمكة',    emoji: '🐠', glow: '#7fe3d4', line: 'رمز الإيمان المسيحي',        baby: '🐟' }
+};
+
+var PET_ACCESSORIES = {
+    halo:    { name: 'هالة',    emoji: '😇', cost: 30, slot: 'over' },
+    crown:   { name: 'تاج',     emoji: '👑', cost: 50, slot: 'over' },
+    bow:     { name: 'فيونكة',  emoji: '🎀', cost: 20, slot: 'over' },
+    scarf:   { name: 'وشاح',    emoji: '🧣', cost: 25, slot: 'under' },
+    flower:  { name: 'وردة',    emoji: '🌷', cost: 15, slot: 'under' }
+};
+
+var PET_BLESSINGS = [
+    'ربنا يباركك ويحفظك النهارده 🙏',
+    'نعمة ربنا تكون معاك في كل خطوة ✝️',
+    '"الرَّبُّ رَاعِيَّ فَلاَ يُعْوِزُنِي شَيْءٌ" (مز ٢٣) 🐑',
+    'افرح في الرب كل حين 🌟',
+    'ربنا قريب من كل المنكسري القلوب 💙',
+    'سلام المسيح يملأ قلبك النهارده 🕊️',
+    '"كُونُوا فَرِحِينَ عَلَى الدَّوَامِ" (١تس ٥) 🎉'
+];
+
+var PET_FEED_COST = 15;          // stars per feed
+var PET_PLAY_COOLDOWN = 2 * 3600 * 1000; // 2h between free plays
+
+/* ── Core helpers ── */
+function _newPet(type, name) {
+    return {
+        adopted: true, type: type, name: name || PET_TYPES[type].name,
+        level: 1, xp: 0, happiness: 100, fullness: 100,
+        lastCare: Date.now(), lastPlay: 0, lastBlessDate: '',
+        accessories: [], equipped: '', totalFed: 0, born: Date.now()
+    };
+}
+function petXpNeeded(level) { return level * 60; }
+function getPetStage(level) {
+    if (level >= 10) return { key: 'blessed', label: 'مبارك ✨', scale: 1.55 };
+    if (level >= 6)  return { key: 'grown',   label: 'كبير',     scale: 1.35 };
+    if (level >= 3)  return { key: 'young',   label: 'بيكبر',    scale: 1.15 };
+    return { key: 'baby', label: 'صغير', scale: 1.0 };
+}
+function _petMoodEmoji(p) {
+    if (p.fullness < 35) return '😋';      // hungry
+    if (p.happiness >= 75) return '🥰';
+    if (p.happiness >= 45) return '🙂';
+    return '🥺';
+}
+// Lazily apply time-based decay of happiness/fullness since last interaction
+function applyPetDecay() {
+    var p = GameState.pet;
+    if (!p || !p.adopted) return;
+    var now = Date.now();
+    var hours = (now - (p.lastCare || now)) / 3600000;
+    if (hours > 0.02) {
+        p.happiness = Math.max(0, Math.round((p.happiness || 0) - hours * 2));
+        p.fullness  = Math.max(0, Math.round((p.fullness  || 0) - hours * 3));
+        p.lastCare = now;
+    }
+}
+// Pet needs attention? (drives the home-hub notification dot)
+function petNeedsAttention() {
+    var p = GameState.pet;
+    if (!p || !p.adopted) return false;
+    applyPetDecay();
+    var todayKey = getTodayKey();
+    return p.fullness < 40 || p.happiness < 40 || p.lastBlessDate !== todayKey;
+}
+// Award pet xp from gameplay (hooked into companionReact)
+function petGainXp(amount, happy) {
+    var p = GameState.pet;
+    if (!p || !p.adopted) return;
+    p.xp = (p.xp || 0) + amount;
+    if (happy) p.happiness = Math.min(100, (p.happiness || 0) + happy);
+    _petCheckLevelUp(false);
+}
+function _petCheckLevelUp(announce) {
+    var p = GameState.pet;
+    if (!p) return false;
+    var leveled = false;
+    while (p.xp >= petXpNeeded(p.level)) {
+        p.xp -= petXpNeeded(p.level);
+        p.level++;
+        leveled = true;
+        var reward = Math.min(2 + p.level, 12);
+        GameState.gems += reward;
+        if (announce) {
+            try { playVictorySound(); } catch(e){}
+            try { launchConfetti(2200); } catch(e){}
+            showToast('🎉 ' + p.name + ' وصل للمستوى ' + p.level + '! +' + reward + ' 💎', 'success');
+            try { companionReact('celebrate'); } catch(e){}
+            var st = getPetStage(p.level);
+            if (st.key === 'grown' || st.key === 'blessed') {
+                showToast('✨ ' + p.name + ' كبر وبقى "' + st.label + '"!', 3000);
+            }
+        }
+    }
+    return leveled;
+}
+
+/* ── Screen render ── */
+function renderPetScreen() {
+    var host = document.getElementById('pet-screen-body');
+    if (!host) return;
+    var p = GameState.pet;
+
+    if (!p || !p.adopted) { _renderPetAdopt(host); return; }
+    applyPetDecay();
+
+    var t = PET_TYPES[p.type] || PET_TYPES.lamb;
+    var stage = getPetStage(p.level);
+    var emoji = stage.key === 'baby' ? (t.baby || t.emoji) : t.emoji;
+    var acc = p.equipped && PET_ACCESSORIES[p.equipped] ? PET_ACCESSORIES[p.equipped] : null;
+    var xpNeed = petXpNeeded(p.level);
+    var xpPct = Math.min(100, Math.round((p.xp / xpNeed) * 100));
+    var todayKey = getTodayKey();
+    var canBless = p.lastBlessDate !== todayKey;
+    var playReady = (Date.now() - (p.lastPlay || 0)) >= PET_PLAY_COOLDOWN;
+
+    var accOver  = acc && acc.slot === 'over'  ? '<div class="pet-acc pet-acc-over">'  + acc.emoji + '</div>' : '';
+    var accUnder = acc && acc.slot === 'under' ? '<div class="pet-acc pet-acc-under">' + acc.emoji + '</div>' : '';
+
+    host.innerHTML =
+        '<div class="pet-stage-card pet-glow-' + (stage.key === 'blessed' ? 'on' : 'off') + '" style="--pet-glow:' + t.glow + '">' +
+            '<div class="pet-stage-sky"></div>' +
+            '<div class="pet-floor"></div>' +
+            '<div class="pet-mood-badge">' + _petMoodEmoji(p) + '</div>' +
+            '<div class="pet-level-chip">⭐ مستوى ' + p.level + ' · ' + stage.label + '</div>' +
+            '<div class="pet-creature" onclick="petPat()" style="--pet-scale:' + stage.scale + '">' +
+                accOver +
+                '<div class="pet-emoji">' + emoji + '</div>' +
+                accUnder +
+            '</div>' +
+            '<div class="pet-name">' + esc_(p.name) + '</div>' +
+            '<div class="pet-subline">' + t.line + '</div>' +
+        '</div>' +
+
+        '<div class="pet-meters">' +
+            _petMeter('فرح', '😊', p.happiness, '#FD79A8') +
+            _petMeter('طعام', '🍎', p.fullness, '#00B894') +
+            '<div class="pet-meter">' +
+                '<div class="pet-meter-top"><span>⭐ خبرة</span><span dir="ltr">' + p.xp + ' / ' + xpNeed + '</span></div>' +
+                '<div class="pet-meter-bar"><div class="pet-meter-fill" style="width:' + xpPct + '%;background:#6C5CE7"></div></div>' +
+            '</div>' +
+        '</div>' +
+
+        '<div class="pet-actions">' +
+            '<button class="pet-btn pet-btn-feed" onclick="petFeed()">' +
+                '<span class="pet-btn-emoji">🍎</span><span>إطعام</span><span class="pet-btn-cost">' + PET_FEED_COST + ' ⭐</span></button>' +
+            '<button class="pet-btn pet-btn-play' + (playReady ? '' : ' is-cooldown') + '" onclick="petPlay()">' +
+                '<span class="pet-btn-emoji">🎾</span><span>لعب</span><span class="pet-btn-cost">' + (playReady ? 'مجاناً' : 'بعد شوية') + '</span></button>' +
+            '<button class="pet-btn pet-btn-bless' + (canBless ? ' is-ready' : '') + '" onclick="petBless()">' +
+                '<span class="pet-btn-emoji">🙏</span><span>بركة اليوم</span><span class="pet-btn-cost">' + (canBless ? 'جاهزة!' : 'بكرة') + '</span></button>' +
+        '</div>' +
+
+        '<div class="pet-shop">' +
+            '<h3 class="pet-shop-title">🎀 الإكسسوارات</h3>' +
+            '<div class="pet-shop-grid">' +
+                Object.keys(PET_ACCESSORIES).map(function(id) {
+                    var a = PET_ACCESSORIES[id];
+                    var owned = (p.accessories || []).indexOf(id) >= 0;
+                    var on = p.equipped === id;
+                    var btn, cls;
+                    if (on)        { btn = 'مرتدي ✓'; cls = 'on'; }
+                    else if (owned){ btn = 'ارتدِ';   cls = 'owned'; }
+                    else           { btn = a.cost + ' 💎'; cls = 'buy'; }
+                    return '<div class="pet-acc-card pet-acc-' + cls + '" onclick="petAccessory(\'' + id + '\')">' +
+                        '<div class="pet-acc-emoji">' + a.emoji + '</div>' +
+                        '<div class="pet-acc-name">' + a.name + '</div>' +
+                        '<div class="pet-acc-btn">' + btn + '</div>' +
+                    '</div>';
+                }).join('') +
+            '</div>' +
+            (p.equipped ? '<button class="pet-unequip" onclick="petAccessory(\'\')">شيل الإكسسوار</button>' : '') +
+        '</div>';
+}
+
+function _petMeter(label, icon, val, color) {
+    val = Math.max(0, Math.min(100, Math.round(val || 0)));
+    var low = val < 35 ? ' pet-meter-low' : '';
+    return '<div class="pet-meter' + low + '">' +
+        '<div class="pet-meter-top"><span>' + icon + ' ' + label + '</span><span>' + val + '%</span></div>' +
+        '<div class="pet-meter-bar"><div class="pet-meter-fill" style="width:' + val + '%;background:' + color + '"></div></div>' +
+    '</div>';
+}
+
+function _renderPetAdopt(host) {
+    host.innerHTML =
+        '<div class="pet-adopt-intro">' +
+            '<div class="pet-adopt-title">🐾 اختار صاحبك الصغير</div>' +
+            '<p class="pet-adopt-sub">اعتنِ بيه كل يوم.. أطعمه، العب معاه، وشوفه بيكبر معاك!</p>' +
+        '</div>' +
+        '<div class="pet-adopt-grid">' +
+            Object.keys(PET_TYPES).map(function(id) {
+                var t = PET_TYPES[id];
+                return '<div class="pet-adopt-card" onclick="petChoose(\'' + id + '\')" style="--pet-glow:' + t.glow + '">' +
+                    '<div class="pet-adopt-emoji">' + t.emoji + '</div>' +
+                    '<div class="pet-adopt-name">' + t.name + '</div>' +
+                    '<div class="pet-adopt-line">' + t.line + '</div>' +
+                '</div>';
+            }).join('') +
+        '</div>';
+}
+
+/* ── Actions ── */
+function petChoose(type) {
+    if (!PET_TYPES[type]) return;
+    var def = prompt('سمّي صاحبك الصغير ' + PET_TYPES[type].emoji + ' (أو سيبها فاضية):', PET_TYPES[type].name);
+    if (def === null) return; // cancelled
+    var name = (def || '').trim().slice(0, 16) || PET_TYPES[type].name;
+    GameState.pet = _newPet(type, name);
+    try { playStationUnlockSound(); } catch(e){}
+    try { launchConfetti(2200); } catch(e){}
+    _petFloat('💖'); _petFloat('✨');
+    showToast('اتولد ' + name + '! اعتنِ بيه كويس 🥰', 'success');
+    saveToCloud();
+    renderPetScreen();
+}
+
+function petFeed() {
+    var p = GameState.pet; if (!p) return;
+    if ((GameState.stars || 0) < PET_FEED_COST) { showToast('محتاج ' + PET_FEED_COST + ' نجمة عشان تطعمه ⭐', 'warning'); return; }
+    if (p.fullness >= 100) { showToast(p.name + ' شبعان دلوقتي 😊', 2000); return; }
+    GameState.stars -= PET_FEED_COST;
+    p.fullness = Math.min(100, p.fullness + 30);
+    p.happiness = Math.min(100, p.happiness + 6);
+    p.totalFed = (p.totalFed || 0) + 1;
+    p.lastCare = Date.now();
+    p.xp += 8;
+    try { playCorrectSound(); } catch(e){}
+    _petCheckLevelUp(true);
+    renderPetScreen();
+    _petFloat('🍎'); _petBounce();
+    saveToCloud();
+}
+
+function petPlay() {
+    var p = GameState.pet; if (!p) return;
+    if ((Date.now() - (p.lastPlay || 0)) < PET_PLAY_COOLDOWN) {
+        var mins = Math.ceil((PET_PLAY_COOLDOWN - (Date.now() - p.lastPlay)) / 60000);
+        showToast('تعب شوية.. العب معاه بعد ' + mins + ' دقيقة 🎾', 2200); return;
+    }
+    p.lastPlay = Date.now();
+    p.lastCare = Date.now();
+    p.happiness = Math.min(100, p.happiness + 20);
+    p.xp += 6;
+    try { playComboSound(2); } catch(e){}
+    _petCheckLevelUp(true);
+    renderPetScreen();
+    _petFloat('🎾'); _petFloat('💕'); _petBounce();
+    saveToCloud();
+}
+
+// Free tap interaction on the creature itself
+function petPat() {
+    var p = GameState.pet; if (!p) return;
+    p.happiness = Math.min(100, p.happiness + 2);
+    p.lastCare = Date.now();
+    try { playTickSound(); } catch(e){}
+    renderPetScreen();
+    _petFloat(['💖','✨','💕','😊','🎵'][Math.floor(Math.random()*5)]);
+    _petBounce();
+}
+
+function petBless() {
+    var p = GameState.pet; if (!p) return;
+    var todayKey = getTodayKey();
+    if (p.lastBlessDate === todayKey) { showToast('أخدت بركة النهارده.. تعالى بكرة 🙏', 2200); return; }
+    p.lastBlessDate = todayKey;
+    p.happiness = Math.min(100, p.happiness + 12);
+    p.lastCare = Date.now();
+    p.xp += 15;
+    var gemReward = 3;
+    GameState.gems += gemReward;
+    var msg = PET_BLESSINGS[Math.floor(Math.random() * PET_BLESSINGS.length)];
+    try { playVictorySound(); } catch(e){}
+    showPetBlessCard(p.name, msg, gemReward);
+    _petCheckLevelUp(true);
+    renderPetScreen();
+    _petFloat('🙏'); _petFloat('✨'); _petFloat('💙');
+    saveToCloud();
+}
+
+function showPetBlessCard(name, msg, gems) {
+    var ov = document.createElement('div');
+    ov.className = 'pet-bless-overlay';
+    ov.onclick = function(){ ov.classList.remove('show'); setTimeout(function(){ ov.remove(); }, 300); };
+    ov.innerHTML =
+        '<div class="pet-bless-card" onclick="event.stopPropagation()">' +
+            '<div class="pet-bless-ico">🕊️</div>' +
+            '<h3>بركة من ' + esc_(name) + '</h3>' +
+            '<p class="pet-bless-msg">' + msg + '</p>' +
+            '<div class="pet-bless-reward">+' + gems + ' 💎</div>' +
+            '<button class="btn btn-primary" onclick="this.closest(\'.pet-bless-overlay\').click()">آمين 🙏</button>' +
+        '</div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function(){ ov.classList.add('show'); });
+}
+
+function petAccessory(id) {
+    var p = GameState.pet; if (!p) return;
+    if (id === '') { p.equipped = ''; saveToCloud(); renderPetScreen(); return; }
+    var a = PET_ACCESSORIES[id]; if (!a) return;
+    var owned = (p.accessories || []).indexOf(id) >= 0;
+    if (!owned) {
+        if ((GameState.gems || 0) < a.cost) { showToast('محتاج ' + a.cost + ' جوهرة 💎', 'warning'); return; }
+        GameState.gems -= a.cost;
+        p.accessories = p.accessories || [];
+        p.accessories.push(id);
+        try { playStationUnlockSound(); } catch(e){}
+        showToast('اشتريت ' + a.name + ' ' + a.emoji, 'success');
+    }
+    p.equipped = (p.equipped === id) ? '' : id;
+    _petBounce();
+    saveToCloud();
+    renderPetScreen();
+}
+
+/* ── Visual flourishes ── */
+function _petBounce() {
+    var c = document.querySelector('#pet-screen-body .pet-creature');
+    if (!c) return;
+    c.classList.remove('pet-bounce'); void c.offsetWidth; c.classList.add('pet-bounce');
+    setTimeout(function(){ if (c) c.classList.remove('pet-bounce'); }, 520);
+}
+function _petFloat(emoji) {
+    var stage = document.querySelector('#pet-screen-body .pet-stage-card');
+    if (!stage) return;
+    var f = document.createElement('div');
+    f.className = 'pet-float-emoji';
+    f.textContent = emoji;
+    f.style.left = (35 + Math.random() * 30) + '%';
+    stage.appendChild(f);
+    setTimeout(function(){ f.remove(); }, 1500);
+}
+
+/* ── Home-hub teaser ── */
+function renderPetTeaser() {
+    var host = document.getElementById('hub-pet-teaser');
+    if (!host) return;
+    var p = GameState.pet;
+    if (!p || !p.adopted) {
+        host.innerHTML =
+            '<div class="pet-teaser pet-teaser-adopt" onclick="showScreen(\'pet-screen\')">' +
+                '<div class="pet-teaser-emoji">🐾</div>' +
+                '<div class="pet-teaser-info"><div class="pet-teaser-name">اتبنى صاحب صغير</div>' +
+                '<div class="pet-teaser-sub">اختار حيوانك واعتنِ بيه كل يوم</div></div>' +
+                '<div class="pet-teaser-cta">ابدأ</div>' +
+            '</div>';
+        host.style.display = 'block';
+        return;
+    }
+    applyPetDecay();
+    var t = PET_TYPES[p.type] || PET_TYPES.lamb;
+    var stage = getPetStage(p.level);
+    var emoji = stage.key === 'baby' ? (t.baby || t.emoji) : t.emoji;
+    var attn = petNeedsAttention();
+    host.innerHTML =
+        '<div class="pet-teaser" onclick="showScreen(\'pet-screen\')">' +
+            '<div class="pet-teaser-emoji">' + emoji + (attn ? '<span class="pet-teaser-dot"></span>' : '') + '</div>' +
+            '<div class="pet-teaser-info">' +
+                '<div class="pet-teaser-name">' + esc_(p.name) + ' <span class="pet-teaser-lvl">مستوى ' + p.level + '</span></div>' +
+                '<div class="pet-teaser-bars">' +
+                    '<div class="pet-teaser-bar"><i style="width:' + Math.round(p.happiness) + '%;background:#FD79A8"></i></div>' +
+                    '<div class="pet-teaser-bar"><i style="width:' + Math.round(p.fullness) + '%;background:#00B894"></i></div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="pet-teaser-cta">' + (attn ? 'محتاجك!' : 'زوره') + '</div>' +
+        '</div>';
+    host.style.display = 'block';
+}
+
+// Small HTML escaper for pet names (esc() lives in admin only)
+function esc_(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
+        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
+    });
 }
 
 // ============================================================
@@ -9570,6 +9968,9 @@ function renderHomeHub() {
 
     // Render daily verse card
     renderTodayVerse();
+
+    // Render virtual pet teaser
+    try { renderPetTeaser(); } catch(e){ console.warn('renderPetTeaser error', e); }
 
     // Card entrance stagger animation
     setTimeout(function() {

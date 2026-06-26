@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v23';
+var CACHE_NAME = 'min-el-batal-v24';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -157,10 +157,13 @@ self.addEventListener('fetch', function(event) {
         return;
     }
 
-    // JS/CSS files: network-first (always get latest code)
+    // JS/CSS files: network-first (always get latest code).
+    // Use cache:'no-store' so the SW bypasses the browser HTTP cache and truly
+    // fetches the newest code on every load — the HTTP cache was serving stale
+    // files even though this branch is "network-first".
     if (url.pathname.endsWith('.js') || url.pathname.endsWith('.css') || url.pathname.endsWith('.html') || url.pathname === '/') {
         event.respondWith(
-            fetch(event.request).then(function(networkResponse) {
+            fetch(event.request, { cache: 'no-store' }).then(function(networkResponse) {
                 if (networkResponse && networkResponse.ok) {
                     var responseClone = networkResponse.clone();
                     caches.open(CACHE_NAME).then(function(cache) {

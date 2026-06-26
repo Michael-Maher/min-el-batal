@@ -248,9 +248,10 @@
 
             <!-- Online now widget -->
             <div id="online-now-widget" class="online-now-widget" style="display:none">
+                <div class="online-now-sheen"></div>
                 <div class="online-now-header">
-                    <div class="online-now-pulse"></div>
-                    <span class="online-now-title">متصلين الآن</span>
+                    <span class="online-live-badge"><span class="online-live-dot"></span> LIVE</span>
+                    <span class="online-now-title"><i class="fas fa-bolt"></i> أبطال متصلين دلوقتي</span>
                     <span class="online-now-count" id="online-now-count">0</span>
                 </div>
                 <div class="online-now-list" id="online-now-list"></div>
@@ -291,100 +292,125 @@
                 <div id="today-verse-section" style="margin-top:12px;position:relative;z-index:2;"></div>
             </div>
 
-            <!-- Virtual pet teaser -->
-            <div id="hub-pet-teaser" style="display:none"></div>
+            <!-- ===== Learning Section ===== -->
+            <div class="hub-section hub-section-learn">
+                <div class="hub-section-head">
+                    <h2 class="hub-section-title"><span class="hst-ico"><i class="fas fa-gamepad"></i></span> اختار مغامرتك</h2>
+                    <p class="hub-section-sub">اختار المستوى اللي عايز تبدأ فيه</p>
+                </div>
+                <div class="hub-cards-grid">
+                    <!-- Level 1 - LOCKED -->
+                    <div class="hub-card hub-card-locked" onclick="showToast('المستوى الأول مقفول حالياً - ترقبوا التحديث القادم! 🔒', 'warning')">
+                        <div class="hub-card-bg hub-card-level1">
+                            <div class="hub-card-overlay"></div>
+                            <div class="hub-lock-badge"><i class="fas fa-lock"></i></div>
+                            <div class="hub-card-content">
+                                <div class="hub-card-icon"><i class="fas fa-scroll"></i></div>
+                                <h3>المستوى الأول</h3>
+                                <p>مين البطل؟</p>
+                                <div class="hub-card-tag">قريباً</div>
+                            </div>
+                        </div>
+                    </div>
 
-            <h2 class="hub-title"><i class="fas fa-gamepad"></i> اختار مغامرتك</h2>
-            <p class="hub-subtitle">اختار المستوى اللي عايز تبدأ فيه</p>
-
-            <div class="hub-cards-grid">
-                <!-- Level 1 - LOCKED -->
-                <div class="hub-card hub-card-locked" onclick="showToast('المستوى الأول مقفول حالياً - ترقبوا التحديث القادم! 🔒', 'warning')">
-                    <div class="hub-card-bg hub-card-level1">
-                        <div class="hub-card-overlay"></div>
-                        <div class="hub-lock-badge"><i class="fas fa-lock"></i></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon"><i class="fas fa-scroll"></i></div>
-                            <h3>المستوى الأول</h3>
-                            <p>مين البطل؟</p>
-                            <div class="hub-card-tag">قريباً</div>
+                    <!-- Level 2 - OPEN -->
+                    <div class="hub-card hub-card-active" onclick="showScreen('level2-subjects-screen')">
+                        <div class="hub-card-bg hub-card-level2">
+                            <div class="hub-card-overlay hub-card-overlay-light"></div>
+                            <div class="hub-card-content">
+                                <div class="hub-card-icon"><i class="fas fa-graduation-cap"></i></div>
+                                <h3>المستوى الثاني</h3>
+                                <p>مدرسة أتبعني للتلمذة</p>
+                                <div class="hub-card-tag hub-tag-active"><i class="fas fa-play"></i> ابدأ</div>
+                            </div>
+                            <div class="hub-card-shine"></div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Level 2 - OPEN -->
-                <div class="hub-card hub-card-active" onclick="showScreen('level2-subjects-screen')">
-                    <div class="hub-card-bg hub-card-level2">
-                        <div class="hub-card-overlay hub-card-overlay-light"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon"><i class="fas fa-graduation-cap"></i></div>
-                            <h3>المستوى الثاني</h3>
-                            <p>مدرسة أتبعني للتلمذة</p>
-                            <div class="hub-card-tag hub-tag-active"><i class="fas fa-play"></i> ابدأ</div>
-                        </div>
+            <!-- ===== Challenges Section ===== -->
+            <div class="hub-section hub-section-challenges">
+                <div class="hub-section-head">
+                    <h2 class="hub-section-title"><span class="hst-ico"><i class="fas fa-bolt"></i></span> التحديات</h2>
+                    <p class="hub-section-sub">نفّذ التحدي مع فريقك ونافس أصحابك</p>
+                </div>
+                <div class="hub-cards-grid">
+                    <!-- Selfie Challenge - image card -->
+                    <div class="hub-card hub-card-selfie" onclick="showScreen('selfie-screen')">
+                        <img src="/images/selfie-card-bg.png" alt="مسابقة أحلى سيلفي" class="hub-card-img"
+                             onerror="this.closest('.hub-card-selfie').classList.add('selfie-img-missing'); this.remove();">
                         <div class="hub-card-shine"></div>
                     </div>
-                </div>
 
-                <!-- Competitions - OPEN -->
-                <div class="hub-card hub-card-competitions" onclick="showScreen('compete-screen')">
-                    <div class="hub-card-bg" style="background: linear-gradient(135deg, #0c3547 0%, #1a5276 50%, #0e4d6e 100%);">
-                        <div class="hub-card-overlay hub-card-overlay-light"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon"><i class="fas fa-users"></i></div>
-                            <h3>المنافسات الجماعية</h3>
-                            <p>تحدّي أصحابك أونلاين</p>
-                            <div class="hub-card-tag hub-tag-active"><i class="fas fa-bolt"></i> العب</div>
+                    <!-- Competitions - OPEN -->
+                    <div class="hub-card hub-card-competitions" onclick="showScreen('compete-screen')">
+                        <div class="hub-card-bg" style="background: linear-gradient(135deg, #0c3547 0%, #1a5276 50%, #0e4d6e 100%);">
+                            <div class="hub-card-overlay hub-card-overlay-light"></div>
+                            <div class="hub-card-content">
+                                <div class="hub-card-icon"><i class="fas fa-users"></i></div>
+                                <h3>المنافسات الجماعية</h3>
+                                <p>تحدّي أصحابك أونلاين</p>
+                                <div class="hub-card-tag hub-tag-active"><i class="fas fa-bolt"></i> العب</div>
+                            </div>
+                            <div class="hub-card-shine"></div>
                         </div>
-                        <div class="hub-card-shine"></div>
                     </div>
                 </div>
+            </div>
 
-                <!-- Questions (Q&A with admins) - OPEN -->
-                <div class="hub-card hub-card-questions" onclick="openQuestionsScreen()">
-                    <div class="hub-card-bg" style="background: url('/images/QA-bg-opt.jpg') center/cover no-repeat; background-color: #1a0900;">
-                        <div class="hub-card-overlay" style="background:linear-gradient(135deg,rgba(120,53,15,.75) 0%,rgba(180,83,9,.5) 55%,rgba(217,119,6,.3) 100%)"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">✝️</div>
-                            <h3 style="font-size:22px;margin-bottom:2px">اسأل الخدّام</h3>
-                            <p style="font-size:13px;opacity:.9;margin-bottom:10px">سؤالك عن الإيمان والكتاب المقدس</p>
-                            <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#b45309,#d97706);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(180,83,9,.5)"><i class="fas fa-paper-plane"></i> ابعت سؤال</div>
+            <!-- ===== Social / Important Info Section ===== -->
+            <div class="hub-section hub-section-social">
+                <div class="hub-section-head">
+                    <h2 class="hub-section-title"><span class="hst-ico"><i class="fas fa-comments"></i></span> معلومات مهمة</h2>
+                    <p class="hub-section-sub">اسأل، اتفاعل، واعرف آخر أخبار الخدمة</p>
+                </div>
+                <div class="hub-cards-grid">
+                    <!-- Questions (Q&A with admins) - OPEN -->
+                    <div class="hub-card hub-card-questions" onclick="openQuestionsScreen()">
+                        <div class="hub-card-bg" style="background: url('/images/QA-bg-opt.jpg') center/cover no-repeat; background-color: #1a0900;">
+                            <div class="hub-card-overlay" style="background:linear-gradient(135deg,rgba(120,53,15,.75) 0%,rgba(180,83,9,.5) 55%,rgba(217,119,6,.3) 100%)"></div>
+                            <div class="hub-card-content">
+                                <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">✝️</div>
+                                <h3 style="font-size:22px;margin-bottom:2px">اسأل الخدّام</h3>
+                                <p style="font-size:13px;opacity:.9;margin-bottom:10px">سؤالك عن الإيمان والكتاب المقدس</p>
+                                <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#b45309,#d97706);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(180,83,9,.5)"><i class="fas fa-paper-plane"></i> ابعت سؤال</div>
+                            </div>
+                            <div class="hub-card-shine"></div>
+                            <div id="questions-unread-badge" class="questions-unread-badge" style="display:none">1</div>
                         </div>
-                        <div class="hub-card-shine"></div>
-                        <div id="questions-unread-badge" class="questions-unread-badge" style="display:none">1</div>
+                    </div>
+
+                    <!-- Friends Questions - OPEN -->
+                    <div class="hub-card" onclick="openFriendsQuestionsScreen()">
+                        <div class="hub-card-bg" style="background: url('/images/my_friends_questions_bg-opt.jpg') center/cover no-repeat; background-color: #0d0820;">
+                            <div class="hub-card-overlay" style="background:linear-gradient(135deg,rgba(30,10,70,.82) 0%,rgba(79,70,229,.52) 55%,rgba(108,92,231,.28) 100%)"></div>
+                            <div class="hub-card-content">
+                                <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">👥</div>
+                                <h3 style="font-size:21px;margin-bottom:2px">أسئلة أصحابك</h3>
+                                <p style="font-size:13px;opacity:.85;margin-bottom:10px">أسئلة مجهولة مع ردود الخدام</p>
+                                <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(108,92,231,.55)"><i class="fas fa-users"></i> شوف الأسئلة</div>
+                            </div>
+                            <div class="hub-card-shine"></div>
+                            <div id="friends-qa-badge" class="questions-unread-badge" style="display:none">0</div>
+                        </div>
+                    </div>
+
+                    <!-- Social Feed - منشورات -->
+                    <div class="hub-card hub-card-social" onclick="openSocialScreen()">
+                        <div class="hub-card-bg" style="background:linear-gradient(135deg,#1f2247 0%,#3b3b9d 50%,#5b3aa8 100%)">
+                            <div class="hub-card-overlay hub-card-overlay-light"></div>
+                            <div class="hub-card-content">
+                                <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">📢</div>
+                                <h3 style="font-size:21px;margin-bottom:2px">المنشورات</h3>
+                                <p style="font-size:13px;opacity:.88;margin-bottom:10px">آخر إعلانات الخدّام وإنجازات أصحابك</p>
+                                <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#6366f1,#a855f7);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(99,102,241,.55)"><i class="fas fa-bullhorn"></i> اقرأ وتفاعل</div>
+                            </div>
+                            <div class="hub-card-shine"></div>
+                            <div id="social-unread-badge" class="questions-unread-badge" style="display:none">0</div>
+                        </div>
                     </div>
                 </div>
-
-                <!-- Friends Questions - OPEN -->
-                <div class="hub-card" onclick="openFriendsQuestionsScreen()">
-                    <div class="hub-card-bg" style="background: url('/images/my_friends_questions_bg-opt.jpg') center/cover no-repeat; background-color: #0d0820;">
-                        <div class="hub-card-overlay" style="background:linear-gradient(135deg,rgba(30,10,70,.82) 0%,rgba(79,70,229,.52) 55%,rgba(108,92,231,.28) 100%)"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">👥</div>
-                            <h3 style="font-size:21px;margin-bottom:2px">أسئلة أصحابك</h3>
-                            <p style="font-size:13px;opacity:.85;margin-bottom:10px">أسئلة مجهولة مع ردود الخدام</p>
-                            <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#5b21b6,#7c3aed);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(108,92,231,.55)"><i class="fas fa-users"></i> شوف الأسئلة</div>
-                        </div>
-                        <div class="hub-card-shine"></div>
-                        <div id="friends-qa-badge" class="questions-unread-badge" style="display:none">0</div>
-                    </div>
-                </div>
-
-                <!-- Social Feed - منشورات -->
-                <div class="hub-card hub-card-social" onclick="openSocialScreen()">
-                    <div class="hub-card-bg" style="background:linear-gradient(135deg,#1f2247 0%,#3b3b9d 50%,#5b3aa8 100%)">
-                        <div class="hub-card-overlay hub-card-overlay-light"></div>
-                        <div class="hub-card-content">
-                            <div class="hub-card-icon" style="font-size:40px;margin-bottom:6px">📢</div>
-                            <h3 style="font-size:21px;margin-bottom:2px">المنشورات</h3>
-                            <p style="font-size:13px;opacity:.88;margin-bottom:10px">آخر إعلانات الخدّام وإنجازات أصحابك</p>
-                            <div class="hub-card-tag hub-tag-active" style="background:linear-gradient(135deg,#6366f1,#a855f7);border:none;font-weight:900;font-size:12px;padding:6px 18px;border-radius:20px;box-shadow:0 3px 14px rgba(99,102,241,.55)"><i class="fas fa-bullhorn"></i> اقرأ وتفاعل</div>
-                        </div>
-                        <div class="hub-card-shine"></div>
-                        <div id="social-unread-badge" class="questions-unread-badge" style="display:none">0</div>
-                    </div>
-                </div>
-
             </div>
 
             <div class="hub-footer-btns">
@@ -409,17 +435,6 @@
                 <h2><i class="fas fa-dice"></i> ساحة المرح</h2>
             </div>
             <div id="fun-zone-content"></div>
-        </div>
-    </div>
-
-    <!-- ============ VIRTUAL PET SCREEN ============ -->
-    <div id="pet-screen" class="screen">
-        <div class="screen-inner">
-            <div class="top-bar">
-                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
-                <h2><i class="fas fa-paw"></i> صاحبي الصغير</h2>
-            </div>
-            <div id="pet-screen-body"></div>
         </div>
     </div>
 
@@ -487,6 +502,17 @@
                 <h2><i class="fas fa-trophy"></i> النتائج</h2>
             </div>
             <div id="compete-results-body"></div>
+        </div>
+    </div>
+
+    <!-- ============ SELFIE CHALLENGE (أحلى سيلفي) ============ -->
+    <div id="selfie-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('compete-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2><i class="fas fa-camera-retro"></i> أحلى سيلفي</h2>
+            </div>
+            <div id="selfie-body"></div>
         </div>
     </div>
 

@@ -108,9 +108,7 @@ const GameState = {
     // Live content locks (subscribed from Firestore)
     contentLocks: {},
     // Achievement post dedupe — persisted across sessions so milestone posts fire only once
-    celebrationsPosted: {},
-    // Virtual pet companion (adopt / feed / play / bless / level / dress)
-    pet: null   // { adopted, type, name, level, xp, happiness, fullness, lastCare, lastBlessDate, accessories:[], equipped, totalFed, born }
+    celebrationsPosted: {}
 };
 
 // --- Firebase Initialization ---
@@ -375,6 +373,9 @@ function submitLogin() {
             if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
             checkPendingRoomJoin();
             try { subscribeContentLocks(); } catch(e){}
+            // Reconcile team from the canonical teams collection so a doc whose `team`
+            // field was wiped (e.g. approved into a team mid-session) self-heals on login.
+            try { cleanupDuplicateTeamMemberships(); } catch(e){}
             try { logPlayerEvent('login', { device: navigator.userAgent.slice(0,80) }); } catch(e){}
             try { startGlobalPresence(); } catch(e){}
         })
@@ -997,7 +998,6 @@ function saveToCloud() {
         gender: GameState.gender || '',
         questionHistory: GameState.questionHistory || {},
         celebrationsPosted: GameState.celebrationsPosted || {},
-        pet: GameState.pet || null,
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
     // Safety: trim old media if doc is approaching 1MB Firestore limit
@@ -1105,11 +1105,6 @@ function loadFromCloud(phone) {
                                 mL2[sk] = Object.assign({}, lL2[sk] || {}, cL2[sk] || {});
                             });
                             GameState[key] = mL2;
-                        } else if (key === 'pet') {
-                            // Keep the more-progressed pet (higher level, then more feeds) across devices
-                            var cP = data[key] || null, lP = localBackup[key] || GameState[key] || null;
-                            function _petRank(p) { return p ? ((p.level || 1) * 1e6 + (p.totalFed || 0)) : -1; }
-                            GameState[key] = _petRank(cP) >= _petRank(lP) ? cP : lP;
                         } else if (key === 'lampData') {
                             var cL = data[key] || {}, lL = localBackup[key] || GameState[key] || {};
                             GameState[key] = {
@@ -2647,6 +2642,10 @@ function showScreen(id) {
     if (typeof socialState !== 'undefined' && id !== 'social-screen' && id !== 'social-post-screen') {
         try { if (typeof unsubscribeFeed === 'function') unsubscribeFeed(); } catch(e){}
     }
+    // Cleanup selfie challenge listener when leaving its screen
+    if (id !== 'selfie-screen') {
+        try { if (typeof unsubscribeSelfie === 'function') unsubscribeSelfie(); } catch(e){}
+    }
     document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
     var el = document.getElementById(id);
     if (el) {
@@ -2694,9 +2693,9 @@ function showScreen(id) {
     if (id === 'devotion-screen') renderDevotion();
     if (id === 'exercises-screen') renderExercises();
     if (id === 'compete-screen') { applyCompeteFilterDefault(); renderCompeteHub(); cleanStaleRooms(); }
+    if (id === 'selfie-screen') { openSelfieChallenge(); }
     if (id === 'rewards-shop-screen') { renderRewardsShop(); }
     if (id === 'teams-screen') { renderTeamsScreen(); }
-    if (id === 'pet-screen') { renderPetScreen(); }
 }
 
 function createParticles() {
@@ -5881,7 +5880,7 @@ function cleanupDuplicateTeamMemberships() {
     if (_duplicateCheckDone || !firebaseDb || !GameState.playerPhone) return;
     _duplicateCheckDone = true;
     firebaseDb.collection('teams').where('members', 'array-contains', GameState.playerPhone).get().then(function(snap) {
-        if (snap.size <= 1) return;
+        if (snap.empty) return;
         var foundTeams = [];
         snap.forEach(function(doc) { foundTeams.push({ id: doc.id, data: doc.data() }); });
         // If we know the player's current team, keep that one; otherwise keep most recent
@@ -5907,7 +5906,8 @@ function cleanupDuplicateTeamMemberships() {
             GameState.pendingTeamDocId = '';
             GameState.pendingTeamName = '';
             saveToLocalStorage();
-            renderTeamsScreen();
+            if (typeof renderTeamsScreen === 'function') renderTeamsScreen();
+            if (typeof updateHubTeamBadge === 'function') updateHubTeamBadge();
         }
     }).catch(function(e) { console.error('Duplicate team check:', e); });
 }
@@ -6164,6 +6164,27 @@ function loadMyTeamMembers() {
 }
 
 function approveJoinRequest(docId, phone, name) {
+    if (!firebaseDb) return;
+    // Enforce single-team membership: a player already in ANOTHER team must leave it
+    // first. (The request may have been made before they joined elsewhere.)
+    firebaseDb.collection('teams').where('members', 'array-contains', phone).get().then(function(snap) {
+        var otherTeamName = '';
+        snap.forEach(function(d) { if (d.id !== docId && !otherTeamName) otherTeamName = (d.data().name || ''); });
+        if (otherTeamName) {
+            showToast(name + ' موجود بالفعل في فريق "' + otherTeamName + '" — لازم يسيبه الأول', 'error');
+            // Drop the now-invalid join request so the list stays clean
+            firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+                if (!doc.exists) return;
+                var jr = (doc.data().joinRequests || []).filter(function(r) { return r.phone !== phone; });
+                firebaseDb.collection('teams').doc(docId).update({ joinRequests: jr }).then(loadMyTeamMembers).catch(function(){});
+            });
+            return;
+        }
+        doApproveJoinRequest(docId, phone, name);
+    }).catch(function(e) { console.error('Approve membership check:', e); doApproveJoinRequest(docId, phone, name); });
+}
+
+function doApproveJoinRequest(docId, phone, name) {
     if (!firebaseDb) return;
     firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
         if (!doc.exists) return;
@@ -6505,7 +6526,26 @@ function createTeam() {
     // Use a safe document ID (replace problematic chars)
     var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
 
-    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+    // Enforce single-team membership: don't let a player create a team while already
+    // in one (covers a stale/empty GameState.team that the top guard would miss).
+    firebaseDb.collection('teams').where('members', 'array-contains', GameState.playerPhone).get().then(function(memSnap) {
+        var existing = null;
+        memSnap.forEach(function(d) { if (!existing) existing = d.data(); });
+        if (existing) {
+            // Self-heal local state so the UI reflects reality, then stop.
+            GameState.team = existing.name || '';
+            GameState.teamLogo = existing.logo || '⚔️';
+            GameState.teamColor = existing.color || '#6C5CE7';
+            GameState.teamLastAction = Date.now();
+            saveToLocalStorage();
+            showToast('أنت بالفعل في فريق "' + GameState.team + '"! اترك فريقك الحالي أولاً.', 'error');
+            renderTeamsScreen();
+            updateHubTeamBadge();
+            return;
+        }
+        return firebaseDb.collection('teams').doc(docId).get();
+    }).then(function(doc) {
+        if (!doc) return; // already-in-team branch returned above
         if (doc.exists) {
             showToast('الاسم ده موجود بالفعل - اختار اسم تاني', 'error');
             return;
@@ -7603,8 +7643,10 @@ var LEVEL2_SUBJECTS = {
                 name: 'القيامة والمجيء الثاني',
                 desc: 'قيامة المسيح وجسد القيامة والحياة الأبدية',
                 verse: '"إن لم تكن قيامة أموات فلا يكون المسيح قد قام وباطلة كرازتنا" (١كو ١٥: ١٣-١٤)',
-                videoId: 'k_cs1_aqGgI',
-                videoTitle: 'المجيء الثاني - أبونا لوقا ماهر',
+                shortVideoId: 'W4ciI74MeUc',
+                shortVideoTitle: 'شرح بسيط - المجيء الثاني',
+                videoId: 'JgKRD8oku8Q',
+                videoTitle: 'وعظة تفصيلية - المجيء الثاني',
                 content: 'اللاهوت لم يمت على الصليب بل الناسوت المتحد باللاهوت. في القيامة رجعت الروح الإنسانية للجسد وهما متحدين باللاهوت. جسد القيامة هو جسد روحاني ممجد. القوة التي تعمل التغيير موجودة في التناول من جسد الرب ودمه. المسيح سيأتي ثانياً ليدين الأحياء والأموات.',
                 questions: [
                     { q: 'اللي مات على الصليب هو...', options: ['اللاهوت', 'الناسوت المتحد باللاهوت', 'الروح فقط', 'لم يمت أحد'], correct: 1 },
@@ -7648,8 +7690,10 @@ var LEVEL2_SUBJECTS = {
                 name: 'المعمودية والميرون',
                 desc: 'سر الولادة الجديدة والختم الملوكي',
                 verse: '"إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله" (يو ٣: ٥)',
-                videoId: 'sENBfzteQa8',
-                videoTitle: 'المعمودية والميرون - أبونا لوقا ماهر',
+                videoId: '8QzUpL2g0T0',
+                videoTitle: 'فيديو عن المعمودية',
+                altVideoId: 'irtX4kBUyYs',
+                altVideoTitle: 'فيديو عن الميرون',
                 content: 'المعمودية هي باب الأسرار السبعة والولادة الجديدة. يُغطس المعمَّد ٣ مرات باسم الثالوث. المعمودية موت مع المسيح وقيامة معه. الميرون هو سر حلول الروح القدس بـ٣٦ رشمة تقدس كل حواس وكيان الإنسان. المعمودية لا تُعاد لأنها ولادة والإنسان يُولد مرة واحدة.',
                 questions: [
                     { q: 'المعمودية هي... الأسرار السبعة', options: ['نهاية', 'باب', 'وسط', 'جزء من'], correct: 1 },
@@ -8315,7 +8359,6 @@ function showCompanion(mood) {
         el.className = 'companion-widget companion-idle';
         el.innerHTML =
             '<div class="companion-menu" id="companion-menu">' +
-            '  <div class="companion-menu-item" onclick="companionMenuAction(\'pet\')"><span class="mi-emoji">🐾</span><span class="mi-label">صاحبي</span></div>' +
             '  <div class="companion-menu-item" onclick="companionMenuAction(\'tips\')"><span class="mi-emoji">💡</span><span class="mi-label">نصائح</span></div>' +
             '  <div class="companion-menu-item" onclick="companionMenuAction(\'fun\')"><span class="mi-emoji">🎮</span><span class="mi-label">مرح</span></div>' +
             '  <div class="companion-menu-item" onclick="companionMenuAction(\'leaderboard\')"><span class="mi-emoji">🏆</span><span class="mi-label">أبطال</span></div>' +
@@ -8374,9 +8417,9 @@ function companionReact(type) {
     if (!el || !companionState.visible) return;
     companionState.tipIndex = -1;   // reset tip cycle on reaction
     _cmpSetMood(type);
-    if (type === 'happy')     { companionSpeak(COMPANION_CORRECT[Math.floor(Math.random() * COMPANION_CORRECT.length)], 1800); try { petGainXp(2, 1); } catch(e){} }
+    if (type === 'happy')     companionSpeak(COMPANION_CORRECT[Math.floor(Math.random() * COMPANION_CORRECT.length)], 1800);
     else if (type === 'sad')  companionSpeak(COMPANION_WRONG [Math.floor(Math.random() * COMPANION_WRONG.length)],  2000);
-    else if (type === 'streak') { companionSpeak(COMPANION_STREAK[Math.floor(Math.random() * COMPANION_STREAK.length)], 2000); try { petGainXp(4, 2); } catch(e){} }
+    else if (type === 'streak') companionSpeak(COMPANION_STREAK[Math.floor(Math.random() * COMPANION_STREAK.length)], 2000);
     else if (type === 'celebrate') companionSpeak('مبروووك! 🎉🎊', 2500);
     setTimeout(function() { if (el && companionState.visible) _cmpSetMood('idle'); }, 2000);
 }
@@ -8436,9 +8479,7 @@ function companionCloseMenu() {
 
 function companionMenuAction(action) {
     companionCloseMenu();
-    if (action === 'pet') {
-        showScreen('pet-screen');
-    } else if (action === 'tips') {
+    if (action === 'tips') {
         // Jump straight to tip 1 via tapped logic
         companionState.tipIndex = -1;
         companionTapped();
@@ -8449,392 +8490,6 @@ function companionMenuAction(action) {
     } else if (action === 'hide') {
         hideCompanion();
     }
-}
-
-// ============================================================
-// VIRTUAL PET COMPANION  —  "صاحبي الصغير"
-// Adopt a creature, feed it with stars, play, get a daily
-// blessing, level it up, and dress it with accessories.
-// ============================================================
-var PET_TYPES = {
-    lamb:  { name: 'الحَمَل',   emoji: '🐑', glow: '#9ad0ff', line: 'حَمَل وديع زي حَمَل الله',  baby: '🐑' },
-    dove:  { name: 'الحمامة',  emoji: '🕊️', glow: '#bfe3ff', line: 'حمامة الروح القدس',        baby: '🐣' },
-    lion:  { name: 'الأسد',     emoji: '🦁', glow: '#ffcf6b', line: 'أسد من سبط يهوذا',          baby: '🐱' },
-    fish:  { name: 'السمكة',    emoji: '🐠', glow: '#7fe3d4', line: 'رمز الإيمان المسيحي',        baby: '🐟' }
-};
-
-var PET_ACCESSORIES = {
-    halo:    { name: 'هالة',    emoji: '😇', cost: 30, slot: 'over' },
-    crown:   { name: 'تاج',     emoji: '👑', cost: 50, slot: 'over' },
-    bow:     { name: 'فيونكة',  emoji: '🎀', cost: 20, slot: 'over' },
-    scarf:   { name: 'وشاح',    emoji: '🧣', cost: 25, slot: 'under' },
-    flower:  { name: 'وردة',    emoji: '🌷', cost: 15, slot: 'under' }
-};
-
-var PET_BLESSINGS = [
-    'ربنا يباركك ويحفظك النهارده 🙏',
-    'نعمة ربنا تكون معاك في كل خطوة ✝️',
-    '"الرَّبُّ رَاعِيَّ فَلاَ يُعْوِزُنِي شَيْءٌ" (مز ٢٣) 🐑',
-    'افرح في الرب كل حين 🌟',
-    'ربنا قريب من كل المنكسري القلوب 💙',
-    'سلام المسيح يملأ قلبك النهارده 🕊️',
-    '"كُونُوا فَرِحِينَ عَلَى الدَّوَامِ" (١تس ٥) 🎉'
-];
-
-var PET_FEED_COST = 15;          // stars per feed
-var PET_PLAY_COOLDOWN = 2 * 3600 * 1000; // 2h between free plays
-
-/* ── Core helpers ── */
-function _newPet(type, name) {
-    return {
-        adopted: true, type: type, name: name || PET_TYPES[type].name,
-        level: 1, xp: 0, happiness: 100, fullness: 100,
-        lastCare: Date.now(), lastPlay: 0, lastBlessDate: '',
-        accessories: [], equipped: '', totalFed: 0, born: Date.now()
-    };
-}
-function petXpNeeded(level) { return level * 60; }
-function getPetStage(level) {
-    if (level >= 10) return { key: 'blessed', label: 'مبارك ✨', scale: 1.55 };
-    if (level >= 6)  return { key: 'grown',   label: 'كبير',     scale: 1.35 };
-    if (level >= 3)  return { key: 'young',   label: 'بيكبر',    scale: 1.15 };
-    return { key: 'baby', label: 'صغير', scale: 1.0 };
-}
-function _petMoodEmoji(p) {
-    if (p.fullness < 35) return '😋';      // hungry
-    if (p.happiness >= 75) return '🥰';
-    if (p.happiness >= 45) return '🙂';
-    return '🥺';
-}
-// Lazily apply time-based decay of happiness/fullness since last interaction
-function applyPetDecay() {
-    var p = GameState.pet;
-    if (!p || !p.adopted) return;
-    var now = Date.now();
-    var hours = (now - (p.lastCare || now)) / 3600000;
-    if (hours > 0.02) {
-        p.happiness = Math.max(0, Math.round((p.happiness || 0) - hours * 2));
-        p.fullness  = Math.max(0, Math.round((p.fullness  || 0) - hours * 3));
-        p.lastCare = now;
-    }
-}
-// Pet needs attention? (drives the home-hub notification dot)
-function petNeedsAttention() {
-    var p = GameState.pet;
-    if (!p || !p.adopted) return false;
-    applyPetDecay();
-    var todayKey = getTodayKey();
-    return p.fullness < 40 || p.happiness < 40 || p.lastBlessDate !== todayKey;
-}
-// Award pet xp from gameplay (hooked into companionReact)
-function petGainXp(amount, happy) {
-    var p = GameState.pet;
-    if (!p || !p.adopted) return;
-    p.xp = (p.xp || 0) + amount;
-    if (happy) p.happiness = Math.min(100, (p.happiness || 0) + happy);
-    _petCheckLevelUp(false);
-}
-function _petCheckLevelUp(announce) {
-    var p = GameState.pet;
-    if (!p) return false;
-    var leveled = false;
-    while (p.xp >= petXpNeeded(p.level)) {
-        p.xp -= petXpNeeded(p.level);
-        p.level++;
-        leveled = true;
-        var reward = Math.min(2 + p.level, 12);
-        GameState.gems += reward;
-        if (announce) {
-            try { playVictorySound(); } catch(e){}
-            try { launchConfetti(2200); } catch(e){}
-            showToast('🎉 ' + p.name + ' وصل للمستوى ' + p.level + '! +' + reward + ' 💎', 'success');
-            try { companionReact('celebrate'); } catch(e){}
-            var st = getPetStage(p.level);
-            if (st.key === 'grown' || st.key === 'blessed') {
-                showToast('✨ ' + p.name + ' كبر وبقى "' + st.label + '"!', 3000);
-            }
-        }
-    }
-    return leveled;
-}
-
-/* ── Screen render ── */
-function renderPetScreen() {
-    var host = document.getElementById('pet-screen-body');
-    if (!host) return;
-    var p = GameState.pet;
-
-    if (!p || !p.adopted) { _renderPetAdopt(host); return; }
-    applyPetDecay();
-
-    var t = PET_TYPES[p.type] || PET_TYPES.lamb;
-    var stage = getPetStage(p.level);
-    var emoji = stage.key === 'baby' ? (t.baby || t.emoji) : t.emoji;
-    var acc = p.equipped && PET_ACCESSORIES[p.equipped] ? PET_ACCESSORIES[p.equipped] : null;
-    var xpNeed = petXpNeeded(p.level);
-    var xpPct = Math.min(100, Math.round((p.xp / xpNeed) * 100));
-    var todayKey = getTodayKey();
-    var canBless = p.lastBlessDate !== todayKey;
-    var playReady = (Date.now() - (p.lastPlay || 0)) >= PET_PLAY_COOLDOWN;
-
-    var accOver  = acc && acc.slot === 'over'  ? '<div class="pet-acc pet-acc-over">'  + acc.emoji + '</div>' : '';
-    var accUnder = acc && acc.slot === 'under' ? '<div class="pet-acc pet-acc-under">' + acc.emoji + '</div>' : '';
-
-    host.innerHTML =
-        '<div class="pet-stage-card pet-glow-' + (stage.key === 'blessed' ? 'on' : 'off') + '" style="--pet-glow:' + t.glow + '">' +
-            '<div class="pet-stage-sky"></div>' +
-            '<div class="pet-floor"></div>' +
-            '<div class="pet-mood-badge">' + _petMoodEmoji(p) + '</div>' +
-            '<div class="pet-level-chip">⭐ مستوى ' + p.level + ' · ' + stage.label + '</div>' +
-            '<div class="pet-creature" onclick="petPat()" style="--pet-scale:' + stage.scale + '">' +
-                accOver +
-                '<div class="pet-emoji">' + emoji + '</div>' +
-                accUnder +
-            '</div>' +
-            '<div class="pet-name">' + esc_(p.name) + '</div>' +
-            '<div class="pet-subline">' + t.line + '</div>' +
-        '</div>' +
-
-        '<div class="pet-meters">' +
-            _petMeter('فرح', '😊', p.happiness, '#FD79A8') +
-            _petMeter('طعام', '🍎', p.fullness, '#00B894') +
-            '<div class="pet-meter">' +
-                '<div class="pet-meter-top"><span>⭐ خبرة</span><span dir="ltr">' + p.xp + ' / ' + xpNeed + '</span></div>' +
-                '<div class="pet-meter-bar"><div class="pet-meter-fill" style="width:' + xpPct + '%;background:#6C5CE7"></div></div>' +
-            '</div>' +
-        '</div>' +
-
-        '<div class="pet-actions">' +
-            '<button class="pet-btn pet-btn-feed" onclick="petFeed()">' +
-                '<span class="pet-btn-emoji">🍎</span><span>إطعام</span><span class="pet-btn-cost">' + PET_FEED_COST + ' ⭐</span></button>' +
-            '<button class="pet-btn pet-btn-play' + (playReady ? '' : ' is-cooldown') + '" onclick="petPlay()">' +
-                '<span class="pet-btn-emoji">🎾</span><span>لعب</span><span class="pet-btn-cost">' + (playReady ? 'مجاناً' : 'بعد شوية') + '</span></button>' +
-            '<button class="pet-btn pet-btn-bless' + (canBless ? ' is-ready' : '') + '" onclick="petBless()">' +
-                '<span class="pet-btn-emoji">🙏</span><span>بركة اليوم</span><span class="pet-btn-cost">' + (canBless ? 'جاهزة!' : 'بكرة') + '</span></button>' +
-        '</div>' +
-
-        '<div class="pet-shop">' +
-            '<h3 class="pet-shop-title">🎀 الإكسسوارات</h3>' +
-            '<div class="pet-shop-grid">' +
-                Object.keys(PET_ACCESSORIES).map(function(id) {
-                    var a = PET_ACCESSORIES[id];
-                    var owned = (p.accessories || []).indexOf(id) >= 0;
-                    var on = p.equipped === id;
-                    var btn, cls;
-                    if (on)        { btn = 'مرتدي ✓'; cls = 'on'; }
-                    else if (owned){ btn = 'ارتدِ';   cls = 'owned'; }
-                    else           { btn = a.cost + ' 💎'; cls = 'buy'; }
-                    return '<div class="pet-acc-card pet-acc-' + cls + '" onclick="petAccessory(\'' + id + '\')">' +
-                        '<div class="pet-acc-emoji">' + a.emoji + '</div>' +
-                        '<div class="pet-acc-name">' + a.name + '</div>' +
-                        '<div class="pet-acc-btn">' + btn + '</div>' +
-                    '</div>';
-                }).join('') +
-            '</div>' +
-            (p.equipped ? '<button class="pet-unequip" onclick="petAccessory(\'\')">شيل الإكسسوار</button>' : '') +
-        '</div>';
-}
-
-function _petMeter(label, icon, val, color) {
-    val = Math.max(0, Math.min(100, Math.round(val || 0)));
-    var low = val < 35 ? ' pet-meter-low' : '';
-    return '<div class="pet-meter' + low + '">' +
-        '<div class="pet-meter-top"><span>' + icon + ' ' + label + '</span><span>' + val + '%</span></div>' +
-        '<div class="pet-meter-bar"><div class="pet-meter-fill" style="width:' + val + '%;background:' + color + '"></div></div>' +
-    '</div>';
-}
-
-function _renderPetAdopt(host) {
-    host.innerHTML =
-        '<div class="pet-adopt-intro">' +
-            '<div class="pet-adopt-title">🐾 اختار صاحبك الصغير</div>' +
-            '<p class="pet-adopt-sub">اعتنِ بيه كل يوم.. أطعمه، العب معاه، وشوفه بيكبر معاك!</p>' +
-        '</div>' +
-        '<div class="pet-adopt-grid">' +
-            Object.keys(PET_TYPES).map(function(id) {
-                var t = PET_TYPES[id];
-                return '<div class="pet-adopt-card" onclick="petChoose(\'' + id + '\')" style="--pet-glow:' + t.glow + '">' +
-                    '<div class="pet-adopt-emoji">' + t.emoji + '</div>' +
-                    '<div class="pet-adopt-name">' + t.name + '</div>' +
-                    '<div class="pet-adopt-line">' + t.line + '</div>' +
-                '</div>';
-            }).join('') +
-        '</div>';
-}
-
-/* ── Actions ── */
-function petChoose(type) {
-    if (!PET_TYPES[type]) return;
-    var def = prompt('سمّي صاحبك الصغير ' + PET_TYPES[type].emoji + ' (أو سيبها فاضية):', PET_TYPES[type].name);
-    if (def === null) return; // cancelled
-    var name = (def || '').trim().slice(0, 16) || PET_TYPES[type].name;
-    GameState.pet = _newPet(type, name);
-    try { playStationUnlockSound(); } catch(e){}
-    try { launchConfetti(2200); } catch(e){}
-    _petFloat('💖'); _petFloat('✨');
-    showToast('اتولد ' + name + '! اعتنِ بيه كويس 🥰', 'success');
-    saveToCloud();
-    renderPetScreen();
-}
-
-function petFeed() {
-    var p = GameState.pet; if (!p) return;
-    if ((GameState.stars || 0) < PET_FEED_COST) { showToast('محتاج ' + PET_FEED_COST + ' نجمة عشان تطعمه ⭐', 'warning'); return; }
-    if (p.fullness >= 100) { showToast(p.name + ' شبعان دلوقتي 😊', 2000); return; }
-    GameState.stars -= PET_FEED_COST;
-    p.fullness = Math.min(100, p.fullness + 30);
-    p.happiness = Math.min(100, p.happiness + 6);
-    p.totalFed = (p.totalFed || 0) + 1;
-    p.lastCare = Date.now();
-    p.xp += 8;
-    try { playCorrectSound(); } catch(e){}
-    _petCheckLevelUp(true);
-    renderPetScreen();
-    _petFloat('🍎'); _petBounce();
-    saveToCloud();
-}
-
-function petPlay() {
-    var p = GameState.pet; if (!p) return;
-    if ((Date.now() - (p.lastPlay || 0)) < PET_PLAY_COOLDOWN) {
-        var mins = Math.ceil((PET_PLAY_COOLDOWN - (Date.now() - p.lastPlay)) / 60000);
-        showToast('تعب شوية.. العب معاه بعد ' + mins + ' دقيقة 🎾', 2200); return;
-    }
-    p.lastPlay = Date.now();
-    p.lastCare = Date.now();
-    p.happiness = Math.min(100, p.happiness + 20);
-    p.xp += 6;
-    try { playComboSound(2); } catch(e){}
-    _petCheckLevelUp(true);
-    renderPetScreen();
-    _petFloat('🎾'); _petFloat('💕'); _petBounce();
-    saveToCloud();
-}
-
-// Free tap interaction on the creature itself
-function petPat() {
-    var p = GameState.pet; if (!p) return;
-    p.happiness = Math.min(100, p.happiness + 2);
-    p.lastCare = Date.now();
-    try { playTickSound(); } catch(e){}
-    renderPetScreen();
-    _petFloat(['💖','✨','💕','😊','🎵'][Math.floor(Math.random()*5)]);
-    _petBounce();
-}
-
-function petBless() {
-    var p = GameState.pet; if (!p) return;
-    var todayKey = getTodayKey();
-    if (p.lastBlessDate === todayKey) { showToast('أخدت بركة النهارده.. تعالى بكرة 🙏', 2200); return; }
-    p.lastBlessDate = todayKey;
-    p.happiness = Math.min(100, p.happiness + 12);
-    p.lastCare = Date.now();
-    p.xp += 15;
-    var gemReward = 3;
-    GameState.gems += gemReward;
-    var msg = PET_BLESSINGS[Math.floor(Math.random() * PET_BLESSINGS.length)];
-    try { playVictorySound(); } catch(e){}
-    showPetBlessCard(p.name, msg, gemReward);
-    _petCheckLevelUp(true);
-    renderPetScreen();
-    _petFloat('🙏'); _petFloat('✨'); _petFloat('💙');
-    saveToCloud();
-}
-
-function showPetBlessCard(name, msg, gems) {
-    var ov = document.createElement('div');
-    ov.className = 'pet-bless-overlay';
-    ov.onclick = function(){ ov.classList.remove('show'); setTimeout(function(){ ov.remove(); }, 300); };
-    ov.innerHTML =
-        '<div class="pet-bless-card" onclick="event.stopPropagation()">' +
-            '<div class="pet-bless-ico">🕊️</div>' +
-            '<h3>بركة من ' + esc_(name) + '</h3>' +
-            '<p class="pet-bless-msg">' + msg + '</p>' +
-            '<div class="pet-bless-reward">+' + gems + ' 💎</div>' +
-            '<button class="btn btn-primary" onclick="this.closest(\'.pet-bless-overlay\').click()">آمين 🙏</button>' +
-        '</div>';
-    document.body.appendChild(ov);
-    requestAnimationFrame(function(){ ov.classList.add('show'); });
-}
-
-function petAccessory(id) {
-    var p = GameState.pet; if (!p) return;
-    if (id === '') { p.equipped = ''; saveToCloud(); renderPetScreen(); return; }
-    var a = PET_ACCESSORIES[id]; if (!a) return;
-    var owned = (p.accessories || []).indexOf(id) >= 0;
-    if (!owned) {
-        if ((GameState.gems || 0) < a.cost) { showToast('محتاج ' + a.cost + ' جوهرة 💎', 'warning'); return; }
-        GameState.gems -= a.cost;
-        p.accessories = p.accessories || [];
-        p.accessories.push(id);
-        try { playStationUnlockSound(); } catch(e){}
-        showToast('اشتريت ' + a.name + ' ' + a.emoji, 'success');
-    }
-    p.equipped = (p.equipped === id) ? '' : id;
-    _petBounce();
-    saveToCloud();
-    renderPetScreen();
-}
-
-/* ── Visual flourishes ── */
-function _petBounce() {
-    var c = document.querySelector('#pet-screen-body .pet-creature');
-    if (!c) return;
-    c.classList.remove('pet-bounce'); void c.offsetWidth; c.classList.add('pet-bounce');
-    setTimeout(function(){ if (c) c.classList.remove('pet-bounce'); }, 520);
-}
-function _petFloat(emoji) {
-    var stage = document.querySelector('#pet-screen-body .pet-stage-card');
-    if (!stage) return;
-    var f = document.createElement('div');
-    f.className = 'pet-float-emoji';
-    f.textContent = emoji;
-    f.style.left = (35 + Math.random() * 30) + '%';
-    stage.appendChild(f);
-    setTimeout(function(){ f.remove(); }, 1500);
-}
-
-/* ── Home-hub teaser ── */
-function renderPetTeaser() {
-    var host = document.getElementById('hub-pet-teaser');
-    if (!host) return;
-    var p = GameState.pet;
-    if (!p || !p.adopted) {
-        host.innerHTML =
-            '<div class="pet-teaser pet-teaser-adopt" onclick="showScreen(\'pet-screen\')">' +
-                '<div class="pet-teaser-emoji">🐾</div>' +
-                '<div class="pet-teaser-info"><div class="pet-teaser-name">اتبنى صاحب صغير</div>' +
-                '<div class="pet-teaser-sub">اختار حيوانك واعتنِ بيه كل يوم</div></div>' +
-                '<div class="pet-teaser-cta">ابدأ</div>' +
-            '</div>';
-        host.style.display = 'block';
-        return;
-    }
-    applyPetDecay();
-    var t = PET_TYPES[p.type] || PET_TYPES.lamb;
-    var stage = getPetStage(p.level);
-    var emoji = stage.key === 'baby' ? (t.baby || t.emoji) : t.emoji;
-    var attn = petNeedsAttention();
-    host.innerHTML =
-        '<div class="pet-teaser" onclick="showScreen(\'pet-screen\')">' +
-            '<div class="pet-teaser-emoji">' + emoji + (attn ? '<span class="pet-teaser-dot"></span>' : '') + '</div>' +
-            '<div class="pet-teaser-info">' +
-                '<div class="pet-teaser-name">' + esc_(p.name) + ' <span class="pet-teaser-lvl">مستوى ' + p.level + '</span></div>' +
-                '<div class="pet-teaser-bars">' +
-                    '<div class="pet-teaser-bar"><i style="width:' + Math.round(p.happiness) + '%;background:#FD79A8"></i></div>' +
-                    '<div class="pet-teaser-bar"><i style="width:' + Math.round(p.fullness) + '%;background:#00B894"></i></div>' +
-                '</div>' +
-            '</div>' +
-            '<div class="pet-teaser-cta">' + (attn ? 'محتاجك!' : 'زوره') + '</div>' +
-        '</div>';
-    host.style.display = 'block';
-}
-
-// Small HTML escaper for pet names (esc() lives in admin only)
-function esc_(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
-        return { '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c];
-    });
 }
 
 // ============================================================
@@ -9968,9 +9623,6 @@ function renderHomeHub() {
 
     // Render daily verse card
     renderTodayVerse();
-
-    // Render virtual pet teaser
-    try { renderPetTeaser(); } catch(e){ console.warn('renderPetTeaser error', e); }
 
     // Card entrance stagger animation
     setTimeout(function() {
@@ -11618,7 +11270,17 @@ var LESSON_MINI_GAMES = {
             { statement: 'جسد القيامة بيلبس "عدم موت"', answer: true },
             { statement: 'القديسين بيميتوا أعمال الجسد بالروح', answer: true },
             { statement: 'الجسد اللي بيزرع في هوان يقام في مجد', answer: true },
-            { statement: '"سآتي سريعاً" ده وعد المسيح في الرؤيا', answer: true }
+            { statement: '"سآتي سريعاً" ده وعد المسيح في الرؤيا', answer: true },
+            { statement: 'اللاهوت فارق الجسد ثلاثة أيام وهو في القبر', answer: false },
+            { statement: 'اللي مات على الصليب هو الناسوت المتحد باللاهوت', answer: true },
+            { statement: 'اللاهوت لم يفارق الجسد ولا الروح لحظة واحدة', answer: true },
+            { statement: 'المسيح مكث على الأرض أربعين يوماً بعد قيامته', answer: true },
+            { statement: 'المسيح صعد إلى السماء من جبل سيناء', answer: false },
+            { statement: 'توما آمن بالقيامة لما لمس جنب المسيح', answer: true },
+            { statement: 'الموت هو "آخر عدو يُبطَل"', answer: true },
+            { statement: 'عيد القيامة بنسميه "عيد الأعياد"', answer: true },
+            { statement: 'أول من رأى المسيح بعد القيامة كان بطرس الرسول', answer: false },
+            { statement: 'جسد المسيح بعد القيامة كان يدخل والأبواب مغلقة', answer: true }
         ],
         whoAmI: [
             { clues: ['أنا مكان مؤقت', 'أرواح الأبرار بتروحلي بعد الموت', 'مش المكان الأبدي النهائي'], answer: 'الفردوس' },
@@ -11640,7 +11302,37 @@ var LESSON_MINI_GAMES = {
             { clues: ['أنا الوصف الخاص بجسد القيامة', 'مش بيفنى ولا بيتحلل', '"الفاسد يلبسني"'], answer: 'عدم فساد' },
             { clues: ['أنا اللي بيتقال عليه "يقوم في مجد"', 'لكنه "يُزرع في هوان"', 'الجسد الذي نرقد فيه'], answer: 'جسد المؤمن' },
             { clues: ['أنا حالة الناس أيام نوح قبل الطوفان', 'غرقانين في مشاغلهم', 'ما اتحضروش ليوم الطوفان'], answer: 'الغفلة والبعد عن ربنا' },
-            { clues: ['أنا قيامتنا من الخطية', 'بالمعمودية والتوبة', '"القيامة الأولى" مش الجسدية'], answer: 'القيامة الأولى (من الخطية)' }
+            { clues: ['أنا قيامتنا من الخطية', 'بالمعمودية والتوبة', '"القيامة الأولى" مش الجسدية'], answer: 'القيامة الأولى (من الخطية)' },
+            { clues: ['أنا اللي مُت على الصليب', 'متحد باللاهوت اللي لم يمت', 'رجعت ليّ الروح في القيامة'], answer: 'الناسوت' },
+            { clues: ['أنا ما متُّ ولا فارقت الجسد لحظة', 'ولا فارقت الروح في الفردوس', 'كنت أدبّر الكون والجسد في القبر'], answer: 'اللاهوت' },
+            { clues: ['مني تجسد آدم الأخير', 'أنا أم النور', 'مولود مني الرب يسوع'], answer: 'العذراء مريم' },
+            { clues: ['من فوقي صعد المسيح للسماء', 'الملائكة بشّرت التلاميذ فوقي', 'أنا جبل قرب أورشليم'], answer: 'جبل الزيتون' },
+            { clues: ['أنا أول من رأى المسيح بعد القيامة', 'وقفت عند القبر أبكي', 'ناداني باسمي فعرفته'], answer: 'مريم المجدلية' },
+            { clues: ['أنا ما آمنتش غير لما لمست', 'وضعت يدي في جنب الرب', 'قلت ربي وإلهي'], answer: 'توما الرسول' },
+            { clues: ['أنا المدة اللي مكثها المسيح بعد القيامة', 'كان بيظهر فيّ للتلاميذ', 'بعدي كان الصعود'], answer: 'الأربعون يوماً' },
+            { clues: ['فيّ قام المسيح من الأموات', 'أنا أول الأسبوع', 'بقيت يوم الرب للمسيحيين'], answer: 'يوم الأحد (يوم الرب)' },
+            { clues: ['كنت على باب القبر', 'لقوني مدحرجاً بعيداً', 'القبر كان فارغاً'], answer: 'الحجر المدحرج' },
+            { clues: ['صوتي يُسمع عند مجيء الرب', 'عندي يقوم الأموات عديمي فساد', 'أنا البوق الأخير'], answer: 'بوق الله' },
+            { clues: ['صوتي يُسمع وقت نزول الرب', 'الرب ينزل بهتاف وبصوتي', 'أنا من كبار الملائكة'], answer: 'رئيس الملائكة' },
+            { clues: ['أنا ما ذقتش الموت', 'هأجي قبل يوم الرب العظيم', 'ملاخي تنبأ عن مجيئي'], answer: 'إيليا النبي' },
+            { clues: ['أنا سرت مع الله ولم أمت', 'هأجي مع إيليا قبل المجيء', 'نقلني الله إليه'], answer: 'أخنوخ' },
+            { clues: ['إيماني بالمسيح علامة من علامات النهاية', 'كنت رافض المسيح', 'في آخر الأيام أرجع'], answer: 'إيمان اليهود' },
+            { clues: ['أيامي مثال للغفلة قبل الدينونة', 'الناس أكلت وشربت ولم تستعد', 'جاء الطوفان فجأة'], answer: 'نوح' },
+            { clues: ['أنا أشرق لما تظلم الشمس الطبيعية', 'في أجنحتي الشفاء', 'أنا لقب للرب يسوع'], answer: 'شمس البر' },
+            { clues: ['الجسد المائت يلبسني', 'أنا عكس الفناء', 'صفة من صفات جسد القيامة'], answer: 'عدم موت' },
+            { clues: ['أنا اعتقاد خاطئ', 'بيقول إن المسيح هيملك على الأرض ألف سنة', 'الكنيسة الأرثوذكسية ترفضني'], answer: 'المُلك الألفي المادي' },
+            { clues: ['كتبت عن خطف الكنيسة في الهواء', 'قلت الأموات في المسيح سيقومون أولاً', 'كتبت أصحاح القيامة في كورنثوس'], answer: 'بولس الرسول' },
+            { clues: ['كتبت أصحاح ٦ عن التناول', 'كتبت سفر الرؤيا', 'نقلت قول الرب "أنا أقيمه في اليوم الأخير"'], answer: 'يوحنا الإنجيلي' },
+            { clues: ['عليّ يأتي ابن الإنسان', 'بقوة ومجد كثير', 'أنا مركبة المجيء الثاني'], answer: 'سحاب السماء' },
+            { clues: ['فيّ نلتقي بالرب', 'نُخطَف إليّ في السحب', 'مش على الأرض'], answer: 'الهواء' },
+            { clues: ['فيّ تقوم الأجساد', 'الأرواح ترجع تتحد بالأجساد', 'فيّ الدينونة العامة'], answer: 'اليوم الأخير' },
+            { clues: ['أنا نصيب الذين فعلوا الصالحات', 'يخرجون إليّ من القبور', 'عكس قيامة الدينونة'], answer: 'قيامة الحياة' },
+            { clues: ['أنا نصيب الذين عملوا السيئات', 'يخرجون إليّ من القبور', 'عكس قيامة الحياة'], answer: 'قيامة الدينونة' },
+            { clues: ['أنا عينة من جسد القيامة', 'القديسون ياخدوني وهم على الأرض', 'مقدمة للمجد الكامل'], answer: 'العربون' },
+            { clues: ['فيّ قيامتنا الأولى', 'نقوم من الخطية', 'ولادة جديدة من الماء والروح'], answer: 'المعمودية' },
+            { clues: ['لازم أُكرَز بيّ في كل المسكونة', 'بعدي يأتي المنتهى', 'شهادة لجميع الأمم'], answer: 'بشارة الملكوت' },
+            { clues: ['المسيح أوصى بيّ', 'لأنكم لا تعلمون الساعة', 'أنا ضد الغفلة'], answer: 'السهر واليقظة' },
+            { clues: ['أجسادنا تقترب من جسد القيامة', 'بنميت أعمال الجسد بالروح', 'بنأخذ عربون المجد على الأرض'], answer: 'القديسون' }
         ],
         sortVerse: [
             { full: 'إن لم تكن قيامة أموات فلا يكون المسيح قد قام', ref: '١كو ١٥: ١٣' },
@@ -11667,7 +11359,31 @@ var LESSON_MINI_GAMES = {
             { full: 'أيها الرب يسوع تعال', ref: 'رؤ ٢٢: ٢٠' },
             { full: 'لأن هذا الفاسد يلبس عدم فساد', ref: '١كو ١٥: ٥٣' },
             { full: 'وهذا المائت يلبس عدم موت', ref: '١كو ١٥: ٥٣' },
-            { full: 'لأن جسدي مأكل حق ودمي مشرب حق', ref: 'يو ٦: ٥٥' }
+            { full: 'لأن جسدي مأكل حق ودمي مشرب حق', ref: 'يو ٦: ٥٥' },
+            { full: 'كما هو الترابي هكذا الترابيون أيضاً', ref: '١كو ١٥: ٤٨' },
+            { full: 'في آدم يموت الجميع كذلك في المسيح سيحيا الجميع', ref: '١كو ١٥: ٢٢' },
+            { full: 'آخر عدو يُبطَل هو الموت', ref: '١كو ١٥: ٢٦' },
+            { full: 'يُزرع في فساد ويقام في عدم فساد', ref: '١كو ١٥: ٤٢' },
+            { full: 'يُزرع في هوان ويقام في مجد', ref: '١كو ١٥: ٤٣' },
+            { full: 'يُزرع جسماً حيوانياً ويقام جسماً روحانياً', ref: '١كو ١٥: ٤٤' },
+            { full: 'أين شوكتك يا موت أين غلبتك يا هاوية', ref: '١كو ١٥: ٥٥' },
+            { full: 'شكراً لله الذي يعطينا الغلبة بربنا يسوع المسيح', ref: '١كو ١٥: ٥٧' },
+            { full: 'في لحظة في طرفة عين عند البوق الأخير', ref: '١كو ١٥: ٥٢' },
+            { full: 'أنا هو القيامة والحياة', ref: 'يو ١١: ٢٥' },
+            { full: 'من آمن بي ولو مات فسيحيا', ref: 'يو ١١: ٢٥' },
+            { full: 'تأتي ساعة فيها يسمع جميع الذين في القبور صوته', ref: 'يو ٥: ٢٨' },
+            { full: 'من يأكل هذا الخبز يحيا إلى الأبد', ref: 'يو ٦: ٥٨' },
+            { full: 'ها أنا آتي سريعاً وأجرتي معي', ref: 'رؤ ٢٢: ١٢' },
+            { full: 'وحينئذ يبصرون ابن الإنسان آتياً في سحابة بقوة ومجد', ref: 'لو ٢١: ٢٧' },
+            { full: 'انتصبوا وارفعوا رؤوسكم لأن نجاتكم تقترب', ref: 'لو ٢١: ٢٨' },
+            { full: 'يرسل ملائكته فيجمعون مختاريه من الأربع الرياح', ref: 'مت ٢٤: ٣١' },
+            { full: 'كما كان في أيام نوح كذلك يكون مجيء ابن الإنسان', ref: 'مت ٢٤: ٣٧' },
+            { full: 'السماء والأرض تزولان ولكن كلامي لا يزول', ref: 'مت ٢٤: ٣٥' },
+            { full: 'وأما ذلك اليوم وتلك الساعة فلا يعلم بهما أحد', ref: 'مت ٢٤: ٣٦' },
+            { full: 'هأنذا أرسل إليكم إيليا النبي قبل مجيء يوم الرب', ref: 'ملا ٤: ٥' },
+            { full: 'اسهروا إذاً لأنكم لا تعلمون اليوم ولا الساعة', ref: 'مت ٢٥: ١٣' },
+            { full: 'إن كنا قد متنا مع المسيح نؤمن أننا سنحيا معه', ref: 'رو ٦: ٨' },
+            { full: 'الذي أقام المسيح من الأموات سيحيي أجسادكم المائتة', ref: 'رو ٨: ١١' }
         ],
         fillBlank: [
             { text: 'القيامة أمر ___ ولازم يحصل مش احتمالي', blank: 'حتمي', options: ['حتمي', 'اختياري', 'احتمالي', 'رمزي'] },
@@ -11700,7 +11416,26 @@ var LESSON_MINI_GAMES = {
             { text: 'التناول يعطى عنا خلاصاً وغفراناً وحياة ___', blank: 'أبدية', options: ['أبدية', 'مؤقتة', 'جميلة', 'طيبة'] },
             { text: 'المسيح مش هييجي يملك ملكاً ___ على الأرض', blank: 'ألفياً', options: ['ألفياً', 'أبدياً', 'سماوياً', 'قديماً'] },
             { text: 'اسهروا لأنكم لا تعلمون في أية ___ يأتي ربكم', blank: 'ساعة', options: ['ساعة', 'سنة', 'يوم', 'لحظة'] },
-            { text: '"أيها الرب يسوع ___" — صرخة اشتياق الكنيسة', blank: 'تعال', options: ['تعال', 'ساعدنا', 'قوّنا', 'انتظرنا'] }
+            { text: '"أيها الرب يسوع ___" — صرخة اشتياق الكنيسة', blank: 'تعال', options: ['تعال', 'ساعدنا', 'قوّنا', 'انتظرنا'] },
+            { text: 'اللاهوت لم يفارق الجسد ولا الروح ___ واحدة', blank: 'لحظة', options: ['لحظة', 'ساعة', 'يوماً', 'سنة'] },
+            { text: 'اللي مات على الصليب هو ___ المتحد باللاهوت', blank: 'الناسوت', options: ['الناسوت', 'اللاهوت', 'الروح', 'الملاك'] },
+            { text: 'آدم الأخير تجسد من العذراء ___', blank: 'مريم', options: ['مريم', 'أليصابات', 'حنة', 'سارة'] },
+            { text: 'الجسد يُزرع في هوان ويقام في ___', blank: 'مجد', options: ['مجد', 'ضعف', 'هوان', 'تراب'] },
+            { text: 'القديسون يأخذون "___" من جسد القيامة وهم على الأرض', blank: 'عربون', options: ['عربون', 'نصيب', 'ميراث', 'أجر'] },
+            { text: 'الموت هو "آخر ___ يُبطَل"', blank: 'عدو', options: ['عدو', 'باب', 'ألم', 'خوف'] },
+            { text: 'قال المسيح "أنا هو ___ والحياة"', blank: 'القيامة', options: ['القيامة', 'النور', 'الطريق', 'الباب'] },
+            { text: 'مكث المسيح على الأرض بعد قيامته ___ يوماً', blank: 'أربعين', options: ['أربعين', 'ثلاثين', 'سبعة', 'عشرة'] },
+            { text: 'صعد المسيح إلى السماء من جبل ___', blank: 'الزيتون', options: ['الزيتون', 'تابور', 'سيناء', 'حوريب'] },
+            { text: 'إيمان ___ بالمسيح من علامات نهاية العالم', blank: 'اليهود', options: ['اليهود', 'الأمم', 'الرومان', 'المصريين'] },
+            { text: 'مع إيليا النبي يأتي ___ قبل المجيء الثاني', blank: 'أخنوخ', options: ['أخنوخ', 'موسى', 'يوحنا', 'إرميا'] },
+            { text: 'ينزل الرب بصوت ___ الملائكة وبوق الله', blank: 'رئيس', options: ['رئيس', 'كبير', 'أمير', 'قائد'] },
+            { text: 'في مجيئه الثاني كل عين سوف ___ المسيح', blank: 'تبصر', options: ['تبصر', 'تنام', 'تغمض', 'تبكي'] },
+            { text: '"السماء والأرض ___ ولكن كلامي لا يزول"', blank: 'تزولان', options: ['تزولان', 'تثبتان', 'تبقيان', 'تتجددان'] },
+            { text: '"ذلك اليوم وتلك الساعة لا يعلم بهما ___"', blank: 'أحد', options: ['أحد', 'الملائكة', 'الأنبياء', 'الناس'] },
+            { text: 'لقوا الحجر ___ بعيداً عن باب القبر', blank: 'مدحرجاً', options: ['مدحرجاً', 'ثابتاً', 'مكسوراً', 'موضوعاً'] },
+            { text: 'توما آمن بالقيامة لما ___ جنب المسيح', blank: 'لمس', options: ['لمس', 'شمّ', 'سمع', 'تخيّل'] },
+            { text: 'عيد القيامة هو "عيد ___"', blank: 'الأعياد', options: ['الأعياد', 'الصوم', 'النور', 'الفصح'] },
+            { text: 'كلنا حملنا "___ الترابي" وسنحمل صورة السماوي', blank: 'صورة', options: ['صورة', 'طبيعة', 'اسم', 'شكل'] }
         ],
         matchPairs: [
             { left: 'آدم الأول', right: 'الترابي' },
@@ -11742,7 +11477,17 @@ var LESSON_MINI_GAMES = {
             { left: 'صورة الترابي', right: 'جسدنا الحالي الضعيف' },
             { left: 'صورة السماوي', right: 'جسد القيامة الممجد' },
             { left: 'أيها الرب يسوع تعال', right: 'صرخة اشتياق الكنيسة' },
-            { left: 'المُلك الألفي المادي', right: 'اعتقاد خاطئ عن المجيء الثاني' }
+            { left: 'المُلك الألفي المادي', right: 'اعتقاد خاطئ عن المجيء الثاني' },
+            { left: 'الناسوت', right: 'ما مات على الصليب واللاهوت لم يمت' },
+            { left: 'اللاهوت', right: 'لم يفارق الجسد ولا الروح لحظة' },
+            { left: 'الأربعون يوماً', right: 'مدة بقاء المسيح بعد القيامة' },
+            { left: 'يوم الأحد', right: 'يوم قيامة الرب' },
+            { left: 'توما الرسول', right: 'آمن بعد أن لمس جنب المسيح' },
+            { left: 'الموت', right: 'آخر عدو يُبطَل' },
+            { left: 'العربون', right: 'عينة من جسد القيامة في القديسين' },
+            { left: 'العذراء مريم', right: 'تجسد منها آدم الأخير' },
+            { left: 'أنا هو القيامة والحياة', right: 'قاله المسيح لمرثا' },
+            { left: 'الحجر المدحرج', right: 'علامة القبر الفارغ' }
         ],
         characters: [
             { q: 'مين اللي كتب: "إن لم يكن المسيح قد قام فباطلة كرازتنا"؟', options: ['بطرس الرسول', 'يوحنا الرسول', 'بولس الرسول', 'يعقوب الرسول'], correct: 2 },
@@ -11764,7 +11509,193 @@ var LESSON_MINI_GAMES = {
             { q: 'مين اللي الرب ينزل من السما بصوت رئيس الملائكة؟', options: ['رئيس ملائكة', 'يوحنا المعمدان', 'موسى', 'إيليا'], correct: 0 },
             { q: 'مين اللي هيقابلوا الرب في الهواء؟', options: ['الملائكة وحدهم', 'المؤمنون المخطوفون', 'الأشرار', 'الأنبياء فقط'], correct: 1 },
             { q: 'مين اللي "بيثبت في المسيح والمسيح فيه" بالتناول؟', options: ['الكاهن فقط', 'الأسقف فقط', 'المتناولون المؤمنون', 'الرهبان فقط'], correct: 2 },
-            { q: 'مين اللي قال "سآتي سريعاً" في سفر الرؤيا؟', options: ['يوحنا الإنجيلي', 'الملاك', 'بولس الرسول', 'الرب يسوع المسيح'], correct: 3 }
+            { q: 'مين اللي قال "سآتي سريعاً" في سفر الرؤيا؟', options: ['يوحنا الإنجيلي', 'الملاك', 'بولس الرسول', 'الرب يسوع المسيح'], correct: 3 },
+            { q: 'اللي لم يمت على الصليب هو...', options: ['الناسوت', 'اللاهوت', 'الجسد', 'الإنسان'], correct: 1 },
+            { q: 'اللاهوت فارق الناسوت لمدة...', options: ['ثلاثة أيام', 'ساعة', 'لحظة', 'لم يفارقه أبداً'], correct: 3 },
+            { q: 'في القيامة رجعت الروح الإنسانية إلى...', options: ['السماء', 'الجسد', 'الفردوس', 'الآب'], correct: 1 },
+            { q: 'اللي آمن بالقيامة بعد ما لمس جنب الرب هو...', options: ['بطرس', 'يوحنا', 'توما', 'فيلبس'], correct: 2 },
+            { q: 'مكث المسيح على الأرض بعد قيامته...', options: ['٣ أيام', '٧ أيام', '٤٠ يوماً', '٥٠ يوماً'], correct: 2 },
+            { q: 'صعد المسيح للسماء من جبل...', options: ['سيناء', 'تابور', 'الزيتون', 'حوريب'], correct: 2 },
+            { q: 'جسد المسيح بعد القيامة دخل والأبواب...', options: ['مفتوحة', 'مغلقة', 'مكسورة', 'غير موجودة'], correct: 1 },
+            { q: 'مكان الملاقاة مع الرب في المجيء الثاني...', options: ['الأرض', 'الهيكل', 'الهواء', 'أورشليم'], correct: 2 },
+            { q: 'الاعتقاد بالمُلك الألفي المادي اعتقاد...', options: ['صحيح', 'خاطئ', 'طقسي', 'رمزي مقبول'], correct: 1 },
+            { q: 'القيامة الأولى في الإيمان الأرثوذكسي هي قيامتنا من...', options: ['القبر', 'الخطية بالتوبة والمعمودية', 'النوم', 'المرض'], correct: 1 },
+            { q: 'الأماكن المؤقتة للأرواح بعد الموت...', options: ['ملكوت السماوات وجهنم', 'الفردوس والجحيم', 'الأرض والسماء', 'القبر فقط'], correct: 1 },
+            { q: 'الأماكن الأبدية بعد الدينونة...', options: ['الفردوس والجحيم', 'ملكوت السماوات وجهنم', 'السماء والأرض', 'الهواء والسحاب'], correct: 1 },
+            { q: 'الجسد بعد القيامة العامة...', options: ['يختفي تماماً', 'يتغير لجسد ممجد', 'يبقى كما هو', 'يصير ملاكاً'], correct: 1 },
+            { q: 'سر القوة لتغيير الجسد لجسد القيامة...', options: ['الصوم', 'الصلاة', 'التناول من الجسد والدم', 'الصدقة'], correct: 2 },
+            { q: '"شمس البر" لقب لـ...', options: ['إيليا', 'ملاخي', 'الرب يسوع', 'الشمس الطبيعية'], correct: 2 },
+            { q: 'علامة ابن الإنسان التي تظهر في السماء هي...', options: ['نجمة', 'الصليب', 'قوس قزح', 'عمود نار'], correct: 1 },
+            { q: 'النبي الذي يأتي مع أخنوخ قبل المجيء...', options: ['موسى', 'إيليا', 'إرميا', 'يوحنا'], correct: 1 },
+            { q: 'المسيح يأتي في مجيئه الثاني على...', options: ['حمار', 'سحاب السماء', 'عرش أرضي', 'مركبة نار'], correct: 1 },
+            { q: 'عند مجيء الرب يُسمع صوت...', options: ['الرعد', 'بوق الله ورئيس الملائكة', 'الناس', 'الزلزال'], correct: 1 },
+            { q: 'الذين عملوا السيئات يقومون لقيامة...', options: ['الحياة', 'الدينونة', 'المجد', 'النعمة'], correct: 1 },
+            { q: 'التناول يعطينا خلاصاً وغفراناً و...', options: ['صحة', 'مالاً', 'حياة أبدية', 'قوة جسدية'], correct: 2 },
+            { q: 'حالة الناس أيام نوح كانت...', options: ['توبة', 'استعداد', 'غفلة وانشغال', 'صلاة'], correct: 2 },
+            { q: 'الضيق العظيم تتقصر أيامه لأجل...', options: ['الأغنياء', 'المختارين', 'الكهنة', 'الأقوياء'], correct: 1 },
+            { q: 'آدم الأخير الذي نزل من السماء هو...', options: ['آدم الأول', 'إبراهيم', 'الرب يسوع', 'موسى'], correct: 2 },
+            { q: 'في الجسد الممجد الذي يقود الجسد هو...', options: ['الشهوة', 'الغريزة', 'الروح', 'العقل البشري'], correct: 2 },
+            { q: 'الجسد "يُزرع في هوان ويقام في..."', options: ['ضعف', 'تراب', 'مجد', 'نوم'], correct: 2 },
+            { q: '"أنا هو القيامة والحياة" قالها المسيح لـ...', options: ['بطرس', 'مرثا', 'مريم المجدلية', 'توما'], correct: 1 },
+            { q: 'الذي كتب "أنا أقيمه في اليوم الأخير" في إنجيله...', options: ['متى', 'مرقس', 'لوقا', 'يوحنا'], correct: 3 },
+            { q: 'القديسون يأخذون على الأرض "عربون" من...', options: ['الغنى', 'جسد القيامة الممجد', 'المعرفة', 'الراحة'], correct: 1 },
+            { q: 'الإيمان بقيامة مَن من علامات نهاية العالم؟', options: ['الرومان', 'اليهود', 'الفرس', 'المصريين'], correct: 1 }
+        ]
+    },
+
+    // ===== LESSON 4 (index 4): المعمودية والميرون =====
+    'faith_4': {
+        trueFalse: [
+            { statement: 'المعمودية هي "باب الأسرار السبعة" — مفيش سر بيتم من غيرها', answer: true },
+            { statement: 'كلمة "بابتيزما" معناها "رش الماء"', answer: false },
+            { statement: 'كلمة "بابتيزما" اليونانية معناها "تغطيس" أو "صبغة"', answer: true },
+            { statement: 'في المعمودية بنتغطس مرة واحدة بس', answer: false },
+            { statement: 'في المعمودية بنتغطس ٣ مرات باسم الثالوث: الآب والابن والروح القدس', answer: true },
+            { statement: 'المعمودية ممكن تتعاد أكتر من مرة لو حصل خطية كبيرة', answer: false },
+            { statement: 'المعمودية بتتعمل مرة واحدة في العمر لأنها ولادة والإنسان بيتولد مرة واحدة', answer: true },
+            { statement: 'الولد بيتعمد بعد ٨٠ يوم من ميلاده', answer: false },
+            { statement: 'الولد بيتعمد بعد ٤٠ يوم والبنت بعد ٨٠ يوم من ميلادهم', answer: true },
+            { statement: 'في ماية جرن المعمودية بيتحط ٥ أنواع من الزيوت', answer: false },
+            { statement: 'في ماية جرن المعمودية بيتحط ٣ أنواع: الساذج والغاليلاون والميرون', answer: true },
+            { statement: 'الطوفان وفلك نوح كانوا رمز للمعمودية والولادة الجديدة', answer: true },
+            { statement: 'عبور البحر الأحمر كان رمزاً للمعمودية', answer: true },
+            { statement: 'الختان في العهد القديم كان رمزاً للتناول في العهد الجديد', answer: false },
+            { statement: 'الختان في العهد القديم كان رمزاً للمعمودية في العهد الجديد', answer: true },
+            { statement: 'المعمودية بتغفر الخطية الجدية بس مش الخطايا الشخصية', answer: false },
+            { statement: 'المعمودية بتغفر الخطية الجدية وكل الخطايا الشخصية لو كان كبيراً', answer: true },
+            { statement: 'علاج الخطية بعد المعمودية هو إعادة المعمودية', answer: false },
+            { statement: 'علاج الخطية بعد المعمودية هو التوبة والاعتراف مش إعادة السر', answer: true },
+            { statement: 'السر الكنسي هو نوال نعمة منظورة بواسطة مادة غير منظورة', answer: false },
+            { statement: 'السر الكنسي هو نوال نعمة غير منظورة بواسطة مادة منظورة على يد كاهن', answer: true },
+            { statement: 'عدد رشومات سر الميرون هو ٢٤ رشمة', answer: false },
+            { statement: 'عدد رشومات سر الميرون هو ٣٦ رشمة', answer: true },
+            { statement: 'رشومات الرأس في سر الميرون بتقدس العمل', answer: false },
+            { statement: 'رشومات الرأس في سر الميرون بتقدس الحواس', answer: true },
+            { statement: 'رشومات الإيدين في سر الميرون عددها ١٢ رشمة وبتقدس العمل', answer: true },
+            { statement: 'رشومات الرجلين في سر الميرون بتقدس العمل', answer: false },
+            { statement: 'رشومات الرجلين في سر الميرون بتقدس المسيرة', answer: true },
+            { statement: 'المسيح قال لنيقوديموس "إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله"', answer: true },
+            { statement: 'في يوم الخمسين اعتمد حوالي ١٠٠٠ نفس بعد وعظة بطرس', answer: false },
+            { statement: 'في يوم الخمسين اعتمد حوالي ٣٠٠٠ نفس بعد وعظة بطرس', answer: true }
+        ],
+        fillBlank: [
+            { text: 'المعمودية هي "___ الأسرار السبعة"', blank: 'باب', options: ['باب', 'ختم', 'نهاية', 'وسط'] },
+            { text: 'كلمة "بابتيزما" اليونانية معناها ___ أو صبغة', blank: 'تغطيس', options: ['تغطيس', 'رش', 'غسيل', 'سكب'] },
+            { text: 'بنتغطس في المعمودية ___ مرات باسم الثالوث القدوس', blank: '٣', options: ['٣', '١', '٢', '٧'] },
+            { text: 'في المعمودية بنموت مع المسيح و___ معاه', blank: 'بنقوم', options: ['بنقوم', 'بنصعد', 'بنحيا', 'بننتظر'] },
+            { text: 'الولد بيتعمد بعد ___ يوم من ميلاده', blank: '٤٠', options: ['٤٠', '٨٠', '٣٠', '٧'] },
+            { text: 'البنت بتتعمد بعد ___ يوم من ميلادها', blank: '٨٠', options: ['٨٠', '٤٠', '٦٠', '١٠٠'] },
+            { text: 'في ماية جرن المعمودية بيتحط ___ أنواع من الزيوت', blank: '٣', options: ['٣', '٢', '٥', '٧'] },
+            { text: 'الأنواع الثلاثة من الزيوت هي: الساذج، الغاليلاون، و___', blank: 'الميرون', options: ['الميرون', 'الزيتون', 'القطران', 'البخور'] },
+            { text: 'عدد رشومات سر الميرون الكلي هو ___ رشمة', blank: '٣٦', options: ['٣٦', '٢٤', '١٢', '٤٠'] },
+            { text: 'رشومات ___ في الميرون عددها ٨ وبتقدس الحواس', blank: 'الرأس', options: ['الرأس', 'الإيدين', 'الرجلين', 'الجذع'] },
+            { text: 'رشومات الجذع في الميرون عددها ___ رشومات', blank: '٤', options: ['٤', '٨', '١٢', '٦'] },
+            { text: 'رشومات الإيدين في الميرون عددها ___ رشمة وبتقدس العمل', blank: '١٢', options: ['١٢', '٨', '٤', '٣٦'] },
+            { text: 'علاج الخطية بعد المعمودية بيكون بالتوبة و___', blank: 'الاعتراف', options: ['الاعتراف', 'المعمودية التانية', 'الصوم فقط', 'الزواج'] },
+            { text: '"رَبٌّ وَاحِدٌ، إِيمَانٌ وَاحِدٌ، مَعْمُودِيَّةٌ ___" (أف ٤: ٥)', blank: 'وَاحِدَةٌ', options: ['وَاحِدَةٌ', 'كاملة', 'مقدسة', 'حقيقية'] },
+            { text: 'الثالوث ظهر وقت معمودية المسيح: الآب بصوت، الابن في المياه، والروح القدس كـ___', blank: 'حمامة', options: ['حمامة', 'نار', 'ريح', 'نور'] }
+        ],
+        whoAmI: [
+            { clues: ['أنا مش مجرد طقس', 'فيّا بنموت مع المسيح ونقوم معاه', 'لازم تتعمل بالتغطيس في المية'], answer: 'المعمودية' },
+            { clues: ['أنا ٣٦ رشمة بزيت مقدس', 'بيّا الروح القدس بيسكن في المعمَّد', 'بيتم مباشرة بعد المعمودية'], answer: 'سر الميرون' },
+            { clues: ['أنا لما المية غرقت العالم الشرير', 'أنا اللي شالت الفلك وخلصت نوح وعيلته', 'بطرس الرسول قال إن مياهي رمز للمعمودية'], answer: 'الطوفان' },
+            { clues: ['أنا رمز للمعمودية في العهد القديم', 'المية انشقت وبني إسرائيل عبروا', 'من مصر للأرض الموعودة'], answer: 'عبور البحر الأحمر' },
+            { clues: ['أنا كنت شرط عشان الواحد يبقى من شعب ربنا في العهد القديم', 'المعمودية بتعمل نفس دوري في العهد الجديد', 'أنا رمز في سفر التكوين'], answer: 'الختان' },
+            { clues: ['أنا أول مثال عملي في سفر الأعمال', 'بطرس وعظ يوم الخمسين', 'حوالي ٣٠٠٠ نفس نالوني'], answer: 'معمودية يوم الخمسين' },
+            { clues: ['أنا مكون من الساذج والغاليلاون والميرون', 'بتوضعوا في ماية الجرن', 'بتقدسوا المياه عشان تغفر الخطايا'], answer: 'أنواع الزيوت الثلاثة' },
+            { clues: ['أنا ٨ رشومات في الميرون', 'بتقدس العين والأذن والأنف والفم', 'هدفي إن الحواس تشتغل لخدمة ربنا'], answer: 'رشومات الرأس (تقديس الحواس)' },
+            { clues: ['أنا ٤ رشومات في الميرون', 'القلب والسرة والظهر والصلب', 'بقدس الأعماق والإرادة'], answer: 'رشومات الجذع' },
+            { clues: ['أنا اللي مسيح اتعمد فيّه', 'الثالوث ظهر وقت المعمودية هنا', 'أنا نهر في فلسطين'], answer: 'نهر الأردن' },
+            { clues: ['أنا نعمة غير منظورة', 'بتتنال بمادة منظورة', 'لازم كاهن يعمل فعل منظور'], answer: 'السر الكنسي' }
+        ],
+        characters: [
+            { q: 'مين اللي قال "اذهبوا وتلمذوا جميع الأمم وعمدوهم باسم الآب والابن والروح القدس"؟', options: ['بطرس الرسول', 'بولس الرسول', 'السيد المسيح', 'يوحنا المعمدان'], correct: 2 },
+            { q: 'مين اللي قال لنيقوديموس "إن كان أحد لا يولد من الماء والروح لا يقدر أن يدخل ملكوت الله"؟', options: ['بولس الرسول', 'السيد المسيح', 'بطرس الرسول', 'موسى النبي'], correct: 1 },
+            { q: 'مين الرسول اللي قال "دُفِنَّا معه بالمعمودية للموت حتى كما أُقيم المسيح من الأموات"؟', options: ['يوحنا الرسول', 'بطرس الرسول', 'بولس الرسول', 'يعقوب الرسول'], correct: 2 },
+            { q: 'مين اللي قال إن فلك نوح "مثاله يخلصنا نحن الآن أي المعمودية"؟', options: ['بولس الرسول', 'بطرس الرسول', 'يوحنا الرسول', 'السيد المسيح'], correct: 1 },
+            { q: 'مين اللي عمده فيلبس الرسول في الطريق في سفر الأعمال؟', options: ['حافظ السجن', 'كرنيليوس القائد', 'الخصي الحبشي', 'ليدية'], correct: 2 },
+            { q: 'مين القائد الروماني اللي عمده بطرس هو وكل أهله؟', options: ['بيلاطس', 'كرنيليوس', 'حافظ السجن', 'الخصي'], correct: 1 },
+            { q: 'مين اللي عمده بولس وكل بيته في نفس الليلة في فيلبي؟', options: ['الخصي الحبشي', 'كرنيليوس', 'حافظ السجن', 'أكيلا'], correct: 2 },
+            { q: 'مين اللي اتعمد في نهر الأردن وظهر الثالوث وقتها؟', options: ['يوحنا المعمدان', 'السيد المسيح', 'بطرس الرسول', 'موسى'], correct: 1 },
+            { q: 'بعد وعظة مين اعتمد حوالي ٣٠٠٠ نفس يوم الخمسين؟', options: ['بولس الرسول', 'يوحنا الرسول', 'بطرس الرسول', 'أسطفانوس'], correct: 2 },
+            { q: 'مين النبي اللي بنت منه بتجي معلومة "الولد ٤٠ يوم والبنت ٨٠ يوم" اللي الكنيسة اخدتها؟', options: ['التكوين', 'الخروج', 'لاويين', 'التثنية'], correct: 2 },
+            { q: 'مين اللي ظهر بشكل حمامة وقت معمودية المسيح؟', options: ['الآب', 'الابن', 'الروح القدس', 'ملاك'], correct: 2 },
+            { q: 'مين اللي نال نعمة الكهنوت (كمثال على السر الكنسي) بوضع اليد عليه؟', options: ['أي مؤمن', 'الكاهن من الأسقف', 'الشماس من الكاهن', 'العلماني'], correct: 1 }
+        ]
+    },
+
+    // ===== LESSON 5 (index 5): التوبة والاعتراف =====
+    'faith_5': {
+        trueFalse: [
+            { statement: 'الاعتراف معناه إننا نقول الخطية في سرنا لربنا من غير ما نقولها لحد', answer: false },
+            { statement: 'الاعتراف هو الإقرار بالشيء والتصريح به قدام كاهن', answer: true },
+            { statement: 'ربنا سأل آدم "أين أنت؟" لأنه مكنش عارف فين آدم', answer: false },
+            { statement: 'ربنا سأل آدم "أين أنت؟" عشان يديه فرصة يعترف بخطيته بلسانه', answer: true },
+            { statement: 'قايين لما سأله ربنا "أين هابيل أخوك؟" اعترف وتاب', answer: false },
+            { statement: 'قايين رفض يعترف ورد بجفاء قائلاً "لا أعلم! أحارس أنا لأخي؟"', answer: true },
+            { statement: 'في العهد القديم كان كافي إن الواحد يتوب في سره من غير ما يروح للكاهن', answer: false },
+            { statement: 'في ذبائح العهد القديم كان الإنسان بيحط إيده على الذبيحة ويعترف قدام الكاهن', answer: true },
+            { statement: 'داود النبي اعترف بخطيته لناثان النبي', answer: true },
+            { statement: 'شاول الملك اعترف بخطيته لصموئيل النبي', answer: true },
+            { statement: 'عخان اعترف بخطيته أمام يشوع', answer: true },
+            { statement: 'الناس اتعمدوا من يوحنا المعمدان من غير ما يعترفوا بخطاياهم', answer: false },
+            { statement: 'الكتاب بيقول إن الناس اعتمدوا من يوحنا "معترفين بخطاياهم"', answer: true },
+            { statement: 'في سفر الأعمال كان المؤمنين "مقرين ومخبرين بأفعالهم"', answer: true },
+            { statement: 'كلمة "مخبرين" في أع ١٩: ١٨ معناها إنهم تابوا في سرهم بس', answer: false },
+            { statement: 'سلطان الحل والربط أعطاه المسيح للرسل وبعدهم للكهنة والأساقفة', answer: true },
+            { statement: 'المسيح قال "من غفرتم خطاياه تغفر له" بعد قيامته', answer: true },
+            { statement: 'الكاهن بيغفر بسلطانه الذاتي زي المسيح بالظبط', answer: false },
+            { statement: 'المسيح كان بيغفر بسلطانه الذاتي لأنه الله، والكاهن بيصلي صلاة التحليل', answer: true },
+            { statement: 'الاعتراف بالخطايا سر بيتعمل مرة واحدة في العمر', answer: false },
+            { statement: 'الاعتراف سر مستمر طول الحياة مش مرة واحدة', answer: true },
+            { statement: 'الخجل من الاعتراف بالخطية حاجة مباركة وصح', answer: false },
+            { statement: '"من يكتم خطاياه لا ينجح، ومن يقر بها ويتركها يُرحم" (أم ٢٨: ١٣)', answer: true },
+            { statement: 'الاعتراف الناقص بيدي شفاء كامل', answer: false },
+            { statement: 'من شروط الاعتراف إن يكون الواحد صادق وصريح في وصف خطيته', answer: true }
+        ],
+        fillBlank: [
+            { text: 'الاعتراف هو الإقرار بالشيء والتصريح به في ___ قدام كاهن', blank: 'العلن', options: ['العلن', 'السر', 'الصمت', 'القلب'] },
+            { text: 'ربنا سأل آدم "___ أنت؟" عشان يديه فرصة يعترف', blank: 'أين', options: ['أين', 'من', 'لماذا', 'كيف'] },
+            { text: 'قايين رد بجفاء وقال: "لا أعلم! ___ أنا لأخي؟"', blank: 'أحارس', options: ['أحارس', 'قاتل', 'خادم', 'مسؤول'] },
+            { text: 'داود النبي اعترف بخطيته لـ ___ النبي', blank: 'ناثان', options: ['ناثان', 'صموئيل', 'إيليا', 'إشعياء'] },
+            { text: 'شاول الملك اعترف بخطيته لـ ___ النبي', blank: 'صموئيل', options: ['صموئيل', 'ناثان', 'إيليا', 'يشوع'] },
+            { text: 'الناس اتعمدوا من يوحنا "مُعْتَرِفِينَ بـ___"', blank: 'خَطَايَاهُمْ', options: ['خَطَايَاهُمْ', 'إيمانهم', 'صلاتهم', 'توبتهم'] },
+            { text: 'بولس قال "كخدام المسيح و___ سرائر الله" (١كو ٤: ١)', blank: 'وكلاء', options: ['وكلاء', 'أسياد', 'أصحاب', 'أمناء'] },
+            { text: '"كُلُّ مَا تَرْبِطُونَهُ عَلَى الأَرْضِ يَكُونُ ___ فِي السَّمَاء" (مت ١٨: ١٨)', blank: 'مَرْبُوطًا', options: ['مَرْبُوطًا', 'مَحْلُولاً', 'مكتوباً', 'محفوظاً'] },
+            { text: 'المسيح قال بعد قيامته: "مَنْ ___ خَطَايَاهُ تُغْفَرُ لَهُ" (يو ٢٠: ٢٣)', blank: 'غَفَرْتُمْ', options: ['غَفَرْتُمْ', 'أَمْسَكْتُمْ', 'سمعتم', 'علمتم'] },
+            { text: '"إِنِ اعْتَرَفْنَا بِخَطَايَانَا فَهُوَ ___ وَعَادِلٌ حَتَّى يَغْفِرَ لَنَا" (١يو ١: ٩)', blank: 'أَمِينٌ', options: ['أَمِينٌ', 'عظيم', 'قادر', 'راحم'] },
+            { text: '"مَنْ يَكْتُمُ خَطَايَاهُ لَا ___ وَمَنْ يُقِرُّ بِهَا وَيَتْرُكُهَا يُرْحَمُ" (أم ٢٨: ١٣)', blank: 'يَنْجَحُ', options: ['يَنْجَحُ', 'يخطئ', 'يُغفر', 'يتوب'] },
+            { text: 'الاعتراف الناقص مش بيدي ___ كامل', blank: 'شفاء', options: ['شفاء', 'غفران', 'سعادة', 'نجاح'] },
+            { text: 'زي ما بتروح للطبيب وبتوصف الوجع بالظبط، ___ ضعفك بدقة في الاعتراف', blank: 'اوصف', options: ['اوصف', 'اكتم', 'اخبي', 'اتجاهل'] },
+            { text: '"شَفَتَيِ الْكَاهِنِ تَحْفَظَانِ مَعْرِفَةً وَمِنْ فَمِهِ يَطْلُبُونَ الشَّرِيعَةَ لأَنَّهُ ___ رَبِّ الْجُنُودِ" (ملا ٢: ٧)', blank: 'رَسُولُ', options: ['رَسُولُ', 'خادم', 'ابن', 'وكيل'] },
+            { text: 'الكاهن بيصلي صلاة ___ عشان ربنا يحل المعترف', blank: 'التحليل', options: ['التحليل', 'الشكر', 'القداس', 'العشية'] }
+        ],
+        whoAmI: [
+            { clues: ['ربنا سألني "أين أنت؟"', 'أكلت من الشجرة المنهي عنها', 'ربنا أراد مني أعترف بلساني'], answer: 'آدم' },
+            { clues: ['ربنا سألني "أين هابيل أخوك؟"', 'ردّيت بجفاء "لا أعلم!"', 'رفضت أعترف بخطيتي'], answer: 'قايين' },
+            { clues: ['اعترفت بخطيتي لناثان النبي', 'قلت "أخطأت إلى الرب"', 'أنا نبي وملك إسرائيل'], answer: 'داود النبي' },
+            { clues: ['اعترفت بخطيتي لصموئيل النبي', 'كنت أول ملك على إسرائيل', 'قال لي صموئيل إن الرب رفضك'], answer: 'شاول الملك' },
+            { clues: ['اعترف بخطيتي أمام يشوع', 'أخذت من المحرمات في أريحا', 'اسمي "بن كرمي"'], answer: 'عخان' },
+            { clues: ['الناس اتعمدوا مني معترفين بخطاياهم', 'كرزت بمعمودية التوبة لمغفرة الخطايا', 'أنا نبي قبل المسيح'], answer: 'يوحنا المعمدان' },
+            { clues: ['المؤمنين كانوا بييجوا عليّ "مقرين ومخبرين بأفعالهم"', 'أنا في سفر أعمال الرسل أصحاح ١٩', 'عدد الآية ١٨'], answer: 'آية أع ١٩: ١٨' },
+            { clues: ['المسيح أعطاني بعد القيامة بنفخة', 'بيّا الكاهن يغفر أو يمسك الخطايا', 'مكتوب عني في يو ٢٠: ٢٣'], answer: 'سلطان الحل والربط' },
+            { clues: ['أنا راهب اتاب ورجع', 'أبي الروحي الأنبا إيسيذورس هداني', 'أنا مثال على تنفيذ كلام أب الاعتراف'], answer: 'الأنبا موسى' },
+            { clues: ['أنا من أمثال سليمان', 'بقول "من يُقر بخطاياه ويتركها يُرحم"', 'الكتمان بيجيب الفشل'], answer: 'أم ٢٨: ١٣' },
+            { clues: ['أنا مش طبيب الأجساد', 'اشرح لي وجعك الروحي بالتفصيل', 'أنا الكاهن في الاعتراف'], answer: 'أب الاعتراف (الكاهن)' }
+        ],
+        characters: [
+            { q: 'مين اللي قال بعد القيامة "من غفرتم خطاياه تغفر له ومن أمسكتم خطاياه أُمسكت"؟', options: ['بطرس الرسول', 'السيد المسيح', 'بولس الرسول', 'يوحنا الرسول'], correct: 1 },
+            { q: 'مين اللي قال "كل ما تربطونه على الأرض يكون مربوطاً في السماء"؟', options: ['بولس الرسول', 'بطرس الرسول', 'السيد المسيح', 'يعقوب الرسول'], correct: 2 },
+            { q: 'مين الرسول اللي قال "فليحسبنا الإنسان كخدام المسيح ووكلاء سرائر الله"؟', options: ['يوحنا الرسول', 'بطرس الرسول', 'بولس الرسول', 'يعقوب الرسول'], correct: 2 },
+            { q: 'مين النبي اللي قال "شفتي الكاهن تحفظان معرفة... لأنه رسول رب الجنود"؟', options: ['إشعياء', 'إرميا', 'ملاخي', 'حزقيال'], correct: 2 },
+            { q: 'مين النبي اللي واجه داود الملك وخلاه يعترف بخطيته؟', options: ['إيليا', 'صموئيل', 'ناثان', 'إشعياء'], correct: 2 },
+            { q: 'مين الملك اللي اعترف لصموئيل النبي بخطيته؟', options: ['داود', 'سليمان', 'شاول', 'حزقيا'], correct: 2 },
+            { q: 'مين اللي اعترف بخطيته أمام يشوع بعد ما اخد من المحرمات؟', options: ['أخان بن كرمي', 'قايين', 'عيسو', 'دالاج'], correct: 0 },
+            { q: 'مين الراهب اللي أبوه الروحي الأنبا إيسيذورس هداه للتوبة؟', options: ['الأنبا أنطونيوس', 'الأنبا موسى', 'الأنبا بولا', 'الأنبا مكاريوس'], correct: 1 },
+            { q: 'مين اللي رفض يعترف لما ربنا سأله "أين هابيل أخوك؟"؟', options: ['آدم', 'قايين', 'إيسو', 'شاول'], correct: 1 },
+            { q: 'مين اللي الناس اتعمدوا منه "معترفين بخطاياهم" في نهر الأردن؟', options: ['المسيح', 'بطرس الرسول', 'يوحنا المعمدان', 'بولس الرسول'], correct: 2 },
+            { q: 'في سفر الأعمال مين اللي كانوا بييجوا "مقرين ومخبرين بأفعالهم"؟', options: ['الكهنة', 'المؤمنين اللي آمنوا', 'الرسل', 'الأساقفة'], correct: 1 },
+            { q: 'مين اللي أعطى الرسل سلطان الحل والربط بنفخة مقدسة بعد القيامة؟', options: ['الروح القدس', 'الآب', 'السيد المسيح', 'الملاك جبرائيل'], correct: 2 }
         ]
     }
 };
@@ -13391,6 +13322,14 @@ function selectMatchRight(rightIdx) {
 
 // ========== APP RELOAD ==========
 function reloadApp() {
+    // Ask the service worker to check for a newer version first; the updatefound
+    // handler will reload once it installs. Fall back to a plain reload — which now
+    // fetches fresh code because HTML/JS/CSS are served with Cache-Control: no-cache.
+    try {
+        if ('serviceWorker' in navigator && _swReg && _swReg.update) {
+            _swReg.update().catch(function(){});
+        }
+    } catch(e){}
     window.location.reload();
 }
 
@@ -14399,6 +14338,17 @@ function renderCompeteHub() {
     html += '<p>العب مع أصحابك في مسابقات حيّة وشوف مين البطل الحقيقي</p>';
     html += '</div>';
 
+    // Selfie challenge banner (weekly team photo challenge)
+    html += '<div class="selfie-promo" onclick="showScreen(\'selfie-screen\')">';
+    html += '<div class="selfie-promo-shine"></div>';
+    html += '<div class="selfie-promo-emoji">📸</div>';
+    html += '<div class="selfie-promo-info">';
+    html += '<div class="selfie-promo-title">مسابقة أحلى سيلفي <span class="selfie-promo-new">تحدي الأسبوع</span></div>';
+    html += '<div class="selfie-promo-sub">نفّذوا التحدي كفريق، صوّروا اللحظة، وشوفوا باقي الفرق عملوا إيه!</div>';
+    html += '</div>';
+    html += '<div class="selfie-promo-cta"><i class="fas fa-chevron-left"></i></div>';
+    html += '</div>';
+
     // Quick actions
     html += '<div class="compete-actions">';
     html += '<button class="compete-action-btn compete-create" onclick="selectCompeteMode(\'classic\')">';
@@ -14969,16 +14919,32 @@ function stopPlayerPresence() {
     }
 }
 
+// Always-available avatar fallback (no image asset needed) so every online
+// player is identifiable even without a chosen character / before image loads.
+var DEFAULT_AVATAR_SVG = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 80 80">' +
+    '<rect width="80" height="80" fill="#2a2a4a"/>' +
+    '<circle cx="40" cy="31" r="14" fill="#8E7BFF"/>' +
+    '<path d="M14 72c2-16 13-24 26-24s24 8 26 24z" fill="#8E7BFF"/></svg>'
+);
+function _presenceAvatar() {
+    var ch = CHARACTERS[GameState.character];
+    return (ch && ch.image) ? ch.image : DEFAULT_AVATAR_SVG;
+}
+
 // ── Global presence: track all logged-in players ──────────────────────────
 function startGlobalPresence() {
     if (!firebaseDb || !GameState.playerPhone) return;
     function writePresence() {
         if (!firebaseDb || !GameState.playerPhone) return;
         try {
+            // merge:true + full payload so we never wipe the avatar that
+            // startPresence() writes (both target the same presence doc).
             firebaseDb.collection('presence').doc(GameState.playerPhone).set({
-                lastSeen: Date.now(),
-                name: GameState.playerName || ''
-            });
+                lastSeen: firebase.firestore.FieldValue.serverTimestamp(),
+                name: GameState.playerName || '',
+                avatar: _presenceAvatar()
+            }, { merge: true });
         } catch(e) {}
     }
     writePresence();
@@ -14991,7 +14957,8 @@ function startGlobalPresence() {
             var now = Date.now(), threshold = 5 * 60 * 1000, count = 0;
             snap.forEach(function(doc) {
                 var d = doc.data();
-                if (d.lastSeen && (now - d.lastSeen) < threshold) count++;
+                var ms = d.lastSeen && d.lastSeen.toMillis ? d.lastSeen.toMillis() : (typeof d.lastSeen === 'number' ? d.lastSeen : 0);
+                if (ms && (now - ms) < threshold) count++;
             });
             window._onlinePlayerCount = count;
             var el = document.getElementById('hub-online-count');
@@ -17876,13 +17843,32 @@ function loadFromLocalStorage() {
 // ============================================================
 
 // --- Service Worker Registration ---
+var _swReg = null;          // keep the registration so reloadApp() can force an update
+var _swReloading = false;   // guard against reload loops
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', function() {
         navigator.serviceWorker.register('/sw.js')
             .then(function(reg) {
+                _swReg = reg;
                 console.log('[PWA] Service Worker registered, scope:', reg.scope);
-                // Check for updates every 30 minutes
-                setInterval(function() { reg.update(); }, 30 * 60 * 1000);
+                // When a new SW finishes installing AND we already have a controller
+                // (i.e. this is an update, not a first install), reload to apply it.
+                reg.addEventListener('updatefound', function() {
+                    var nw = reg.installing;
+                    if (!nw) return;
+                    nw.addEventListener('statechange', function() {
+                        if (nw.state === 'installed' && navigator.serviceWorker.controller && !_swReloading) {
+                            _swReloading = true;
+                            console.log('[PWA] New version installed — reloading');
+                            window.location.reload();
+                        }
+                    });
+                });
+                // Check for updates often + whenever the app is reopened/refocused
+                setInterval(function() { reg.update(); }, 15 * 60 * 1000);
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) { try { reg.update(); } catch(e){} }
+                });
             })
             .catch(function(err) {
                 console.warn('[PWA] SW registration failed:', err);
@@ -22712,6 +22698,570 @@ function openSharedThread(threadId) {
 }
 
 // ============================================================
+// SELFIE CHALLENGE  —  "مسابقة أحلى سيلفي"
+// Admin-managed team photo challenges; each has its own duration (startAt/endAt).
+// One challenge is "active" when now is within its window. Each team submits
+// one entry per challenge (1-2 photos + description) and can edit it afterwards.
+// Every team member who completed it can claim a prize (stars + gems + xp).
+// Firestore:
+//   selfieChallenges  — { title, desc, icon, accent, rewardStars,
+//                         rewardGems, rewardXp, startAt, endAt, enabled, order }
+//   selfieSubmissions — doc id = {challengeId}__{teamSlug}  (1 per team/challenge, editable)
+// ============================================================
+var SELFIE_REACTIONS = ['❤️', '🙏', '✝️', '🔥', '😮'];
+// Challenges are admin-managed (Firestore: selfieChallenges, seeded from admin.html).
+
+var selfieState = { _subUnsub: null, _chUnsub: null, _subChId: undefined, challenges: [], submissions: [], photos: [], lightbox: null, _tick: null, _claiming: false, editing: false };
+
+// Each challenge has its own duration: startAt / endAt (ms epoch).
+// Active = enabled AND now within [startAt, endAt]; if several overlap, latest start wins.
+function getActiveSelfieChallenge() {
+    var now = Date.now();
+    var cands = (selfieState.challenges || []).filter(function(c) {
+        return c.enabled !== false && c.startAt && c.endAt && now >= c.startAt && now <= c.endAt;
+    });
+    cands.sort(function(a, b) { return b.startAt - a.startAt; });
+    return cands[0] || null;
+}
+function getNextSelfieChallenge() {
+    var now = Date.now();
+    var up = (selfieState.challenges || []).filter(function(c) { return c.enabled !== false && c.startAt && c.startAt > now; });
+    up.sort(function(a, b) { return a.startAt - b.startAt; });
+    return up[0] || null;
+}
+
+function openSelfieChallenge() {
+    var body = document.getElementById('selfie-body');
+    if (body && !selfieState.challenges.length) {
+        body.innerHTML = '<div class="selfie-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل التحدي…</div>';
+    }
+    subscribeSelfieChallenges();
+    if (selfieState._tick) clearInterval(selfieState._tick);
+    selfieState._tick = setInterval(renderSelfieCountdown, 1000);
+}
+
+function subscribeSelfieChallenges() {
+    if (!firebaseDb) return;
+    if (selfieState._chUnsub) { try { selfieState._chUnsub(); } catch(e){} selfieState._chUnsub = null; }
+    try {
+        selfieState._chUnsub = firebaseDb.collection('selfieChallenges')
+            .onSnapshot(function(snap) {
+                var arr = [];
+                snap.forEach(function(d) { var v = d.data(); v._id = d.id; arr.push(v); });
+                arr.sort(function(a, b) { return (a.startAt || 0) - (b.startAt || 0); });
+                selfieState.challenges = arr;
+                ensureSelfieSubSub();
+                renderSelfieHub();
+            }, function(err) { console.warn('[selfie] challenges error', err); });
+    } catch(e) { console.warn('subscribeSelfieChallenges failed', e); }
+}
+
+// (Re)subscribe submissions to whichever challenge is active now.
+function ensureSelfieSubSub() {
+    if (!firebaseDb) return;
+    var ch = getActiveSelfieChallenge();
+    var id = ch ? ch._id : null;
+    var ver = ch ? (ch.startAt || 0) : 0;
+    // Re-subscribe whenever id OR startAt changes (admin restart = same id, new startAt)
+    var cacheKey = id + '__' + ver;
+    if (cacheKey === selfieState._subChId) return;
+    selfieState._subChId = cacheKey;
+    if (selfieState._subUnsub) { try { selfieState._subUnsub(); } catch(e){} selfieState._subUnsub = null; }
+    selfieState.submissions = [];
+    if (!id) { renderSelfieHub(); return; }
+    try {
+        selfieState._subUnsub = firebaseDb.collection('selfieSubmissions')
+            .where('challengeId', '==', id)
+            .onSnapshot(function(snap) {
+                var subs = [];
+                snap.forEach(function(d) { var v = d.data(); v._id = d.id; subs.push(v); });
+                // Filter to only submissions from the current activation (by startAt version)
+                subs = subs.filter(function(s) { return s.challengeVersion === ver; });
+                subs.sort(function(a, b) {
+                    var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+                    var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+                    return tb - ta;
+                });
+                selfieState.submissions = subs;
+                renderSelfieHub();
+            }, function(err) { console.warn('[selfie] feed error', err); });
+    } catch(e) { console.warn('ensureSelfieSubSub failed', e); }
+}
+
+function unsubscribeSelfie() {
+    if (selfieState._subUnsub) { try { selfieState._subUnsub(); } catch(e){} selfieState._subUnsub = null; }
+    if (selfieState._chUnsub) { try { selfieState._chUnsub(); } catch(e){} selfieState._chUnsub = null; }
+    if (selfieState._tick) { clearInterval(selfieState._tick); selfieState._tick = null; }
+    selfieState._subChId = undefined;
+}
+
+function renderSelfieCountdown() {
+    var el = document.getElementById('selfie-countdown');
+    if (!el) return;
+    var ch = getActiveSelfieChallenge();
+    if (!ch) { el.textContent = '—'; return; }
+    var ms = ch.endAt - Date.now();
+    if (ms <= 0) { el.textContent = '...'; return; }
+    var d = Math.floor(ms / 86400000), h = Math.floor((ms % 86400000) / 3600000),
+        m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000);
+    el.textContent = (d > 0 ? d + ' يوم  ' : '') + String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function _selfieTeamSlug(name) {
+    return String(name || '').trim().replace(/[\/\.\#\$\[\]\s]+/g, '_').slice(0, 60) || 'team';
+}
+
+function _selfieMySubmission() {
+    if (!GameState.team) return null;
+    return (selfieState.submissions || []).find(function(s) {
+        return s.teamName === GameState.team;
+    }) || null;
+}
+
+function selfieTimeAgo(ts) {
+    if (!ts || !ts.toMillis) return '';
+    var diff = Date.now() - ts.toMillis();
+    var m = Math.floor(diff / 60000);
+    if (m < 1) return 'الآن';
+    if (m < 60) return 'من ' + m + ' د';
+    var h = Math.floor(m / 60);
+    if (h < 24) return 'من ' + h + ' س';
+    var d = Math.floor(h / 24);
+    return 'من ' + d + ' يوم';
+}
+
+function _selfieRewardBadges(stars, gems, xp) {
+    var b = [];
+    if (stars) b.push('<span class="selfie-rw"><span class="selfie-rw-ico">⭐</span>' + stars + '</span>');
+    if (gems)  b.push('<span class="selfie-rw"><span class="selfie-rw-ico">💎</span>' + gems + '</span>');
+    if (xp)    b.push('<span class="selfie-rw"><span class="selfie-rw-ico">✨</span>' + xp + '</span>');
+    return b.join('');
+}
+
+function renderSelfieHub() {
+    var body = document.getElementById('selfie-body');
+    if (!body) return;
+    var subs = selfieState.submissions || [];
+    var ch = getActiveSelfieChallenge();
+    var mine = _selfieMySubmission();
+    var teamsCount = {};
+    subs.forEach(function(s) { teamsCount[s.teamName] = true; });
+
+    var html = '';
+    // Hero with live countdown
+    html += '<div class="selfie-hero">';
+    html += '<div class="selfie-hero-shine"></div>';
+    html += '<div class="selfie-hero-emoji">📸</div>';
+    html += '<h3>مسابقة أحلى سيلفي</h3>';
+    html += '<p>تحدي واحد كل أسبوع للفرق — نفّذوه مع بعض، صوّروا اللحظة، وشاركوها!</p>';
+    html += '<div class="selfie-hero-meta">';
+    html += '<span class="selfie-week-chip selfie-count"><i class="fas fa-hourglass-half"></i> باقي <strong id="selfie-countdown">…</strong></span>';
+    html += '<span class="selfie-week-chip"><i class="fas fa-users"></i> ' + Object.keys(teamsCount).length + ' فرق سلّمت</span>';
+    html += '</div></div>';
+
+    // Team status
+    if (!GameState.team) {
+        html += '<div class="selfie-noteam">';
+        html += '<div class="selfie-noteam-ico">👥</div>';
+        html += '<div class="selfie-noteam-txt"><strong>لسه مالكش فريق؟</strong><p>انضم لفريق الأول عشان تقدر تسلّم التحدي باسمه</p></div>';
+        html += '<button class="btn btn-primary" onclick="showScreen(\'teams-screen\')"><span>اختر فريق</span></button>';
+        html += '</div>';
+    } else {
+        html += '<div class="selfie-myteam" style="--tc:' + (GameState.teamColor || '#6C5CE7') + '">';
+        html += '<span class="selfie-myteam-logo">' + (GameState.teamLogo || '⚔️') + '</span>';
+        html += '<span class="selfie-myteam-txt">بتسلّم باسم فريق <strong>' + escapeHtml(GameState.team) + '</strong></span>';
+        html += '</div>';
+    }
+
+    if (!ch) {
+        var next = getNextSelfieChallenge();
+        html += '<div class="selfie-empty selfie-soon"><div class="selfie-soon-ico">⏳</div>';
+        if (next) {
+            var nd = new Date(next.startAt);
+            var when = nd.toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' }) +
+                ' الساعة ' + nd.toLocaleTimeString('ar-EG', { hour: 'numeric', minute: '2-digit' });
+            html += '<strong>التحدي الجاي قرّب!</strong><p>' + escapeHtml(next.icon || '📸') + ' «' + escapeHtml(next.title || '') + '»<br>هيبدأ ' + when + '</p>';
+        } else {
+            html += '<strong>مفيش تحدي شغّال دلوقتي</strong><p>استنونا.. تحدي جديد جاي قريب! 🌟</p>';
+        }
+        html += '</div>';
+        body.innerHTML = html;
+        return;
+    }
+
+    // Active challenge card
+    var accent = ch.accent || '#6C5CE7';
+    html += '<div class="selfie-ch selfie-ch-active" style="--accent:' + accent + '">';
+    html += '<div class="selfie-ch-flag"><i class="fas fa-bolt"></i> تحدي هذا الأسبوع</div>';
+    html += '<div class="selfie-ch-head">';
+    html += '<div class="selfie-ch-emoji">' + (ch.icon || '📸') + '</div>';
+    html += '<div class="selfie-ch-info">';
+    html += '<div class="selfie-ch-title">' + escapeHtml(ch.title || '') + '</div>';
+    html += '<div class="selfie-ch-sub">' + escapeHtml(ch.desc || '') + '</div>';
+    html += '</div></div>';
+
+    // Reward line
+    var rwBadges = _selfieRewardBadges(ch.rewardStars, ch.rewardGems, ch.rewardXp);
+    if (rwBadges) {
+        html += '<div class="selfie-ch-reward"><span class="selfie-ch-reward-lbl"><i class="fas fa-gift"></i> جايزة لكل عضو نفّذ التحدي:</span><span class="selfie-rw-row">' + rwBadges + '</span></div>';
+    }
+
+    // Status / action row
+    html += '<div class="selfie-ch-status">';
+    html += '<span class="selfie-ch-count"><i class="fas fa-camera-retro"></i> ' + subs.length + ' ' + (subs.length === 1 ? 'فريق سلّم' : 'فرق سلّمت') + '</span>';
+    if (!GameState.team) {
+        html += '<button class="selfie-ch-btn is-muted" onclick="showScreen(\'teams-screen\')">اختر فريق الأول</button>';
+    } else if (mine) {
+        html += '<span class="selfie-ch-actions"><span class="selfie-ch-done"><i class="fas fa-check-circle"></i> فريقك سلّم</span>';
+        html += '<button class="selfie-ch-btn selfie-ch-edit" onclick="openSelfieSubmit()"><i class="fas fa-pen"></i> عدّل مشاركتكم</button></span>';
+    } else {
+        html += '<button class="selfie-ch-btn" onclick="openSelfieSubmit()"><i class="fas fa-camera"></i> نفّذ التحدي</button>';
+    }
+    html += '</div>';
+
+    // Reward claim banner (for every team member who completed it)
+    if (mine && GameState.team) {
+        var claimed = (mine.rewardedPhones || []).indexOf(GameState.playerPhone) >= 0;
+        var claimBadges = _selfieRewardBadges(mine.rewardStars, mine.rewardGems, mine.rewardXp);
+        if (claimBadges) {
+            if (claimed) {
+                html += '<div class="selfie-claim claimed"><i class="fas fa-check-circle"></i> استلمت جايزتك ' + claimBadges + '</div>';
+            } else {
+                html += '<button class="selfie-claim" onclick="claimSelfieReward()"><span class="selfie-claim-gift">🎁</span><span>استلم جايزتك دلوقتي</span><span class="selfie-rw-row">' + claimBadges + '</span></button>';
+            }
+        }
+    }
+
+    html += '</div>'; // close .selfie-ch
+
+    // Gallery
+    html += '<h4 class="selfie-gallery-title"><i class="fas fa-images"></i> مشاركات الفرق</h4>';
+    if (subs.length) {
+        html += '<div class="selfie-gallery">';
+        subs.forEach(function(s) { html += renderSelfieCard(s); });
+        html += '</div>';
+    } else {
+        html += '<div class="selfie-empty">لسه محدش سلّم.. كونوا أول فريق! 🌟</div>';
+    }
+
+    body.innerHTML = html;
+    renderSelfieCountdown();
+}
+
+function renderSelfieCard(s) {
+    var isMine = GameState.team && s.teamName === GameState.team;
+    var photos = (s.photos || []).slice(0, 2);
+    var photoHtml = '<div class="selfie-card-photos n' + photos.length + '">';
+    photos.forEach(function(p, i) {
+        photoHtml += '<div class="selfie-card-photo" onclick="openSelfieLightbox(\'' + s._id + '\',' + i + ')">' +
+            '<img src="' + p + '" alt="" loading="lazy"></div>';
+    });
+    photoHtml += '</div>';
+
+    var reactions = s.reactions || {};
+    var myId = GameState.playerPhone;
+    var chips = SELFIE_REACTIONS.map(function(e) {
+        var users = reactions[e] || [];
+        var mineR = users.indexOf(myId) >= 0;
+        var cls = 'selfie-react' + (users.length ? ' has' : '') + (mineR ? ' on' : '');
+        return '<button class="' + cls + '" onclick="selfieToggleReaction(\'' + s._id + '\',\'' + e + '\')">' +
+            e + (users.length ? '<span>' + users.length + '</span>' : '') + '</button>';
+    }).join('');
+
+    return '<div class="selfie-card' + (isMine ? ' mine' : '') + '" style="--tc:' + (s.teamColor || '#6C5CE7') + '">' +
+        '<div class="selfie-card-head">' +
+            '<span class="selfie-card-logo">' + (s.teamLogo || '⚔️') + '</span>' +
+            '<div class="selfie-card-team"><strong>' + escapeHtml(s.teamName || 'فريق') + '</strong>' +
+                (isMine ? '<span class="selfie-mine-tag">فريقك</span>' : '') + '</div>' +
+            '<span class="selfie-card-time">' + selfieTimeAgo(s.createdAt) + '</span>' +
+        '</div>' +
+        photoHtml +
+        (s.description ? '<div class="selfie-card-desc">' + escapeHtml(s.description) + '</div>' : '') +
+        '<div class="selfie-card-reactions">' + chips + '</div>' +
+    '</div>';
+}
+
+function selfieToggleReaction(subId, emoji) {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    var sub = (selfieState.submissions || []).find(function(s) { return s._id === subId; });
+    var users = (sub && sub.reactions && sub.reactions[emoji]) || [];
+    var FieldValue = firebase.firestore.FieldValue;
+    var update = {};
+    update['reactions.' + emoji] = users.indexOf(GameState.playerPhone) >= 0
+        ? FieldValue.arrayRemove(GameState.playerPhone)
+        : FieldValue.arrayUnion(GameState.playerPhone);
+    firebaseDb.collection('selfieSubmissions').doc(subId).update(update)
+        .catch(function(e) { console.warn('[selfie] react', e); });
+}
+
+// ── Submit / edit flow (bottom sheet overlay) ──
+function openSelfieSubmit() {
+    var ch = getActiveSelfieChallenge();
+    if (!ch) { showToast('مفيش تحدي متاح دلوقتي', 'info'); return; }
+    if (!GameState.team) { showToast('لازم تنضم لفريق الأول عشان تسلّم التحدي 👥', 'warning'); return; }
+    var mine = _selfieMySubmission();
+    var editing = !!mine;
+    selfieState.editing = editing;
+    selfieState.photos = editing ? (mine.photos || []).map(function(p) { return { dataURL: p }; }) : [];
+    var existingDesc = editing ? (mine.description || '') : '';
+
+    var ov = document.createElement('div');
+    ov.id = 'selfie-submit-overlay';
+    ov.className = 'selfie-overlay';
+    ov.onclick = function(e) { if (e.target === ov) closeSelfieSubmit(); };
+    ov.innerHTML =
+        '<div class="selfie-sheet" onclick="event.stopPropagation()">' +
+            '<div class="selfie-sheet-grip"></div>' +
+            '<div class="selfie-sheet-head" style="--accent:' + (ch.accent || '#6C5CE7') + '">' +
+                '<span class="selfie-sheet-emoji">' + (ch.icon || '📸') + '</span>' +
+                '<div class="selfie-sheet-htxt">' +
+                    '<div class="selfie-sheet-title">' + (editing ? 'تعديل: ' : '') + escapeHtml(ch.title || '') + '</div>' +
+                    '<div class="selfie-sheet-team">باسم فريق <strong>' + escapeHtml(GameState.team) + '</strong> ' + (GameState.teamLogo || '⚔️') + '</div>' +
+                '</div>' +
+            '</div>' +
+            '<div class="selfie-sheet-hint">' + escapeHtml(ch.desc || '') + '</div>' +
+            '<div class="selfie-sheet-photos" id="selfie-photo-preview"></div>' +
+            '<input type="file" accept="image/*" id="selfie-file-input" style="display:none" onchange="selfiePhotoSelect(this)">' +
+            '<label for="selfie-file-input" class="selfie-add-photo" id="selfie-add-photo"><i class="fas fa-camera"></i> أضف صورة <small>(لحد صورتين)</small></label>' +
+            '<textarea id="selfie-desc-input" class="selfie-desc-input" maxlength="600" placeholder="اكتبوا عملتوا إيه... مثلاً: حضرنا القداس وتناولنا مع بعض وكانت فرحة جميلة 🙏">' + escapeHtml(existingDesc) + '</textarea>' +
+            '<div class="selfie-sheet-actions">' +
+                '<button class="btn btn-secondary" onclick="closeSelfieSubmit()"><span>إلغاء</span></button>' +
+                '<button class="btn btn-primary" id="selfie-submit-btn" onclick="submitSelfie()"><span>' + (editing ? 'حفظ التعديل 💾' : 'سلّم التحدي 🎉') + '</span></button>' +
+            '</div>' +
+        '</div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function() { ov.classList.add('show'); renderSelfieSubmitPreview(); });
+}
+
+// Adaptive compressor: best quality that stays under a size budget,
+// at a high resolution (sharper photos than the old fixed quality).
+function compressSelfieAdaptive(file, maxDim, budgetBytes) {
+    var qualities = [0.82, 0.72, 0.62, 0.52, 0.44, 0.38];
+    var i = 0;
+    function attempt() {
+        return compressImageToBase64(file, maxDim, maxDim, qualities[i]).then(function(d) {
+            if (d.length <= budgetBytes || i >= qualities.length - 1) return d;
+            i++;
+            return attempt();
+        });
+    }
+    return attempt();
+}
+
+function selfiePhotoSelect(input) {
+    var file = input.files && input.files[0];
+    if (input) input.value = '';
+    if (!file) return;
+    if (selfieState.photos.length >= 2) { showToast('أقصى حد صورتين 📸', 'info'); return; }
+    if (!/^image\//.test(file.type || '')) { showToast('الملف ده مش صورة', 'error'); return; }
+    if (file.size > 15 * 1024 * 1024) { showToast('الصورة كبيرة أوي (أقصى ١٥ ميجا)', 'error'); return; }
+    // optimistic loading slot
+    selfieState.photos.push({ loading: true });
+    var idx = selfieState.photos.length - 1;
+    renderSelfieSubmitPreview();
+    compressSelfieAdaptive(file, 1080, 440 * 1024).then(function(d) {
+        if (selfieState.photos[idx]) { selfieState.photos[idx] = { dataURL: d }; renderSelfieSubmitPreview(); }
+    }).catch(function() {
+        selfieState.photos.splice(idx, 1);
+        renderSelfieSubmitPreview();
+        showToast('مشكلة في تحضير الصورة', 'error');
+    });
+}
+
+function renderSelfieSubmitPreview() {
+    var host = document.getElementById('selfie-photo-preview');
+    if (!host) return;
+    host.innerHTML = selfieState.photos.map(function(p, i) {
+        if (p.loading) return '<div class="selfie-photo-slot is-loading"><i class="fas fa-spinner fa-spin"></i></div>';
+        return '<div class="selfie-photo-slot"><img src="' + p.dataURL + '" alt="">' +
+            '<button class="selfie-photo-rm" onclick="selfieRemovePhoto(' + i + ')"><i class="fas fa-times"></i></button></div>';
+    }).join('');
+    var add = document.getElementById('selfie-add-photo');
+    if (add) add.style.display = selfieState.photos.length >= 2 ? 'none' : '';
+}
+
+function selfieRemovePhoto(i) {
+    selfieState.photos.splice(i, 1);
+    renderSelfieSubmitPreview();
+}
+
+function submitSelfie() {
+    var ch = getActiveSelfieChallenge();
+    if (!ch) { showToast('مفيش تحدي متاح دلوقتي', 'info'); return; }
+    if (!GameState.team) { showToast('لازم تنضم لفريق الأول 👥', 'warning'); return; }
+    if (selfieState.photos.some(function(p) { return p.loading; })) { showToast('استنى الصورة تجهز الأول…', 'info'); return; }
+    var photoURLs = selfieState.photos.map(function(p) { return p.dataURL; }).filter(Boolean);
+    if (photoURLs.length < 1) { showToast('ضيفوا صورة واحدة على الأقل 📸', 'warning'); return; }
+    var descEl = document.getElementById('selfie-desc-input');
+    var desc = (descEl ? descEl.value : '').trim();
+    if (desc.length < 3) { showToast('اكتبوا وصف بسيط لاللي عملتوه ✍️', 'warning'); return; }
+    if (!firebaseDb) { showToast('مفيش اتصال بالنت', 'error'); return; }
+
+    var editing = !!selfieState.editing;
+    var btn = document.getElementById('selfie-submit-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span><i class="fas fa-spinner fa-spin"></i> ' + (editing ? 'جاري الحفظ…' : 'جاري الرفع…') + '</span>'; }
+
+    var chVer = ch.startAt || 0;
+    var docId = (ch._id || 'ch') + '__' + _selfieTeamSlug(GameState.team) + '__' + chVer;
+    var ref = firebaseDb.collection('selfieSubmissions').doc(docId);
+    var rStars = ch.rewardStars || 0, rGems = ch.rewardGems || 0, rXp = ch.rewardXp || 0;
+
+    if (editing) {
+        // Update existing submission — keep rewards, rewardedPhones, reactions, createdAt intact.
+        ref.update({
+            description: desc.slice(0, 600),
+            photos: photoURLs.slice(0, 2),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }).then(function() {
+            closeSelfieSubmit();
+            showToast('تم تعديل مشاركة فريقكم ✅', 'success');
+        }).catch(function(e) {
+            console.warn('[selfie] edit', e);
+            showToast('حصلت مشكلة في الحفظ، حاول تاني', 'error');
+            if (btn) { btn.disabled = false; btn.innerHTML = '<span>حفظ التعديل 💾</span>'; }
+        });
+        return;
+    }
+
+    ref.get().then(function(snap) {
+        if (snap.exists) { showToast('فريقك سلّم التحدي ده قبل كده — اضغط «عدّل مشاركتكم» ✏️', 'info'); closeSelfieSubmit(); return null; }
+        return ref.set({
+            challengeId: ch._id || '',
+            challengeVersion: chVer,
+            challengeTitle: ch.title || '',
+            teamName: GameState.team,
+            teamColor: GameState.teamColor || '#6C5CE7',
+            teamLogo: GameState.teamLogo || '⚔️',
+            description: desc.slice(0, 600),
+            photos: photoURLs.slice(0, 2),
+            rewardStars: rStars, rewardGems: rGems, rewardXp: rXp,
+            rewardedPhones: GameState.playerPhone ? [GameState.playerPhone] : [],
+            submittedByName: GameState.playerName || '',
+            submittedByPhone: GameState.playerPhone || '',
+            reactions: {},
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }).then(function(res) {
+        if (res === null) return;
+        closeSelfieSubmit();
+        showToast('تم تسليم التحدي! ربنا يباركك ويبارك فريقكم 🎉', 'success');
+        awardSelfiePrize(rStars, rGems, rXp);   // submitter claims immediately
+    }).catch(function(e) {
+        console.warn('[selfie] submit', e);
+        showToast('حصلت مشكلة في الرفع، حاول تاني', 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '<span>سلّم التحدي 🎉</span>'; }
+    });
+}
+
+function closeSelfieSubmit() {
+    var ov = document.getElementById('selfie-submit-overlay');
+    selfieState.photos = [];
+    selfieState.editing = false;
+    if (!ov) return;
+    ov.classList.remove('show');
+    setTimeout(function() { ov.remove(); }, 250);
+}
+
+// ── Prizes (each team member who completed the challenge claims once) ──
+function awardSelfiePrize(stars, gems, xp) {
+    stars = stars || 0; gems = gems || 0; xp = xp || 0;
+    if (!stars && !gems && !xp) return;
+    GameState.stars = (GameState.stars || 0) + stars;
+    GameState.gems = (GameState.gems || 0) + gems;
+    GameState.xp = (GameState.xp || 0) + xp;
+    try { saveGame(); } catch(e){}
+    try { syncLeaderboard(); } catch(e){}
+    try { playVictorySound(); } catch(e){}
+    try { launchConfetti(2200); } catch(e){}
+    showSelfieRewardPopup(stars, gems, xp);
+    var hs = document.getElementById('hub-stars'); if (hs) hs.textContent = GameState.stars;
+}
+
+function claimSelfieReward() {
+    if (selfieState._claiming) return;
+    var mine = _selfieMySubmission();
+    if (!mine || !GameState.team) return;
+    var me = GameState.playerPhone;
+    if ((mine.rewardedPhones || []).indexOf(me) >= 0) { showToast('استلمت جايزتك قبل كده ✅', 'info'); return; }
+    if (!firebaseDb) { showToast('مفيش اتصال بالنت', 'error'); return; }
+    selfieState._claiming = true;
+    // optimistic local mark to prevent double-claim before snapshot lands
+    mine.rewardedPhones = (mine.rewardedPhones || []).concat([me]);
+    renderSelfieHub();
+    firebaseDb.collection('selfieSubmissions').doc(mine._id)
+        .update({ rewardedPhones: firebase.firestore.FieldValue.arrayUnion(me) })
+        .then(function() {
+            awardSelfiePrize(mine.rewardStars, mine.rewardGems, mine.rewardXp);
+            selfieState._claiming = false;
+        })
+        .catch(function(e) {
+            console.warn('[selfie] claim', e);
+            selfieState._claiming = false;
+            showToast('مشكلة في استلام الجايزة، حاول تاني', 'error');
+        });
+}
+
+function showSelfieRewardPopup(stars, gems, xp) {
+    var rows = [];
+    if (stars) rows.push('<div class="srp-row"><span class="srp-ico">⭐</span> +' + stars + ' نجمة</div>');
+    if (gems)  rows.push('<div class="srp-row"><span class="srp-ico">💎</span> +' + gems + ' جوهرة</div>');
+    if (xp)    rows.push('<div class="srp-row"><span class="srp-ico">✨</span> +' + xp + ' نقطة خبرة</div>');
+    var ov = document.createElement('div');
+    ov.className = 'selfie-reward-pop';
+    ov.onclick = function() { ov.classList.remove('show'); setTimeout(function() { ov.remove(); }, 250); };
+    ov.innerHTML = '<div class="srp-card" onclick="event.stopPropagation()">' +
+        '<div class="srp-burst">🎁</div>' +
+        '<h3>جايزة التحدي!</h3>' +
+        '<div class="srp-rows">' + rows.join('') + '</div>' +
+        '<p>ربنا يباركك ويبارك فريقكم 🙏</p>' +
+        '<button class="btn btn-primary" onclick="this.closest(\'.selfie-reward-pop\').click()"><span>تمام 🎉</span></button>' +
+    '</div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function() { ov.classList.add('show'); });
+}
+
+// ── Lightbox (full photo viewer) ──
+function openSelfieLightbox(subId, idx) {
+    var sub = (selfieState.submissions || []).find(function(s) { return s._id === subId; });
+    if (!sub) return;
+    var photos = sub.photos || [];
+    if (!photos.length) return;
+    selfieState.lightbox = { photos: photos, idx: idx || 0 };
+    var ov = document.createElement('div');
+    ov.id = 'selfie-lightbox';
+    ov.className = 'selfie-lightbox';
+    ov.onclick = function(e) { if (e.target === ov) closeSelfieLightbox(); };
+    ov.innerHTML =
+        '<div class="selfie-lightbox-inner">' +
+            '<button class="selfie-lightbox-close" onclick="closeSelfieLightbox()"><i class="fas fa-times"></i></button>' +
+            '<img id="selfie-lightbox-img" src="' + photos[selfieState.lightbox.idx] + '" alt="">' +
+            (photos.length > 1 ? '<div class="selfie-lightbox-nav">' +
+                '<button onclick="selfieLightboxNav(1)"><i class="fas fa-chevron-right"></i></button>' +
+                '<button onclick="selfieLightboxNav(-1)"><i class="fas fa-chevron-left"></i></button></div>' : '') +
+            '<div class="selfie-lightbox-cap"><span>' + (sub.teamLogo || '⚔️') + ' ' + escapeHtml(sub.teamName || '') + '</span>' +
+                (sub.description ? '<p>' + escapeHtml(sub.description) + '</p>' : '') + '</div>' +
+        '</div>';
+    document.body.appendChild(ov);
+    requestAnimationFrame(function() { ov.classList.add('show'); });
+}
+
+function selfieLightboxNav(dir) {
+    var lb = selfieState.lightbox;
+    if (!lb) return;
+    lb.idx = (lb.idx + dir + lb.photos.length) % lb.photos.length;
+    var img = document.getElementById('selfie-lightbox-img');
+    if (img) img.src = lb.photos[lb.idx];
+}
+
+function closeSelfieLightbox() {
+    var ov = document.getElementById('selfie-lightbox');
+    selfieState.lightbox = null;
+    if (!ov) return;
+    ov.classList.remove('show');
+    setTimeout(function() { ov.remove(); }, 250);
+}
+
+// ============================================================
 // SOCIAL FEED (Phase 1: admin/system posts + reactions + comments)
 // See SOCIAL_FEED.md for the full spec.
 // ============================================================
@@ -24041,7 +24591,7 @@ function startPresence() {
                     list.push({
                         phone: d.id,
                         name: p.name || 'بطل',
-                        avatar: p.avatar || 'images/default-avatar.png'
+                        avatar: p.avatar || DEFAULT_AVATAR_SVG
                     });
                 });
                 presenceState.onlineList = list;
@@ -24059,13 +24609,11 @@ function stopPresence() {
 
 function _writePresence() {
     if (!firebaseDb || !GameState.playerPhone) return;
-    var ch = CHARACTERS[GameState.character];
-    var avatar = (ch && ch.image) ? ch.image : 'images/default-avatar.png';
     firebaseDb.collection('presence').doc(GameState.playerPhone).set({
         name: GameState.playerName || 'بطل',
-        avatar: avatar,
+        avatar: _presenceAvatar(),
         lastSeen: firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(function(err) { console.warn('[presence] write error', err); });
+    }, { merge: true }).catch(function(err) { console.warn('[presence] write error', err); });
 }
 
 function renderOnlineNow() {
@@ -24077,14 +24625,24 @@ function renderOnlineNow() {
     if (data.length === 0) { widget.style.display = 'none'; return; }
     widget.style.display = 'block';
     count.textContent = data.length;
-    list.innerHTML = data.map(function(p) {
-        var av = escapeAttr(p.avatar);
+    var MAX_SHOWN = 12;
+    var shown = data.slice(0, MAX_SHOWN);
+    var extra = data.length - shown.length;
+    var html = shown.map(function(p) {
+        var av = escapeAttr(p.avatar || DEFAULT_AVATAR_SVG);
         var nm = escapeHtmlSimple(p.name);
         return '<div class="online-player" title="' + nm + '">'
-            +   '<div class="online-player-av"><img loading="lazy" src="' + av + '" onerror="this.src=\'images/default-avatar.png\'"><div class="online-player-dot"></div></div>'
+            +   '<div class="online-player-av"><img loading="lazy" src="' + av + '" onerror="this.onerror=null;this.src=DEFAULT_AVATAR_SVG"><div class="online-player-dot"></div></div>'
             +   '<div class="online-player-name">' + nm + '</div>'
             + '</div>';
     }).join('');
+    if (extra > 0) {
+        html += '<div class="online-player online-player-more" title="' + extra + ' أكتر">'
+            +   '<div class="online-player-av"><span>+' + extra + '</span></div>'
+            +   '<div class="online-player-name">أكتر</div>'
+            + '</div>';
+    }
+    list.innerHTML = html;
 }
 
 // Count total lessons (stations) the player has unlocked/completed across all subjects.

@@ -90,5 +90,13 @@ service cloud.firestore {
     match /presence/{playerId} {
       allow read, write: if true;
     }
+    // Selfie challenge — admin-managed weekly team photo challenges
+    match /selfieChallenges/{challengeId} {
+      allow read, write: if true;
+    }
+    // Selfie challenge submissions — one per team per challenge
+    match /selfieSubmissions/{submissionId} {
+      allow read, write: if true;
+    }
   }
 }

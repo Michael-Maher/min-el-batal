@@ -1472,6 +1472,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
         <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
         <button class="nav-btn" onclick="goPage('posts')"><i class="fas fa-newspaper"></i> المنشورات</button>
         <button class="nav-btn" onclick="goPage('selfie')"><i class="fas fa-camera-retro"></i> تحدي السيلفي</button>
+        <button class="nav-btn" onclick="goPage('learncfg')"><i class="fas fa-book-open"></i> محتوى الدروس</button>
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
         <button class="nav-btn" onclick="goPage('locks')" id="nav-locks"><i class="fas fa-lock"></i> الإقفال والإتاحة</button>
         <button class="nav-btn" onclick="goPage('reports')" id="nav-reports"><i class="fas fa-flag"></i> التقارير <span class="nav-badge" id="nav-reports-badge" style="display:none">0</span></button>
@@ -1956,6 +1957,37 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       <div class="card" id="ampanel-pending"><div class="loading"><i class="fas fa-spinner"></i></div></div>
       <div class="card" id="ampanel-active" style="display:none"><div class="loading"><i class="fas fa-spinner"></i></div></div>
       <div class="card" id="ampanel-rejected" style="display:none"><div class="loading"><i class="fas fa-spinner"></i></div></div>
+    </div>
+
+    <!-- LEARN TAB CONFIG -->
+    <div class="page" id="page-learncfg">
+      <div class="ph"><h2><i class="fas fa-book-open" style="color:var(--accent2)"></i> محتوى الدروس</h2><p>تحرير فيديوهات ونص كل درس من Admin</p></div>
+      <div class="card" style="padding:16px;margin-bottom:12px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:130px">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">المادة</label>
+            <select id="lcfg-subject" onchange="lcfgLoadLesson()" style="width:100%;padding:9px 10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:14px">
+              <option value="faith">عقيدة ولاهوت ✝️</option>
+              <option value="bible">كتاب مقدس 📖</option>
+              <option value="life">مهارات الحياة 🌟</option>
+              <option value="ritual">طقس ⛪</option>
+            </select>
+          </div>
+          <div style="flex:1;min-width:130px">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">الدرس</label>
+            <select id="lcfg-lesson" onchange="lcfgLoadLesson()" style="width:100%;padding:9px 10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:14px">
+              <option value="0">درس ١</option>
+              <option value="1">درس ٢</option>
+              <option value="2">درس ٣</option>
+              <option value="3">درس ٤</option>
+              <option value="4">درس ٥</option>
+              <option value="5">درس ٦</option>
+            </select>
+          </div>
+          <button class="btn bg" onclick="lcfgLoad()" style="white-space:nowrap"><i class="fas fa-download"></i> تحميل</button>
+        </div>
+      </div>
+      <div id="lcfg-body"><div class="loading"><i class="fas fa-spinner fa-spin"></i></div></div>
     </div>
 
     <!-- PROFILE -->
@@ -2691,8 +2723,8 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات',selfie:'تحدي السيلفي'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين',selfie:'تحديات أحلى سيلفي للفرق'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات',selfie:'تحدي السيلفي',learncfg:'محتوى الدروس'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين',selfie:'تحديات أحلى سيلفي للفرق',learncfg:'تحرير فيديوهات ونصوص الدروس'};
 function goPage(name) {
   // Permission gate (admins-page is gated separately by being hidden from non-supers)
   // tour-console inherits tournaments perm
@@ -2718,6 +2750,7 @@ function goPage(name) {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').style.display='none';
   if(name==='selfie') renderSelfieAdmin();
+  if(name==='learncfg') lcfgLoad();
 }
 
 // ════════════════════════════════
@@ -8518,6 +8551,168 @@ function tcRenderBracketModal(){
 
 // Track admin identity for reply attribution
 var adminMe = null;
+
+// ════════════════════════════════════════════════
+//  LEARN TAB CONFIG ADMIN
+// ════════════════════════════════════════════════
+const LCFG_SUBJECT_NAMES = { faith:'عقيدة ولاهوت', bible:'كتاب مقدس', life:'مهارات الحياة', ritual:'طقس' };
+const LCFG_MAX_VIDEOS = 5;
+
+function lcfgKey() {
+  const s = document.getElementById('lcfg-subject').value;
+  const l = document.getElementById('lcfg-lesson').value;
+  return s + '_' + l;
+}
+
+async function lcfgLoad() {
+  const body = document.getElementById('lcfg-body');
+  if (!body) return;
+  body.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل…</div>';
+  const key = lcfgKey();
+  let cfg = null;
+  try {
+    const snap = await db.collection('learnTabConfig').doc(key).get();
+    cfg = snap.exists ? snap.data() : null;
+  } catch(e) { console.warn('lcfgLoad', e); }
+  lcfgRender(cfg);
+}
+
+function lcfgLoadLesson() { lcfgLoad(); }
+
+function lcfgRender(cfg) {
+  const body = document.getElementById('lcfg-body');
+  if (!body) return;
+  const videos = (cfg && cfg.videos) ? cfg.videos : [];
+  const content = (cfg && cfg.content) ? cfg.content : '';
+
+  let h = '';
+
+  // ── Videos section ──
+  h += '<div class="card" style="padding:16px;margin-bottom:12px">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">';
+  h += '<h3 style="margin:0;font-size:15px"><i class="fas fa-video" style="color:var(--accent2)"></i> الفيديوهات</h3>';
+  h += '<button class="btn bg bsm" onclick="lcfgAddVideo()"><i class="fas fa-plus"></i> فيديو جديد</button>';
+  h += '</div>';
+  h += '<div id="lcfg-videos">';
+  if (!videos.length) {
+    h += '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px">لا توجد فيديوهات — اضغط «فيديو جديد» لإضافة</div>';
+  } else {
+    videos.forEach((v, i) => { h += lcfgVideoRow(v, i); });
+  }
+  h += '</div>';
+  h += '</div>';
+
+  // ── Content section ──
+  h += '<div class="card" style="padding:16px;margin-bottom:12px">';
+  h += '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">';
+  h += '<h3 style="margin:0;font-size:15px"><i class="fas fa-align-right" style="color:var(--accent2)"></i> محتوى الدرس</h3>';
+  h += '<a href="#lcfg-syntax" onclick="lcfgToggleSyntax()" style="font-size:12px;color:var(--accent2);cursor:pointer">دليل التنسيق ❓</a>';
+  h += '</div>';
+  h += '<div id="lcfg-syntax-guide" style="display:none;background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:10px;font-size:12px;line-height:2;color:var(--muted)">';
+  h += '<b style="color:var(--text)">## عنوان</b> → عنوان قسم<br>';
+  h += '<b style="color:var(--text)">&gt; "آية" (مرجع)</b> → بلوك آية كريمة<br>';
+  h += '<b style="color:var(--text)">- نقطة</b> → عنصر قائمة<br>';
+  h += '<b style="color:var(--text)">---</b> → خط فاصل<br>';
+  h += '<b style="color:var(--text)">**نص**</b> → نص عريض (بولد)<br>';
+  h += 'سطر عادي → فقرة نصية';
+  h += '</div>';
+  h += '<textarea id="lcfg-content" rows="14" placeholder="اكتب محتوى الدرس هنا…&#10;## عنوان القسم&#10;> &quot;آية كريمة&quot; (مرجع)&#10;- نقطة أولى&#10;- نقطة ثانية&#10;نص عادي هنا" style="width:100%;box-sizing:border-box;padding:10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:13px;line-height:1.8;resize:vertical;font-family:inherit;direction:rtl">' + esc(content) + '</textarea>';
+  h += '</div>';
+
+  // ── Save button ──
+  h += '<button class="btn btn-primary" onclick="lcfgSave()" style="width:100%"><span><i class="fas fa-save"></i> حفظ التغييرات</span></button>';
+
+  body.innerHTML = h;
+
+  // Re-attach stored video data into DOM
+  if (videos.length) {
+    videos.forEach((v, i) => lcfgSetVideoData(i, v));
+  }
+}
+
+function lcfgVideoRow(v, i) {
+  const slots = ['short','main','alt','extra1','extra2'];
+  const slotLabels = { short:'فيديو قصير ⚡', main:'وعظة رئيسية 🎬', alt:'وعظة إضافية 🎬', extra1:'فيديو رابع', extra2:'فيديو خامس' };
+  let h = '<div class="lcfg-vrow" id="lcfg-vrow-' + i + '" style="background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:8px">';
+  h += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">';
+  h += '<span style="font-weight:700;color:var(--accent2);font-size:13px">فيديو ' + (i+1) + '</span>';
+  h += '<select id="lcfg-v-slot-' + i + '" style="flex:1;padding:6px 8px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:12px">';
+  slots.forEach(s => { h += '<option value="' + s + '"' + (v.slot===s?' selected':'') + '>' + (slotLabels[s]||s) + '</option>'; });
+  h += '</select>';
+  h += '<button onclick="lcfgRemoveVideo(' + i + ')" style="background:rgba(248,113,113,.15);border:none;border-radius:6px;padding:5px 9px;color:#f87171;cursor:pointer;font-size:13px"><i class="fas fa-trash"></i></button>';
+  h += '</div>';
+  h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">';
+  h += '<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">YouTube Video ID</label><input id="lcfg-v-id-' + i + '" type="text" placeholder="مثال: dQw4w9WgXcQ" value="' + esc(v.videoId||'') + '" style="width:100%;box-sizing:border-box;padding:7px 9px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px;direction:ltr"></div>';
+  h += '<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">النقاط (+نجوم)</label><input id="lcfg-v-pts-' + i + '" type="number" min="0" max="50" value="' + (v.points||5) + '" style="width:100%;box-sizing:border-box;padding:7px 9px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px"></div>';
+  h += '</div>';
+  h += '<div><label style="font-size:11px;color:var(--muted);display:block;margin-bottom:3px">العنوان</label><input id="lcfg-v-title-' + i + '" type="text" placeholder="عنوان الفيديو" value="' + esc(v.title||'') + '" style="width:100%;box-sizing:border-box;padding:7px 9px;border-radius:6px;background:var(--bg);border:1px solid var(--border);color:var(--text);font-size:13px"></div>';
+  h += '</div>';
+  return h;
+}
+
+function lcfgSetVideoData(i, v) {
+  const slotEl = document.getElementById('lcfg-v-slot-' + i);
+  if (slotEl) slotEl.value = v.slot || 'main';
+}
+
+function lcfgAddVideo() {
+  const container = document.getElementById('lcfg-videos');
+  if (!container) return;
+  const rows = container.querySelectorAll('.lcfg-vrow');
+  if (rows.length >= LCFG_MAX_VIDEOS) { toast('الحد الأقصى ' + LCFG_MAX_VIDEOS + ' فيديوهات','err'); return; }
+  const i = rows.length;
+  const empty = container.querySelector('[style*="لا توجد"]');
+  if (empty) empty.remove();
+  const div = document.createElement('div');
+  div.innerHTML = lcfgVideoRow({}, i);
+  container.appendChild(div.firstElementChild);
+}
+
+function lcfgRemoveVideo(idx) {
+  const row = document.getElementById('lcfg-vrow-' + idx);
+  if (row) row.remove();
+  // Re-index remaining rows
+  const container = document.getElementById('lcfg-videos');
+  if (!container) return;
+  const rows = container.querySelectorAll('.lcfg-vrow');
+  if (!rows.length) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:13px;text-align:center;padding:16px">لا توجد فيديوهات — اضغط «فيديو جديد» لإضافة</div>';
+  }
+}
+
+function lcfgCollectVideos() {
+  const container = document.getElementById('lcfg-videos');
+  if (!container) return [];
+  const rows = container.querySelectorAll('.lcfg-vrow');
+  const videos = [];
+  rows.forEach((row, i) => {
+    const videoId = (document.getElementById('lcfg-v-id-' + i) || {}).value || '';
+    const title   = (document.getElementById('lcfg-v-title-' + i) || {}).value || '';
+    const pts     = parseInt((document.getElementById('lcfg-v-pts-' + i) || {}).value) || 5;
+    const slot    = (document.getElementById('lcfg-v-slot-' + i) || {}).value || 'main';
+    if (videoId.trim()) videos.push({ slot, videoId: videoId.trim(), title: title.trim(), points: pts });
+  });
+  return videos;
+}
+
+async function lcfgSave() {
+  const key = lcfgKey();
+  const videos = lcfgCollectVideos();
+  const content = (document.getElementById('lcfg-content') || {}).value || '';
+  const doc = { videos, content, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+  try {
+    await db.collection('learnTabConfig').doc(key).set(doc);
+    toast('✅ تم الحفظ — ' + key, 'ok');
+  } catch(e) {
+    console.error('lcfgSave', e);
+    toast('خطأ في الحفظ', 'err');
+  }
+}
+
+function lcfgToggleSyntax() {
+  const el = document.getElementById('lcfg-syntax-guide');
+  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
 
 // Auto-subscribe when admin enters the app
 (function(){

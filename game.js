@@ -7737,8 +7737,10 @@ var LEVEL2_SUBJECTS = {
                 name: 'التوبة والاعتراف',
                 desc: 'سر التوبة والرجوع إلى الله',
                 verse: '"إن اعترفنا بخطايانا فهو أمين وعادل حتى يغفر لنا خطايانا" (١يو ١: ٩)',
-                videoId: 'sENBfzteQa8',
-                videoTitle: 'سر التوبة والاعتراف - أبونا موسى نصري',
+                videoId: '2VmfmN2zaHI',
+                videoTitle: 'فيديو بسيط ومفيد عن التوبة والاعتراف',
+                altVideoId: 'trU1WZLM-C4',
+                altVideoTitle: 'فيديو تاني بسيط ومفيد عن الاعتراف',
                 content: 'الاعتراف هو الإقرار بالخطية أمام الكاهن الذي أعطاه المسيح سلطان الحل والربط. السر ده موجود من العهد القديم (آدم وقايين وذبائح الخطية) ومر بيوحنا المعمدان وعصر الرسل. الكاهن وكيل على أسرار الله. التوبة الحقيقية تحتاج: صدق، محاسبة نفس، عدم تبرير، وتنفيذ كلام أب الاعتراف.',
                 questions: [
                     { q: 'الاعتراف هو... بالخطية', options: ['إنكار', 'إقرار وتصريح', 'نسيان', 'إخفاء'], correct: 1 },
@@ -10559,16 +10561,38 @@ function renderLevel2Lesson() {
 function renderLevel2Learn(container, lesson, subject) {
     var subKey = level2State.currentSubject;
     var lessonIdx = level2State.currentLesson;
+    var cfgKey = subKey + '_' + lessonIdx;
+    // Load Firestore override config, then render
+    loadLearnTabConfig(cfgKey, function(cfg) {
+        _renderLevel2LearnWithConfig(container, lesson, subject, cfg);
+    });
+}
+
+function _renderLevel2LearnWithConfig(container, lesson, subject, cfg) {
+    var subKey = level2State.currentSubject;
+    var lessonIdx = level2State.currentLesson;
     var summaryKey = subKey + '_' + lessonIdx;
     var hasSummary = GameState.lessonSummaries && GameState.lessonSummaries[summaryKey];
 
-    var shortVideoKey = subKey + '_lesson_' + lessonIdx + '_short_video';
-    var videoKey = subKey + '_lesson_' + lessonIdx + '_video';
-    var altVideoKey = subKey + '_lesson_' + lessonIdx + '_alt_video';
-    var shortVideoWatched = !lesson.shortVideoId || (GameState.watchedVideos && GameState.watchedVideos[shortVideoKey]);
-    var videoWatched = !lesson.videoId || (GameState.watchedVideos && GameState.watchedVideos[videoKey]);
-    var altVideoWatched = !lesson.altVideoId || (GameState.watchedVideos && GameState.watchedVideos[altVideoKey]);
-    var allVideosWatched = shortVideoWatched && videoWatched && altVideoWatched;
+    // Check all watched videos for this lesson (both old-style and new _v_ keys)
+    var baseVideoKey = subKey + '_lesson_' + lessonIdx;
+    var cfgKey2 = subKey + '_' + lessonIdx;
+    var cfg2 = learnTabConfigCache[cfgKey2]; // may be undefined (not yet loaded) or null (no config) or object
+    var cfgVideos2 = cfg2 && cfg2.videos && cfg2.videos.length ? cfg2.videos.filter(function(v){ return v.videoId; }) : null;
+    var allVideosWatched;
+    if (cfgVideos2) {
+        // Config mode: all configured videos must be watched
+        allVideosWatched = cfgVideos2.every(function(v, i) {
+            var k = baseVideoKey + '_v_' + (v.slot || i);
+            return GameState.watchedVideos && GameState.watchedVideos[k];
+        });
+    } else {
+        // Fallback: check old-style keys based on lesson data
+        var shortVideoWatched2 = !lesson.shortVideoId || (GameState.watchedVideos && GameState.watchedVideos[baseVideoKey + '_short_video']);
+        var videoWatched2 = !lesson.videoId || (GameState.watchedVideos && GameState.watchedVideos[baseVideoKey + '_video']) || (GameState.watchedVideos && GameState.watchedVideos[baseVideoKey + '_v_main']);
+        var altVideoWatched2 = !lesson.altVideoId || (GameState.watchedVideos && GameState.watchedVideos[baseVideoKey + '_alt_video']) || (GameState.watchedVideos && GameState.watchedVideos[baseVideoKey + '_v_alt']);
+        allVideosWatched = shortVideoWatched2 && videoWatched2 && altVideoWatched2;
+    }
     var gamesUnlocked = hasSummary && allVideosWatched;
 
     // Tabs: تعلّم + تلخيص + ألعاب + النتيجة
@@ -10589,88 +10613,55 @@ function renderLevel2Learn(container, lesson, subject) {
     html += '<p class="l2-learn-desc">' + lesson.desc + '</p>';
     html += '</div>';
 
-    // Short Video Embed (if available)
-    if (lesson.shortVideoId) {
-        var shortVideoKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson + '_short_video';
-        var shortVideoWatched = GameState.watchedVideos && GameState.watchedVideos[shortVideoKey];
-        html += '<div class="l2-video-section l2-video-short">';
-        html += '<div class="l2-video-label"><i class="fas fa-bolt"></i> ' + (lesson.shortVideoTitle || 'ملخص سريع') + ' <span class="l2-video-badge-short">فيديو قصير</span></div>';
-        html += '<div class="l2-video-wrap">';
-        html += '<iframe src="https://www.youtube.com/embed/' + lesson.shortVideoId + '?rel=0&modestbranding=1" ';
-        html += 'frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ';
-        html += 'style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>';
-        html += '</div>';
-        if (!shortVideoWatched) {
-            html += '<button class="btn btn-primary l2-video-done-btn" onclick="markVideoWatched(\'' + shortVideoKey + '\')" style="width:100%;margin-top:10px">';
-            html += '<span><i class="fas fa-check-circle"></i> شاهدت الملخص ✅ (+5 نجوم)</span></button>';
-        } else {
-            html += '<div class="l2-video-watched-badge"><i class="fas fa-check-circle"></i> شاهدت الملخص وأخدت 5 نجوم ⭐</div>';
-        }
-        html += '</div>';
+    // Build effective video list: Firestore config overrides hardcoded slots
+    var cfgVideos = cfg && cfg.videos && cfg.videos.length ? cfg.videos : null;
+    var effectiveVideos = [];
+    if (cfgVideos) {
+        // Use Firestore-configured videos as-is
+        cfgVideos.forEach(function(v) { if (v.videoId) effectiveVideos.push(v); });
+    } else {
+        // Fall back to hardcoded lesson slots
+        if (lesson.shortVideoId) effectiveVideos.push({ slot: 'short', videoId: lesson.shortVideoId, title: lesson.shortVideoTitle || 'ملخص سريع', points: 5 });
+        if (lesson.videoId)      effectiveVideos.push({ slot: 'main',  videoId: lesson.videoId,      title: lesson.videoTitle      || 'وعظة الدرس',  points: 5 });
+        if (lesson.altVideoId)   effectiveVideos.push({ slot: 'alt',   videoId: lesson.altVideoId,   title: lesson.altVideoTitle   || 'وعظة إضافية', points: 5 });
     }
 
-    // Detailed YouTube Video Embed
-    if (lesson.videoId) {
-        var videoKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson + '_video';
-        var videoWatched = GameState.watchedVideos && GameState.watchedVideos[videoKey];
-        html += '<div class="l2-video-section">';
-        html += '<div class="l2-video-label"><i class="fas fa-play-circle"></i> ' + (lesson.videoTitle || 'وعظة الدرس') + ' <span class="l2-video-badge-detail">وعظة تفصيلية</span></div>';
-        html += '<div class="l2-video-wrap">';
-        html += '<iframe src="https://www.youtube.com/embed/' + lesson.videoId + '?rel=0&modestbranding=1" ';
-        html += 'frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ';
-        html += 'style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>';
-        html += '</div>';
-        if (!videoWatched) {
-            html += '<button class="btn btn-primary l2-video-done-btn" onclick="markVideoWatched(\'' + videoKey + '\')" style="width:100%;margin-top:10px">';
-            html += '<span><i class="fas fa-check-circle"></i> شاهدت الوعظة ✅ (+5 نجوم)</span></button>';
+    // Render videos
+    effectiveVideos.forEach(function(v, i) {
+        var vKey = subKey + '_lesson_' + lessonIdx + '_v_' + (v.slot || i);
+        var watched = GameState.watchedVideos && GameState.watchedVideos[vKey];
+        var pts = v.points || 5;
+        var isShort = v.slot === 'short';
+        html += '<div class="l2-video-section' + (isShort ? ' l2-video-short' : '') + '">';
+        html += '<div class="l2-video-label"><i class="fas fa-' + (isShort ? 'bolt' : 'play-circle') + '"></i> ' + escapeHtml(v.title) + ' <span class="l2-video-badge-' + (isShort ? 'short">فيديو قصير' : 'detail">فيديو') + '</span></div>';
+        html += '<div class="l2-video-wrap"><iframe src="https://www.youtube.com/embed/' + v.videoId + '?rel=0&modestbranding=1" frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe></div>';
+        if (!watched) {
+            html += '<button class="btn btn-primary l2-video-done-btn" onclick="markVideoWatched(\'' + vKey + '\',' + pts + ')" style="width:100%;margin-top:10px"><span><i class="fas fa-check-circle"></i> شاهدت الفيديو ✅ (+' + pts + ' نجوم)</span></button>';
         } else {
-            html += '<div class="l2-video-watched-badge"><i class="fas fa-check-circle"></i> شاهدت الوعظة وأخدت 5 نجوم ⭐</div>';
+            html += '<div class="l2-video-watched-badge"><i class="fas fa-check-circle"></i> شاهدته وأخدت ' + pts + ' نجوم ⭐</div>';
         }
         html += '</div>';
-    }
-
-    // Third (alt) detailed video — e.g. a second scholar's take
-    if (lesson.altVideoId) {
-        var altVideoKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson + '_alt_video';
-        var altVideoWatched = GameState.watchedVideos && GameState.watchedVideos[altVideoKey];
-        html += '<div class="l2-video-section">';
-        html += '<div class="l2-video-label"><i class="fas fa-play-circle"></i> ' + (lesson.altVideoTitle || 'وعظة إضافية') + ' <span class="l2-video-badge-detail">وعظة تفصيلية</span></div>';
-        html += '<div class="l2-video-wrap">';
-        html += '<iframe src="https://www.youtube.com/embed/' + lesson.altVideoId + '?rel=0&modestbranding=1" ';
-        html += 'frameborder="0" allowfullscreen allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" ';
-        html += 'style="width:100%;aspect-ratio:16/9;border-radius:12px;"></iframe>';
-        html += '</div>';
-        if (!altVideoWatched) {
-            html += '<button class="btn btn-primary l2-video-done-btn" onclick="markVideoWatched(\'' + altVideoKey + '\')" style="width:100%;margin-top:10px">';
-            html += '<span><i class="fas fa-check-circle"></i> شاهدت الوعظة ✅ (+5 نجوم)</span></button>';
-        } else {
-            html += '<div class="l2-video-watched-badge"><i class="fas fa-check-circle"></i> شاهدت الوعظة وأخدت 5 نجوم ⭐</div>';
-        }
-        html += '</div>';
-    }
+    });
 
     // Lesson summary image if available
     if (lesson.summaryImage) {
         html += '<div class="l2-learn-img-wrap"><img src="' + lesson.summaryImage + '" alt="ملخص الدرس" class="l2-learn-img"></div>';
     }
 
-    // Break content into key points for better readability
-    var contentText = lesson.content;
-    var sentences = contentText.split(/[.،]/);
-    if (sentences.length > 3) {
-        html += '<div class="l2-learn-points">';
-        html += '<h4><i class="fas fa-lightbulb"></i> النقاط الرئيسية</h4>';
-        html += '<ul>';
-        sentences.forEach(function(s) {
-            s = s.trim();
-            if (s.length > 5) {
-                html += '<li>' + s + '</li>';
-            }
-        });
-        html += '</ul>';
-        html += '</div>';
+    // Content: Firestore rich blocks or fallback to hardcoded plain text
+    var cfgContent = cfg && cfg.content ? cfg.content : null;
+    if (cfgContent) {
+        html += '<div class="lc-blocks">' + renderLearnContentBlocks(cfgContent) + '</div>';
     } else {
-        html += '<div class="l2-learn-text">' + contentText + '</div>';
+        var contentText = lesson.content || '';
+        var sentences = contentText.split(/[.،]/);
+        if (sentences.length > 3) {
+            html += '<div class="l2-learn-points"><h4><i class="fas fa-lightbulb"></i> النقاط الرئيسية</h4><ul>';
+            sentences.forEach(function(s) { s = s.trim(); if (s.length > 5) html += '<li>' + s + '</li>'; });
+            html += '</ul></div>';
+        } else {
+            html += '<div class="l2-learn-text">' + contentText + '</div>';
+        }
     }
 
     html += '<div class="l2-learn-verse"><i class="fas fa-book-bible"></i> ' + lesson.verse + '</div>';
@@ -13550,35 +13541,28 @@ function submitLessonSummary() {
 }
 
 // --- Mark Video as Watched & Award Stars ---
-function markVideoWatched(videoKey) {
-    if (GameState.watchedVideos && GameState.watchedVideos[videoKey]) return; // already rewarded
+function markVideoWatched(videoKey, pts) {
+    if (GameState.watchedVideos && GameState.watchedVideos[videoKey]) return;
     if (!GameState.watchedVideos) GameState.watchedVideos = {};
-    GameState.watchedVideos[videoKey] = true;
+    pts = pts || 5;
+    GameState.watchedVideos[videoKey] = pts; // store points so we can sum them
 
-    // Determine if this station has both short + detailed videos
+    // Sum all watched video points for this lesson (both old-style and new _v_ keys)
     var stationKey = getStationKey();
     var baseKey = level2State.currentSubject + '_lesson_' + level2State.currentLesson;
-    var shortKey = baseKey + '_short_video';
-    var detailKey = baseKey + '_video';
-    var altKey   = baseKey + '_alt_video';
-    var shortWatched  = GameState.watchedVideos[shortKey]  || false;
-    var detailWatched = GameState.watchedVideos[detailKey] || false;
-    var altWatched    = GameState.watchedVideos[altKey]    || false;
-    var totalSermon = (shortWatched ? 5 : 0) + (detailWatched ? 5 : 0) + (altWatched ? 5 : 0);
+    var totalSermon = 0;
+    Object.keys(GameState.watchedVideos).forEach(function(k) {
+        if (k.indexOf(baseKey) === 0) {
+            var val = GameState.watchedVideos[k];
+            totalSermon += (typeof val === 'number' ? val : 5);
+        }
+    });
+    updateStationScore(stationKey, 'sermon', Math.min(totalSermon, STATION_SERMON_SCORE));
 
-    // If lesson has at least one extra video slot, use the accumulated score
-    var lesson = LEVEL2_SUBJECTS[level2State.currentSubject] && LEVEL2_SUBJECTS[level2State.currentSubject].lessons[level2State.currentLesson];
-    if (lesson && (lesson.shortVideoId || lesson.altVideoId)) {
-        updateStationScore(stationKey, 'sermon', totalSermon);
-    } else {
-        updateStationScore(stationKey, 'sermon', STATION_SERMON_SCORE);
-    }
-
-    var isShort = videoKey.indexOf('_short_video') >= 0;
+    var isShort = videoKey.indexOf('_short') >= 0 || videoKey.indexOf('_v_short') >= 0;
     GameState.gems = (GameState.gems || 0) + 3;
     saveToLocalStorage();
-    showAchievement('🎬', isShort ? 'شاهدت الملخص!' : 'شاهدت الوعظة!', 'كسبت 5 نقاط للمحطة + 3 جواهر 💎');
-    // Re-render to show watched badge
+    showAchievement('🎬', isShort ? 'شاهدت الملخص!' : 'شاهدت الفيديو!', 'كسبت ' + pts + ' نجوم + 3 جواهر 💎');
     setTimeout(function() { renderLevel2Lesson(); }, 2000);
 }
 
@@ -22712,6 +22696,60 @@ var SELFIE_REACTIONS = ['❤️', '🙏', '✝️', '🔥', '😮'];
 // Challenges are admin-managed (Firestore: selfieChallenges, seeded from admin.html).
 
 var selfieState = { _subUnsub: null, _chUnsub: null, _subChId: undefined, challenges: [], submissions: [], photos: [], lightbox: null, _tick: null, _claiming: false, editing: false };
+
+// ════════════════════════════════════════════════
+//  LEARN TAB CONFIG — Firestore-driven overrides
+// ════════════════════════════════════════════════
+var learnTabConfigCache = {}; // key → config doc or null
+
+function loadLearnTabConfig(key, cb) {
+    if (learnTabConfigCache.hasOwnProperty(key)) { cb(learnTabConfigCache[key]); return; }
+    if (!firebaseDb) { cb(null); return; }
+    firebaseDb.collection('learnTabConfig').doc(key).get()
+        .then(function(snap) {
+            var cfg = snap.exists ? snap.data() : null;
+            learnTabConfigCache[key] = cfg;
+            cb(cfg);
+        })
+        .catch(function() { learnTabConfigCache[key] = null; cb(null); });
+}
+
+// Simple markup parser: ## heading, > verse, - list, --- divider, plain text
+// Inline: **bold**
+function _lcInline(s) {
+    return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+}
+function renderLearnContentBlocks(text) {
+    if (!text || !text.trim()) return '';
+    var lines = text.split('\n');
+    var html = '';
+    var inList = false;
+    lines.forEach(function(raw) {
+        var line = raw.trim();
+        if (!line) {
+            if (inList) { html += '</ul></div>'; inList = false; }
+            return;
+        }
+        if (line.startsWith('## ')) {
+            if (inList) { html += '</ul></div>'; inList = false; }
+            html += '<h4 class="lc-heading"><i class="fas fa-bookmark"></i> ' + _lcInline(line.slice(3)) + '</h4>';
+        } else if (line.startsWith('> ')) {
+            if (inList) { html += '</ul></div>'; inList = false; }
+            html += '<div class="lc-verse"><i class="fas fa-book-bible"></i> ' + _lcInline(line.slice(2)) + '</div>';
+        } else if (line.startsWith('- ')) {
+            if (!inList) { html += '<div class="lc-list"><ul>'; inList = true; }
+            html += '<li>' + _lcInline(line.slice(2)) + '</li>';
+        } else if (line === '---') {
+            if (inList) { html += '</ul></div>'; inList = false; }
+            html += '<hr class="lc-divider">';
+        } else {
+            if (inList) { html += '</ul></div>'; inList = false; }
+            html += '<p class="lc-text">' + _lcInline(line) + '</p>';
+        }
+    });
+    if (inList) html += '</ul></div>';
+    return html;
+}
 
 // Each challenge has its own duration: startAt / endAt (ms epoch).
 // Active = enabled AND now within [startAt, endAt]; if several overlap, latest start wins.

@@ -15370,6 +15370,15 @@ body {
     border: 1px solid color-mix(in srgb, var(--gold) 30%, var(--border));
 }
 .selfie-ch-reward-lbl { color: var(--text-secondary); font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 6px; }
+.selfie-team-note {
+    margin-top: 10px; padding: 9px 12px; border-radius: 12px;
+    display: flex; align-items: flex-start; gap: 7px;
+    font-size: 12px; font-weight: 600; line-height: 1.5;
+    color: var(--text-secondary);
+    background: color-mix(in srgb, var(--accent, #6C5CE7) 8%, var(--bg-card-hover));
+    border: 1px solid color-mix(in srgb, var(--accent, #6C5CE7) 22%, var(--border));
+}
+.selfie-team-note i { margin-top: 2px; opacity: 0.8; }
 .selfie-rw-row { display: inline-flex; gap: 6px; }
 .selfie-rw {
     display: inline-flex; align-items: center; gap: 3px; font-size: 13px; font-weight: 800;

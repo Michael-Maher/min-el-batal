@@ -1969,7 +1969,9 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
             <select id="lcfg-subject" onchange="lcfgLoadLesson()" style="width:100%;padding:9px 10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:14px">
               <option value="faith">عقيدة ولاهوت ✝️</option>
               <option value="bible">كتاب مقدس 📖</option>
-              <option value="life">مهارات الحياة 🌟</option>
+              <option value="l2_life">مهارات الحياة 🌟</option>
+              <option value="l1_bible">كتاب مقدس — م١ 📜</option>
+              <option value="l1_service">الخدمة — م١ 🤲</option>
               <option value="ritual">طقس ⛪</option>
             </select>
           </div>
@@ -2214,7 +2216,7 @@ let playerEvents = [], playerReports = [];
 let tournaments = [], tqBank = [];
 const YR = {prep1:'أولى إعدادي',prep2:'تانية إعدادي',prep3:'تالتة إعدادي'};
 const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
-const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#10b981',lessons:['اعرف نفسك','قوة الكلمة','إدارة الوقت','القيادة الخادمة','التعامل مع الضغوط','صانع السلام']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']}};
+const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
 
 // ════════════════════════════════
 //  PASSWORD HASH
@@ -2838,8 +2840,8 @@ function renderInsights() {
     <span class="rankscore">⭐ ${(p.stars||0).toLocaleString()}</span></div>`).join('');
 
   // ── charts3: Lesson completion per subject + spiritual activity ──
-  const subKeys=['faith','bible','life','ritual'];
-  const subColors={'faith':'#e74c3c','bible':'#3b82f6','life':'#10b981','ritual':'#8b5cf6'};
+  const subKeys=['faith','bible','l2_life','ritual'];
+  const subColors={'faith':'#e74c3c','bible':'#3b82f6','l2_life':'#f39c12','ritual':'#8b5cf6'};
   // lesson completion: count players with stationScores[sk_i].total > 0
   const lessonComp={}; // sk -> [count per lesson]
   subKeys.forEach(function(sk){
@@ -3137,15 +3139,27 @@ function renderLessonsTab(p) {
     html+='<div class="subj-block">';
     html+='<div class="subj-hdr" style="background:'+sub.color+'1a;border:1px solid '+sub.color+'33"><span style="font-size:16px">'+sub.icon+'</span><span style="color:'+sub.color+'">'+sub.name+'</span><span style="margin-right:auto;font-size:10px;color:var(--muted)">'+done+'/6 درس</span></div>';
     sub.lessons.forEach(function(lname,i){
-      const key=sk+'_'+i, sc=ss[key]||{}, total=sc.total||0, pct=Math.round(total/150*100);
+      const isL1=!!sub.newEngine, stMax=isL1?200:150;
+      const key=sk+'_'+i, sc=ss[key]||{}, total=sc.total||0, pct=Math.round(total/stMax*100);
       const vw=wv[sk+'_lesson_'+i+'_video']?'🎬':'⬜';
       const svw=wv[sk+'_lesson_'+i+'_short_video']?'📹':'';
       const active=total>0;
       html+='<div class="lesson-row"'+(active?' style="border-color:'+sub.color+'33"':'')+'>';
-      html+='<div class="lesson-hd"><span class="l-num">د '+(i+1)+'</span><span class="l-name">'+lname+'</span><span title="فيديو طويل">'+vw+'</span>'+(svw?'<span title="ملخص سريع">'+svw+'</span>':'')+'<span class="l-total" style="color:'+(active?sub.color:'var(--muted)')+'">'+total+'/150</span></div>';
+      html+='<div class="lesson-hd"><span class="l-num">د '+(i+1)+'</span><span class="l-name">'+lname+'</span><span title="فيديو طويل">'+vw+'</span>'+(svw?'<span title="ملخص سريع">'+svw+'</span>':'')+'<span class="l-total" style="color:'+(active?sub.color:'var(--muted)')+'">'+total+'/'+stMax+'</span></div>';
       html+='<div class="pb-t"><div class="pb-f" style="width:'+pct+'%;background:'+sub.color+'"></div></div>';
       if(active){
         html+='<div class="station-grid">';
+        if(isL1){
+        html+='<div class="st-cell"><span class="st-cell-lbl">قراءة</span><span class="st-cell-val" style="color:#fb923c">'+(sc.learnRead||0)+'/20</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">أسئلة</span><span class="st-cell-val" style="color:#f472b6">'+(sc.learnChecks||0)+'/20</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">ملخص</span><span class="st-cell-val" style="color:#60a5fa">'+(sc.summary||0)+'/20</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/140</span></div>';
+        html+='</div>';
+        const l1Badges=Object.keys(mgs).filter(function(t){return t.indexOf(key+'_mg_')===0&&mgs[t]>0;}).map(function(t){return'<span class="mg-badge">'+esc(t.slice((key+'_mg_').length))+': '+mgs[t]+'</span>';});
+        if(l1Badges.length) html+='<div class="mg-row">'+l1Badges.join('')+'</div>';
+        html+='</div>';
+        return;
+        }
         html+='<div class="st-cell"><span class="st-cell-lbl">وعظة</span><span class="st-cell-val" style="color:#fb923c">'+(sc.sermon||0)+'/5</span></div>';
         html+='<div class="st-cell"><span class="st-cell-lbl">ملخص</span><span class="st-cell-val" style="color:#60a5fa">'+(sc.summary||0)+'/10</span></div>';
         html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/60</span></div>';
@@ -3166,8 +3180,9 @@ function renderPointsTab(p) {
   const dl=p.devotionLog||{}, el=p.exerciseLog||{}, lamp=p.lampData||{};
   const dvl=p.dailyVerseLog||{}, pj=p.paulJourneyData||{};
   const l1Stars=Object.values(ld).reduce(function(s,v){return s+(v.stars||0);},0);
-  const l2Points=Object.values(ss).reduce(function(s,v){return s+(v.total||0);},0);
-  const l2LessonsDone=Object.keys(ss).filter(function(k){return ss[k].total>0;}).length;
+  const l2Keys=Object.keys(ss).filter(function(k){return k.indexOf('l1_')!==0;});
+  const l2Points=l2Keys.reduce(function(s,k){return s+(ss[k].total||0);},0);
+  const l2LessonsDone=l2Keys.filter(function(k){return ss[k].total>0;}).length;
   const bibleCount=Object.values(bl).filter(function(v){return v.done;}).length;
   const morningCount=Object.values(dl).filter(function(v){return v.morning;}).length;
   const nightCount=Object.values(dl).filter(function(v){return v.night;}).length;
@@ -3701,8 +3716,8 @@ function _dgi(label,val,color){return'<div style="background:rgba(255,255,255,.0
 function _sec(title,icon,content){return'<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:11px">'+icon+' '+title+'</div>'+content+'</div>';}
 
 function renderSummaryTab(p) {
-  const subKeys=['faith','bible','life','ritual'];
-  const subColors={faith:'#e74c3c',bible:'#3b82f6',life:'#10b981',ritual:'#8b5cf6'};
+  const subKeys=['faith','bible','l2_life','ritual'];
+  const subColors={faith:'#e74c3c',bible:'#3b82f6',l2_life:'#f39c12',ritual:'#8b5cf6'};
   const ss=p.stationScores||{}, bl=p.bibleReadingLog||{}, dl=p.devotionLog||{};
   const dvl=p.dailyVerseLog||{}, el=p.exerciseLog||{}, lamp=p.lampData||{};
   const pj=p.paulJourneyData||{}, ld=p.levelsData||{};
@@ -3994,7 +4009,7 @@ function renderSummaryTab(p) {
   }
 
   // ── Any unknown / extra fields not covered above ──
-  var knownKeys=new Set(['playerName','playerPhone','username','email','gender','academicYear','character','profileAvatar','currentLevel','stars','gems','xp','streak','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels','missionsCompleted','powerUps','armor','equippedArmor','equippedFrame','ownedFrames','equippedTitle','ownedTitles','theme','mapTheme','team','teamLogo','teamColor','teamLastAction','characterTiers','levelsData','stationScores','miniGameScores','watchedVideos','lessonSummaries','bibleReadingLog','devotionLog','dailyVerseLog','exerciseLog','lampData','paulJourneyData','paulJourneyStation','bibleChapter','highlightedVerses','weeklyChallengeLog','dailyLoginDate','dailySpinDate','dailyBonusSpin','todayVerseSpinDate','todayVerse','blitzWeeklyScore','blitzWeeklyKey','bossFoughtDate','loginStreak','claimedStreakRewards','redeemedRewards','missionsCompleted','level2Data','passwordHash','_id','lastUpdated','createdAt','dailyBonusSpin','teamLastAction']);
+  var knownKeys=new Set(['playerName','playerPhone','username','email','gender','academicYear','character','profileAvatar','currentLevel','stars','gems','xp','streak','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels','missionsCompleted','powerUps','armor','equippedArmor','equippedFrame','ownedFrames','equippedTitle','ownedTitles','theme','mapTheme','team','teamLogo','teamColor','teamLastAction','characterTiers','levelsData','stationScores','miniGameScores','watchedVideos','lessonSummaries','bibleReadingLog','devotionLog','dailyVerseLog','exerciseLog','lampData','paulJourneyData','paulJourneyStation','bibleChapter','highlightedVerses','weeklyChallengeLog','dailyLoginDate','dailySpinDate','dailyBonusSpin','todayVerseSpinDate','todayVerse','blitzWeeklyScore','blitzWeeklyKey','bossFoughtDate','loginStreak','claimedStreakRewards','redeemedRewards','missionsCompleted','level2Data','level1Data','passwordHash','_id','lastUpdated','createdAt','dailyBonusSpin','teamLastAction']);
   var extraKeys=Object.keys(p).filter(function(k){return!knownKeys.has(k);});
   if(extraKeys.length){
     var exHtml='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
@@ -4017,8 +4032,8 @@ function renderSummaryTab(p) {
 }
 
 function renderLessonSummariesTab(p) {
-  var subKeys=['faith','bible','life','ritual'];
-  var subColors={faith:'#e74c3c',bible:'#3b82f6',life:'#10b981',ritual:'#8b5cf6'};
+  var subKeys=['l1_bible','l1_service','faith','bible','l2_life','ritual'];
+  var subColors={l1_bible:'#d4a24c',l1_service:'#2f9e8f',faith:'#e74c3c',bible:'#3b82f6',l2_life:'#f39c12',ritual:'#8b5cf6'};
   var ls=p.lessonSummaries||{};
   var lsKeys=Object.keys(ls);
   if(!lsKeys.length){
@@ -4038,7 +4053,7 @@ function renderLessonSummariesTab(p) {
   // Summaries grouped by subject
   subKeys.forEach(function(sk){
     var sub=SUBJECTS[sk];
-    var subSums=lsKeys.filter(function(k){return k.startsWith(sk+'_');}).sort(function(a,b){return(parseInt(a.split('_')[1])||0)-(parseInt(b.split('_')[1])||0);});
+    var subSums=lsKeys.filter(function(k){return k.startsWith(sk+'_');}).sort(function(a,b){return(parseInt(a.split('_').pop())||0)-(parseInt(b.split('_').pop())||0);});
     if(!subSums.length) return;
     html+='<div style="margin-bottom:20px">';
     html+='<div style="font-size:13px;font-weight:700;margin-bottom:10px;padding:8px 12px;background:'+subColors[sk]+'15;border-radius:10px;border-right:3px solid '+subColors[sk]+';display:flex;align-items:center;justify-content:space-between">';
@@ -4047,7 +4062,7 @@ function renderLessonSummariesTab(p) {
     html+='</div>';
     subSums.forEach(function(k){
       var v=ls[k]||{};
-      var idx=parseInt(k.split('_')[1])||0;
+      var idx=parseInt(k.split('_').pop())||0;
       var lname=(sub.lessons&&sub.lessons[idx])?sub.lessons[idx]:('الدرس '+(idx+1));
       var hasText=v.text&&typeof v.text==='string'&&v.text.trim().length>0;
       var hasImage=v.image&&typeof v.image==='string'&&v.image.length>20;
@@ -8555,7 +8570,7 @@ var adminMe = null;
 // ════════════════════════════════════════════════
 //  LEARN TAB CONFIG ADMIN
 // ════════════════════════════════════════════════
-const LCFG_SUBJECT_NAMES = { faith:'عقيدة ولاهوت', bible:'كتاب مقدس', life:'مهارات الحياة', ritual:'طقس' };
+const LCFG_SUBJECT_NAMES = { faith:'عقيدة ولاهوت', bible:'كتاب مقدس', l2_life:'مهارات الحياة', ritual:'طقس', l1_bible:'كتاب مقدس — م١', l1_service:'الخدمة — م١' };
 const LCFG_MAX_VIDEOS = 5;
 
 function lcfgKey() {

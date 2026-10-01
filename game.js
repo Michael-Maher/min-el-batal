@@ -59,6 +59,7 @@ const GameState = {
         dailyLog: {}
     },
     level2Data: {},
+    level1Data: {},           // { l1_bible: { seenUnlock: {1:true}, savedVerses: [...] } }
     profileAvatar: null,
     // Spiritual life
     bibleReadingLog: {},   // { '2026-03-26': { chapter: 3, summary: '...', done: true } }
@@ -117,6 +118,15 @@ function initFirebase() {
         if (typeof firebase !== 'undefined') {
             firebaseApp = firebase.initializeApp(firebaseConfig);
             firebaseDb = firebase.firestore();
+            // Some devices/browsers (notably Realme/OPPO built-in browsers, in-app
+            // WebViews, and certain carrier data-saver proxies) block Firestore's
+            // default WebChannel streaming transport. Reads still work but writes and
+            // onSnapshot listeners hang — which shows up as "can't save stars",
+            // "can't create room", "can't submit selfie". Auto-detect that case and
+            // fall back to long-polling. Must run before any read/write below.
+            try {
+                firebaseDb.settings({ experimentalAutoDetectLongPolling: true, merge: true });
+            } catch (e) { console.warn('Firestore long-polling setting failed', e); }
             console.log('Firebase initialized successfully');
             // Subscribe to admin content locks immediately — must work for all
             // login paths (manual, auto-login from "remember me", migration, upgrade).
@@ -272,16 +282,7 @@ function submitLogin() {
                 var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
                 allKeys.forEach(function(k) {
                     if (scoreKey === 'stationScores') {
-                        var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
-                        var l = localObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
-                        merged[k] = {
-                            sermon: Math.max(c.sermon || 0, l.sermon || 0),
-                            summary: Math.max(c.summary || 0, l.summary || 0),
-                            games: Math.max(c.games || 0, l.games || 0),
-                            interactive: Math.max(c.interactive || 0, l.interactive || 0),
-                            total: 0
-                        };
-                        merged[k].total = merged[k].sermon + merged[k].summary + merged[k].games + merged[k].interactive;
+                        merged[k] = mergeStationScoreEntry(cloudObj[k], localObj[k]);
                     } else {
                         merged[k] = Math.max(cloudObj[k] || 0, localObj[k] || 0);
                     }
@@ -324,6 +325,7 @@ function submitLogin() {
                 mergedL2[sk] = Object.assign({}, localL2[sk] || {}, cloudL2[sk] || {});
             });
             GameState.level2Data = mergedL2;
+            GameState.level1Data = mergeLevel1Data(GameState.level1Data, localBackup.level1Data);
             // lampData deep merge (take max points/streak, union dailyLog)
             var cLamp = GameState.lampData || {}, lLamp = localBackup.lampData || {};
             GameState.lampData = {
@@ -457,6 +459,36 @@ function submitPlayerReport(reportedPhone, reportedName) {
 // ════════════════════════════════
 //  PLAYER EVENT LOGGING (audit / engagement / suspicion)
 // ════════════════════════════════
+// Merge one stationScores entry (cloud vs local) keeping the max of every bucket.
+// Bucket names differ per level (L2: sermon/summary/games/interactive/modern, L1: learnRead/learnChecks/summary/games).
+function mergeStationScoreEntry(c, l) {
+    c = c || {}; l = l || {};
+    var m = {}, sum = 0;
+    Object.keys(c).concat(Object.keys(l)).forEach(function(f) {
+        if (f === 'total' || m.hasOwnProperty(f)) return;
+        m[f] = Math.max(c[f] || 0, l[f] || 0);
+        sum += m[f];
+    });
+    m.total = sum;
+    return m;
+}
+
+// Merge level1Data (subject -> { seenUnlock, savedVerses }) from cloud and local
+function mergeLevel1Data(cloudL1, localL1) {
+    cloudL1 = cloudL1 || {}; localL1 = localL1 || {};
+    var merged = Object.assign({}, localL1);
+    Object.keys(cloudL1).forEach(function(sk) {
+        var cs = cloudL1[sk] || {}, ls = localL1[sk] || {};
+        var cv = cs.savedVerses || [], lv = ls.savedVerses || [];
+        // Keep any other per-subject flags (e.g. purgedOldLife), union seenUnlock, longest savedVerses
+        merged[sk] = Object.assign({}, ls, cs, {
+            seenUnlock: Object.assign({}, ls.seenUnlock || {}, cs.seenUnlock || {}),
+            savedVerses: cv.length >= lv.length ? cv : lv
+        });
+    });
+    return merged;
+}
+
 function logPlayerEvent(type, data) {
     if (!firebaseDb || !GameState.playerPhone) return;
     try {
@@ -540,7 +572,7 @@ function applyDashboardLockUI() {
     var hub = document.getElementById('home-hub-screen');
     if (!hub) return;
     var map = [
-        { sel: '.hub-card-locked',                                 key: 'card_level1',           title: 'المستوى الأول',        patchOnclick: true },
+        { sel: '.hub-card[onclick*="openLevel1"]',                key: 'card_level1',           title: 'المستوى الأول' },
         { sel: '.hub-card[onclick*="level2-subjects-screen"]',     key: 'card_level2',           title: 'المستوى الثاني' },
         { sel: '.hub-card[onclick*="compete-screen"]',             key: 'card_compete',          title: 'المنافسات الجماعية' },
         { sel: '.hub-card[onclick*="openQuestionsScreen"]',        key: 'card_myQuestions',      title: 'اسأل الخدّام' },
@@ -956,6 +988,7 @@ function saveToCloud() {
         paulJourneyData: GameState.paulJourneyData,
         lampData: GameState.lampData,
         level2Data: GameState.level2Data || {},
+        level1Data: GameState.level1Data || {},
         profileAvatar: GameState.profileAvatar || null,
         bibleReadingLog: GameState.bibleReadingLog || {},
         devotionLog: GameState.devotionLog || {},
@@ -1017,6 +1050,23 @@ function saveToCloud() {
                     data.weeklyChallengeLog[cKeys[ci]].mediaDataURLs = [];
                 }
             }
+            // lessonSummaries hold base64 image + audio per lesson — usually the
+            // single largest media in the doc. Trimmed LAST (they're the most
+            // valuable), dropping media from the oldest summaries first while
+            // keeping their text. Without this an oversized doc makes EVERY
+            // saveToCloud() reject, freezing the player's stars in the cloud.
+            var sKeys = Object.keys(data.lessonSummaries || {}).sort(function(a, b) {
+                var da = (data.lessonSummaries[a] && data.lessonSummaries[a].date) || '';
+                var db = (data.lessonSummaries[b] && data.lessonSummaries[b].date) || '';
+                return da < db ? -1 : (da > db ? 1 : 0);
+            });
+            for (var sidx = 0; sidx < sKeys.length && new Blob([JSON.stringify(data)]).size > 800000; sidx++) {
+                var sm = data.lessonSummaries[sKeys[sidx]];
+                if (sm) {
+                    if (sm.image) sm.image = '';
+                    if (sm.audio) sm.audio = '';
+                }
+            }
         }
     } catch(e) { console.warn('Size check error:', e); }
 
@@ -1050,16 +1100,7 @@ function loadFromCloud(phone) {
                             var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
                             allKeys.forEach(function(k) {
                                 if (key === 'stationScores') {
-                                    var c = cloudObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
-                                    var l = localObj[k] || { sermon: 0, summary: 0, games: 0, interactive: 0, total: 0 };
-                                    merged[k] = {
-                                        sermon: Math.max(c.sermon || 0, l.sermon || 0),
-                                        summary: Math.max(c.summary || 0, l.summary || 0),
-                                        games: Math.max(c.games || 0, l.games || 0),
-                                        interactive: Math.max(c.interactive || 0, l.interactive || 0),
-                                        total: 0
-                                    };
-                                    merged[k].total = merged[k].sermon + merged[k].summary + merged[k].games + merged[k].interactive;
+                                    merged[k] = mergeStationScoreEntry(cloudObj[k], localObj[k]);
                                 } else {
                                     merged[k] = Math.max(cloudObj[k] || 0, localObj[k] || 0);
                                 }
@@ -1105,6 +1146,8 @@ function loadFromCloud(phone) {
                                 mL2[sk] = Object.assign({}, lL2[sk] || {}, cL2[sk] || {});
                             });
                             GameState[key] = mL2;
+                        } else if (key === 'level1Data') {
+                            GameState[key] = mergeLevel1Data(data[key], localBackup[key] || GameState[key]);
                         } else if (key === 'lampData') {
                             var cL = data[key] || {}, lL = localBackup[key] || GameState[key] || {};
                             GameState[key] = {
@@ -2623,6 +2666,7 @@ function showScreen(id) {
     // Admin content lock gate — block navigation to locked screens from any path
     if (typeof isContentLocked === 'function') {
         var _LOCK_GATE = {
+            'l1-subjects-screen':      ['card_level1',           'المستوى الأول'],
             'level2-subjects-screen':  ['card_level2',           'المستوى الثاني'],
             'level2-map-screen':       ['card_level2',           'المستوى الثاني'],
             'compete-screen':          ['card_compete',          'المنافسات الجماعية'],
@@ -2689,6 +2733,11 @@ function showScreen(id) {
     if (id === 'settings-screen') renderSettings();
     if (id === 'level2-subjects-screen') renderLevel2Subjects();
     if (id === 'level2-map-screen') renderLevel2Map();
+    // An arcade game layer lives on <body>; never leave it over another screen
+    if (id !== 'l1-lesson-screen' && document.getElementById('l1-arcade-layer') && typeof l1StopGame === 'function') l1StopGame();
+    if (id === 'l1-subjects-screen' && typeof renderL1Subjects === 'function') renderL1Subjects();
+    if (id === 'l1-map-screen' && typeof renderL1Map === 'function') renderL1Map();
+    if (id === 'l1-lesson-screen' && typeof renderL1Lesson === 'function') renderL1Lesson();
     if (id === 'bible-reading-screen') renderBibleReading();
     if (id === 'devotion-screen') renderDevotion();
     if (id === 'exercises-screen') renderExercises();
@@ -7868,91 +7917,14 @@ var LEVEL2_SUBJECTS = {
             }
         ]
     },
+    // مهارات الحياة والقيادة now runs on the Level 1 engine (level2-life-data.js, key l2_life).
+    // level1.js fills `lessons` from L2_LIFE so compete rooms / exams use the new content only.
     life: {
         name: 'مهارات الحياة والقياده',
         desc: 'مهارات الحياة والقيادة',
         icon: '🌟',
         color: '#f39c12',
-        lessons: [
-            {
-                name: 'اعرف نفسك',
-                desc: 'اكتشاف الذات والمواهب التي أعطاها الله لك',
-                verse: '"لأنك أنت اقتنيت كليتيّ. نسجتني في بطن أمي. أحمدك من أجل أني قد امتزت عجباً" (مزمور 139:13-14)',
-                content: 'الله خلق كل واحد فينا بطريقة فريدة ومميزة. لكل شخص مواهب وقدرات مختلفة. اكتشاف ذاتك هو أول خطوة للنجاح. اسأل نفسك: ما الذي أحبه؟ ما الذي أجيده؟ كيف أخدم الله والآخرين بمواهبي؟',
-                questions: [
-                    { q: 'أول خطوة للنجاح هي...', options: ['المال', 'الشهرة', 'اكتشاف الذات', 'القوة'], correct: 2 },
-                    { q: 'الله خلق كل واحد...', options: ['متشابهاً', 'فريداً ومميزاً', 'ضعيفاً', 'بلا هدف'], correct: 1 },
-                    { q: 'المواهب هي عطية من...', options: ['المجتمع', 'المدرسة', 'الله', 'الأصدقاء'], correct: 2 },
-                    { q: 'ما السؤال المهم لاكتشاف الذات؟', options: ['كم عمري؟', 'ما الذي أجيده؟', 'أين أسكن؟', 'من أصدقائي؟'], correct: 1 },
-                    { q: '"امتزت عجباً" تعني أن الله صنعنا...', options: ['عادياً', 'بطريقة عجيبة ورائعة', 'بسرعة', 'بدون تخطيط'], correct: 1 }
-                ]
-            },
-            {
-                name: 'قوة الكلمة',
-                desc: 'تأثير الكلمات وكيف نتكلم بحكمة',
-                verse: '"الموت والحياة في يد اللسان" (أمثال 18:21)',
-                content: 'الكلمات لها قوة هائلة. يمكنها أن تبني أو تهدم، تشجع أو تحبط. المسيحي مدعو لاستخدام كلماته للبناء والتشجيع. تجنب الكلام الجارح والنميمة والكذب. تعلّم أن تفكر قبل أن تتكلم، واسأل نفسك: هل كلامي يمجد الله؟',
-                questions: [
-                    { q: 'الكلمات يمكنها أن...', options: ['تبني فقط', 'تهدم فقط', 'تبني وتهدم', 'لا تأثير لها'], correct: 2 },
-                    { q: '"الموت والحياة في يد..." ماذا؟', options: ['العقل', 'القلب', 'اللسان', 'اليد'], correct: 2 },
-                    { q: 'المسيحي مدعو لاستخدام كلماته لـ...', options: ['النقد', 'البناء والتشجيع', 'النميمة', 'المزاح فقط'], correct: 1 },
-                    { q: 'قبل أن أتكلم يجب أن...', options: ['أصرخ', 'أفكر', 'أغضب', 'أتجاهل'], correct: 1 },
-                    { q: 'من الأشياء التي يجب تجنبها...', options: ['التشجيع', 'المدح', 'النميمة', 'الابتسامة'], correct: 2 }
-                ]
-            },
-            {
-                name: 'إدارة الوقت',
-                desc: 'كيف تستثمر وقتك بحكمة لمجد الله',
-                verse: '"فانظروا كيف تسلكون بالتدقيق... مفتدين الوقت لأن الأيام شريرة" (أفسس 5:15-16)',
-                content: 'الوقت هو أغلى ما نملك ولا يمكن استرجاعه. إدارة الوقت تعني ترتيب أولوياتك: الله أولاً، ثم الدراسة والعمل، ثم الراحة والترفيه. ضع جدولاً يومياً، تجنب المشتتات، وتعلم أن تقول "لا" للأشياء غير المفيدة.',
-                questions: [
-                    { q: 'الأولوية الأولى في حياة المسيحي هي...', options: ['الدراسة', 'الترفيه', 'الله', 'العمل'], correct: 2 },
-                    { q: 'الوقت لا يمكن...', options: ['استثماره', 'استرجاعه', 'تنظيمه', 'تقسيمه'], correct: 1 },
-                    { q: '"مفتدين الوقت" تعني...', options: ['شراء الوقت', 'استثمار الوقت بحكمة', 'إضاعة الوقت', 'نسيان الوقت'], correct: 1 },
-                    { q: 'لإدارة الوقت يجب أن تضع...', options: ['أحلاماً فقط', 'جدولاً يومياً', 'قيوداً', 'لا شيء'], correct: 1 },
-                    { q: 'يجب تجنب...', options: ['التخطيط', 'المشتتات', 'الأهداف', 'الصلاة'], correct: 1 }
-                ]
-            },
-            {
-                name: 'القيادة الخادمة',
-                desc: 'كيف تكون قائداً على مثال المسيح',
-                verse: '"من أراد أن يكون فيكم عظيماً فليكن لكم خادماً" (متى 20:26)',
-                content: 'القيادة المسيحية مختلفة عن قيادة العالم. المسيح كان القائد الأعظم لكنه غسل أرجل تلاميذه. القائد الحقيقي يخدم الآخرين، يستمع لهم، يشجعهم، ويكون قدوة. القيادة ليست سلطة بل مسؤولية.',
-                questions: [
-                    { q: 'القيادة المسيحية أساسها...', options: ['السلطة', 'القوة', 'الخدمة', 'المال'], correct: 2 },
-                    { q: 'المسيح غسل أرجل...', options: ['الفريسيين', 'الجموع', 'التلاميذ', 'الكهنة'], correct: 2 },
-                    { q: '"من أراد أن يكون عظيماً فليكن..."', options: ['ملكاً', 'غنياً', 'خادماً', 'مشهوراً'], correct: 2 },
-                    { q: 'القائد الحقيقي يفعل كل هذا ما عدا...', options: ['يخدم', 'يستمع', 'يتكبر', 'يشجع'], correct: 2 },
-                    { q: 'القيادة ليست سلطة بل...', options: ['شهرة', 'مسؤولية', 'راحة', 'امتياز'], correct: 1 }
-                ]
-            },
-            {
-                name: 'التعامل مع الضغوط',
-                desc: 'كيف تواجه التحديات والمشاكل بإيمان',
-                verse: '"في العالم سيكون لكم ضيق ولكن ثقوا أنا قد غلبت العالم" (يوحنا 16:33)',
-                content: 'كلنا نواجه ضغوطاً: في الدراسة، مع الأصدقاء، في البيت. المهم هو كيف نتعامل معها. أولاً: صلِّ وألقِ همك على الله. ثانياً: تكلم مع شخص تثق فيه. ثالثاً: لا تستسلم. رابعاً: تذكر أن الله معك في كل ظرف.',
-                questions: [
-                    { q: 'أول خطوة عند مواجهة الضغوط...', options: ['الهروب', 'الصلاة', 'الغضب', 'العزلة'], correct: 1 },
-                    { q: '"ألقِ على الرب همك" تعني...', options: ['انسى مشاكلك', 'سلّم مشاكلك لله', 'لا تهتم', 'اشتكِ'], correct: 1 },
-                    { q: 'عند مواجهة مشكلة يجب أن تتكلم مع...', options: ['لا أحد', 'شخص تثق فيه', 'الجميع', 'وسائل التواصل'], correct: 1 },
-                    { q: '"أنا قد غلبت العالم" قالها...', options: ['بولس', 'بطرس', 'المسيح', 'داود'], correct: 2 },
-                    { q: 'الخطوة الرابعة هي تذكر أن...', options: ['أنت وحدك', 'الله معك', 'لا أمل', 'المشكلة كبيرة'], correct: 1 }
-                ]
-            },
-            {
-                name: 'صانع السلام',
-                desc: 'كيف تكون صانع سلام في مجتمعك',
-                verse: '"طوبى لصانعي السلام لأنهم أبناء الله يُدعون" (متى 5:9)',
-                content: 'صانع السلام هو من يسعى لحل الخلافات بدلاً من تصعيدها. يحتاج صبراً وحكمة ومحبة. تعلم أن تستمع للطرفين، لا تنحاز بظلم، وساعد الناس على التصالح. المسيح هو ملك السلام وقد صالحنا مع الله.',
-                questions: [
-                    { q: 'صانع السلام يسعى لـ...', options: ['تصعيد المشاكل', 'حل الخلافات', 'الانسحاب', 'التجاهل'], correct: 1 },
-                    { q: 'صانعو السلام يُدعون...', options: ['أبطالاً', 'حكماء', 'أبناء الله', 'قضاة'], correct: 2 },
-                    { q: 'يحتاج صانع السلام إلى...', options: ['قوة بدنية', 'صبر وحكمة ومحبة', 'مال', 'سلطة'], correct: 1 },
-                    { q: 'المسيح صالحنا مع...', options: ['أنفسنا', 'العالم', 'الله', 'الطبيعة'], correct: 2 },
-                    { q: 'عند حل خلاف يجب أن تستمع لـ...', options: ['طرف واحد', 'الطرفين', 'لا أحد', 'نفسك فقط'], correct: 1 }
-                ]
-            }
-        ]
+        lessons: []
     },
     ritual: {
         name: 'طقس',
@@ -9789,6 +9761,14 @@ function renderLevel2Subjects() {
     var subjects = ['faith', 'bible', 'life', 'ritual'];
     subjects.forEach(function(subKey) {
         var completed = 0;
+        // مهارات الحياة runs on the Level 1 engine: progress = stations passed in l2_life
+        if (subKey === 'life' && typeof l1SubjectProgress === 'function') {
+            var lp = l1SubjectProgress('l2_life');
+            var lf = document.getElementById('l2-progress-life'), lt = document.getElementById('l2-progress-life-text');
+            if (lf) lf.style.width = (lp.passed / lp.total * 100) + '%';
+            if (lt) lt.textContent = lp.passed + '/' + lp.total;
+            return;
+        }
         var subjectData = (GameState.level2Data && GameState.level2Data[subKey]) || {};
         for (var i = 0; i < 6; i++) {
             var lessonData = subjectData['lesson_' + i];
@@ -9831,7 +9811,7 @@ function renderExamSubjectsGrid() {
         var examTaken = GameState.level2Data && GameState.level2Data[examKey];
 
         // Check if has any completed lessons
-        var hasLessons = false;
+        var hasLessons = subKey === 'life' && typeof l1SubjectProgress === 'function' && l1SubjectProgress('l2_life').passed > 0;
         var subjectData = (GameState.level2Data && GameState.level2Data[subKey]) || {};
         for (var i = 0; i < 6; i++) {
             if (subjectData['lesson_' + i] && subjectData['lesson_' + i].stars > 0) {
@@ -22956,6 +22936,13 @@ function renderSelfieHub() {
         html += '<button class="selfie-ch-btn" onclick="openSelfieSubmit()"><i class="fas fa-camera"></i> نفّذ التحدي</button>';
     }
     html += '</div>';
+
+    // Clarify the one-photo-per-team model — members often think each of them
+    // must upload their own selfie, then feel "locked out" when they only see
+    // the edit button. One shared team photo; each member still claims their reward.
+    if (mine && GameState.team) {
+        html += '<div class="selfie-team-note"><i class="fas fa-info-circle"></i> مشاركة فريقكم واحدة للكل — أي عضو يقدر يعدّل الصورة، وكل عضو يستلم جايزته لوحده من غير ما يسلّم تاني.</div>';
+    }
 
     // Reward claim banner (for every team member who completed it)
     if (mine && GameState.team) {

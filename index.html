@@ -21,6 +21,7 @@
     <meta name="msapplication-TileColor" content="#041C32">
     <meta name="msapplication-TileImage" content="images/Logo-192.png">
     <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="level1.css">
     <script>
         // Apply saved theme BEFORE first paint to prevent white flash
         (function() {
@@ -299,17 +300,17 @@
                     <p class="hub-section-sub">اختار المستوى اللي عايز تبدأ فيه</p>
                 </div>
                 <div class="hub-cards-grid">
-                    <!-- Level 1 - LOCKED -->
-                    <div class="hub-card hub-card-locked" onclick="showToast('المستوى الأول مقفول حالياً - ترقبوا التحديث القادم! 🔒', 'warning')">
+                    <!-- Level 1 - OPEN (Bible subject; more subjects later) -->
+                    <div class="hub-card hub-card-active hub-card-l1-open" onclick="openLevel1()">
                         <div class="hub-card-bg hub-card-level1">
-                            <div class="hub-card-overlay"></div>
-                            <div class="hub-lock-badge"><i class="fas fa-lock"></i></div>
+                            <div class="hub-card-overlay hub-card-overlay-light"></div>
                             <div class="hub-card-content">
                                 <div class="hub-card-icon"><i class="fas fa-scroll"></i></div>
                                 <h3>المستوى الأول</h3>
-                                <p>مين البطل؟</p>
-                                <div class="hub-card-tag">قريباً</div>
+                                <p>الكتاب المقدس · الخدمة</p>
+                                <div class="hub-card-tag hub-tag-active"><i class="fas fa-play"></i> ابدأ</div>
                             </div>
+                            <div class="hub-card-shine"></div>
                         </div>
                     </div>
 
@@ -799,8 +800,8 @@
                     <div class="l2-subject-arrow"><i class="fas fa-lock"></i></div>
                 </div>
 
-                <!-- Subject 3: Generation of Change (LOCKED) -->
-                <div class="l2-subject-card l2-subject-life l2-subject-locked" onclick="showToast('قريباً يتفتح هذا القسم! 🔒', 'info')">
+                <!-- Subject 3: Generation of Change (OPEN — Level 1 engine, key l2_life) -->
+                <div class="l2-subject-card l2-subject-life" onclick="l1OpenSubject('l2_life')">
                     <div class="l2-subject-icon">🌟</div>
                     <div class="l2-subject-info">
                         <h4>جيل يصنع التغيير</h4>
@@ -810,7 +811,7 @@
                             <span class="l2-progress-text" id="l2-progress-life-text">0/6</span>
                         </div>
                     </div>
-                    <div class="l2-subject-arrow"><i class="fas fa-lock"></i></div>
+                    <div class="l2-subject-arrow"><i class="fas fa-chevron-left"></i></div>
                 </div>
 
                 <!-- Subject 4: Movement & Meaning (LOCKED) -->
@@ -855,6 +856,11 @@
             </div>
         </div>
     </div>
+
+    <!-- ============ LEVEL 1 - SUBJECT MAP + STATION (rendered by level1.js) ============ -->
+    <div id="l1-subjects-screen" class="screen"></div>
+    <div id="l1-map-screen" class="screen"></div>
+    <div id="l1-lesson-screen" class="screen"></div>
 
     <!-- ============ LEVEL 2 - SUBJECT MAP (6 Lessons) ============ -->
     <div id="level2-map-screen" class="screen">
@@ -1752,5 +1758,12 @@
     <script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 
     <script src="game.js"></script>
+    <script src="level1-bible-data.js"></script>
+    <script src="level1-service-data.js"></script>
+    <script src="level1-arcade.js"></script>
+    <script src="level1-arcade-service.js"></script>
+    <script src="level2-life-data.js"></script>
+    <script src="level2-arcade-life.js"></script>
+    <script src="level1.js"></script>
 </body>
 </html>

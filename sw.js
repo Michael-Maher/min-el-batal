@@ -6,12 +6,26 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v24';
+var CACHE_NAME = 'min-el-batal-v27';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
     '/game.js',
     '/style.css',
+    '/level1.css',
+    '/level1.js',
+    '/level1-bible-data.js',
+    '/level1-arcade.js',
+    '/level1-service-data.js',
+    '/level1-arcade-service.js',
+    '/level2-life-data.js',
+    '/level2-arcade-life.js',
+    '/images/l2-life-map.jpg',
+    '/images/l2-life-map-tiny.jpg',
+    '/images/l1-service-map.jpg',
+    '/images/l1-service-map-tiny.jpg',
+    '/images/l1-bible-map.jpg',
+    '/images/l1-bible-map-tiny.jpg',
     '/manifest.json',
     '/images/Logo-opt.png',
     '/images/Logo-192.png',

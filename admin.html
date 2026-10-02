@@ -5293,7 +5293,7 @@ function renderRooms() {
   const f=document.getElementById('rm-s').value, list=f?rooms.filter(r=>r.status===f):rooms;
   document.getElementById('rmcnt').textContent=list.length+' غرفة';
   const SL={lobby:'<span style="color:var(--gold)">⏳ انتظار</span>',playing:'<span style="color:var(--green)">🎮 تلعب الآن</span>',finished:'<span style="color:var(--muted)">✅ منتهية</span>'};
-  const ML={classic:'كلاسيك',sparkle:'سباركل'};
+  const ML={classic:'كلاسيك',sparkle:'سباركل',speed:'سباق السرعة',team:'فريق ضد فريق',clues:'مين البطل؟',verse:'كمّل الآية',scenario:'مواقف وتصرف'};
   document.getElementById('rmcard').innerHTML=list.length?list.map(r=>{
     const pc=Object.keys(r.players||{}).length, top=Math.max(...Object.values(r.players||{}).map(p=>p.score||0),0);
     const ts=r.createdAt?.toDate?.()?.toLocaleString('ar-EG')||new Date(r.createdAt||0).toLocaleString('ar-EG');

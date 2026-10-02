@@ -15444,3 +15444,48 @@ body {
 .srp-card p { color: var(--text-secondary); font-size: 13px; margin: 0 0 16px; line-height: 1.6; }
 .srp-card .btn { width: 100%; }
 
+
+/* ===== Group games v2: content modes, teams, clues (compete-bank.js) ===== */
+.compete-mode-clues { background: linear-gradient(135deg, #2a1a05 0%, #5a3a0e 100%); border-color: rgba(253, 203, 110, 0.4); }
+.compete-mode-verse { background: linear-gradient(135deg, #0b2233 0%, #12445f 100%); border-color: rgba(116, 185, 255, 0.4); }
+.compete-mode-scenario { background: linear-gradient(135deg, #0a2a24 0%, #15594d 100%); border-color: rgba(85, 239, 196, 0.4); }
+.compete-type-clues, .compete-type-verse, .compete-type-scenario {
+    display: inline-block; padding: 4px 14px; border-radius: 20px; font-weight: 800; font-size: 13px; margin-bottom: 8px;
+}
+.compete-type-clues { background: rgba(253, 203, 110, 0.18); color: #fdcb6e; }
+.compete-type-verse { background: rgba(116, 185, 255, 0.18); color: #74b9ff; }
+.compete-type-scenario { background: rgba(85, 239, 196, 0.18); color: #55efc4; }
+.compete-subject-chip { display: inline-block; margin: 0 6px 8px; padding: 2px 10px; border-radius: 12px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, var(--sc) 22%, transparent); color: var(--sc); border: 1px solid color-mix(in srgb, var(--sc) 45%, transparent); }
+.compete-clues { display: grid; gap: 6px; margin-top: 10px; }
+.compete-clue { padding: 8px 12px; border-radius: 12px; background: rgba(253, 203, 110, 0.12); color: var(--text-primary); font-weight: 700; font-size: 14px; opacity: 0; transform: translateY(6px); max-height: 0; overflow: hidden; transition: all 0.4s ease; }
+.compete-clue.shown { opacity: 1; transform: none; max-height: 120px; }
+.compete-clue-hint { margin-top: 8px; font-size: 12px; color: var(--gold); opacity: 0.85; }
+.compete-feedback-answer { margin-top: 10px; font-size: 17px; font-weight: 800; color: #fff; text-shadow: 0 2px 8px rgba(0,0,0,0.5); padding: 0 20px; }
+.compete-feedback-explain { margin: 10px auto 0; max-width: 520px; padding: 10px 16px; border-radius: 14px; background: rgba(0,0,0,0.45); color: #fff; font-size: 14px; line-height: 1.8; }
+
+.compete-team-bar { display: grid; gap: 6px; margin: 8px 0 10px; }
+.ctb-row { display: grid; grid-template-columns: minmax(90px, auto) 1fr 48px; align-items: center; gap: 8px; font-size: 13px; font-weight: 800; color: var(--text-primary); }
+.ctb-row.mine .ctb-name { text-decoration: underline; text-decoration-color: var(--tc); }
+.ctb-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctb-track { height: 10px; border-radius: 10px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.ctb-track i { display: block; height: 100%; background: var(--tc); border-radius: 10px; transition: width 0.6s ease; }
+.ctb-score { text-align: left; color: var(--tc); }
+
+.lobby-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 12px 0; }
+.lobby-team-col { border-radius: 14px; padding: 10px; background: color-mix(in srgb, var(--tc) 12%, var(--bg-card)); border: 2px solid color-mix(in srgb, var(--tc) 55%, transparent); }
+.lobby-team-head { font-weight: 900; color: var(--tc); margin-bottom: 6px; display: flex; justify-content: space-between; }
+.lobby-team-head span { background: var(--tc); color: #fff; border-radius: 10px; padding: 0 8px; font-size: 12px; }
+.lobby-team-member { font-size: 13px; padding: 3px 0; color: var(--text-primary); }
+.lobby-team-switch { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; margin-bottom: 10px; }
+.lobby-team-tag { display: block; font-size: 10px; font-weight: 700; color: var(--tc); }
+.lobby-team-hint { font-size: 12px; color: var(--text-secondary); text-align: center; margin: 4px 0 10px; }
+
+.compete-team-results { text-align: center; padding: 14px; margin-bottom: 14px; border-radius: 18px; background: var(--bg-card); border: 1px solid var(--border); }
+.compete-team-winner { color: var(--tc); font-weight: 900; margin: 4px 0 12px; }
+.ctr-row { display: grid; grid-template-columns: 26px 1fr auto; grid-template-areas: "n b e" "n s e"; align-items: center; gap: 0 10px; padding: 8px 12px; margin-bottom: 6px; border-radius: 12px; background: color-mix(in srgb, var(--tc) 12%, transparent); border-right: 4px solid var(--tc); text-align: right; }
+.ctr-row span { grid-area: n; font-weight: 900; }
+.ctr-row b { grid-area: b; color: var(--text-primary); }
+.ctr-row small { grid-area: s; color: var(--text-secondary); font-size: 11px; }
+.ctr-row em { grid-area: e; font-style: normal; font-weight: 900; font-size: 20px; color: var(--tc); }
+.ctr-note { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
+.cstyle-selector .qcount-num { font-size: 11px; }

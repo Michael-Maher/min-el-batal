@@ -1968,7 +1968,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
             <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">المادة</label>
             <select id="lcfg-subject" onchange="lcfgLoadLesson()" style="width:100%;padding:9px 10px;border-radius:8px;background:var(--bg-card);border:1px solid var(--border);color:var(--text);font-size:14px">
               <option value="faith">عقيدة ولاهوت ✝️</option>
-              <option value="bible">كتاب مقدس 📖</option>
+              <option value="l2_bible">كتاب مقدس 📖</option>
               <option value="l2_life">مهارات الحياة 🌟</option>
               <option value="l1_bible">كتاب مقدس — م١ 📜</option>
               <option value="l1_service">الخدمة — م١ 🤲</option>
@@ -1984,6 +1984,8 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
               <option value="3">درس ٤</option>
               <option value="4">درس ٥</option>
               <option value="5">درس ٦</option>
+              <option value="6">درس ٧</option>
+              <option value="7">درس ٨</option>
             </select>
           </div>
           <button class="btn bg" onclick="lcfgLoad()" style="white-space:nowrap"><i class="fas fa-download"></i> تحميل</button>
@@ -2216,7 +2218,7 @@ let playerEvents = [], playerReports = [];
 let tournaments = [], tqBank = [];
 const YR = {prep1:'أولى إعدادي',prep2:'تانية إعدادي',prep3:'تالتة إعدادي'};
 const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
-const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',lessons:['الكتاب المقدس كلمة الله','شخصيات العهد القديم','حياة المسيح على الأرض','أمثال المسيح','رسائل بولس الرسول','سفر الرؤيا والرجاء']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
+const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},l2_bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',level:2,newEngine:true,lessons:['بانوراما الأسفار القانونية الثانية','طرق دراسة الكتاب المقدس','مقدمة رسائل الجامعة','يعقوب — الإصحاح الأول','يعقوب — الإصحاح الثاني','يعقوب — الإصحاح الثالث','يعقوب — الإصحاح الرابع','يعقوب — الإصحاح الخامس']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
 
 // ════════════════════════════════
 //  PASSWORD HASH
@@ -2840,15 +2842,16 @@ function renderInsights() {
     <span class="rankscore">⭐ ${(p.stars||0).toLocaleString()}</span></div>`).join('');
 
   // ── charts3: Lesson completion per subject + spiritual activity ──
-  const subKeys=['faith','bible','l2_life','ritual'];
-  const subColors={'faith':'#e74c3c','bible':'#3b82f6','l2_life':'#f39c12','ritual':'#8b5cf6'};
+  const subKeys=['faith','l2_bible','l2_life','ritual'];
+  const subColors={'faith':'#e74c3c','l2_bible':'#3b82f6','l2_life':'#f39c12','ritual':'#8b5cf6'};
   // lesson completion: count players with stationScores[sk_i].total > 0
   const lessonComp={}; // sk -> [count per lesson]
   subKeys.forEach(function(sk){
-    lessonComp[sk]=Array(6).fill(0);
+    var nLes=(SUBJECTS[sk].lessons||[]).length||6;
+    lessonComp[sk]=Array(nLes).fill(0);
     players.forEach(function(p){
       const ss=p.stationScores||{};
-      for(var i=0;i<6;i++){if((ss[sk+'_'+i]||{}).total>0) lessonComp[sk][i]++;}
+      for(var i=0;i<nLes;i++){if((ss[sk+'_'+i]||{}).total>0) lessonComp[sk][i]++;}
     });
   });
   var _allLC=subKeys.reduce(function(acc,sk){return acc.concat(lessonComp[sk]);},[]); var maxLC=Math.max.apply(null,_allLC.concat([1]));
@@ -3137,7 +3140,7 @@ function renderLessonsTab(p) {
     const sub=SUBJECTS[sk];
     const done=sub.lessons.filter(function(_,i){return (ss[sk+'_'+i]||{}).total>0;}).length;
     html+='<div class="subj-block">';
-    html+='<div class="subj-hdr" style="background:'+sub.color+'1a;border:1px solid '+sub.color+'33"><span style="font-size:16px">'+sub.icon+'</span><span style="color:'+sub.color+'">'+sub.name+'</span><span style="margin-right:auto;font-size:10px;color:var(--muted)">'+done+'/6 درس</span></div>';
+    html+='<div class="subj-hdr" style="background:'+sub.color+'1a;border:1px solid '+sub.color+'33"><span style="font-size:16px">'+sub.icon+'</span><span style="color:'+sub.color+'">'+sub.name+'</span><span style="margin-right:auto;font-size:10px;color:var(--muted)">'+done+'/'+sub.lessons.length+' درس</span></div>';
     sub.lessons.forEach(function(lname,i){
       const isL1=!!sub.newEngine, stMax=isL1?200:150;
       const key=sk+'_'+i, sc=ss[key]||{}, total=sc.total||0, pct=Math.round(total/stMax*100);
@@ -3716,15 +3719,15 @@ function _dgi(label,val,color){return'<div style="background:rgba(255,255,255,.0
 function _sec(title,icon,content){return'<div style="background:rgba(255,255,255,.02);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px"><div style="font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:11px">'+icon+' '+title+'</div>'+content+'</div>';}
 
 function renderSummaryTab(p) {
-  const subKeys=['faith','bible','l2_life','ritual'];
-  const subColors={faith:'#e74c3c',bible:'#3b82f6',l2_life:'#f39c12',ritual:'#8b5cf6'};
+  const subKeys=['faith','l2_bible','l2_life','ritual'];
+  const subColors={faith:'#e74c3c',l2_bible:'#3b82f6',l2_life:'#f39c12',ritual:'#8b5cf6'};
   const ss=p.stationScores||{}, bl=p.bibleReadingLog||{}, dl=p.devotionLog||{};
   const dvl=p.dailyVerseLog||{}, el=p.exerciseLog||{}, lamp=p.lampData||{};
   const pj=p.paulJourneyData||{}, ld=p.levelsData||{};
 
   // Lesson completion per subject
   const subjDone={};
-  subKeys.forEach(function(sk){ subjDone[sk]=0; for(var i=0;i<6;i++){if((ss[sk+'_'+i]||{}).total>0)subjDone[sk]++;} });
+  subKeys.forEach(function(sk){ subjDone[sk]=0; for(var i=0;i<SUBJECTS[sk].lessons.length;i++){if((ss[sk+'_'+i]||{}).total>0)subjDone[sk]++;} });
   const totalDone=Object.values(subjDone).reduce(function(s,v){return s+v;},0);
   const completionPct=Math.round(totalDone/24*100);
 
@@ -3848,8 +3851,8 @@ function renderSummaryTab(p) {
     <div style="font-size:10px;color:var(--muted);font-weight:700;margin-bottom:12px;text-transform:uppercase;letter-spacing:.5px">📖 تقدم المواد</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       ${subKeys.map(function(sk){
-        var done=subjDone[sk], pct=(done/6*100).toFixed(1), sc=subjScore[sk], sub=SUBJECTS[sk];
-        return '<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:600">'+sub.icon+' '+sub.name+'</span><span style="font-size:11px;color:var(--muted)">'+done+'/6 · '+sc.toLocaleString()+' نقطة</span></div><div style="background:rgba(255,255,255,.05);border-radius:99px;height:8px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+subColors[sk]+';border-radius:99px"></div></div></div>';
+        var sub=SUBJECTS[sk], done=subjDone[sk], pct=(done/sub.lessons.length*100).toFixed(1), sc=subjScore[sk];
+        return '<div><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px"><span style="font-size:12px;font-weight:600">'+sub.icon+' '+sub.name+'</span><span style="font-size:11px;color:var(--muted)">'+done+'/'+sub.lessons.length+' · '+sc.toLocaleString()+' نقطة</span></div><div style="background:rgba(255,255,255,.05);border-radius:99px;height:8px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:'+subColors[sk]+';border-radius:99px"></div></div></div>';
       }).join('')}
     </div>
     <div style="display:flex;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
@@ -3942,7 +3945,7 @@ function renderSummaryTab(p) {
   var stHtml='';
   subKeys.forEach(function(sk){
     var sub=SUBJECTS[sk],done2=subjDone[sk];
-    stHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px;padding:5px 8px;background:'+subColors[sk]+'18;border-radius:6px;border-right:3px solid '+subColors[sk]+'">'+sub.icon+' '+sub.name+' ('+done2+'/6)</div>';
+    stHtml+='<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;margin-bottom:6px;padding:5px 8px;background:'+subColors[sk]+'18;border-radius:6px;border-right:3px solid '+subColors[sk]+'">'+sub.icon+' '+sub.name+' ('+done2+'/'+sub.lessons.length+')</div>';
     stHtml+='<div style="display:flex;flex-direction:column;gap:4px">';
     sub.lessons.forEach(function(lname,i){
       var sc=ss[sk+'_'+i]||{},tot=sc.total||0,pct=Math.round(tot/150*100);
@@ -4032,8 +4035,8 @@ function renderSummaryTab(p) {
 }
 
 function renderLessonSummariesTab(p) {
-  var subKeys=['l1_bible','l1_service','faith','bible','l2_life','ritual'];
-  var subColors={l1_bible:'#d4a24c',l1_service:'#2f9e8f',faith:'#e74c3c',bible:'#3b82f6',l2_life:'#f39c12',ritual:'#8b5cf6'};
+  var subKeys=['l1_bible','l1_service','faith','l2_bible','l2_life','ritual'];
+  var subColors={l1_bible:'#d4a24c',l1_service:'#2f9e8f',faith:'#e74c3c',l2_bible:'#3b82f6',l2_life:'#f39c12',ritual:'#8b5cf6'};
   var ls=p.lessonSummaries||{};
   var lsKeys=Object.keys(ls);
   if(!lsKeys.length){
@@ -4058,7 +4061,7 @@ function renderLessonSummariesTab(p) {
     html+='<div style="margin-bottom:20px">';
     html+='<div style="font-size:13px;font-weight:700;margin-bottom:10px;padding:8px 12px;background:'+subColors[sk]+'15;border-radius:10px;border-right:3px solid '+subColors[sk]+';display:flex;align-items:center;justify-content:space-between">';
     html+='<span>'+sub.icon+' '+sub.name+'</span>';
-    html+='<span style="background:'+subColors[sk]+'28;border-radius:99px;padding:2px 10px;font-size:11px;color:'+subColors[sk]+'">'+subSums.length+' / 6 دروس</span>';
+    html+='<span style="background:'+subColors[sk]+'28;border-radius:99px;padding:2px 10px;font-size:11px;color:'+subColors[sk]+'">'+subSums.length+' / '+sub.lessons.length+' دروس</span>';
     html+='</div>';
     subSums.forEach(function(k){
       var v=ls[k]||{};
@@ -8570,7 +8573,7 @@ var adminMe = null;
 // ════════════════════════════════════════════════
 //  LEARN TAB CONFIG ADMIN
 // ════════════════════════════════════════════════
-const LCFG_SUBJECT_NAMES = { faith:'عقيدة ولاهوت', bible:'كتاب مقدس', l2_life:'مهارات الحياة', ritual:'طقس', l1_bible:'كتاب مقدس — م١', l1_service:'الخدمة — م١' };
+const LCFG_SUBJECT_NAMES = { faith:'عقيدة ولاهوت', l2_bible:'كتاب مقدس', l2_life:'مهارات الحياة', ritual:'طقس', l1_bible:'كتاب مقدس — م١', l1_service:'الخدمة — م١' };
 const LCFG_MAX_VIDEOS = 5;
 
 function lcfgKey() {

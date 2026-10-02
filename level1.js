@@ -8,7 +8,8 @@ var LEVEL1_SUBJECTS = {
     l1_bible: (typeof L1_BIBLE !== 'undefined') ? L1_BIBLE : null,
     l1_service: (typeof L1_SERVICE !== 'undefined') ? L1_SERVICE : null,
     // Level 2 subject on this engine (fresh key; the old Level 2 `life` lessons were removed)
-    l2_life: (typeof L2_LIFE !== 'undefined') ? L2_LIFE : null
+    l2_life: (typeof L2_LIFE !== 'undefined') ? L2_LIFE : null,
+    l2_bible: (typeof L2_BIBLE !== 'undefined') ? L2_BIBLE : null
 };
 
 // Subjects screen order; entries without data yet are shown as "قريباً"
@@ -50,6 +51,17 @@ var L1_MAP_POSITIONS = {
         { left: 82.4, top: 36.5 },
         { left: 35.0, top: 58.6 },
         { left: 60.7, top: 60.2 }
+    ],
+    // 8 stations: top row 1-4, bottom row 5-8
+    l2_bible: [
+        { left: 14.6, top: 34.5 },
+        { left: 36.4, top: 34.0 },
+        { left: 59.6, top: 33.6 },
+        { left: 82.7, top: 34.0 },
+        { left: 29.3, top: 62.2 },
+        { left: 45.1, top: 64.7 },
+        { left: 59.9, top: 65.1 },
+        { left: 74.6, top: 63.5 }
     ]
 };
 
@@ -75,6 +87,15 @@ var L1_ROUTES = {
         [[59.4, 27.7], [70.7, 46.9], [82.4, 36.5]],
         [[82.4, 36.5], [91.4, 61.0], [74.3, 78.8], [48.6, 77.5], [35.0, 58.6]],
         [[35.0, 58.6], [48.6, 77.5], [60.7, 60.2]]
+    ],
+    l2_bible: [
+        [[14.6, 34.5], [26.4, 52.0], [36.4, 34.0]],
+        [[36.4, 34.0], [48.9, 51.8], [59.6, 33.6]],
+        [[59.6, 33.6], [71.4, 51.4], [82.7, 34.0]],
+        [[82.7, 34.0], [86.0, 55.0], [75.0, 80.0], [50.0, 88.0], [30.0, 82.0], [29.3, 62.2]],
+        [[29.3, 62.2], [38.0, 82.0], [45.1, 64.7]],
+        [[45.1, 64.7], [52.0, 88.0], [59.9, 65.1]],
+        [[59.9, 65.1], [69.0, 86.0], [74.6, 63.5]]
     ]
 };
 
@@ -202,7 +223,7 @@ function l1OnStationPassed(n) {
     var st = l1Station(n);
     GameState.gems = (GameState.gems || 0) + 30;
     setTimeout(function() {
-        try { showCelebration('🏆', n < 5 ? 'عديت المحطة! المحطة الجاية اتفتحت' : 'خلصت رحلة ' + l1Subject().name + '!', '#d4a24c'); } catch (e) {}
+        try { showCelebration('🏆', n < l1Subject().stations.length - 1 ? 'عديت المحطة! المحطة الجاية اتفتحت' : 'خلصت رحلة ' + l1Subject().name + '!', '#d4a24c'); } catch (e) {}
         try { launchConfetti(3000); } catch (e) {}
         try { showFloatingReward('+30 💎'); } catch (e) {}
     }, 400);
@@ -233,7 +254,7 @@ function l1OpenSubject(key) {
     var card = sub.level === 2 ? ['card_level2', 'المستوى الثاني'] : ['card_level1', 'المستوى الأول'];
     if (typeof isContentLocked === 'function' && isContentLocked(card[0])) { showLockedPopup(card[1], lockedMessage(card[0])); return; }
     if (checkLockOrPopup('subject_' + key, sub.name)) return;
-    if (key === 'l2_life') l2PurgeOldLife();
+    l2PurgeOld(key);
     l1State.subject = key;
     showScreen('l1-map-screen');
     enterMapLandscape();
@@ -284,43 +305,51 @@ function l1ExitToHub() {
     showScreen((l1Subject() && l1Subject().backScreen) || 'l1-subjects-screen');
 }
 
-// ---------- Level 2 مهارات الحياة: fresh subject ----------
-// Remove any data saved by the old Level 2 `life` lessons (user decision 2026-09-30: fresh subject).
-function l2PurgeOldLife() {
+// ---------- Level 2 subjects rebuilt on this engine (fresh subjects) ----------
+// New key -> old Level 2 key it replaces (user decision 2026-09-30: fresh subject, old data removed)
+var L2_REPLACES = { l2_life: 'life', l2_bible: 'bible' };
+
+// Remove any data saved by the old Level 2 lessons of `oldKey` (runs once per subject).
+function l2PurgeOld(newKey) {
+    var oldKey = L2_REPLACES[newKey];
+    if (!oldKey) return;
     if (!GameState.level1Data) GameState.level1Data = {};
-    var flags = GameState.level1Data.l2_life || (GameState.level1Data.l2_life = {});
-    if (flags.purgedOldLife) return;   // once only: new weekly exams reuse the subjectExam_life_ prefix
-    flags.purgedOldLife = true;
-    var changed = true;
+    var flags = GameState.level1Data[newKey] || (GameState.level1Data[newKey] = {});
+    // once only: new weekly exams reuse the subjectExam_<old>_ prefix (purgedOldLife = flag name used by the first release)
+    if (flags.purgedOld || flags.purgedOldLife) return;
+    flags.purgedOld = true;
+    var prefix = oldKey + '_';
     ['stationScores', 'miniGameScores', 'lessonSummaries', 'watchedVideos', 'questionHistory'].forEach(function(field) {
         var obj = GameState[field];
         if (!obj || typeof obj !== 'object') return;
-        Object.keys(obj).forEach(function(k) {
-            if (k.indexOf('life_') === 0) delete obj[k];
-        });
+        Object.keys(obj).forEach(function(k) { if (k.indexOf(prefix) === 0) delete obj[k]; });
     });
     var l2 = GameState.level2Data;
     if (l2 && typeof l2 === 'object') {
         Object.keys(l2).forEach(function(k) {
-            if (k === 'life' || k.indexOf('subjectExam_life_') === 0) delete l2[k];
+            if (k === oldKey || k.indexOf('subjectExam_' + oldKey + '_') === 0) delete l2[k];
         });
     }
-    if (changed) saveToLocalStorage();
+    saveToLocalStorage();
 }
 
-// Shared Level 2 features (compete rooms, weekly exam) read LEVEL2_SUBJECTS.life.lessons:
-// fill it from the new subject so they only use the new content.
-(function l2BuildLifeShim() {
-    if (typeof LEVEL2_SUBJECTS === 'undefined' || !LEVEL2_SUBJECTS.life || typeof L2_LIFE === 'undefined') return;
-    LEVEL2_SUBJECTS.life.lessons = L2_LIFE.stations.map(function(st) {
-        var qs = [];
-        st.cards.forEach(function(c) {
-            if (c.type === 'check') qs.push({ q: c.q, options: c.options, correct: c.correct, explanation: c.explain });
+// Shared Level 2 features (compete rooms, weekly exam) read LEVEL2_SUBJECTS[old].lessons:
+// fill them from the new subjects so they only use the new content.
+(function l2BuildShims() {
+    if (typeof LEVEL2_SUBJECTS === 'undefined') return;
+    Object.keys(L2_REPLACES).forEach(function(newKey) {
+        var sub = LEVEL1_SUBJECTS[newKey], old = LEVEL2_SUBJECTS[L2_REPLACES[newKey]];
+        if (!sub || !old) return;
+        old.lessons = sub.stations.map(function(st) {
+            var qs = [];
+            st.cards.forEach(function(c) {
+                if (c.type === 'check') qs.push({ q: c.q, options: c.options, correct: c.correct, explanation: c.explain });
+            });
+            ((st.games[0] && st.games[0].data && st.games[0].data.questions) || []).forEach(function(q) {
+                qs.push({ q: q.q, options: q.options, correct: q.correct, explanation: q.explain });
+            });
+            return { name: st.title, desc: st.subtitle || '', verse: st.verse ? st.verse.text + ' ' + st.verse.ref : '', content: '', questions: qs };
         });
-        ((st.games[0] && st.games[0].data && st.games[0].data.questions) || []).forEach(function(q) {
-            qs.push({ q: q.q, options: q.options, correct: q.correct, explanation: q.explain });
-        });
-        return { name: st.title, desc: st.subtitle || '', verse: st.verse ? st.verse.text + ' ' + st.verse.ref : '', content: '', questions: qs };
     });
 })();
 

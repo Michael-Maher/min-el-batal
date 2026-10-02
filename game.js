@@ -480,7 +480,7 @@ function mergeLevel1Data(cloudL1, localL1) {
     Object.keys(cloudL1).forEach(function(sk) {
         var cs = cloudL1[sk] || {}, ls = localL1[sk] || {};
         var cv = cs.savedVerses || [], lv = ls.savedVerses || [];
-        // Keep any other per-subject flags (e.g. purgedOldLife), union seenUnlock, longest savedVerses
+        // Keep any other per-subject flags (e.g. purgedOld), union seenUnlock, longest savedVerses
         merged[sk] = Object.assign({}, ls, cs, {
             seenUnlock: Object.assign({}, ls.seenUnlock || {}, cs.seenUnlock || {}),
             savedVerses: cv.length >= lv.length ? cv : lv
@@ -7831,91 +7831,14 @@ var LEVEL2_SUBJECTS = {
             }
         ]
     },
+    // الكتاب المقدس (Level 2) now runs on the Level 1 engine (level2-bible-data.js, key l2_bible).
+    // level1.js fills `lessons` from L2_BIBLE so compete rooms / exams use the new content only.
     bible: {
         name: 'كتاب مقدس',
-        desc: 'كل سفر وكل حكاية',
+        desc: 'رسالة يعقوب — إيمان عملي في حياتنا',
         icon: '📖',
-        color: '#3498db',
-        lessons: [
-            {
-                name: 'الكتاب المقدس كلمة الله',
-                desc: 'كيف أُعطينا الكتاب المقدس ولماذا هو مهم',
-                verse: '"كل الكتاب هو موحى به من الله" (٢ تيموثاوس 3:16)',
-                content: 'الكتاب المقدس هو كلمة الله الموحى بها. كُتب بواسطة أكثر من 40 كاتباً على مدار 1500 سنة بإلهام الروح القدس. يتكون من 66 سفراً: 39 في العهد القديم و27 في العهد الجديد. الكتاب المقدس هو المصدر الأساسي لإيماننا.',
-                questions: [
-                    { q: 'كم عدد أسفار الكتاب المقدس؟', options: ['50', '66', '73', '80'], correct: 1 },
-                    { q: 'كم كاتباً كتبوا الكتاب المقدس تقريباً؟', options: ['12', '20', '40+', '100'], correct: 2 },
-                    { q: 'الكتاب المقدس موحى به من...', options: ['البشر', 'الملائكة', 'الله', 'القديسين'], correct: 2 },
-                    { q: 'كم سفراً في العهد الجديد؟', options: ['27', '39', '22', '14'], correct: 0 },
-                    { q: 'على مدار كم سنة كُتب الكتاب المقدس؟', options: ['100', '500', '1000', '1500'], correct: 3 }
-                ]
-            },
-            {
-                name: 'شخصيات العهد القديم',
-                desc: 'أبطال الإيمان في العهد القديم',
-                verse: '"بالإيمان قدم هابيل لله ذبيحة أفضل من قايين" (عبرانيين 11:4)',
-                content: 'العهد القديم مليء بأبطال الإيمان: إبراهيم أبو الآباء الذي آمن بالله، موسى الذي قاد الشعب من مصر، داود الملك بحسب قلب الله، إيليا النبي الناري، دانيال في جب الأسود. كل واحد منهم يعلمنا درساً مهماً عن الإيمان.',
-                questions: [
-                    { q: 'من هو أبو الآباء؟', options: ['موسى', 'إبراهيم', 'يعقوب', 'إسحق'], correct: 1 },
-                    { q: 'من قاد الشعب خروجاً من مصر؟', options: ['يشوع', 'داود', 'موسى', 'صموئيل'], correct: 2 },
-                    { q: 'من كان ملكاً بحسب قلب الله؟', options: ['شاول', 'سليمان', 'داود', 'حزقيا'], correct: 2 },
-                    { q: 'من أُلقي في جب الأسود؟', options: ['إيليا', 'إرميا', 'دانيال', 'يونان'], correct: 2 },
-                    { q: 'عبرانيين 11 يتحدث عن...', options: ['الشريعة', 'أبطال الإيمان', 'النبوات', 'المزامير'], correct: 1 }
-                ]
-            },
-            {
-                name: 'حياة المسيح على الأرض',
-                desc: 'ميلاد المسيح وخدمته ومعجزاته',
-                verse: '"جال يصنع خيراً ويشفي جميع المتسلط عليهم إبليس" (أعمال 10:38)',
-                content: 'وُلد المسيح في بيت لحم، ونشأ في الناصرة. بدأ خدمته بعد المعمودية من يوحنا المعمدان. صنع معجزات كثيرة: شفى المرضى، أقام الموتى، أطعم الجموع، مشى على الماء. علّم بأمثال عظيمة وقدم لنا نموذجاً للحياة الكاملة.',
-                questions: [
-                    { q: 'أين وُلد المسيح؟', options: ['الناصرة', 'أورشليم', 'بيت لحم', 'مصر'], correct: 2 },
-                    { q: 'من عمّد المسيح؟', options: ['بطرس', 'يوحنا المعمدان', 'أندراوس', 'يعقوب'], correct: 1 },
-                    { q: 'أين نشأ المسيح؟', options: ['بيت لحم', 'أورشليم', 'الناصرة', 'كفرناحوم'], correct: 2 },
-                    { q: 'من المعجزات: أطعم المسيح...', options: ['100 شخص', '1000 شخص', '5000 شخص', '500 شخص'], correct: 2 },
-                    { q: 'المسيح علّم بـ...', options: ['القوانين فقط', 'الأمثال', 'الحروب', 'السياسة'], correct: 1 }
-                ]
-            },
-            {
-                name: 'أمثال المسيح',
-                desc: 'أهم أمثال المسيح ومعانيها العميقة',
-                verse: '"هذا كله كلم به يسوع الجموع بأمثال" (متى 13:34)',
-                content: 'استخدم المسيح الأمثال لتعليم حقائق روحية عميقة بطريقة بسيطة. من أشهر الأمثال: الابن الضال (محبة الآب)، الزارع (أنواع القلوب)، السامري الصالح (محبة القريب)، العذارى العشر (الاستعداد)، الوزنات (استثمار المواهب).',
-                questions: [
-                    { q: 'مثل الابن الضال يعلمنا عن...', options: ['العقاب', 'محبة الآب', 'المال', 'السفر'], correct: 1 },
-                    { q: 'مثل الزارع يتحدث عن أنواع...', options: ['البذور', 'الأرض/القلوب', 'الأشجار', 'الماء'], correct: 1 },
-                    { q: 'من ساعد الإنسان الجريح في مثل السامري؟', options: ['الكاهن', 'اللاوي', 'السامري', 'الفريسي'], correct: 2 },
-                    { q: 'مثل العذارى العشر يعلمنا عن...', options: ['الزواج', 'الاستعداد', 'الجمال', 'النوم'], correct: 1 },
-                    { q: 'مثل الوزنات يعلمنا عن...', options: ['المال', 'استثمار المواهب', 'البنوك', 'التجارة'], correct: 1 }
-                ]
-            },
-            {
-                name: 'رسائل بولس الرسول',
-                desc: 'رسائل بولس وتأثيرها على الكنيسة',
-                verse: '"لي الحياة هي المسيح والموت هو ربح" (فيلبي 1:21)',
-                content: 'بولس الرسول كتب 14 رسالة في العهد الجديد. كان في البداية يضطهد المسيحيين ثم ظهر له المسيح في طريق دمشق فتحول وصار أعظم مبشر. رسائله تشمل: رومية، كورنثوس، غلاطية، أفسس، فيلبي، وغيرها. علّم عن النعمة والإيمان والمحبة.',
-                questions: [
-                    { q: 'كم رسالة كتب بولس؟', options: ['7', '10', '14', '21'], correct: 2 },
-                    { q: 'أين ظهر المسيح لبولس؟', options: ['أورشليم', 'طريق دمشق', 'روما', 'أنطاكية'], correct: 1 },
-                    { q: 'ماذا كان بولس يفعل قبل إيمانه؟', options: ['يبشر', 'يصلي', 'يضطهد المسيحيين', 'يكتب'], correct: 2 },
-                    { q: '"لي الحياة هي المسيح" في أي رسالة؟', options: ['رومية', 'فيلبي', 'كورنثوس', 'غلاطية'], correct: 1 },
-                    { q: 'بولس علّم عن النعمة والإيمان و...', options: ['القوة', 'المحبة', 'المعرفة', 'الحكمة'], correct: 1 }
-                ]
-            },
-            {
-                name: 'سفر الرؤيا والرجاء',
-                desc: 'رؤيا يوحنا ورجاؤنا في المجيء الثاني',
-                verse: '"ها أنا آتي سريعاً وأجرتي معي" (رؤيا 22:12)',
-                content: 'سفر الرؤيا هو آخر أسفار الكتاب المقدس، كتبه يوحنا الرسول في جزيرة بطمس. يتحدث عن انتصار المسيح النهائي على الشر، والسماء الجديدة والأرض الجديدة. رسالته الأساسية هي الرجاء: مهما كانت الضيقات، المسيح غالب ونحن معه منتصرون.',
-                questions: [
-                    { q: 'من كتب سفر الرؤيا؟', options: ['بولس', 'بطرس', 'يوحنا', 'يعقوب'], correct: 2 },
-                    { q: 'أين كان يوحنا عندما كتب الرؤيا؟', options: ['أورشليم', 'روما', 'بطمس', 'أفسس'], correct: 2 },
-                    { q: 'الرسالة الأساسية لسفر الرؤيا هي...', options: ['الخوف', 'الرجاء', 'الحزن', 'الانتقام'], correct: 1 },
-                    { q: 'سفر الرؤيا يتحدث عن انتصار...', options: ['الإنسان', 'الملائكة', 'المسيح', 'الطبيعة'], correct: 2 },
-                    { q: '"ها أنا آتي سريعاً" في أي إصحاح؟', options: ['رؤيا 1', 'رؤيا 7', 'رؤيا 15', 'رؤيا 22'], correct: 3 }
-                ]
-            }
-        ]
+        color: '#3b82f6',
+        lessons: []
     },
     // مهارات الحياة والقيادة now runs on the Level 1 engine (level2-life-data.js, key l2_life).
     // level1.js fills `lessons` from L2_LIFE so compete rooms / exams use the new content only.
@@ -9762,9 +9685,10 @@ function renderLevel2Subjects() {
     subjects.forEach(function(subKey) {
         var completed = 0;
         // مهارات الحياة runs on the Level 1 engine: progress = stations passed in l2_life
-        if (subKey === 'life' && typeof l1SubjectProgress === 'function') {
-            var lp = l1SubjectProgress('l2_life');
-            var lf = document.getElementById('l2-progress-life'), lt = document.getElementById('l2-progress-life-text');
+        var newKey = { life: 'l2_life', bible: 'l2_bible' }[subKey];
+        if (newKey && typeof l1SubjectProgress === 'function') {
+            var lp = l1SubjectProgress(newKey);
+            var lf = document.getElementById('l2-progress-' + subKey), lt = document.getElementById('l2-progress-' + subKey + '-text');
             if (lf) lf.style.width = (lp.passed / lp.total * 100) + '%';
             if (lt) lt.textContent = lp.passed + '/' + lp.total;
             return;
@@ -9811,7 +9735,8 @@ function renderExamSubjectsGrid() {
         var examTaken = GameState.level2Data && GameState.level2Data[examKey];
 
         // Check if has any completed lessons
-        var hasLessons = subKey === 'life' && typeof l1SubjectProgress === 'function' && l1SubjectProgress('l2_life').passed > 0;
+        var newKey = { life: 'l2_life', bible: 'l2_bible' }[subKey];
+        var hasLessons = !!newKey && typeof l1SubjectProgress === 'function' && l1SubjectProgress(newKey).passed > 0;
         var subjectData = (GameState.level2Data && GameState.level2Data[subKey]) || {};
         for (var i = 0; i < 6; i++) {
             if (subjectData['lesson_' + i] && subjectData['lesson_' + i].stars > 0) {

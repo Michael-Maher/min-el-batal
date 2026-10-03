@@ -432,16 +432,6 @@
                 <button class="fab" onclick="reloadApp()" title="تحديث التطبيق"><i class="fas fa-rotate-right"></i></button>
             </div>
         </div>
-        <!-- ===== Bottom nav (hub only) ===== -->
-        <nav class="gx-nav" id="gx-nav">
-            <div class="gx-nav-in">
-                <button onclick="showScreen('shop-screen')"><span>🛒</span><b>المتجر</b></button>
-                <button onclick="showScreen('compete-screen')"><span>🏆</span><b>منافسات</b></button>
-                <button class="on" onclick="GameUI.scrollHubTop()"><span>🏠</span><b>الرئيسية</b></button>
-                <button onclick="showScreen('leaderboard-screen')"><span>👑</span><b>الأبطال</b></button>
-                <button onclick="showScreen('teams-screen')"><span>🛡️</span><b>فريقي</b></button>
-            </div>
-        </nav>
     </div>
 
     <!-- ============ FUN ZONE SCREEN ============ -->
@@ -1707,6 +1697,17 @@
             <button class="btn btn-danger" onclick="logout()" style="margin-top:10px;background:#e74c3c;"><span><i class="fas fa-sign-out-alt"></i> تسجيل الخروج</span></button>
         </div>
     </div>
+
+    <!-- ===== Game bottom nav (game-ui.js shows it on the lobby screens) ===== -->
+    <nav class="gx-nav" id="gx-nav">
+        <div class="gx-nav-in">
+            <button data-nav="shop-screen" onclick="GameUI.nav('shop-screen')"><span>🛒</span><b>المتجر</b></button>
+            <button data-nav="compete-screen" onclick="GameUI.nav('compete-screen')"><span>🏆</span><b>منافسات</b></button>
+            <button data-nav="home-hub-screen" onclick="GameUI.nav('home-hub-screen')"><span>🏠</span><b>الرئيسية</b></button>
+            <button data-nav="leaderboard-screen" onclick="GameUI.nav('leaderboard-screen')"><span>👑</span><b>الأبطال</b></button>
+            <button data-nav="teams-screen" onclick="GameUI.nav('teams-screen')"><span>🛡️</span><b>فريقي</b></button>
+        </div>
+    </nav>
 
     <!-- Floating Action Buttons -->
     <div class="fab-container" id="fab-container" style="display:none;">

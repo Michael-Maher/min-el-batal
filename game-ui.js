@@ -495,11 +495,24 @@ var GameUI = (function () {
 
     function scrollHubTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
+    // Screens that show the bottom tab bar (lobby-style screens)
+    var NAV_SCREENS = { 'home-hub-screen': 1, 'shop-screen': 1, 'compete-screen': 1, 'leaderboard-screen': 1, 'teams-screen': 1, 'rewards-shop-screen': 1, 'progress-dashboard-screen': 1, 'museum-screen': 1 };
+    function nav(id) {
+        var cur = document.querySelector('.screen.active');
+        if (cur && cur.id === id) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+        showScreen(id);
+    }
     function onScreen(id) {
         var el = $(id);
-        var active = el && el.classList.contains('active');
-        document.body.classList.toggle('gx-nav-on', !!active && id === 'home-hub-screen');
-        if (active && id === 'home-hub-screen') renderHub();
+        if (!el || !el.classList.contains('active')) return;
+        var showNav = !!NAV_SCREENS[id];
+        document.body.classList.toggle('gx-nav-on', showNav);
+        if (showNav) {
+            document.querySelectorAll('#gx-nav [data-nav]').forEach(function (b) {
+                b.classList.toggle('on', b.getAttribute('data-nav') === id);
+            });
+        }
+        if (id === 'home-hub-screen') renderHub();
     }
 
     // ---------- Boot ----------
@@ -510,7 +523,7 @@ var GameUI = (function () {
 
     return {
         setLook: setLook, lookPref: lookPref, applyLook: applyLook,
-        onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop,
+        onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
         onNewDay: onNewDay, openDaily: openDaily, openSeason: openSeason,
         grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal

@@ -804,3 +804,140 @@ html[data-look] .l1-subject-card:nth-child(4n+3) { background: linear-gradient(1
 html[data-look] .l1-subject-card:nth-child(4n+4) { background: linear-gradient(160deg, #F78FB3, #C2185B); }
 html[data-look] .l1-map-title, html[data-look] .l1-lesson-title { min-width: 0; }
 html[data-look] .l1-map-top { align-self: stretch; }
+
+/* bottom nav on lobby screens: leave room for it, retire the old floating fab row */
+body.gx-nav-on .screen.active { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+html[data-look] .fab-container { display: none !important; }
+
+/* ============================================================
+   LEADERBOARD
+   ============================================================ */
+html[data-look] .lb-tabs-modern { background: rgba(5, 20, 55, .45); border: 2px solid rgba(255, 255, 255, .25); border-radius: 16px; padding: 4px; gap: 3px; }
+html[data-look] .lb-tab-modern { font-family: var(--gx-font); font-weight: 800; color: #fff; border-radius: 12px; }
+html[data-look] .lb-tab-modern.active { color: #5A2E00; }
+html[data-look] .lb-tab-indicator { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border-radius: 12px; box-shadow: 0 3px 0 var(--gx-gold-edge); }
+html[data-look] .lb-podium { align-items: flex-end; gap: 8px; margin-top: 30px; }
+html[data-look] .lb-podium-item {
+    border-radius: 18px 18px 6px 6px; border: 3px solid rgba(0, 0, 0, .3); box-shadow: 0 5px 0 rgba(0, 0, 0, .28); color: #fff; backdrop-filter: none;
+    animation: gxRiseUp .8s cubic-bezier(.2, 1.4, .4, 1) both; transform-origin: bottom; position: relative; overflow: visible;
+}
+html[data-look] .lb-podium-item.gold { background: linear-gradient(#FFE766, #FFB300 55%, #D98A00); animation-delay: .15s; }
+html[data-look] .lb-podium-item.silver { background: linear-gradient(#F5F7FA, #B0BEC5 55%, #78909C); animation-delay: .3s; }
+html[data-look] .lb-podium-item.bronze { background: linear-gradient(#FFCC99, #E08A4A 55%, #A0522D); animation-delay: .45s; }
+html[data-look] .lb-podium-item.gold::after { content: ""; position: absolute; inset: 0; border-radius: inherit; overflow: hidden; background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, .6) 50%, transparent 60%); background-size: 250% 100%; animation: gxShineBg 3s ease-in-out infinite; pointer-events: none; }
+html[data-look] .lb-podium-avatar { border: 4px solid #fff !important; box-shadow: 0 4px 0 rgba(0, 0, 0, .25); background: #FFD54F; }
+html[data-look] .lb-podium-crown { animation: gxBob 1.6s ease-in-out infinite; font-size: 30px; }
+html[data-look] .lb-podium-name { color: #fff; font-weight: 800; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .lb-podium-score { font-family: var(--gx-display); font-weight: 400; color: #fff; font-size: 20px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .lb-my-card { background: linear-gradient(#FFF4C2, #FFE07A); border: 3px solid var(--gx-gold-2); border-radius: 22px; box-shadow: 0 6px 0 #C98A00; color: #5A2E00; }
+html[data-look] .lb-my-card h3 { font-family: var(--gx-display); font-weight: 400; color: #5A2E00; }
+html[data-look] .lb-my-rank { color: #8A3B00; font-weight: 800; }
+html[data-look] .lb-my-stat-value { font-family: var(--gx-display); font-weight: 400; color: #B84A00; }
+html[data-look] .lb-my-stat-label { color: #7A4A12; font-weight: 800; }
+html[data-look] .lb-my-avatar img, html[data-look] .lb-avatar-img { border: 4px solid #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, .2); background: #FFD54F; }
+html[data-look] .lb-section-title-modern { font-family: var(--gx-display); font-weight: 400; font-size: 22px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .lb-item-modern { background: #fff; color: #22324F; border: 3px solid #CFE3FF; border-radius: 16px; box-shadow: 0 4px 0 #A9C8F0; }
+html[data-look] .lb-item-modern .lb-name { color: #22324F; font-weight: 800; }
+html[data-look] .lb-item-modern .lb-score { color: #1565C0; font-weight: 800; }
+html[data-look] .lb-item-modern .lb-rank-num { background: #E3ECF8; color: #22324F; border-radius: 10px; font-weight: 800; }
+html[data-look] .lb-item-modern.me { background: linear-gradient(#FFF4C2, #FFE07A); border-color: var(--gx-gold-2); box-shadow: 0 4px 0 #C98A00; }
+html[data-look] .achievement-card { background: rgba(5, 20, 55, .35); border: 3px solid rgba(255, 255, 255, .2); border-radius: 18px; filter: grayscale(.7); }
+html[data-look] .achievement-card.earned { filter: none; background: linear-gradient(160deg, var(--gx-gold-1), var(--gx-gold-2)); border-color: #fff; box-shadow: 0 5px 0 var(--gx-gold-edge); color: #5A2E00; }
+html[data-look] .achievement-card.earned .ach-name { color: #5A2E00; }
+html[data-look] .achievement-card.earned .ach-desc { color: #7A4A12; }
+html[data-look] .achievement-card.earned .ach-icon { animation: gxFloat 2.6s ease-in-out infinite; display: inline-block; }
+html[data-look] .ach-name { font-weight: 800; color: #fff; }
+html[data-look] .ach-desc { color: var(--gx-text-2); }
+@keyframes gxRiseUp { from { transform: scaleY(0); opacity: 0; } to { transform: scaleY(1); opacity: 1; } }
+@keyframes gxShineBg { 0%, 50% { background-position: 150% 0; } 100% { background-position: -100% 0; } }
+
+/* ============================================================
+   SHOP + REWARDS SHOP
+   ============================================================ */
+html[data-look] .shop-gems-topbar, html[data-look] .rewards-balance-item { background: rgba(5, 20, 55, .6); border: 2px solid rgba(255, 255, 255, .45); border-radius: 20px; color: #fff; font-weight: 800; }
+html[data-look] .shop-character-preview { position: relative; }
+html[data-look] .shop-avatar-img { border: 4px solid #fff !important; border-radius: 22px !important; box-shadow: 0 5px 0 rgba(0, 0, 0, .25), 0 0 0 4px rgba(255, 214, 90, .5) !important; animation: gxBreathe 3s ease-in-out infinite; }
+html[data-look] .preview-label { color: #fff; font-weight: 800; }
+html[data-look] .shop-tabs, html[data-look] .social-tabs { background: rgba(5, 20, 55, .45); border: 2px solid rgba(255, 255, 255, .25); border-radius: 16px; padding: 4px; gap: 4px; }
+html[data-look] .shop-tab, html[data-look] .social-tab { font-family: var(--gx-font); font-weight: 800; color: #fff; border: 0; border-radius: 12px; background: transparent; box-shadow: none; }
+html[data-look] .shop-tab.active, html[data-look] .social-tab.active { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; box-shadow: 0 3px 0 var(--gx-gold-edge); }
+html[data-look] .shop-suggest-banner { background: rgba(5, 20, 55, .35); border: 2px solid rgba(255, 255, 255, .25); border-radius: 18px; }
+html[data-look] .shop-suggest-chip { border: 3px solid rgba(0, 0, 0, .25); border-radius: 16px; background: linear-gradient(160deg, var(--gx-purple-1), var(--gx-purple-2)); box-shadow: 0 4px 0 rgba(0, 0, 0, .25); color: #fff; }
+html[data-look] .shop-suggest-chip:nth-child(3n+2) { background: linear-gradient(160deg, var(--gx-orange-1), var(--gx-orange-2)); }
+html[data-look] .shop-suggest-chip:nth-child(3n+3) { background: linear-gradient(160deg, var(--gx-teal-1), var(--gx-teal-2)); }
+html[data-look] .ssc-icon { animation: gxFloat 2.6s ease-in-out infinite; display: inline-block; }
+html[data-look] .ssc-name { color: #fff; font-weight: 800; }
+html[data-look] .ssc-cost { color: #FFE766; font-weight: 800; }
+html[data-look] .shop-item-card, html[data-look] .reward-card {
+    position: relative; overflow: hidden; border-radius: 20px; border: 3px solid rgba(0, 0, 0, .3); color: #fff;
+    background: linear-gradient(170deg, #3A86E8, #1C55B8); box-shadow: 0 5px 0 rgba(0, 0, 0, .28);
+}
+html[data-look] .shop-item-card:nth-child(4n+2), html[data-look] .reward-card:nth-child(4n+2) { background: linear-gradient(170deg, #A77BFF, #6A35D9); }
+html[data-look] .shop-item-card:nth-child(4n+3), html[data-look] .reward-card:nth-child(4n+3) { background: linear-gradient(170deg, #FF9F5A, #E8650A); }
+html[data-look] .shop-item-card:nth-child(4n+4), html[data-look] .reward-card:nth-child(4n+4) { background: linear-gradient(170deg, #4FD1C5, #00897B); }
+html[data-look] .shop-item-card::after, html[data-look] .reward-card::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent); animation: gxSweep 5s ease-in-out infinite; pointer-events: none; }
+html[data-look] .shop-item-card.owned, html[data-look] .shop-item-card.equipped { background: linear-gradient(170deg, #7EDB6A, #2E9E2A); }
+html[data-look] .shop-item-card.earnable { box-shadow: 0 5px 0 rgba(0, 0, 0, .28), 0 0 0 4px #FFE766, 0 0 18px 4px rgba(255, 214, 90, .7); animation: gxThrob 1.6s ease-in-out infinite; }
+html[data-look] .shop-item-icon, html[data-look] .reward-icon { display: inline-block; animation: gxFloat 3s ease-in-out infinite; filter: drop-shadow(0 4px 2px rgba(0, 0, 0, .25)); }
+html[data-look] .shop-item-card h3, html[data-look] .reward-name { font-family: var(--gx-display); font-weight: 400; font-size: 19px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .shop-item-desc, html[data-look] .reward-desc { color: rgba(255, 255, 255, .92); font-weight: 600; }
+html[data-look] .shop-item-verse { color: #FFE766 !important; }
+html[data-look] .shop-badge.equipped-badge { background: #fff; color: #1C7A0C; border-radius: 12px; font-weight: 800; border: 2px solid #1C7A0C; }
+html[data-look] .armor-verse-banner { background: linear-gradient(#FFF6DC, #F6E2B0); border: 3px solid #B98A3E; box-shadow: 0 5px 0 #8D6424; color: #5A3A12; border-radius: 18px; }
+html[data-look] .armor-verse-lines, html[data-look] .armor-verse-lines * { color: #5A3A12 !important; }
+html[data-look] .armor-verse-cross { color: #B98A3E; }
+html[data-look] .rewards-section-title { font-family: var(--gx-display); font-weight: 400; font-size: 22px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .reward-cost { color: #FFE766; font-weight: 800; }
+html[data-look] ::-webkit-scrollbar { width: 6px; height: 6px; background: transparent; }
+html[data-look] ::-webkit-scrollbar-track { background: transparent; }
+html[data-look] ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, .35); border-radius: 6px; }
+
+/* ============================================================
+   COMPETE
+   ============================================================ */
+html[data-look] .compete-hero {
+    position: relative; overflow: hidden; border-radius: 24px; border: 4px solid #fff; color: #fff;
+    background: radial-gradient(circle at 50% 30%, #FF7A9E, #D6125B 55%, #7A1450) !important; box-shadow: 0 7px 0 rgba(0, 0, 0, .25), 0 14px 26px rgba(0, 0, 0, .2);
+}
+html[data-look] .compete-hero::before { content: ""; position: absolute; width: 520px; height: 520px; left: 50%; top: 40%; margin: -260px 0 0 -260px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, .35) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 18s linear infinite; pointer-events: none; }
+html[data-look] .compete-hero > * { position: relative; }
+html[data-look] .compete-hero .vector-decor { display: none; }
+html[data-look] .compete-hero-icon { width: 150px !important; height: 150px !important; margin: 0 auto !important; font-size: 0 !important; background: url('images/chars/george.png') center bottom / contain no-repeat !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; animation: gxBreathe 3s ease-in-out infinite; filter: drop-shadow(0 8px 6px rgba(0, 0, 0, .35)); }
+html[data-look] .compete-hero-icon > * { display: none !important; }
+html[data-look] .compete-hero h2, html[data-look] .compete-hero h3 { font-family: var(--gx-display); font-weight: 400; font-size: 30px; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+html[data-look] .compete-hero p { color: #fff; font-weight: 700; }
+html[data-look] .compete-action-btn {
+    border-radius: 20px; border: 3px solid rgba(0, 0, 0, .3); color: #fff; font-family: var(--gx-font); box-shadow: 0 5px 0 rgba(0, 0, 0, .28); transition: transform .1s;
+    background: linear-gradient(var(--gx-green-1), var(--gx-green-2));
+}
+html[data-look] .compete-action-btn:nth-child(2) { background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); }
+html[data-look] .compete-action-btn:active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0, 0, 0, .28); }
+html[data-look] .compete-action-btn i { font-size: 28px; animation: gxFloat 2.6s ease-in-out infinite; }
+html[data-look] .compete-action-btn span { font-family: var(--gx-display); font-weight: 400; font-size: 20px; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+html[data-look] .compete-action-btn small { color: #fff; font-weight: 700; }
+html[data-look] .selfie-promo { border: 3px solid #fff; border-radius: 20px; box-shadow: 0 5px 0 rgba(0, 0, 0, .25); }
+html[data-look] .compete-filter-panel { background: rgba(5, 20, 55, .35); border: 2px solid rgba(255, 255, 255, .25); border-radius: 20px; }
+html[data-look] .compete-filter-panel-title, html[data-look] .compete-section-title { font-family: var(--gx-display); font-weight: 400; font-size: 21px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .compete-filter-label { color: #fff; font-weight: 800; }
+html[data-look] .filter-pill { border-radius: 14px; border: 3px solid rgba(0, 0, 0, .25); background: rgba(255, 255, 255, .15); color: #fff; font-weight: 800; box-shadow: 0 3px 0 rgba(0, 0, 0, .2); }
+html[data-look] .filter-pill.active, html[data-look] .filter-pill.selected { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border-color: var(--gx-gold-ink); box-shadow: 0 3px 0 var(--gx-gold-edge); }
+html[data-look] .compete-mode-card {
+    position: relative; overflow: hidden; border-radius: 22px; border: 3px solid rgba(0, 0, 0, .3); color: #fff; box-shadow: 0 6px 0 rgba(0, 0, 0, .28);
+    background: linear-gradient(165deg, #FF9F5A, #E8650A) !important;
+}
+html[data-look] .compete-mode-card:nth-child(6n+2) { background: linear-gradient(165deg, #A77BFF, #6A35D9) !important; }
+html[data-look] .compete-mode-card:nth-child(6n+3) { background: linear-gradient(165deg, #4FD1C5, #00897B) !important; }
+html[data-look] .compete-mode-card:nth-child(6n+4) { background: linear-gradient(165deg, #F78FB3, #C2185B) !important; }
+html[data-look] .compete-mode-card:nth-child(6n+5) { background: linear-gradient(165deg, #5AC8FF, #1565C0) !important; }
+html[data-look] .compete-mode-card:nth-child(6n+6) { background: linear-gradient(165deg, #9CE35A, #2E9E2A) !important; }
+html[data-look] .compete-mode-card::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .35), transparent); animation: gxSweep 5s ease-in-out infinite; pointer-events: none; }
+html[data-look] .compete-mode-card:active { transform: scale(.96); }
+html[data-look] .compete-mode-icon { animation: gxFloat 3s ease-in-out infinite; filter: drop-shadow(0 4px 2px rgba(0, 0, 0, .25)); }
+html[data-look] .compete-mode-icon, html[data-look] .compete-mode-icon i { color: #fff !important; }
+html[data-look] .compete-mode-card h3, html[data-look] .compete-mode-card h4 { font-family: var(--gx-display); font-weight: 400; font-size: 21px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .compete-mode-card p { color: #fff; font-weight: 600; }
+html[data-look] .compete-mode-badge { background: rgba(0, 0, 0, .28) !important; color: #fff !important; border: 0; border-radius: 12px; font-weight: 700; }
+html[data-look] .compete-tournament-card { border: 4px solid #FFE766; border-radius: 22px; box-shadow: 0 6px 0 #A85E00, 0 0 20px 4px rgba(255, 214, 90, .5); overflow: hidden; }
+html[data-look] .compete-rank-item { background: #fff; color: #22324F; border: 3px solid #CFE3FF; border-radius: 14px; box-shadow: 0 4px 0 #A9C8F0; }
+html[data-look] .compete-rank-item * { color: #22324F; }
+html[data-look] .compete-empty { color: var(--gx-text-2); font-weight: 700; }

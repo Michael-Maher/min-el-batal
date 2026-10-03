@@ -165,6 +165,17 @@ var GameUI = (function () {
     }
 
     // ---------- Modal frame ----------
+    // Other popups (e.g. the verse wheel) wait until our modal closes instead of stacking.
+    var queue = [];
+    function whenFree(fn) {
+        if (document.querySelector('.gx-ov') || pendingDaily) queue.push(fn); else fn();
+    }
+    function flushQueue() {
+        if (document.querySelector('.gx-ov')) return;
+        var q = queue; queue = [];
+        q.forEach(function (fn) { setTimeout(function () { whenFree(fn); }, 450); });
+    }
+    var pendingDaily = false;
     function modal(ribbonHtml, bodyHtml, opts) {
         opts = opts || {};
         var ov = document.createElement('div');
@@ -173,7 +184,10 @@ var GameUI = (function () {
             (opts.closable === false ? '' : '<button class="gx-close" aria-label="إغلاق">✕</button>') + bodyHtml + '</div>';
         document.body.appendChild(ov);
         requestAnimationFrame(function () { ov.classList.add('show'); });
-        function close() { ov.classList.remove('show'); setTimeout(function () { ov.remove(); }, 260); }
+        function close() {
+            ov.classList.remove('show');
+            setTimeout(function () { ov.remove(); flushQueue(); }, 260);
+        }
         var x = ov.querySelector('.gx-close');
         if (x) x.onclick = close;
         ov.addEventListener('click', function (e) { if (e.target === ov && opts.closable !== false) close(); });
@@ -246,10 +260,13 @@ var GameUI = (function () {
 
     // Called by checkDailyLoginXP() on the first open of a new day (replaces the silent +5 gems).
     function onNewDay() {
+        pendingDaily = true;
         setTimeout(function () {
+            pendingDaily = false;
             var hub = $('home-hub-screen');
-            if (hub && hub.classList.contains('active')) openDaily();
-        }, 900);
+            if (hub && hub.classList.contains('active') && dailyClaimable()) openDaily();
+            else flushQueue();
+        }, 700);
     }
 
     // ============================================================
@@ -372,7 +389,9 @@ var GameUI = (function () {
     // ============================================================
     // Reward moments
     // ============================================================
-    function chest(reward, title) {
+    // opts.granted = reward was already added by the caller (visual only)
+    function chest(reward, title, opts) {
+        opts = opts || {};
         var loot = [];
         if (reward.stars) loot.push('⭐');
         if (reward.gems) loot.push('💎');
@@ -408,7 +427,7 @@ var GameUI = (function () {
         }
         c.onclick = open;
         setTimeout(open, 2200);
-        $('gx-chest-btn').onclick = function () { grant(reward, this); m.close(); };
+        $('gx-chest-btn').onclick = function () { if (opts.granted) { refreshCounters(); } else { grant(reward, this); } m.close(); };
     }
 
     function tierUp(charKey, tier, title) {
@@ -431,6 +450,23 @@ var GameUI = (function () {
         var ch = (typeof CHARACTERS !== 'undefined') ? CHARACTERS[key] : null;
         return ch ? ch.image : 'images/chars/david.png';
     }
+
+    // ============================================================
+    // Answer juice: praise word + combo on every correct answer
+    // ============================================================
+    var combo = 0, comboAt = 0;
+    var PRAISE = ['صح! ✓', 'برافو! 👏', 'رائع! 🔥', 'ممتاز! 🔥🔥'];
+    function praise() {
+        combo = (Date.now() - comboAt < 25000) ? combo + 1 : 1;
+        comboAt = Date.now();
+        var word = combo <= PRAISE.length ? PRAISE[combo - 1] : 'بطل! 👑';
+        var el = document.createElement('div');
+        el.className = 'gx-praise';
+        el.innerHTML = word + (combo >= 3 ? '<small>كومبو x' + combo + '</small>' : '');
+        document.body.appendChild(el);
+        setTimeout(function () { el.remove(); }, 1100);
+    }
+    function breakCombo() { combo = 0; }
 
     // ============================================================
     // Hub
@@ -531,7 +567,7 @@ var GameUI = (function () {
         setLook: setLook, lookPref: lookPref, applyLook: applyLook,
         onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
         onNewDay: onNewDay, openDaily: openDaily, openSeason: openSeason,
-        grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp,
+        whenFree: whenFree, grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp, praise: praise, breakCombo: breakCombo,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal
     };
 })();
@@ -551,6 +587,66 @@ var GameUI = (function () {
             pin();
         };
     }
+})();
+
+// Game moments hooked onto existing game.js functions (wrappers keep the original behaviour).
+(function () {
+    function wrap(name, after, before) {
+        var orig = window[name];
+        if (typeof orig !== 'function') return;
+        window[name] = function () {
+            var ctx = before ? before.apply(this, arguments) : null;
+            var r = orig.apply(this, arguments);
+            try { after.call(this, arguments, ctx); } catch (e) { console.warn('GameUI hook ' + name, e); }
+            return r;
+        };
+    }
+    // Every correct / wrong answer sound → praise + combo
+    wrap('playCorrectSound', function () { GameUI.praise(); });
+    wrap('playWrongSound', function () { GameUI.breakCombo(); });
+    // Verse wheel auto-opens on the first hub visit of the day: let the attendance popup go first
+    (function () {
+        var orig = window.openVerseWheel;
+        if (typeof orig !== 'function') return;
+        window.openVerseWheel = function () {
+            var self = this, args = arguments;
+            GameUI.whenFree(function () { orig.apply(self, args); });
+        };
+    })();
+    // Boss fight: correct answer = sword slash + damage number + boss recoil
+    wrap('answerBoss', function (args) {
+        if (args[0] !== args[1]) return;
+        var boss = document.querySelector('.boss-fight-emoji');
+        if (!boss) return;
+        var r = boss.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        boss.classList.remove('gx-hit'); void boss.offsetWidth; boss.classList.add('gx-hit');
+        var s = document.createElement('div'); s.className = 'gx-slash'; s.style.left = (cx - 100) + 'px'; s.style.top = cy + 'px';
+        var d = document.createElement('div'); d.className = 'gx-dmg'; d.textContent = '-10!'; d.style.left = (cx + 10) + 'px'; d.style.top = (cy - 40) + 'px';
+        document.body.appendChild(s); document.body.appendChild(d);
+        setTimeout(function () { s.remove(); d.remove(); }, 1100);
+    });
+    // Character tier upgrade → full-screen tier-up moment
+    wrap('upgradeCharacterTier', function (args, before) {
+        var key = args[0], now = getCharacterTier(key);
+        if (now !== before) {
+            var title = (now === 'gold' && typeof CHARACTER_GOLD_TITLES !== 'undefined') ? CHARACTER_GOLD_TITLES[key] : '';
+            // the tier-up moment replaces the stacked achievement popup + toast
+            var ap = document.querySelector('.achievement-popup'); if (ap) ap.remove();
+            var tt = document.getElementById('toast'); if (tt) tt.className = 'toast';
+            GameUI.tierUp(key, now, title);
+        }
+    }, function (key) { return getCharacterTier(key); });
+    // Spin wheel prize → burst + counter pop; mystery box → chest moment (already granted)
+    wrap('onSpinComplete', function (args, before) {
+        var canvas = document.getElementById('spin-canvas');
+        var prize = (typeof SPIN_PRIZES !== 'undefined') ? SPIN_PRIZES[args[0]] : null;
+        GameUI.burst(['⭐', '💎', '✨', '⭐', '✨', '💎'], canvas);
+        GameUI.refreshCounters();
+        if (prize && prize.type === 'mystery') {
+            var gotStars = (GameState.stars || 0) - before.stars, gotGems = (GameState.gems || 0) - before.gems;
+            setTimeout(function () { GameUI.chest({ stars: gotStars > 0 ? gotStars : 0, gems: gotGems > 0 ? gotGems : 0 }, 'صندوق المفاجآت', { granted: true }); }, 900);
+        }
+    }, function () { return { stars: GameState.stars || 0, gems: GameState.gems || 0 }; });
 })();
 
 // Run the hub/nav hook after every navigation (showScreen is a global in game.js).

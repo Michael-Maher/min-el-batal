@@ -1026,3 +1026,52 @@ html[data-look] .lamp-main-image { animation: gxLampGlow 2.6s ease-in-out infini
 @keyframes gxLampGlow { 50% { filter: drop-shadow(0 0 18px #FFD54A) drop-shadow(0 0 6px #FFF3B0) brightness(1.1); } }
 html[data-look] .lamp-top-bar { background: linear-gradient(#4A2BB0, #2E1780); border: 3px solid #1C0D52; border-radius: 18px; box-shadow: 0 5px 0 #1C0D52; padding: 6px 10px; }
 html[data-look] .lamp-title { font-family: var(--gx-display); font-weight: 400; color: #fff; }
+
+/* ============================================================
+   SPIN WHEEL (canvas wheel in game.js) → casino-style rim
+   ============================================================ */
+html[data-look] .spin-wheel-container { position: relative; display: inline-block; width: auto; height: auto; padding: 12px; border-radius: 50%; margin: 6px auto 10px; }
+html[data-look] .spin-wheel-container::before { content: ""; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, transparent 62%, #FFB300 63%, #FFE766 70%, #C98A00 74%, transparent 75%); box-shadow: 0 0 26px 8px rgba(255, 214, 90, .55); }
+html[data-look] .spin-wheel-container::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; border: 6px dotted #FFF8D0; filter: drop-shadow(0 0 4px #FFE766); animation: gxSpin 6s linear infinite; pointer-events: none; }
+html[data-look] #spin-canvas { position: relative; z-index: 1; border-radius: 50%; display: block; box-shadow: 0 0 0 4px #6B3A00; }
+html[data-look] .spin-pointer-top { position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 3; font-size: 0; width: 34px; height: 42px; background: linear-gradient(#FF5252, #B71C1C); clip-path: polygon(0 0, 100% 0, 50% 100%); filter: drop-shadow(0 3px 0 #7A1010); animation: gxPointer .6s ease-in-out infinite alternate; }
+@keyframes gxPointer { from { transform: translateX(-50%) rotate(-6deg); } to { transform: translateX(-50%) rotate(6deg); } }
+html[data-look] .spin-bonus-badge { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border: 2px solid #fff; border-radius: 12px; font-weight: 800; }
+html[data-look] .spin-actions .btn { min-width: 120px; }
+html[data-look] .spin-modal { overflow-x: hidden; }
+
+/* praise word on correct answers */
+.gx-praise { position: fixed; left: 50%; top: 30%; z-index: 100001; pointer-events: none; transform: translateX(-50%); text-align: center; white-space: nowrap;
+    font-family: var(--gx-display); font-size: 44px; line-height: 1.1; color: #FFE766; -webkit-text-stroke: 1.5px #7A3A00;
+    text-shadow: 0 4px 0 #B84A00, 0 0 18px rgba(255, 200, 60, .9); animation: gxPraise 1.1s ease-out forwards; }
+.gx-praise small { display: block; font-size: 20px; -webkit-text-stroke: 0; color: #fff; text-shadow: 0 2px 0 #B84A00; }
+@keyframes gxPraise { 0% { opacity: 0; transform: translateX(-50%) scale(.2) rotate(-10deg); } 18% { opacity: 1; transform: translateX(-50%) scale(1.25) rotate(4deg); } 30%, 65% { opacity: 1; transform: translateX(-50%) scale(1) rotate(-3deg); } 100% { opacity: 0; transform: translateX(-50%) translateY(-50px) scale(1.15); } }
+
+/* ============================================================
+   BOSS BATTLE (weekly world boss)
+   ============================================================ */
+html[data-look] .boss-modal { background: radial-gradient(circle at 50% 18%, #7E2BA8, #3A0F5C 55%, #1A0530) !important; border-color: #FFB3B3 !important; box-shadow: 0 8px 0 #2A0838, 0 0 40px 6px rgba(255, 60, 60, .35), 0 24px 48px rgba(0, 0, 0, .5) !important; overflow: hidden; position: relative; }
+html[data-look] .boss-modal::before { content: ""; position: absolute; width: 600px; height: 600px; left: 50%; top: 10%; margin: -300px 0 0 -300px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 80, 80, .22) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 22s linear infinite; pointer-events: none; }
+html[data-look] .boss-modal > * { position: relative; }
+html[data-look] .boss-header { flex-direction: column; align-items: center; text-align: center; gap: 4px; }
+html[data-look] :is(.boss-emoji, .boss-fight-emoji, .boss-result-emoji) { font-size: 84px !important; line-height: 1.1; filter: drop-shadow(0 0 18px rgba(255, 40, 40, .8)) drop-shadow(0 6px 0 rgba(0, 0, 0, .35)); animation: gxStomp 1.8s ease-in-out infinite; display: inline-block; transition: transform .15s; }
+html[data-look] :is(.boss-name, .boss-fight-name) { font-family: var(--gx-display); font-weight: 400; font-size: 30px; color: #FFE766; text-shadow: 0 3px 0 #8A1B00, 0 0 12px rgba(255, 80, 0, .6); }
+html[data-look] .boss-desc { color: #FFD6E0; font-weight: 700; }
+html[data-look] .boss-hp-section { background: rgba(0, 0, 0, .3); border-radius: 14px; padding: 8px 10px; }
+html[data-look] .boss-hp-label { color: #fff; font-weight: 800; }
+html[data-look] .boss-hp-bar { height: 18px !important; border-radius: 10px !important; border: 3px solid #fff; background: rgba(0, 0, 0, .5) !important; overflow: hidden; }
+html[data-look] .boss-hp-fill { background: linear-gradient(#FF5252, #B71C1C) !important; border-radius: 0 !important; }
+html[data-look] .boss-fight-btn { background: linear-gradient(var(--gx-red-1), var(--gx-red-2)) !important; border-color: var(--gx-red-ink) !important; box-shadow: 0 5px 0 var(--gx-red-edge) !important; text-shadow: 0 2px 0 var(--gx-red-ink); animation: gxThrob 1.3s ease-in-out infinite; }
+html[data-look] :is(.boss-my-contrib, .boss-already-msg, .boss-defeated-msg) { background: rgba(255, 255, 255, .14); border: 2px solid rgba(255, 255, 255, .3); border-radius: 14px; color: #fff; font-weight: 800; }
+html[data-look] .boss-question { background: #fff; color: #22324F; border: 3px solid #C9A6FF; border-radius: 16px; padding: 12px; font-weight: 800; box-shadow: 0 5px 0 rgba(0, 0, 0, .3); }
+html[data-look] .boss-opt { border-radius: 14px; border: 3px solid rgba(0, 0, 0, .35); box-shadow: 0 4px 0 rgba(0, 0, 0, .3); color: #fff; font-family: var(--gx-font); font-weight: 800; background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); }
+html[data-look] .boss-opt:nth-child(2) { background: linear-gradient(var(--gx-pink-1), var(--gx-pink-2)); }
+html[data-look] .boss-opt:nth-child(3) { background: linear-gradient(var(--gx-orange-1), var(--gx-orange-2)); }
+html[data-look] .boss-opt:nth-child(4) { background: linear-gradient(var(--gx-teal-1), var(--gx-teal-2)); }
+html[data-look] .boss-fight-damage, html[data-look] .boss-fight-progress { color: #FFE766; font-weight: 800; }
+.gx-hit { animation: gxBossHit .5s ease-out !important; }
+@keyframes gxBossHit { 0% { transform: none; filter: brightness(3) saturate(0); } 20% { transform: translateX(12px) rotate(4deg); } 40% { transform: translateX(-10px) rotate(-4deg); filter: none; } 60% { transform: translateX(6px); } 100% { transform: none; } }
+.gx-dmg { position: fixed; z-index: 100002; pointer-events: none; font-family: var(--gx-display); font-size: 40px; color: #FFE766; text-shadow: 0 3px 0 #B71C1C, 0 0 12px #FF7A00; direction: ltr; animation: gxDmg 1s ease-out forwards; }
+@keyframes gxDmg { 0% { opacity: 0; transform: translateY(0) scale(.4); } 20% { opacity: 1; transform: translateY(-10px) scale(1.4); } 70% { opacity: 1; transform: translateY(-50px) scale(1); } 100% { opacity: 0; transform: translateY(-70px); } }
+.gx-slash { position: fixed; z-index: 100002; pointer-events: none; width: 200px; height: 10px; border-radius: 10px; background: linear-gradient(90deg, transparent, #fff, #BFF5FF, transparent); box-shadow: 0 0 14px 4px #9FE8FF; transform: rotate(-30deg) scaleX(0); animation: gxSlash .45s ease-out forwards; }
+@keyframes gxSlash { 0% { transform: rotate(-30deg) scaleX(0); opacity: 1; } 50% { transform: rotate(-30deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-30deg) scaleX(1); opacity: 0; } }

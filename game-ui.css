@@ -634,3 +634,173 @@ html[data-look] .char-ability { color: #fff; font-size: 11px; font-weight: 700; 
 html[data-look] .char-tier-badge { position: absolute; top: -10px; right: 10px; z-index: 2; border: 2px solid #fff; border-radius: 10px; font-size: 11px; font-weight: 800; padding: 0 8px; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
 html[data-look] .char-power-info { background: rgba(0, 0, 0, .22); border-radius: 10px; color: #fff; font-size: 11px; font-weight: 700; }
 html[data-look] .char-lock { background: rgba(0, 0, 0, .4); border-radius: 10px; color: #fff; font-weight: 800; padding: 4px; }
+
+/* ============================================================
+   LEVEL 1 / 2 SUBJECT ENGINE (level1.css → game look)
+   Parchment stays for reading cards; everything around it goes game.
+   ============================================================ */
+html[data-look] {
+    --l1-deep: #134A9E;
+    --l1-deep-2: #1C55B8;
+    --l1-muted: #CFE3FF;
+    --l1-gold-2: #FFE766;
+    --l1-radius: 20px;
+    --l1-shadow: 0 6px 0 rgba(0, 0, 0, .22), 0 12px 24px rgba(0, 0, 0, .2);
+}
+html[data-look] #l1-map-screen, html[data-look] #l1-lesson-screen, html[data-look] #l1-subjects-screen,
+html[data-look] #l1-arcade-layer { font-family: var(--gx-font); }
+html[data-look] #l1-lesson-screen, html[data-look] #l1-subjects-screen { background: transparent; color: #fff; }
+html[data-look] #l1-map-screen { background: linear-gradient(180deg, var(--gx-sky-1), var(--gx-sky-3)); }
+
+/* icon buttons + CTA */
+html[data-look] .l1-icon-btn { border-radius: 12px; border: 3px solid var(--gx-blue-ink); background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); color: #fff; box-shadow: 0 3px 0 var(--gx-blue-edge); }
+html[data-look] .l1-icon-btn:active { transform: translateY(3px); box-shadow: none; }
+html[data-look] .l1-cta {
+    border-radius: 16px; border: 3px solid var(--gx-green-ink); background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); color: #fff;
+    font-family: var(--gx-display); font-weight: 400; font-size: 20px; padding: 10px 22px 6px; text-shadow: 0 2px 0 var(--gx-green-ink);
+    box-shadow: 0 5px 0 var(--gx-green-edge), 0 8px 14px rgba(0, 0, 0, .2);
+}
+html[data-look] .l1-cta:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--gx-green-edge); }
+html[data-look] .l1-cta.small { font-size: 16px; padding: 7px 16px 4px; }
+html[data-look] .l1-cta.ghost { background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); border-color: var(--gx-blue-ink); box-shadow: 0 5px 0 var(--gx-blue-edge); text-shadow: 0 2px 0 var(--gx-blue-ink); color: #fff; }
+html[data-look] .l1-bar { height: 10px; background: rgba(0, 0, 0, .28); border: 2px solid rgba(255, 255, 255, .7); }
+html[data-look] .l1-bar i { background: repeating-linear-gradient(-45deg, #FFE766 0 7px, #FFB300 7px 14px); background-size: 20px 20px; animation: gxStripes 1s linear infinite; }
+html[data-look] .l1-stars i.on { color: #FFD54A; text-shadow: 0 2px 0 #B86400, 0 0 8px rgba(255, 214, 90, .8); }
+
+/* subjects screen → world cards */
+html[data-look] .l1-lesson-top { padding: 8px 10px 6px; border-radius: 18px; background: linear-gradient(#1F5FBF, #133F8B); border: 3px solid #0A2A63; box-shadow: 0 5px 0 #0A2A63; }
+html[data-look="night"] .l1-lesson-top { background: linear-gradient(#232C72, #121A4E); border-color: #05081F; box-shadow: 0 5px 0 #05081F; }
+html[data-look] .l1-lesson-title small { color: var(--gx-text-2); font-weight: 700; }
+html[data-look] .l1-lesson-title b { font-family: var(--gx-display); font-weight: 400; font-size: 21px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); line-height: 1.2; }
+html[data-look] .l1-lesson-score { color: #FFE766; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-lesson-score small { color: var(--gx-text-2); }
+html[data-look] .l1-subjects-intro { color: #fff; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+html[data-look] .l1-subjects-grid { gap: 14px; }
+html[data-look] .l1-subject-card {
+    min-height: 150px; padding: 14px 12px 12px; border-radius: 22px; border: 4px solid #fff; color: #fff; font-family: var(--gx-font);
+    background: linear-gradient(160deg, color-mix(in srgb, var(--c) 85%, #fff), color-mix(in srgb, var(--c) 80%, #000));
+    box-shadow: 0 6px 0 rgba(0, 0, 0, .25), 0 12px 20px rgba(0, 0, 0, .2);
+}
+html[data-look] .l1-subject-card::before { content: ""; position: absolute; inset: 0; opacity: .2; background-image: radial-gradient(#fff 1.4px, transparent 1.6px); background-size: 12px 12px; animation: gxPan 8s linear infinite; pointer-events: none; }
+html[data-look] .l1-subject-card::after { opacity: .9; filter: brightness(2) saturate(0); width: 22px; height: 22px; }
+html[data-look] .l1-subject-icon { font-size: 44px; animation: gxFloat 3s ease-in-out infinite; filter: drop-shadow(0 4px 2px rgba(0, 0, 0, .25)); }
+html[data-look] .l1-subject-name { font-family: var(--gx-display); font-weight: 400; font-size: 22px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-subject-meta { color: #fff; background: rgba(0, 0, 0, .25); border-radius: 10px; padding: 0 8px; }
+html[data-look] .l1-subject-card.soon, html[data-look] .l1-subject-card.locked { opacity: 1; filter: grayscale(.85) brightness(.8); }
+html[data-look] .l1-subject-card:not(.soon):not(.locked) { animation: gxPopIn .5s cubic-bezier(.2, 1.6, .4, 1) both; }
+
+/* map chrome */
+html[data-look] .l1-map-top { height: auto; min-height: 56px; padding: calc(6px + env(safe-area-inset-top)) 10px 8px; background: linear-gradient(#1F5FBF, #133F8B); border-bottom: 4px solid #0A2A63; box-shadow: 0 5px 12px rgba(0, 0, 0, .25); }
+html[data-look="night"] .l1-map-top { background: linear-gradient(#18205A, #0D1338); border-bottom-color: #05081F; }
+html[data-look] .l1-map-title { font-family: var(--gx-display); font-weight: 400; font-size: 19px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-map-title small { color: var(--gx-gold-1); font-family: var(--gx-font); font-weight: 700; }
+html[data-look] .l1-map-ring { background: conic-gradient(#9CFF5A calc(var(--p) * 1%), rgba(0, 0, 0, .3) 0); font-weight: 800; color: #fff; }
+html[data-look] .l1-map-ring::before { background: #133F8B; }
+html[data-look] .l1-map-points { background: rgba(5, 20, 55, .6); border: 2px solid rgba(255, 255, 255, .45); border-radius: 20px; padding: 1px 10px; color: #fff; }
+html[data-look] .l1-route-line { stroke: #FFE766; stroke-width: 6; }
+html[data-look] .l1-route-glow { stroke: rgba(255, 230, 102, .55); }
+html[data-look] .l1-node.current .l1-node-ring { border: 4px solid #9CFF5A; box-shadow: 0 0 0 4px rgba(156, 255, 90, .35), 0 0 22px 8px rgba(156, 255, 90, .7); }
+html[data-look] .l1-node-badge { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border: 2px solid #fff; font-weight: 800; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
+html[data-look] .l1-avatar img, html[data-look] .l1-avatar span { border: 3px solid #fff; background: #FFD54F; box-shadow: 0 4px 0 rgba(0, 0, 0, .3); }
+html[data-look] .l1-avatar { animation: gxFloat 1.6s ease-in-out infinite; }
+html[data-look] .l1-avatar-here { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); color: #fff; border: 2px solid #fff; text-shadow: 0 1px 0 var(--gx-green-ink); }
+
+/* bottom sheet + finale */
+html[data-look] .l1-sheet { border-radius: 26px 26px 0 0; border: 4px solid #fff; border-bottom: 0; box-shadow: 0 -8px 0 rgba(10, 42, 99, .35), 0 -14px 40px rgba(0, 0, 0, .4); }
+html[data-look] .l1-sheet-head h3 { font-family: var(--gx-display); font-weight: 400; font-size: 22px; color: #3d2508; }
+html[data-look] .l1-sheet-num { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border: 3px solid #fff; color: #5A2E00; box-shadow: 0 3px 0 var(--gx-gold-edge); font-family: var(--gx-display); font-weight: 400; }
+html[data-look] .l1-chips span { background: linear-gradient(var(--gx-purple-1), var(--gx-purple-2)); border: 2px solid var(--gx-purple-ink); }
+html[data-look] .l1-sheet .l1-bar { background: rgba(43, 29, 16, .15); border-color: rgba(43, 29, 16, .25); }
+html[data-look] .l1-finale { background: rgba(5, 10, 40, .66); }
+html[data-look] .l1-finale-card { border: 4px solid #fff; box-shadow: 0 8px 0 rgba(0, 0, 0, .3), 0 24px 48px rgba(0, 0, 0, .45); }
+html[data-look] .l1-finale-card h2 { font-family: var(--gx-display); font-weight: 400; font-size: 30px; color: #8A3B00; }
+
+/* lesson journey (learn → summary → games) */
+html[data-look] .l1-journey-step { border: 3px solid rgba(0, 0, 0, .25); background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); color: #fff; font-family: var(--gx-font); box-shadow: 0 4px 0 rgba(0, 0, 0, .25); }
+html[data-look] .l1-journey-step.active { border-color: #fff; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; box-shadow: 0 4px 0 var(--gx-gold-edge), 0 0 16px 4px rgba(255, 214, 90, .7); }
+html[data-look] .l1-journey-step.done { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); }
+html[data-look] .l1-journey-step.locked { opacity: 1; filter: grayscale(.8) brightness(.8); }
+html[data-look] .l1-js-pts { color: inherit; opacity: .85; font-weight: 700; }
+html[data-look] .l1-journey-link { height: 5px; background: rgba(255, 255, 255, .3); }
+html[data-look] .l1-journey-link.lit { background: #9CFF5A; }
+html[data-look] .l1-journey::after { display: none; }
+
+/* learn cards */
+html[data-look] .l1-segs i { height: 7px; background: rgba(255, 255, 255, .3); }
+html[data-look] .l1-segs i.seen { background: #9CFF5A; }
+html[data-look] .l1-segs i.now { background: #FFE766; box-shadow: 0 0 10px #FFE766; }
+html[data-look] .l1-card { border: 4px solid #fff; box-shadow: 0 6px 0 rgba(10, 42, 99, .45), 0 14px 28px rgba(0, 0, 0, .22); }
+html[data-look] .l1-card h3 { font-family: var(--gx-display); font-weight: 400; font-size: 23px; }
+html[data-look] .l1-card p { font-family: var(--gx-font); font-weight: 600; }
+html[data-look] .l1-opt { border: 3px solid rgba(43, 29, 16, .2); box-shadow: 0 4px 0 rgba(43, 29, 16, .18); font-family: var(--gx-font); font-weight: 800; }
+html[data-look] .l1-opt.right { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); border-color: var(--gx-green-ink); box-shadow: 0 4px 0 var(--gx-green-edge), 0 0 0 4px rgba(156, 255, 90, .4); animation: gxCountPop .5s; }
+html[data-look] .l1-opt.wrong { background: linear-gradient(var(--gx-red-1), var(--gx-red-2)); border-color: var(--gx-red-ink); box-shadow: 0 4px 0 var(--gx-red-edge); }
+html[data-look] .l1-nav-btn { border: 3px solid var(--gx-blue-ink); background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); color: #fff; box-shadow: 0 4px 0 var(--gx-blue-edge); border-radius: 16px; }
+html[data-look] .l1-nav-btn.primary { border: 3px solid var(--gx-green-ink); background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); box-shadow: 0 4px 0 var(--gx-green-edge); animation: gxThrob 1.6s ease-in-out infinite; }
+html[data-look] .l1-card-count { color: #fff; font-weight: 800; }
+html[data-look] .l1-extra-title, html[data-look] .l1-summary-head h3, html[data-look] .l1-games-head h3 { font-family: var(--gx-display); font-weight: 400; color: #fff; font-size: 22px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-summary-head p, html[data-look] .l1-games-head p { color: var(--gx-text-2); font-weight: 700; }
+html[data-look] .l1-field span { color: #fff; }
+html[data-look] .l1-field textarea { border: 3px solid var(--gx-ink); }
+html[data-look] .l1-media-btn { border: 3px dashed rgba(255, 255, 255, .55); color: #fff; font-family: var(--gx-font); background: rgba(0, 0, 0, .15); }
+
+/* games menu */
+html[data-look] .l1-games-grid { gap: 12px; }
+html[data-look] .l1-game-card {
+    border: 3px solid rgba(0, 0, 0, .3); border-radius: 20px; box-shadow: 0 5px 0 rgba(0, 0, 0, .28); color: #fff; font-family: var(--gx-font); overflow: hidden;
+    background: linear-gradient(160deg, var(--gx-purple-1), var(--gx-purple-2));
+}
+html[data-look] .l1-game-card:nth-child(4n+2) { background: linear-gradient(160deg, var(--gx-orange-1), var(--gx-orange-2)); }
+html[data-look] .l1-game-card:nth-child(4n+3) { background: linear-gradient(160deg, var(--gx-teal-1), var(--gx-teal-2)); }
+html[data-look] .l1-game-card:nth-child(4n+4) { background: linear-gradient(160deg, var(--gx-pink-1), var(--gx-pink-2)); }
+html[data-look] .l1-game-card.signature { background: linear-gradient(135deg, #FFC94A, #E65100); border: 4px solid #fff; box-shadow: 0 6px 0 rgba(0, 0, 0, .28), 0 0 22px 4px rgba(255, 214, 90, .6); }
+html[data-look] .l1-game-card::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .4), transparent); animation: gxSweep 4.5s ease-in-out infinite; pointer-events: none; }
+html[data-look] .l1-game-icon { animation: gxFloat 3s ease-in-out infinite; filter: drop-shadow(0 4px 2px rgba(0, 0, 0, .25)); }
+html[data-look] .l1-game-title { font-family: var(--gx-display); font-weight: 400; font-size: 19px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-game-desc { color: rgba(255, 255, 255, .95); font-weight: 600; }
+html[data-look] .l1-game-best { color: #fff; background: rgba(0, 0, 0, .25); border-radius: 10px; padding: 0 8px; align-self: flex-start; }
+html[data-look] .l1-game-sig { background: #fff; color: #B84A00; border: 2px solid #B84A00; animation: gxTagWiggle 2.5s ease-in-out infinite; }
+
+/* arcade play frame */
+html[data-look] .l1-game-frame.arcade { background: radial-gradient(130% 80% at 50% 0%, #6F55E8 0%, #4A2BB0 45%, #2A1670 100%); }
+html[data-look] .l1-game-frame.arcade::before { content: ""; position: fixed; width: 900px; height: 900px; left: 50%; top: 40%; margin: -450px 0 0 -450px; border-radius: 50%; pointer-events: none; opacity: .12; background: repeating-conic-gradient(#fff 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 30s linear infinite; z-index: 0; }
+html[data-look] .l1-game-frame.arcade > * { position: relative; z-index: 1; }
+html[data-look] .l1-game-bar { background: rgba(10, 5, 40, .35); border-radius: 16px; padding: 6px 8px; }
+html[data-look] .l1-game-bar b { font-family: var(--gx-display); font-weight: 400; font-size: 19px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-hud { background: rgba(5, 20, 55, .6); border: 2px solid rgba(255, 255, 255, .45); border-radius: 20px; padding: 1px 10px; color: #FFE766; }
+html[data-look] .l1-game-prompt { color: #fff; font-weight: 700; }
+html[data-look] .l1-hint, html[data-look] .l1-empty { color: var(--gx-text-2); font-weight: 700; }
+html[data-look] .l1-chip { border: 3px solid var(--gx-gold-ink); background: #fff; box-shadow: 0 4px 0 var(--gx-gold-edge); font-family: var(--gx-font); }
+html[data-look] .l1-chip.sel { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); }
+html[data-look] .l1-bin { border: 3px solid rgba(0, 0, 0, .3); background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); color: #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, .3); font-family: var(--gx-display); font-weight: 400; font-size: 18px; }
+html[data-look] .l1-bin:nth-child(2) { background: linear-gradient(var(--gx-pink-1), var(--gx-pink-2)); }
+html[data-look] .l1-bin.hint { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); }
+html[data-look] .l1-swipe-card { border: 4px solid #fff; }
+html[data-look] .l1-tl-slot { border: 3px dashed rgba(255, 255, 255, .5); background: rgba(0, 0, 0, .2); }
+html[data-look] .l1-cn-item { border: 3px solid rgba(43, 29, 16, .2); box-shadow: 0 3px 0 rgba(0, 0, 0, .2); font-family: var(--gx-font); }
+html[data-look] .l1-connect-col h4 { color: #fff; font-family: var(--gx-display); font-weight: 400; font-size: 17px; }
+html[data-look] .l1-mem-back { background: var(--l1-cross) center / 34px no-repeat, linear-gradient(160deg, var(--gx-purple-1), var(--gx-purple-2)); border: 3px solid #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, .3); filter: none; }
+html[data-look] .l1-scn-chat { background: rgba(0, 0, 0, .18); }
+html[data-look] .l1-decode-note { color: #fff; }
+html[data-look] .l1-ask { background: rgba(5, 10, 40, .6); }
+html[data-look] .l1-ask-card { border: 4px solid #fff; box-shadow: 0 8px 0 rgba(0, 0, 0, .3); }
+
+/* arcade result → victory */
+html[data-look] .l1-result { position: relative; }
+html[data-look] .l1-result::before { content: ""; position: absolute; width: 640px; height: 640px; left: 50%; top: 10%; margin: -320px 0 0 -320px; border-radius: 50%; pointer-events: none; background: repeating-conic-gradient(rgba(255, 230, 120, .55) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 16s linear infinite; z-index: -1; }
+html[data-look] .l1-result-stars { font-size: 52px; }
+html[data-look] .l1-result-stars i { display: inline-block; animation: gxStarSlam .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+html[data-look] .l1-result-stars i:nth-child(2) { animation-delay: .25s; font-size: 1.25em; }
+html[data-look] .l1-result-stars i:nth-child(3) { animation-delay: .5s; }
+html[data-look] .l1-result-stars::before { display: none; }
+html[data-look] .l1-result h3 { font-family: var(--gx-display); font-weight: 400; font-size: 32px; color: #FFE766; text-shadow: 0 3px 0 #8A4B00, 0 0 14px rgba(255, 200, 60, .6); }
+html[data-look] .l1-result-score { color: var(--gx-text-2); font-weight: 800; }
+html[data-look] .l1-result-score b { color: #fff; font-family: var(--gx-display); font-weight: 400; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+html[data-look] .l1-result-best { display: inline-block; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border: 2px solid #fff; border-radius: 12px; padding: 0 12px; animation: gxThrob 1.4s ease-in-out infinite; }
+@keyframes gxStarSlam { 0% { transform: scale(0) rotate(-90deg); } 70% { transform: scale(1.35) rotate(10deg); } 100% { transform: scale(1) rotate(0); } }
+html[data-look] .l1-subject-card:nth-child(4n+1) { background: linear-gradient(160deg, #FFC061, #E8650A); }
+html[data-look] .l1-subject-card:nth-child(4n+2) { background: linear-gradient(160deg, #5EDCEB, #00897B); }
+html[data-look] .l1-subject-card:nth-child(4n+3) { background: linear-gradient(160deg, #C49CFF, #6A35D9); }
+html[data-look] .l1-subject-card:nth-child(4n+4) { background: linear-gradient(160deg, #F78FB3, #C2185B); }
+html[data-look] .l1-map-title, html[data-look] .l1-lesson-title { min-width: 0; }
+html[data-look] .l1-map-top { align-self: stretch; }

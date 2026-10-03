@@ -1,0 +1,175 @@
+<title>مين البطل Weave Prompts</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;700;800&family=Lalezar&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one reading column of numbered generation jobs, grouped by asset type, in the game's navy + gold. */
+:root {
+  --bg: #EEF4FF; --panel: #FFFFFF; --ink: #14234A; --muted: #5B6B8C; --line: #CFDCF2;
+  --gold: #E89B00; --gold-soft: #FFF1C9; --done: #1E9C4A; --done-soft: #DDF5E5; --chip: #E3ECFB;
+  --display: 'Lalezar', 'Baloo Bhaijaan 2', system-ui, sans-serif;
+  --body: 'Baloo Bhaijaan 2', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0D1638; --panel: #17224F; --ink: #EAF0FF; --muted: #A9B6DA; --line: #2B3A72;
+  --gold: #FFC23A; --gold-soft: #3A3115; --done: #6EE09A; --done-soft: #143A26; --chip: #22306A; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0D1638; --panel: #17224F; --ink: #EAF0FF; --muted: #A9B6DA; --line: #2B3A72;
+  --gold: #FFC23A; --gold-soft: #3A3115; --done: #6EE09A; --done-soft: #143A26; --chip: #22306A; color-scheme: dark }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--body); direction: rtl; margin: 0; padding-inline: 16px; padding-block: 24px 64px; line-height: 1.6; }
+.wrap { max-width: 760px; margin: 0 auto; display: grid; gap: 28px; }
+h1 { font-family: var(--display); font-weight: 400; font-size: clamp(30px, 6vw, 42px); line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--display); font-weight: 400; font-size: 24px; margin: 0; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+h2 small { font-family: var(--body); font-size: 13px; color: var(--muted); font-weight: 700; }
+p { margin: 0; }
+.lead { color: var(--muted); font-weight: 600; max-width: 62ch; }
+.progress { display: flex; align-items: center; gap: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.bar { flex: 1; height: 12px; border-radius: 8px; background: var(--chip); overflow: hidden; }
+.bar i { display: block; height: 100%; width: 0; background: var(--done); transition: width .3s; }
+.how { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 16px 18px; display: grid; gap: 8px; }
+.how ol { margin: 0; padding-inline-start: 22px; display: grid; gap: 6px; font-weight: 600; }
+.how code, .file { font-family: var(--mono); font-size: 12.5px; background: var(--chip); border-radius: 6px; padding: 1px 6px; direction: ltr; unicode-bidi: isolate; }
+.group { display: grid; gap: 12px; }
+.job { background: var(--panel); border: 2px solid var(--line); border-radius: 18px; padding: 14px 16px; display: grid; gap: 10px; }
+.job.first { border-color: var(--gold); box-shadow: 0 0 0 3px var(--gold-soft); }
+.job.done { border-color: var(--done); background: linear-gradient(var(--done-soft), var(--panel) 60%); }
+.job-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.job-name { font-weight: 800; font-size: 17px; flex: 1; min-width: 0; }
+.tag { font-size: 12px; font-weight: 800; border-radius: 10px; padding: 1px 8px; background: var(--chip); color: var(--ink); white-space: nowrap; }
+.tag.gold { background: var(--gold-soft); color: var(--gold); }
+.prompt { direction: ltr; text-align: left; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word; min-width: 0; user-select: all; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+button { font-family: var(--body); font-weight: 800; font-size: 14px; border-radius: 12px; padding: 6px 14px; cursor: pointer; border: 2px solid var(--ink); background: var(--panel); color: var(--ink); }
+button.copy { background: var(--gold); border-color: var(--gold); color: #fff; }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+label.check { display: inline-flex; align-items: center; gap: 6px; font-weight: 800; cursor: pointer; }
+label.check input { width: 18px; height: 18px; accent-color: var(--done); }
+.grid9 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; max-width: 260px; font-size: 12px; font-weight: 700; }
+.grid9 span { background: var(--chip); border-radius: 8px; padding: 3px 6px; text-align: center; }
+.note { font-size: 13px; color: var(--muted); font-weight: 600; }
+@media (prefers-reduced-motion: reduce) { .bar i { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:10px">
+    <h1>صور مين البطل على Weave</h1>
+    <p class="lead">23 صورة بس بدل 62: الأيقونات بتتعمل 9 في صورة واحدة وأنا بقصّها. ابدأ بالكروت اللي عليها إطار ذهبي، دي اللي بتفرق أكتر في شكل اللعبة.</p>
+    <div class="progress"><span id="count">0 / 23</span><div class="bar"><i id="fill"></i></div></div>
+  </header>
+
+  <section class="how">
+    <h2>إزاي تولّد كل صورة</h2>
+    <ol>
+      <li>في Weave اختار موديل <b>Nano Banana 2</b> (أو Nano Banana Pro لو عايز جودة أعلى).</li>
+      <li>ارفع صورة المرجع <code>images/l2-bible-map.jpg</code> مع كل صورة، عشان الستايل يطلع زي خرايط المحطات.</li>
+      <li>اختار نسبة الأبعاد المكتوبة جنب كل صورة، وانسخ الوصف بالزرار والصقه.</li>
+      <li>نزّل النتيجة وحطها في فولدر <code>images/ui/raw/</code>. الاسم مش مهم، بس لو سمّيتها زي المكتوب يبقى أسهل.</li>
+      <li>علّم "اتعملت" هنا عشان تتابع، ولما تخلّص دفعة قولي وأنا أركّبها.</li>
+    </ol>
+    <p class="note">لو صورة طلعت فيها كلام أو حروف، أو شكل المسيح ككرتون، ولّدها تاني. الأيقونات والوحوش واللوجو لازم تكون على خلفية بنفسجي فاقع (magenta) عشان أقدر أشيلها.</p>
+  </section>
+
+  <div id="groups"></div>
+</div>
+
+<script>
+var STYLE = "Bright, saturated 3D cartoon mobile-game art like Brawl Stars and Clash Royale, soft warm sunlight, glossy rounded shapes, clean outlines, cheerful and family-friendly, Middle-Eastern biblical setting. Match the art style and colors of the attached reference image. No text, no letters, no numbers, no watermark, no UI.";
+var KEY = "STYLE: Solid flat pure magenta (#FF00FF) background filling everything behind the subject, no shadows on the background, no gradient.";
+var GROUPS = [
+  { title: "الخلفيات", sub: "9:16 · خلفية الشاشات", jobs: [
+    { f: "bg-hub-day", name: "الرئيسية نهاري", ar: "9:16", first: true, p: "Vertical mobile game home-screen background. A wide sunny blue sky over the Sea of Galilee, small wooden fishing boats, soft green hills, a distant walled town of Jerusalem, puffy clouds. Keep the middle mostly open sky for buttons and cards." },
+    { f: "bg-hub-night", name: "الرئيسية ليلي", ar: "9:16", first: true, p: "Vertical mobile game home-screen background at night. The same Sea of Galilee scene with a deep navy sky full of twinkling stars, a big glowing crescent moon, warm lantern lights in a small village, calm reflections on the water. Keep the middle mostly open for UI." },
+    { f: "bg-login", name: "شاشة البداية", ar: "9:16", p: "Vertical game title-screen background. A golden sunrise behind a green hill with a glowing simple cross on top, big soft light rays spreading across the sky, a winding path leading up the hill. Leave the upper third clear for a game logo." },
+    { f: "bg-spiritual", name: "الحياة الروحية", ar: "9:16", p: "Vertical background of a calm Coptic Orthodox church interior, rows of lit candles, tall arched windows with soft purple and rose light, golden lamps hanging, peaceful prayerful mood, soft focus." },
+    { f: "bg-arena", name: "المنافسات", ar: "9:16", p: "Vertical background of a festive game arena amphitheatre, red team banners on the left and blue team banners on the right, bright spotlights, confetti in the air, excited cartoon atmosphere." },
+    { f: "bg-quiz", name: "الأسئلة والألعاب", ar: "9:16", p: "Vertical abstract game background, rich purple and violet gradient, soft light rays from the top center, floating golden sparkles and small stars, the center kept clean and calm." },
+    { f: "bg-boss", name: "معركة الوحش", ar: "9:16", p: "Vertical background of a dramatic valley battlefield at dusk, dark purple and red glowing sky, rocky cliffs, floating orange embers, epic but not scary, suitable for children." },
+    { f: "bg-shop", name: "المتجر", ar: "9:16", p: "Vertical background of a cosy treasure hall, wooden shelves with shields, helmets, swords, scrolls and chests, piles of shiny coins and gems, warm golden light." },
+    { f: "bg-leaderboard", name: "لوحة الأبطال", ar: "9:16", p: "Vertical background of a royal hall with a three-step golden winners podium in the lower part, red carpet, golden crowns, spotlights and gold confetti." }
+  ]},
+  { title: "كروت الشاشة الرئيسية", sub: "16:9 · الصورة على الشمال، اليمين فاضي للكلام", jobs: [
+    { f: "card-l1", name: "المستوى الأول", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: colorful desert tents, an ancient scroll library, sheep and a shepherd staff, golden afternoon light. The right half is calm soft sky and sand with no objects, for text." },
+    { f: "card-l2", name: "المستوى الثاني", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: a dirt path along the Sea of Galilee shore leading to a bright sunrise, wooden fishing boats with nets, glowing light rays. The right half is calm water and sky with no objects, for text." },
+    { f: "card-faith", name: "إيماننا الأرثوذكسي", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: a white Coptic church with blue domes topped with crosses, warm windows, palm trees. The right half is calm purple-tinted sky with no objects, for text." },
+    { f: "card-james", name: "روح وحياة", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: an open Bible on a stone table with a feather quill, olive branches and a small oil lamp, warm light. The right half is a calm soft blue wall with no objects, for text." },
+    { f: "card-life", name: "جيل يصنع التغيير", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: cheerful young people rebuilding a stone city wall together with tools and baskets, sunrise behind them, teamwork. The right half is calm orange sky with no objects, for text." },
+    { f: "card-compete", name: "المنافسات الجماعية", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: a big golden trophy with a red flag and a blue flag crossing behind it, confetti and sparkles. The right half is calm magenta-pink background with no objects, for text." }
+  ]},
+  { title: "الوحوش", sub: "3:4 · خلفية magenta", jobs: [
+    { f: "boss-goliath", name: "جليات الجبار", ar: "3:4", first: true, key: true, p: "Full-body game boss character: Goliath the giant Philistine warrior, bronze helmet and scale armor, round shield and a huge spear, standing and facing left, strong but cartoon-friendly for children, not gory." },
+    { f: "boss-arius", name: "أريوس الهرطوقي", ar: "3:4", first: true, key: true, p: "Full-body game villain character: a cartoon heretic teacher in a dark hooded robe holding a dark scroll, swirling shadowy purple aura, mischievous expression, facing left, a villain children can laugh at, not scary." }
+  ]},
+  { title: "اللوجو", sub: "16:9 · خلفية magenta · جرّب 2-3 مرات", jobs: [
+    { f: "logo-min-el-batal", name: "لوجو مين البطل", ar: "16:9", key: true, allowText: true, p: "Chunky 3D golden mobile-game logo that reads exactly «مين البطل؟» in bold Arabic letters, a small golden crown above it, thick dark-brown outline, glossy highlights. Spell the Arabic exactly: م ي ن  ا ل ب ط ل ؟" }
+  ]},
+  { title: "الأيقونات", sub: "1:1 · 9 أيقونات في الصورة · خلفية magenta", jobs: [
+    { f: "icons-a", name: "العملات والجوايز", ar: "1:1", first: true, key: true, grid: ["نجمة","جوهرة","شعلة","صندوق مقفول","صندوق مفتوح","هدية","عجلة جوايز","كأس","تاج"], p: "A 3x3 grid of nine separate glossy 3D game icons, evenly spaced with wide gaps, each centered in its own cell: gold star, blue diamond gem, orange flame, closed wooden treasure chest, open treasure chest overflowing with gold, wrapped gift box with ribbon, colorful prize wheel, golden trophy cup, golden royal crown." },
+    { f: "icons-b", name: "القوى والسلاح", ar: "1:1", key: true, grid: ["مقص","تخطي","تجميد","تلميح","نجمتين","قلب","قفل","سيف","درع"], p: "A 3x3 grid of nine separate glossy 3D game icons, evenly spaced with wide gaps, each centered in its own cell: red scissors, blue fast-forward arrow, icy snowflake, glowing yellow light bulb, two gold stars stacked, red heart, golden padlock, silver sword, round blue shield with a cross." },
+    { f: "icons-c", name: "الحياة الروحية", ar: "1:1", key: true, grid: ["سراج منوّر","إنجيل","شمعة","حمامة","إيدين بتصلي","دمبل","غصن زيتون","كنيسة","خريطة"], p: "A 3x3 grid of nine separate glossy 3D game icons, evenly spaced with wide gaps, each centered in its own cell: lit clay oil lamp with a flame, open Bible with a small gold cross, lit white candle, white dove with an olive leaf, praying hands, blue dumbbell, olive branch, small white church with a dome and cross, rolled treasure map scroll." },
+    { f: "icons-d", name: "أزرار اللعبة", ar: "1:1", key: true, grid: ["شنطة متجر","علم فريق","ترس","بوصلة","متحف","سهم صاعد","جرس","كاميرا","فقاعة كلام"], p: "A 3x3 grid of nine separate glossy 3D game icons, evenly spaced with wide gaps, each centered in its own cell: shopping bag, waving team flag, silver settings gear, golden compass, classical museum building with columns, green arrow going up on a chart, golden bell, camera, white speech bubble." },
+    { f: "icons-e", name: "الشارات والرتب", ar: "1:1", key: true, grid: ["شارة برونز","شارة فضة","شارة دهب","ميدالية","مجموعة أصحاب","ميكروفون","خوذة","ساعة رملية","دبوس خريطة"], p: "A 3x3 grid of nine separate glossy 3D game icons, evenly spaced with wide gaps, each centered in its own cell: bronze shield emblem, silver shield emblem, gold shield emblem with gems, gold medal with ribbon, three cheerful cartoon friends huddled together, megaphone, warrior helmet with a red plume, hourglass, red map pin." }
+  ]}
+];
+
+var STORE = "minElBatal_weave_done";
+var done = {};
+try { done = JSON.parse(localStorage.getItem(STORE) || "{}") || {}; } catch (e) { done = {}; }
+function persist() { try { localStorage.setItem(STORE, JSON.stringify(done)); } catch (e) {} }
+
+function fullPrompt(j) {
+  var parts = [j.p, j.allowText ? STYLE.replace(" No text, no letters, no numbers,", "") : STYLE];
+  if (j.key) parts.push(KEY);
+  return parts.join("\n\n");
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+var total = 0, host = document.getElementById("groups"), html = "";
+GROUPS.forEach(function (g) {
+  html += '<section class="group"><h2>' + g.title + ' <small>' + g.sub + '</small></h2>';
+  g.jobs.forEach(function (j) {
+    total++;
+    var id = j.f;
+    html += '<article class="job' + (j.first ? ' first' : '') + (done[id] ? ' done' : '') + '" id="job-' + id + '">' +
+      '<div class="job-head"><span class="job-name">' + j.name + '</span>' +
+      (j.first ? '<span class="tag gold">ابدأ بيها</span>' : '') +
+      '<span class="tag">' + j.ar + '</span><span class="file">' + id + '.png</span></div>' +
+      (j.grid ? '<div class="grid9">' + j.grid.map(function (x) { return '<span>' + x + '</span>'; }).join("") + '</div>' : '') +
+      '<div class="prompt" id="p-' + id + '">' + esc(fullPrompt(j)) + '</div>' +
+      '<div class="row"><button class="copy" type="button" data-copy="' + id + '">انسخ الوصف</button>' +
+      '<label class="check"><input type="checkbox" id="done-' + id + '" data-done="' + id + '"' + (done[id] ? ' checked' : '') + '> اتعملت</label></div>' +
+      '</article>';
+  });
+  html += '</section>';
+});
+host.innerHTML = html;
+
+function refresh() {
+  var n = Object.keys(done).filter(function (k) { return done[k]; }).length;
+  document.getElementById("count").textContent = n + " / " + total;
+  document.getElementById("fill").style.width = Math.round(n / total * 100) + "%";
+}
+refresh();
+
+host.addEventListener("click", function (e) {
+  var b = e.target.closest("[data-copy]");
+  if (!b) return;
+  var el = document.getElementById("p-" + b.getAttribute("data-copy"));
+  var text = el.textContent;
+  function ok() { b.textContent = "اتنسخ ✓"; setTimeout(function () { b.textContent = "انسخ الوصف"; }, 1600); }
+  function fallback() {
+    var r = document.createRange(); r.selectNodeContents(el);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+    b.textContent = "متعلّم، اضغط نسخ";
+  }
+  try { navigator.clipboard.writeText(text).then(ok, fallback); } catch (err) { fallback(); }
+});
+host.addEventListener("change", function (e) {
+  var c = e.target.closest("[data-done]");
+  if (!c) return;
+  var id = c.getAttribute("data-done");
+  done[id] = c.checked;
+  document.getElementById("job-" + id).classList.toggle("done", c.checked);
+  persist(); refresh();
+});
+</script>

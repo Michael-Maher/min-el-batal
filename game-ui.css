@@ -1231,3 +1231,40 @@ html[data-look] .l2-subject-arrow { width: 40px; height: 40px; border-radius: 12
 html[data-look] .l2-subject-card.locked, html[data-look] .l2-subject-card.soon, html[data-look] .l2-subject-card[data-locked] { filter: grayscale(.8) brightness(.85); }
 html[data-look] .l2-exam-toggle-section { background: linear-gradient(180deg, var(--gx-panel-2), var(--gx-panel)); border: 3px solid var(--gx-ink); border-radius: 20px; box-shadow: 0 5px 0 var(--gx-ink); }
 html[data-look] .l2-exam-subject-item { border-radius: 14px; border: 3px solid rgba(0, 0, 0, .25); box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
+
+/* ============================================================
+   COMPANION, Q&A THREADS, SOCIAL FEED
+   ============================================================ */
+html[data-look] .companion-widget .companion-btn { border: 4px solid #fff !important; box-shadow: 0 5px 0 rgba(0, 0, 0, .25), 0 0 0 4px rgba(255, 214, 90, .45) !important; background: #FFD54F !important; }
+html[data-look] .companion-bubble { background: #fff !important; color: #22324F !important; border: 3px solid #22324F !important; border-radius: 18px !important; box-shadow: 0 5px 0 rgba(0, 0, 0, .2) !important; font-weight: 800; }
+html[data-look] .companion-menu { background: linear-gradient(#2E6FD8, #1A4BA8) !important; border: 3px solid #fff !important; border-radius: 18px !important; box-shadow: 0 6px 0 #0A2A63 !important; }
+html[data-look] .companion-menu-item { color: #fff !important; font-weight: 800; border-radius: 12px; }
+
+/* Q&A + friends' questions */
+html[data-look] :is(.qa-card, .qa-thread-row, .qa-reply-card, .qa-composer-card) { background: #fff !important; color: #22324F !important; border: 3px solid #CFE3FF !important; border-radius: 18px !important; box-shadow: 0 4px 0 #A9C8F0 !important; }
+html[data-look] :is(.qa-card, .qa-thread-row, .qa-reply-card, .qa-composer-card) :is(.qa-card-text, .qa-card-name, .qa-thread-title, .qa-thread-snippet, .qa-reply-text, .qa-composer-head, .qa-msg-body) { color: #22324F !important; }
+html[data-look] :is(.qa-card-time, .qa-thread-time, .qa-card-meta, .qa-thread-meta, .qa-composer-hint) { color: #6B7A99 !important; }
+html[data-look] .qa-thread-row-unread { border-color: #FFB300 !important; box-shadow: 0 4px 0 #C98A00, 0 0 0 3px rgba(255, 214, 90, .45) !important; }
+html[data-look] .qa-msg { border-radius: 16px !important; box-shadow: 0 3px 0 rgba(0, 0, 0, .15); font-weight: 700; }
+html[data-look] .qa-msg-user { background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)) !important; color: #fff !important; border-bottom-right-radius: 4px !important; }
+html[data-look] .qa-msg-admin { background: #fff !important; color: #22324F !important; border: 2px solid #FFD54F !important; border-bottom-left-radius: 4px !important; }
+html[data-look] .qa-msg-admin .qa-msg-author::after { content: " ⭐ خادم"; display: inline-block; margin-inline-start: 4px; font-size: 10px; font-weight: 800; color: #5A2E00; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border-radius: 6px; padding: 0 5px; }
+html[data-look] .qa-textarea { background: #fff !important; color: #22324F !important; border: 3px solid var(--gx-ink) !important; }
+html[data-look] :is(.qa-submit-btn, .qa-open-reply-btn) { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)) !important; border: 3px solid var(--gx-green-ink) !important; box-shadow: 0 4px 0 var(--gx-green-edge) !important; color: #fff !important; border-radius: 14px !important; font-family: var(--gx-display); font-weight: 400 !important; }
+html[data-look] :is(.qa-badge-new, .qa-section-badge) { background: linear-gradient(#FF4D8D, #D6125B) !important; color: #fff !important; border: 2px solid #fff; animation: gxBounce 1.6s ease-in-out infinite; }
+html[data-look] .qa-badge-answered, html[data-look] .qa-badge-resolved { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)) !important; color: #fff !important; }
+html[data-look] .qa-reaction-chip, html[data-look] .qa-react-btn { border-radius: 14px; border: 2px solid #CFE3FF; background: #F2F7FF; color: #22324F; font-weight: 800; }
+html[data-look] :is(.qa-section-header-title, .qa-threads-label) { font-family: var(--gx-display); font-weight: 400; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+
+/* social feed */
+html[data-look] .social-post { background: #fff !important; color: #22324F !important; border: 3px solid #CFE3FF !important; border-radius: 20px !important; box-shadow: 0 5px 0 #A9C8F0 !important; animation: gxPopIn .45s cubic-bezier(.2, 1.6, .4, 1) both; }
+html[data-look] .social-post :is(.social-post-text, .social-post-author-name, .social-post-body) { color: #22324F !important; }
+html[data-look] .social-post-time { color: #6B7A99 !important; }
+html[data-look] .social-post-avatar { border: 3px solid #fff; box-shadow: 0 3px 0 rgba(0, 0, 0, .2); background: #FFD54F; }
+html[data-look] .social-post-role-admin .social-post-author-name::after { content: " ⭐"; }
+html[data-look] .social-post-pinned { border-color: #FFB300 !important; box-shadow: 0 5px 0 #C98A00, 0 0 0 3px rgba(255, 214, 90, .45) !important; }
+html[data-look] .social-post-kind-badge, html[data-look] .social-post-pinned-tag { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border: 2px solid #fff; border-radius: 10px; font-weight: 800; }
+html[data-look] .social-post-kind-verse { background: linear-gradient(#FFF6DC, #F6E2B0) !important; border-color: #B98A3E !important; box-shadow: 0 5px 0 #8D6424 !important; }
+html[data-look] .social-post-tag { background: #EAF2FF; color: #1565C0; border-radius: 10px; font-weight: 800; }
+html[data-look] .social-post-actions button { border-radius: 12px; font-weight: 800; }
+html[data-look] .social-post-image { border-radius: 14px; border: 3px solid #EAF2FF; }

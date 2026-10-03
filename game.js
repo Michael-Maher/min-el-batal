@@ -95,6 +95,8 @@ const GameState = {
     mapTheme: 'default',      // 'default', 'space', 'underwater', 'sky'
     loginStreak: 0,           // consecutive daily login days
     claimedStreakRewards: [], // ['streak7', 'streak14', 'streak30']
+    dailyRewardDate: '',      // last day the 7-day attendance reward was claimed (game-ui.js)
+    season: null,             // { id, startStars, startStations, claimed[], heroClaimed[] } — طريق البطل (game-ui.js)
     questionHistory: {},       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
     consumableWeapons: {},     // { 'sling': 2, 'scroll': 1 }
     weaponTimedEffects: {},    // { 'doubleSword': expiry_ms }
@@ -1023,6 +1025,8 @@ function saveToCloud() {
         mapTheme: GameState.mapTheme || 'default',
         loginStreak: GameState.loginStreak || 0,
         claimedStreakRewards: GameState.claimedStreakRewards || [],
+        dailyRewardDate: GameState.dailyRewardDate || '',
+        season: GameState.season || null,
         consumableWeapons: GameState.consumableWeapons || {},
         weaponTimedEffects: GameState.weaponTimedEffects || {},
         dailyDealDate: GameState.dailyDealDate || '',
@@ -5743,9 +5747,14 @@ function checkDailyLoginXP() {
             GameState.loginStreak = 1;
         }
         GameState.dailyLoginDate = today;
-        GameState.gems = (GameState.gems || 0) + 5;
-        var streakMsg = GameState.loginStreak > 1 ? ' 🔥 ' + GameState.loginStreak + ' أيام متواصلة!' : '';
-        showToast('مرحباً! 💎 +5 جواهر يومية' + streakMsg, 'success');
+        if (typeof GameUI !== 'undefined' && GameUI.onNewDay) {
+            // Game UI: the 7-day attendance popup replaces the silent +5 gems
+            GameUI.onNewDay();
+        } else {
+            GameState.gems = (GameState.gems || 0) + 5;
+            var streakMsg = GameState.loginStreak > 1 ? ' 🔥 ' + GameState.loginStreak + ' أيام متواصلة!' : '';
+            showToast('مرحباً! 💎 +5 جواهر يومية' + streakMsg, 'success');
+        }
         // Auto-celebration milestones
         try {
             if (GameState.loginStreak === 7   && typeof postCelebration === 'function') postCelebration('streak_7',   {});

@@ -24,6 +24,11 @@ var GameUI = (function () {
     function setLook(pref) {
         try { localStorage.setItem(LOOK_KEY, pref); } catch (e) {}
         applyLook();
+        markLook();
+    }
+    function markLook() {
+        var p = lookPref();
+        document.querySelectorAll('.gx-look').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-look') === p); });
     }
 
     // ---------- Ambient sky ----------
@@ -513,6 +518,7 @@ var GameUI = (function () {
             });
         }
         if (id === 'home-hub-screen') renderHub();
+        if (id === 'settings-screen') markLook();
     }
 
     // ---------- Boot ----------
@@ -528,6 +534,23 @@ var GameUI = (function () {
         grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal
     };
+})();
+
+// The old 4 themes are retired: pin the legacy attribute to the neutral base so
+// theme-specific rules in style.css (e.g. 47 [data-theme="light"] rules) never apply.
+(function () {
+    function pin() {
+        document.documentElement.setAttribute('data-theme', 'ocean');
+        if (document.body) document.body.setAttribute('data-theme', 'ocean');
+    }
+    pin();
+    document.addEventListener('DOMContentLoaded', pin);
+    if (typeof setTheme === 'function') {
+        setTheme = function (theme) {
+            GameUI.setLook(theme === 'light' ? 'day' : (theme === 'dark' ? 'night' : 'auto'));
+            pin();
+        };
+    }
 })();
 
 // Run the hub/nav hook after every navigation (showScreen is a global in game.js).

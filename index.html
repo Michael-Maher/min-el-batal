@@ -1640,32 +1640,11 @@
                 <h2><i class="fas fa-palette"></i> الإعدادات</h2>
             </div>
             <div class="settings-section">
-                <h3><i class="fas fa-paint-brush"></i> اختار الثيم</h3>
-                <div class="theme-grid" id="theme-grid">
-                    <div class="theme-card active" data-theme="dark" onclick="setTheme('dark')">
-                        <div class="theme-preview theme-preview-dark">
-                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
-                        </div>
-                        <span>الليلي <i class="fas fa-moon"></i></span>
-                    </div>
-                    <div class="theme-card" data-theme="light" onclick="setTheme('light')">
-                        <div class="theme-preview theme-preview-light">
-                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
-                        </div>
-                        <span>النهاري <i class="fas fa-sun"></i></span>
-                    </div>
-                    <div class="theme-card" data-theme="orthodox" onclick="setTheme('orthodox')">
-                        <div class="theme-preview theme-preview-orthodox">
-                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
-                        </div>
-                        <span>الذهبي <i class="fas fa-cross"></i></span>
-                    </div>
-                    <div class="theme-card" data-theme="ocean" onclick="setTheme('ocean')">
-                        <div class="theme-preview theme-preview-ocean">
-                            <div class="tp-circle"></div><div class="tp-line"></div><div class="tp-line short"></div>
-                        </div>
-                        <span>المحيط <i class="fas fa-water"></i></span>
-                    </div>
+                <h3><i class="fas fa-paint-brush"></i> شكل اللعبة</h3>
+                <div class="gx-looks" id="gx-looks">
+                    <button class="gx-look" data-look="auto" onclick="GameUI.setLook('auto')"><span class="gx-look-sky gx-look-sky--auto"><i>☀️</i><i>🌙</i></span><b>تلقائي</b><small>نهار الصبح وليل بالليل</small></button>
+                    <button class="gx-look" data-look="day" onclick="GameUI.setLook('day')"><span class="gx-look-sky gx-look-sky--day"><i>☀️</i></span><b>نهاري</b><small>سما زرقا</small></button>
+                    <button class="gx-look" data-look="night" onclick="GameUI.setLook('night')"><span class="gx-look-sky gx-look-sky--night"><i>🌙</i></span><b>ليلي</b><small>نجوم وقمر</small></button>
                 </div>
             </div>
             <div class="settings-section">

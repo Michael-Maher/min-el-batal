@@ -941,3 +941,88 @@ html[data-look] .compete-tournament-card { border: 4px solid #FFE766; border-rad
 html[data-look] .compete-rank-item { background: #fff; color: #22324F; border: 3px solid #CFE3FF; border-radius: 14px; box-shadow: 0 4px 0 #A9C8F0; }
 html[data-look] .compete-rank-item * { color: #22324F; }
 html[data-look] .compete-empty { color: var(--gx-text-2); font-weight: 700; }
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+html[data-look] .settings-section { background: linear-gradient(180deg, var(--gx-panel-2), var(--gx-panel)); border: 3px solid var(--gx-ink); border-radius: 20px; box-shadow: 0 5px 0 var(--gx-ink); padding: 14px; margin-bottom: 16px; }
+html[data-look] .settings-section h3 { font-family: var(--gx-display); font-weight: 400; font-size: 20px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+html[data-look] .settings-section h3 i { color: var(--gx-gold-1); }
+html[data-look] .about-info p { color: var(--gx-text-2); font-weight: 700; }
+.gx-looks { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+.gx-look { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px 10px; border-radius: 18px; cursor: pointer; font-family: var(--gx-font); color: #fff; background: rgba(5, 20, 55, .35); border: 3px solid rgba(255, 255, 255, .25); box-shadow: 0 4px 0 rgba(0, 0, 0, .25); }
+.gx-look b { font-family: var(--gx-display); font-weight: 400; font-size: 18px; }
+.gx-look small { font-size: 10.5px; font-weight: 700; opacity: .9; }
+.gx-look.on { border-color: #FFE766; background: rgba(255, 214, 90, .2); box-shadow: 0 4px 0 rgba(0, 0, 0, .25), 0 0 16px 4px rgba(255, 214, 90, .6); }
+.gx-look-sky { width: 100%; height: 56px; border-radius: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 24px; border: 2px solid rgba(255, 255, 255, .6); margin-bottom: 4px; }
+.gx-look-sky i { font-style: normal; animation: gxFloat 3s ease-in-out infinite; }
+.gx-look-sky--day { background: linear-gradient(#5AC8FF, #1E88E5); }
+.gx-look-sky--night { background: linear-gradient(#18246A, #0B1340); }
+.gx-look-sky--auto { background: linear-gradient(110deg, #5AC8FF 0 50%, #18246A 50% 100%); }
+
+/* ============================================================
+   CONTENT SCREENS — shared chunky panels
+   ============================================================ */
+html[data-look] :is(.bible-chapter-card, .bible-video-section, .bible-full-text, .bible-action-section, .devotion-streak-card, .devotion-card, .devotion-tip-card,
+    .exercise-total-card, .lamp-score-area, .detail-card, .qa-notice-card, .info-summary-card, .info-section, .museum-header-card, .museum-subject,
+    .pd-level-section, .pd-subjects, .pd-badges, .pd-streaks, .pd-collectibles-summary, .team-create-card, .teams-browse-section, .fqs-privacy-banner,
+    .bible-progress-section, .lamp-week-header, .lamp-missions-container) {
+    background: linear-gradient(180deg, var(--gx-panel-2), var(--gx-panel)) !important; border: 3px solid var(--gx-ink) !important; border-radius: 20px !important;
+    box-shadow: 0 5px 0 var(--gx-ink) !important; color: #fff; backdrop-filter: none;
+}
+html[data-look] :is(.exercise-item, .info-way-card, .info-rank-row, .museum-trophy-card, .museum-card, .pd-stat-card, .pd-streak-item, .lamp-mission-card, .bible-ch-item, .pd-subject-row) {
+    border: 3px solid rgba(0, 0, 0, .28) !important; border-radius: 16px !important; box-shadow: 0 4px 0 rgba(0, 0, 0, .25) !important; color: #fff;
+    background: linear-gradient(165deg, #3A86E8, #1C55B8) !important;
+}
+html[data-look] :is(.exercise-item, .info-way-card, .museum-card, .pd-stat-card, .lamp-mission-card, .bible-ch-item):nth-child(4n+2) { background: linear-gradient(165deg, #A77BFF, #6A35D9) !important; }
+html[data-look] :is(.exercise-item, .info-way-card, .museum-card, .pd-stat-card, .lamp-mission-card, .bible-ch-item):nth-child(4n+3) { background: linear-gradient(165deg, #FF9F5A, #E8650A) !important; }
+html[data-look] :is(.exercise-item, .info-way-card, .museum-card, .pd-stat-card, .lamp-mission-card, .bible-ch-item):nth-child(4n+4) { background: linear-gradient(165deg, #4FD1C5, #00897B) !important; }
+html[data-look] :is(.exercise-icon, .pd-stat-icon, .info-way-icon, .museum-trophy-icon, .lamp-mission-icon, .devotion-icon, .museum-card-visual) { animation: gxFloat 3s ease-in-out infinite; display: inline-block; }
+html[data-look] :is(.exercise-section-title, .bible-chapters-title, .info-section-title, .lamp-section-title, .detail-section-title, .teams-browse-title, .museum-subject-header) {
+    font-family: var(--gx-display); font-weight: 400; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35);
+}
+html[data-look] :is(.pd-stat-value, .devotion-streak-number, .pd-level-number, .exercise-total-stat) { font-family: var(--gx-display); font-weight: 400; color: #FFE766; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] :is(.bible-progress-bar, .pd-xp-bar, .pd-subject-bar, .museum-total-bar, .pd-collect-bar, .lamp-xp-bar) { height: 12px; background: rgba(0, 0, 0, .3) !important; border: 2px solid rgba(255, 255, 255, .7); border-radius: 8px; overflow: hidden; }
+html[data-look] :is(.bible-progress-fill, .pd-xp-fill, .pd-subject-fill, .museum-total-fill, .pd-collect-fill, .lamp-xp-fill) { background: repeating-linear-gradient(-45deg, #FFE766 0 7px, #FFB300 7px 14px) !important; background-size: 20px 20px !important; animation: gxStripes 1s linear infinite; }
+html[data-look] .pd-level-circle { border: 4px solid #fff; box-shadow: 0 5px 0 rgba(0, 0, 0, .25), 0 0 0 6px rgba(255, 214, 90, .35); background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)) !important; }
+html[data-look] .pd-level-circle .pd-level-number { color: #5A2E00; text-shadow: none; }
+html[data-look] .info-tabs-bar { background: rgba(5, 20, 55, .45); border: 2px solid rgba(255, 255, 255, .25); border-radius: 16px; padding: 4px; }
+html[data-look] .info-tab-btn { color: #fff; font-weight: 800; border-radius: 12px; }
+html[data-look] .info-tab-btn.active { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; box-shadow: 0 3px 0 var(--gx-gold-edge); }
+html[data-look] .team-logo-option, html[data-look] .team-color-option { border-radius: 14px; border: 3px solid rgba(255, 255, 255, .4); box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
+html[data-look] .team-logo-option.selected, html[data-look] .team-color-option.selected { border-color: #FFE766; box-shadow: 0 0 0 3px #FFB300, 0 0 14px 4px rgba(255, 214, 90, .7); }
+
+/* hero banners (Q&A, friends' questions, social) */
+html[data-look] :is(.qa-screen-hero, .fqs-hero, .social-hero) {
+    position: relative; overflow: hidden; border-radius: 24px !important; border: 4px solid #fff !important; box-shadow: 0 7px 0 rgba(0, 0, 0, .25), 0 14px 26px rgba(0, 0, 0, .2) !important; color: #fff;
+}
+html[data-look] .qa-screen-hero { background: radial-gradient(circle at 50% 20%, #FFC061, #E8650A 60%, #8A3300) !important; }
+html[data-look] .fqs-hero { background: radial-gradient(circle at 50% 20%, #C49CFF, #6A35D9 60%, #2E1780) !important; }
+html[data-look] .social-hero { background: radial-gradient(circle at 50% 20%, #7FD3F7, #1E88E5 60%, #0B3D91) !important; }
+html[data-look] :is(.qa-screen-hero, .fqs-hero, .social-hero)::before { content: ""; position: absolute; width: 520px; height: 520px; left: 50%; top: 30%; margin: -260px 0 0 -260px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, .3) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 20s linear infinite; pointer-events: none; }
+html[data-look] :is(.qa-screen-hero, .fqs-hero, .social-hero) > * { position: relative; }
+html[data-look] :is(.qa-hero-title, .fqs-hero-title, .social-hero-title) { font-family: var(--gx-display); font-weight: 400; font-size: 28px; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); color: #fff; }
+html[data-look] :is(.fqs-hero-icon, .social-hero-icon) { animation: gxFloat 3s ease-in-out infinite; }
+html[data-look] .qa-stat-chip { background: rgba(0, 0, 0, .28); border: 2px solid rgba(255, 255, 255, .5); color: #fff; font-weight: 800; border-radius: 14px; }
+html[data-look] .qa-ask-btn { border: 3px dashed rgba(255, 255, 255, .7) !important; color: #fff !important; background: rgba(255, 255, 255, .12) !important; font-family: var(--gx-display); font-weight: 400; font-size: 18px; }
+html[data-look] .social-toolbar-btn { border-radius: 14px; border: 3px solid rgba(0, 0, 0, .25); background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); color: #fff; box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }
+html[data-look] .social-fab-compose { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)) !important; border: 3px solid var(--gx-green-ink) !important; box-shadow: 0 5px 0 var(--gx-green-edge) !important; animation: gxThrob 1.6s ease-in-out infinite; }
+
+/* spiritual screens: calmer purple → rose sky */
+html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) { background: linear-gradient(180deg, #5B3FD1 0%, #8E5BE8 45%, #E79AC8 100%); }
+html[data-look="night"] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) { background: linear-gradient(180deg, #1B1050 0%, #3A2580 55%, #6B3A8E 100%); }
+html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) .top-bar { background: linear-gradient(#4A2BB0, #2E1780); border-color: #1C0D52; box-shadow: 0 5px 0 #1C0D52; }
+html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) .back-btn { background: linear-gradient(var(--gx-purple-1), var(--gx-purple-2)); border-color: var(--gx-purple-ink); box-shadow: 0 3px 0 var(--gx-purple-edge); }
+html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) :is(.bible-chapter-card, .bible-video-section, .bible-full-text, .bible-action-section, .devotion-streak-card, .devotion-card, .devotion-tip-card, .exercise-total-card, .lamp-score-area, .detail-card, .bible-progress-section, .lamp-week-header, .lamp-missions-container) {
+    background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .08)) !important; border-color: rgba(255, 255, 255, .55) !important; box-shadow: 0 5px 0 rgba(46, 23, 128, .55) !important;
+}
+html[data-look] .bible-chapter-number { font-family: var(--gx-display); font-weight: 400; color: #FFE766; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+html[data-look] :is(.bible-full-text, .detail-verse-text) { line-height: 2; }
+html[data-look] .detail-verse-text { background: linear-gradient(#FFF6DC, #F6E2B0) !important; color: #5A3A12 !important; border: 3px solid #B98A3E; border-radius: 18px; box-shadow: 0 5px 0 #8D6424; padding: 14px; font-weight: 800; }
+html[data-look] .bible-verse-num { color: #FFE766; font-weight: 800; }
+html[data-look] .exercise-item.done, html[data-look] .exercise-item.completed { background: linear-gradient(165deg, #7EDB6A, #2E9E2A) !important; }
+html[data-look] .exercise-points { background: rgba(0, 0, 0, .25); border-radius: 10px; padding: 0 8px; color: #FFE766; font-weight: 800; }
+html[data-look] .lamp-main-image { animation: gxLampGlow 2.6s ease-in-out infinite; }
+@keyframes gxLampGlow { 50% { filter: drop-shadow(0 0 18px #FFD54A) drop-shadow(0 0 6px #FFF3B0) brightness(1.1); } }
+html[data-look] .lamp-top-bar { background: linear-gradient(#4A2BB0, #2E1780); border: 3px solid #1C0D52; border-radius: 18px; box-shadow: 0 5px 0 #1C0D52; padding: 6px 10px; }
+html[data-look] .lamp-title { font-family: var(--gx-display); font-weight: 400; color: #fff; }

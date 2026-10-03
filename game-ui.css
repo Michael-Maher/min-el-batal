@@ -1075,3 +1075,64 @@ html[data-look] .boss-fight-damage, html[data-look] .boss-fight-progress { color
 @keyframes gxDmg { 0% { opacity: 0; transform: translateY(0) scale(.4); } 20% { opacity: 1; transform: translateY(-10px) scale(1.4); } 70% { opacity: 1; transform: translateY(-50px) scale(1); } 100% { opacity: 0; transform: translateY(-70px); } }
 .gx-slash { position: fixed; z-index: 100002; pointer-events: none; width: 200px; height: 10px; border-radius: 10px; background: linear-gradient(90deg, transparent, #fff, #BFF5FF, transparent); box-shadow: 0 0 14px 4px #9FE8FF; transform: rotate(-30deg) scaleX(0); animation: gxSlash .45s ease-out forwards; }
 @keyframes gxSlash { 0% { transform: rotate(-30deg) scaleX(0); opacity: 1; } 50% { transform: rotate(-30deg) scaleX(1); opacity: 1; } 100% { transform: rotate(-30deg) scaleX(1); opacity: 0; } }
+
+/* ============================================================
+   COMPETE — lobby, live game, results
+   ============================================================ */
+/* lobby */
+html[data-look] .lobby-code-display { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border: 4px solid #fff; border-radius: 22px; box-shadow: 0 6px 0 var(--gx-gold-edge), 0 0 20px 4px rgba(255, 214, 90, .5); color: #5A2E00; }
+html[data-look] .lobby-code-label, html[data-look] .lobby-code-hint { color: #7A4A12; font-weight: 800; }
+html[data-look] .lobby-code-number { font-family: var(--gx-display); font-weight: 400; color: #5A2E00; letter-spacing: 6px; text-shadow: 0 2px 0 rgba(255, 255, 255, .6); animation: gxThrob 1.6s ease-in-out infinite; display: inline-block; }
+html[data-look] :is(.lobby-room-info, .lobby-waiting, .lobby-teams) { background: rgba(5, 20, 55, .35); border: 2px solid rgba(255, 255, 255, .25); border-radius: 18px; color: #fff; }
+html[data-look] .lobby-section-title { font-family: var(--gx-display); font-weight: 400; color: #fff; font-size: 20px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .lobby-player-card { background: #fff; color: #22324F; border: 3px solid #CFE3FF; border-radius: 16px; box-shadow: 0 4px 0 #A9C8F0; animation: gxPopIn .45s cubic-bezier(.2, 1.6, .4, 1) both; }
+html[data-look] .lobby-player-name { color: #22324F; font-weight: 800; }
+html[data-look] .lobby-player-avatar { border: 3px solid #fff; box-shadow: 0 3px 0 rgba(0, 0, 0, .2); background: #FFD54F; }
+html[data-look] .lobby-host-badge, html[data-look] .lobby-mode-badge, html[data-look] .lobby-filter-badge { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border: 2px solid #fff; border-radius: 10px; font-weight: 800; }
+html[data-look] .lobby-team-col { border-radius: 18px; border: 3px solid #fff; box-shadow: 0 5px 0 rgba(0, 0, 0, .25); }
+html[data-look] .lobby-team-col:nth-child(1) { background: linear-gradient(#FF6F61, #C62828); }
+html[data-look] .lobby-team-col:nth-child(2) { background: linear-gradient(#5AC8FF, #1565C0); }
+html[data-look] .lobby-team-head { font-family: var(--gx-display); font-weight: 400; color: #fff; font-size: 20px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .lobby-team-member { background: rgba(255, 255, 255, .2); border-radius: 12px; color: #fff; font-weight: 800; }
+html[data-look] .lobby-waiting-spinner { border-color: rgba(255, 255, 255, .3); border-top-color: #FFE766; }
+
+/* live game */
+html[data-look] #compete-game-screen { background: radial-gradient(130% 80% at 50% 0%, #6F55E8 0%, #4A2BB0 45%, #2A1670 100%); }
+html[data-look] .compete-top-bar { background: rgba(10, 5, 40, .35); border-radius: 16px; padding: 6px 10px; }
+html[data-look] :is(.compete-q-counter, .compete-game-score, .compete-streak) { background: rgba(5, 20, 55, .6); border: 2px solid rgba(255, 255, 255, .45); border-radius: 20px; padding: 1px 10px; color: #fff; font-weight: 800; }
+html[data-look] .compete-streak { color: #FFE766; animation: gxFlick .5s ease-in-out infinite alternate; }
+@keyframes gxFlick { from { transform: scale(1) rotate(-3deg); } to { transform: scale(1.1) rotate(3deg); } }
+html[data-look] .compete-timer-bar { height: 14px; border-radius: 9px; border: 2px solid #fff; background: rgba(0, 0, 0, .35); overflow: hidden; }
+html[data-look] .compete-timer-fill { background: linear-gradient(90deg, #FF5252, #FFB300, #9CFF5A); }
+html[data-look] .compete-question-card { background: #fff !important; color: #22324F !important; border: 4px solid #fff; border-radius: 22px; box-shadow: 0 6px 0 rgba(0, 0, 0, .3), 0 14px 28px rgba(0, 0, 0, .25); }
+html[data-look] .compete-question-text { color: #22324F !important; font-weight: 800; }
+html[data-look] :is(.compete-option, .compete-tf-btn) {
+    border-radius: 16px !important; border: 3px solid rgba(0, 0, 0, .35) !important; box-shadow: 0 5px 0 rgba(0, 0, 0, .3) !important; color: #fff !important;
+    font-family: var(--gx-font); font-weight: 800; text-shadow: 0 1px 0 rgba(0, 0, 0, .3); transition: transform .1s;
+}
+html[data-look] .compete-option:nth-child(4n+1) { background: linear-gradient(var(--gx-red-1), var(--gx-red-2)) !important; }
+html[data-look] .compete-option:nth-child(4n+2) { background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)) !important; }
+html[data-look] .compete-option:nth-child(4n+3) { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)) !important; text-shadow: 0 1px 0 var(--gx-gold-edge); }
+html[data-look] .compete-option:nth-child(4n+4) { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)) !important; }
+html[data-look] .compete-tf-btn:nth-child(1) { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)) !important; }
+html[data-look] .compete-tf-btn:nth-child(2) { background: linear-gradient(var(--gx-red-1), var(--gx-red-2)) !important; }
+html[data-look] :is(.compete-option, .compete-tf-btn):active { transform: translateY(4px); box-shadow: 0 1px 0 rgba(0, 0, 0, .3) !important; }
+html[data-look] .compete-live-score-item { background: rgba(255, 255, 255, .16); border: 2px solid rgba(255, 255, 255, .35); border-radius: 12px; color: #fff; font-weight: 800; }
+html[data-look] .compete-power-btn { border-radius: 14px; border: 3px solid var(--gx-purple-ink); background: linear-gradient(var(--gx-purple-1), var(--gx-purple-2)); box-shadow: 0 4px 0 var(--gx-purple-edge); color: #fff; }
+html[data-look] .compete-team-bar { border: 2px solid #fff; border-radius: 10px; overflow: hidden; }
+html[data-look] .compete-clue { background: #fff; color: #22324F; border-radius: 12px; border: 2px solid #CFE3FF; font-weight: 700; animation: gxPopIn .4s cubic-bezier(.2, 1.6, .4, 1) both; }
+
+/* results */
+html[data-look] .compete-winner-section { position: relative; overflow: hidden; border-radius: 24px; border: 4px solid #fff; background: radial-gradient(circle at 50% 30%, #FFD66B, #FF9A2E 45%, #E5582B) !important; box-shadow: 0 7px 0 rgba(0, 0, 0, .25); color: #fff; }
+html[data-look] .compete-winner-section::before { content: ""; position: absolute; width: 600px; height: 600px; left: 50%; top: 40%; margin: -300px 0 0 -300px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, .4) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 16s linear infinite; pointer-events: none; }
+html[data-look] .compete-winner-section > * { position: relative; }
+html[data-look] .compete-winner-crown { font-size: 44px; animation: gxBob 1.4s ease-in-out infinite; display: inline-block; }
+html[data-look] .compete-winner-avatar { border: 5px solid #fff !important; box-shadow: 0 5px 0 rgba(0, 0, 0, .25), 0 0 24px 6px rgba(255, 230, 102, .8) !important; animation: gxBreathe 2.4s ease-in-out infinite; }
+html[data-look] .compete-winner-name { font-family: var(--gx-display); font-weight: 400; font-size: 28px; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+html[data-look] .compete-winner-score { font-family: var(--gx-display); font-weight: 400; color: #fff; text-shadow: 0 3px 0 #8A4B00; }
+html[data-look] .compete-result-player { background: #fff; color: #22324F; border: 3px solid #CFE3FF; border-radius: 16px; box-shadow: 0 4px 0 #A9C8F0; }
+html[data-look] .compete-result-player * { color: #22324F; }
+html[data-look] .compete-result-player .compete-result-score { color: #1565C0; font-weight: 800; }
+html[data-look] .compete-reward-card { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border: 3px solid #fff; border-radius: 18px; color: #5A2E00; box-shadow: 0 5px 0 var(--gx-gold-edge); animation: gxThrob 1.6s ease-in-out infinite; }
+html[data-look] .compete-team-winner { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; border: 3px solid #fff; border-radius: 18px; }
+html[data-look] .compete-exit-btn { border-radius: 12px; }

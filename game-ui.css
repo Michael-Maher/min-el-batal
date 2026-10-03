@@ -1191,3 +1191,43 @@ html[data-look] .result-rewards { color: #fff; font-weight: 800; }
 html[data-look] .mg-result-emoji { animation: gxStarSlam .7s cubic-bezier(.2, 1.6, .4, 1) both; display: inline-block; }
 html[data-look] .mg-result-stars { font-size: 40px; }
 html[data-look] .mg-result-score { font-family: var(--gx-display); font-weight: 400; color: #FFE766; text-shadow: 0 3px 0 #8A4B00; }
+html[data-look] #map-screen::before { background: linear-gradient(to bottom, rgba(30, 155, 240, .35) 0%, rgba(15, 74, 168, .8) 100%); }
+html[data-look] :is(.category-card) { border: 3px solid rgba(0, 0, 0, .3) !important; border-radius: 22px !important; box-shadow: 0 6px 0 rgba(0, 0, 0, .28) !important; background: linear-gradient(165deg, #FF9F5A, #E8650A) !important; color: #fff; }
+html[data-look] .category-card:nth-child(5n+2) { background: linear-gradient(165deg, #A77BFF, #6A35D9) !important; }
+html[data-look] .category-card:nth-child(5n+3) { background: linear-gradient(165deg, #4FD1C5, #00897B) !important; }
+html[data-look] .category-card:nth-child(5n+4) { background: linear-gradient(165deg, #F78FB3, #C2185B) !important; }
+html[data-look] .category-card:nth-child(5n+5) { background: linear-gradient(165deg, #5AC8FF, #1565C0) !important; }
+html[data-look] .cat-icon { animation: gxFloat 3s ease-in-out infinite; display: inline-block; filter: drop-shadow(0 4px 2px rgba(0, 0, 0, .25)); }
+html[data-look] .category-card h3 { font-family: var(--gx-display); font-weight: 400; font-size: 21px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+
+/* ============================================================
+   LEVEL 2 SUBJECT PICKER → world cards
+   ============================================================ */
+html[data-look] .l2-top-bar { background: linear-gradient(#1F5FBF, #133F8B); border: 3px solid #0A2A63; border-radius: 18px; box-shadow: 0 5px 0 #0A2A63; padding: 8px 10px; margin-bottom: 14px; }
+html[data-look] .l2-top-bar h2, html[data-look] .l2-top-bar .l2-title { font-family: var(--gx-display); font-weight: 400; color: #fff; }
+html[data-look] .l2-stats-mini { background: rgba(5, 20, 55, .6); border: 2px solid rgba(255, 255, 255, .45); border-radius: 20px; padding: 1px 10px; color: #fff; font-weight: 800; }
+html[data-look] .l2-hero-banner { border: 4px solid #fff; border-radius: 22px; box-shadow: 0 6px 0 rgba(0, 0, 0, .25); overflow: hidden; }
+html[data-look] .l2-hero-banner h2, html[data-look] .l2-hero-banner h3 { font-family: var(--gx-display); font-weight: 400; text-shadow: 0 3px 0 rgba(0, 0, 0, .45); }
+html[data-look] .l2-subjects-grid { gap: 16px; }
+html[data-look] .l2-subject-card {
+    position: relative; overflow: hidden; min-height: 116px; border: 4px solid #fff !important; border-radius: 22px !important; color: #fff;
+    box-shadow: 0 6px 0 rgba(0, 0, 0, .25), 0 12px 20px rgba(0, 0, 0, .2) !important; background-size: cover !important; background-position: center !important;
+    animation: gxPopIn .5s cubic-bezier(.2, 1.6, .4, 1) both;
+}
+html[data-look] .l2-subject-card:nth-child(1) { background: linear-gradient(270deg, rgba(106, 53, 217, .95) 40%, rgba(106, 53, 217, .55)), url('images/level2-bg-opt.jpg') !important; }
+html[data-look] .l2-subject-card:nth-child(2) { background: linear-gradient(270deg, rgba(21, 101, 192, .93) 40%, rgba(21, 101, 192, .25)), url('images/l2-bible-map.jpg') !important; animation-delay: .08s; }
+html[data-look] .l2-subject-card:nth-child(3) { background: linear-gradient(270deg, rgba(232, 101, 10, .93) 40%, rgba(232, 101, 10, .25)), url('images/l2-life-map.jpg') !important; animation-delay: .16s; }
+html[data-look] .l2-subject-card:nth-child(4) { background: linear-gradient(270deg, rgba(0, 137, 123, .93) 40%, rgba(0, 137, 123, .4)) !important; animation-delay: .24s; }
+html[data-look] .l2-subject-card:nth-child(1), html[data-look] .l2-subject-card:nth-child(2), html[data-look] .l2-subject-card:nth-child(3) { background-size: cover !important; }
+html[data-look] .l2-subject-card::after { content: ""; position: absolute; top: -20%; bottom: -20%; width: 40%; left: -60%; transform: skewX(-20deg); background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .4), transparent); animation: gxSweep 4.5s ease-in-out infinite; pointer-events: none; }
+html[data-look] .l2-subject-card:active { transform: scale(.97); }
+html[data-look] .l2-subject-icon { width: 58px !important; height: 58px !important; border-radius: 50% !important; font-size: 28px; background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .9), rgba(255, 255, 255, .35) 45%, rgba(255, 255, 255, .1) 70%) !important; box-shadow: inset 0 -4px 6px rgba(0, 0, 0, .2), 0 0 0 4px rgba(255, 255, 255, .25); animation: gxFloat 3s ease-in-out infinite; }
+html[data-look] .l2-subject-info h3, html[data-look] .l2-subject-info h4 { font-family: var(--gx-display); font-weight: 400; font-size: 22px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .45); }
+html[data-look] .l2-subject-desc { color: #fff; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+html[data-look] .l2-progress-bar { height: 10px; background: rgba(0, 0, 0, .35) !important; border: 2px solid rgba(255, 255, 255, .8); border-radius: 8px; }
+html[data-look] .l2-progress-fill { background: repeating-linear-gradient(-45deg, #FFE766 0 7px, #FFB300 7px 14px) !important; background-size: 20px 20px !important; animation: gxStripes 1s linear infinite; }
+html[data-look] .l2-progress-text { color: #fff; font-weight: 800; }
+html[data-look] .l2-subject-arrow { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); border: 3px solid var(--gx-green-ink); box-shadow: 0 3px 0 var(--gx-green-edge); color: #fff; animation: gxThrob 1.5s ease-in-out infinite; }
+html[data-look] .l2-subject-card.locked, html[data-look] .l2-subject-card.soon, html[data-look] .l2-subject-card[data-locked] { filter: grayscale(.8) brightness(.85); }
+html[data-look] .l2-exam-toggle-section { background: linear-gradient(180deg, var(--gx-panel-2), var(--gx-panel)); border: 3px solid var(--gx-ink); border-radius: 20px; box-shadow: 0 5px 0 var(--gx-ink); }
+html[data-look] .l2-exam-subject-item { border-radius: 14px; border: 3px solid rgba(0, 0, 0, .25); box-shadow: 0 3px 0 rgba(0, 0, 0, .25); }

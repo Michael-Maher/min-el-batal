@@ -1268,3 +1268,9 @@ html[data-look] .social-post-kind-verse { background: linear-gradient(#FFF6DC, #
 html[data-look] .social-post-tag { background: #EAF2FF; color: #1565C0; border-radius: 10px; font-weight: 800; }
 html[data-look] .social-post-actions button { border-radius: 12px; font-weight: 800; }
 html[data-look] .social-post-image { border-radius: 14px; border: 3px solid #EAF2FF; }
+html[data-look] .today-verse-card { background: linear-gradient(#FFF6DC, #F6E2B0) !important; border: 3px solid #B98A3E !important; border-radius: 18px !important; box-shadow: 0 5px 0 #8D6424 !important; color: #5A3A12 !important; }
+html[data-look] .today-verse-card * { color: #5A3A12 !important; }
+html[data-look] .today-verse-label { font-family: var(--gx-display); font-weight: 400; font-size: 17px; color: #8A3B00 !important; }
+html[data-look] .today-verse-pending { cursor: pointer; animation: gxThrob 1.8s ease-in-out infinite; }
+html[data-look] .today-verse-spin-prompt { font-weight: 800; }
+html[data-look] :is(.qa-hero-sub, .fqs-hero-sub, .social-hero-sub) { color: #fff !important; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 0, 0, .35); }

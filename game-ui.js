@@ -638,7 +638,8 @@ var GameUI = (function () {
         'bible-reading-screen': { icon: 'bible', art: 'card-james', tint: '90,50,200', title: 'إنجيل مار مرقس', sub: 'أصحاح كل يوم يقرّبك أكتر' },
         'devotion-screen': { icon: 'candle', art: 'bg-spiritual', tint: '90,50,200', title: 'خلوتي الشخصية', sub: 'وقتك الخاص مع ربنا الصبح وبليل' },
         'exercises-screen': { icon: 'dumbbell', art: 'bg-spiritual', tint: '90,50,200', title: 'التداريب الروحية', sub: 'تمرين صغير كل يوم بيعمل فرق كبير' },
-        'shop-screen': { icon: 'sword', art: 'bg-shop', tint: '150,70,10', title: 'متجر سلاح الله', sub: 'البس سلاح الله الكامل واكسب قوى جديدة' }
+        'shop-screen': { icon: 'sword', art: 'bg-shop', tint: '150,70,10', title: 'متجر سلاح الله', sub: 'البس سلاح الله الكامل واكسب قوى جديدة' },
+        'lamp-screen': { icon: 'lamp', art: 'bg-spiritual', tint: '120,60,10', title: 'سراجك', sub: 'كل مهمة بتعملها بتنوّر سراجك أكتر ✨' }
     };
     function renderHero(id) {
         var cfg = HEROES[id], screen = $(id);
@@ -652,7 +653,7 @@ var GameUI = (function () {
             hero.innerHTML = '<div class="gx-hero-art" style="background-image:url(\'images/ui/' + cfg.art + '.webp\')"></div>' +
                 '<div class="gx-rays gx-hero-rays"></div><img class="gx-hero-ic" src="images/ui/ic-' + cfg.icon + '.webp" alt="">' +
                 '<div class="gx-hero-txt"><div class="gx-hero-title">' + cfg.title + '</div><div class="gx-hero-sub"></div></div><span class="gx-shine"></span>';
-            var bar = inner.querySelector(':scope > .top-bar');
+            var bar = inner.querySelector(':scope > .top-bar, :scope > .lamp-top-bar');
             if (bar) bar.insertAdjacentElement('afterend', hero); else inner.insertBefore(hero, inner.firstChild);
             screen.classList.add('gx-heroed');
         }
@@ -756,6 +757,77 @@ var GameUI = (function () {
         box.querySelectorAll('[data-count]').forEach(function (el) { countTo(el, parseInt(el.getAttribute('data-count'), 10) || 0); });
     }
 
+    // ============================================================
+    // الخلوة: devotion as a game page (same data + same completeDevotionTask action)
+    // ============================================================
+    var WEEK_DAYS = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'];
+    function localKey(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+    function renderDevotionGame() {
+        var body = $('devotion-body');
+        if (!body) return;
+        var tipEl = body.querySelector('.devotion-tip-card p'), tip = tipEl ? tipEl.textContent : '';
+        var log = GameState.devotionLog || {}, today = log[localKey(new Date())] || {};
+        var streak = 0;
+        try { streak = calculateDevotionStreak(); } catch (e) {}
+        var doneToday = (today.morning ? 1 : 0) + (today.night ? 1 : 0);
+        var week = '';
+        for (var i = 6; i >= 0; i--) {
+            var d = new Date(); d.setDate(d.getDate() - i);
+            var l = log[localKey(d)] || {}, n = (l.morning ? 1 : 0) + (l.night ? 1 : 0);
+            week += '<div class="gx-wday' + (n === 2 ? ' full' : n === 1 ? ' half' : '') + (i === 0 ? ' today' : '') + '"><small>' + (i === 0 ? 'النهارده' : WEEK_DAYS[d.getDay()]) + '</small><span>' +
+                (n ? img(n === 2 ? 'flame' : 'candle') : '·') + '</span></div>';
+        }
+        function card(type, title, sub) {
+            var done = !!today[type];
+            return '<div class="gx-dv-card gx-dv-' + type + (done ? ' done' : '') + '">' +
+                '<div class="gx-dv-sky"><i class="gx-dv-orb"></i>' + (type === 'night' ? '<i class="gx-dv-st" style="left:20%;top:22%"></i><i class="gx-dv-st" style="left:62%;top:14%"></i><i class="gx-dv-st" style="left:44%;top:40%"></i>' : '') + '</div>' +
+                '<img class="gx-dv-ic" src="images/ui/ic-' + (type === 'night' ? 'lamp' : 'candle') + '.webp" alt="">' +
+                '<div class="gx-dv-txt"><b>' + title + '</b><span>' + sub + '</span><em>+5 ' + img('star') + '</em></div>' +
+                (done ? '<div class="gx-dv-stamp">✓ تمّت</div>'
+                    : '<button class="gx-btn gx-btn--green gx-throb gx-dv-go" onclick="completeDevotionTask(\'' + type + '\')">سجّل صلاتي</button>') +
+                '</div>';
+        }
+        body.innerHTML =
+            '<div class="gx-dv-hero">' +
+                '<div class="gx-dv-flame"><img src="images/ui/ic-flame.webp" alt=""><b>' + streak + '</b></div>' +
+                '<div class="gx-dv-htxt"><b>' + (streak ? streak + ' يوم ورا بعض في الصلاة' : 'ابدأ سلسلة صلاتك النهارده') + '</b><span>' + (doneToday === 2 ? 'خلّصت صلوات النهارده كلها! ربنا يفرّح قلبك 🙏' : 'صلّي الصبح وبليل عشان الشعلة تفضل منوّرة') + '</span></div>' +
+                '<div class="gx-lring" style="--p:' + (doneToday * 50) + '"><b>' + doneToday + '/2</b><small>النهارده</small></div>' +
+            '</div>' +
+            '<div class="gx-week">' + week + '</div>' +
+            card('morning', 'صلاة باكر', 'ابدأ يومك مع ربنا') +
+            card('night', 'صلاة النوم', 'اختم يومك بالشكر') +
+            (tip ? '<div class="gx-dv-tip"><img src="images/ui/ic-dove.webp" alt=""><div><b>نصيحة اليوم</b><p>' + tip + '</p></div></div>' : '');
+    }
+
+    // ============================================================
+    // الإنجيل: chapter road + mission board (keeps every original control)
+    // ============================================================
+    function enhanceBible() {
+        var body = $('bible-reading-body');
+        if (!body) return;
+        var grid = body.querySelector('.bible-chapters-grid');
+        if (grid) {
+            var done = grid.querySelectorAll('.bible-ch-item.done').length, total = grid.children.length;
+            var wrap = document.createElement('div');
+            wrap.className = 'gx-chroad-wrap';
+            wrap.innerHTML = '<div class="gx-chroad-head"><b>رحلة إنجيل مرقس</b><span>' + img('bible') + ' ' + done + ' / ' + total + ' أصحاح</span></div>';
+            grid.classList.add('gx-chroad');
+            wrap.appendChild(grid);
+            body.insertBefore(wrap, body.firstChild);
+            var t = body.querySelector('.bible-chapters-title'); if (t) t.remove();
+            var p = body.querySelector('.bible-progress-section'); if (p) p.remove();
+            var cur = grid.querySelector('.current');
+            if (cur) setTimeout(function () { grid.scrollLeft = cur.offsetLeft - grid.clientWidth / 2 + cur.offsetWidth / 2; }, 60);
+        }
+        var cc = body.querySelector('.bible-chapter-card');
+        if (cc && !cc.querySelector('.gx-mission-tag')) {
+            var tag = document.createElement('div');
+            tag.className = 'gx-mission-tag';
+            tag.innerHTML = img('pin') + ' مهمة النهارده';
+            cc.insertBefore(tag, cc.firstChild);
+        }
+    }
+
     // ---------- Card enhancer: emoji / glyph → 3D icon showcase, info chips ----------
     var EMOJI_IC = {
         '⛑': 'helmet', '🛡': 'shield', '🔰': 'shield', '🗡': 'sword', '⚔': 'sword', '🎁': 'gift', '🔥': 'flame', '🏆': 'trophy',
@@ -766,10 +838,11 @@ var GameUI = (function () {
         '🪔': 'lamp', '🚩': 'flag', '📍': 'pin', '🛍': 'bag', '🛒': 'bag', '🤲': 'pray', '✝': 'church', '🎯': 'pin'
     };
     var MODE_IC = { sparkle: 'stars2', speed: 'hourglass', classic: 'trophy', team: 'friends', clues: 'crown', verse: 'bible', scenario: 'chat', startBlitz: 'flame', openDuelHub: 'sword' };
-    var ICON_BOX = '.shop-item-icon, .reward-icon, .streak-reward-icon, .compete-mode-icon, .ach-icon, .museum-card-visual, .museum-trophy-icon, ' +
+    var ICON_BOX = '.shop-item-icon, .reward-icon, .streak-reward-icon, .compete-mode-icon, .ach-icon, .museum-trophy-icon, ' +
         '.pd-stat-icon, .info-way-icon, .l1-game-icon, .exercise-icon, .lamp-mission-icon, .cat-icon, .mg-card-icon, .ssc-icon, .l1-subject-icon, .l2-subject-icon, ' +
         '.selfie-hero-emoji, .selfie-noteam-ico, .selfie-soon-ico, .fqs-hero-icon, .social-hero-icon, .qa-empty-icon, .devotion-icon';
     function iconFor(box) {
+        if (box.classList.contains('museum-trophy-icon')) return 'trophy';
         var card = box.closest('.compete-mode-card');
         if (card) {
             var m = (card.getAttribute('onclick') || '').match(/selectCompeteMode\('(\w+)'\)|(startBlitz)|(openDuelHub)/);
@@ -829,7 +902,7 @@ var GameUI = (function () {
 
     return {
         setLook: setLook, lookPref: lookPref, applyLook: applyLook,
-        continueJourney: continueJourney, renderProfile: renderProfile, onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
+        continueJourney: continueJourney, renderProfile: renderProfile, renderDevotionGame: renderDevotionGame, enhanceBible: enhanceBible, onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
         onNewDay: onNewDay, openDaily: openDaily, openSeason: openSeason,
         img: img, whenFree: whenFree, grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp, praise: praise, breakCombo: breakCombo,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal
@@ -877,6 +950,9 @@ var GameUI = (function () {
             GameUI.whenFree(function () { orig.apply(self, args); });
         };
     })();
+    // الخلوة / الإنجيل: game layouts on top of the original renders
+    wrap('renderDevotion', function () { GameUI.renderDevotionGame(); });
+    wrap('renderBibleReading', function () { GameUI.enhanceBible(); });
     // تقدّمي: the profile page replaces the plain dashboard every time it renders
     wrap('renderProgressDashboard', function () { GameUI.renderProfile(); });
     // Quiz power-ups: Font Awesome glyphs → 3D icons

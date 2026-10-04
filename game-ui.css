@@ -1602,3 +1602,133 @@ html[data-look] .open-team-status { font-weight: 800; color: #fff; background: r
 html[data-look] .team-create-card h3, html[data-look] .teams-browse-title { font-family: var(--gx-display); font-weight: 400; font-size: 21px; color: #fff; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); text-align: center; }
 html[data-look] .team-logo-option:not(#gx) { width: 46px; height: 46px; font-size: 24px; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .85), rgba(255, 255, 255, .25) 55%, rgba(255, 255, 255, .1)); }
 html[data-look] .team-logo-option.selected:not(#gx) { transform: scale(1.12); }
+
+/* ============================================================
+   الخلوة — DEVOTION GAME PAGE
+   ============================================================ */
+.gx-dv-hero { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; padding: 12px 12px; margin-bottom: 12px; border-radius: 22px; border: 4px solid #fff; color: #fff;
+    background: radial-gradient(circle at 15% 50%, #FFB74D, #E8650A 45%, #7A2A00); box-shadow: 0 6px 0 rgba(0, 0, 0, .25), 0 12px 24px rgba(0, 0, 0, .2); animation: gxPopIn .5s cubic-bezier(.2, 1.5, .4, 1) both; }
+.gx-dv-flame { position: relative; width: 78px; height: 84px; flex-shrink: 0; }
+.gx-dv-flame img { width: 78px; height: 78px; animation: gxFlick .45s ease-in-out infinite alternate; filter: drop-shadow(0 0 12px rgba(255, 180, 60, .9)); }
+.gx-dv-flame b { position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); font-family: var(--gx-display); font-weight: 400; font-size: 26px; line-height: 1; color: #fff; text-shadow: 0 3px 0 #8A2A00, 0 0 8px #000; }
+.gx-dv-htxt { flex: 1; min-width: 0; }
+.gx-dv-htxt b { display: block; font-family: var(--gx-display); font-weight: 400; font-size: 19px; line-height: 1.2; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.gx-dv-htxt span { font-size: 11.5px; font-weight: 800; line-height: 1.4; }
+.gx-dv-hero .gx-lring { width: 64px; height: 64px; }
+.gx-dv-hero .gx-lring b { font-size: 19px; }
+.gx-week { display: flex; gap: 5px; margin-bottom: 14px; }
+.gx-wday { flex: 1; text-align: center; border-radius: 14px; padding: 5px 0 6px; background: rgba(30, 15, 80, .45); border: 2px solid rgba(255, 255, 255, .3); }
+.gx-wday small { display: block; font-size: 9.5px; font-weight: 800; color: #fff; }
+.gx-wday span { display: block; height: 26px; line-height: 26px; font-size: 18px; color: rgba(255, 255, 255, .5); }
+.gx-wday .gx-i { width: 24px; height: 24px; }
+.gx-wday.half { background: linear-gradient(#C49CFF, #7B3FE4); border-color: #fff; }
+.gx-wday.full { background: linear-gradient(#FFC061, #E8650A); border-color: #fff; }
+.gx-wday.today { box-shadow: 0 0 0 3px #FFE766, 0 0 12px 3px rgba(255, 214, 90, .6); }
+.gx-dv-card { position: relative; overflow: hidden; display: flex; align-items: center; gap: 10px; min-height: 120px; padding: 12px; margin-bottom: 14px; border-radius: 22px; border: 4px solid #fff; color: #fff; box-shadow: 0 6px 0 rgba(0, 0, 0, .25), 0 12px 22px rgba(0, 0, 0, .2); animation: gxPopIn .5s cubic-bezier(.2, 1.5, .4, 1) both; }
+.gx-dv-morning { background: linear-gradient(180deg, #7FD3F7 0%, #FFC27A 70%, #FF9A4D 100%); }
+.gx-dv-night { background: linear-gradient(180deg, #0B1340 0%, #2B2F7A 70%, #4A3C9A 100%); animation-delay: .08s; }
+.gx-dv-sky { position: absolute; inset: 0; pointer-events: none; }
+.gx-dv-orb { position: absolute; left: 22px; top: 18px; width: 64px; height: 64px; border-radius: 50%; }
+.gx-dv-morning .gx-dv-orb { background: radial-gradient(circle, #FFF6B0, #FFD54A 55%, rgba(255, 180, 60, 0) 72%); box-shadow: 0 0 40px 18px rgba(255, 214, 90, .55); animation: gxThrob 3s ease-in-out infinite; }
+.gx-dv-night .gx-dv-orb { width: 52px; height: 52px; left: 26px; top: 14px; box-shadow: -11px 6px 0 0 #FFE9A8; filter: drop-shadow(0 0 12px rgba(255, 233, 168, .7)); }
+.gx-dv-st { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #fff; animation: gxTwinkle 2.4s ease-in-out infinite; }
+.gx-dv-st:nth-child(3) { animation-delay: -.8s; } .gx-dv-st:nth-child(4) { animation-delay: -1.6s; }
+.gx-dv-ic { position: relative; z-index: 1; width: 74px; height: 74px; flex-shrink: 0; margin-top: 26px; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .35)); animation: gxFloat 3s ease-in-out infinite; }
+.gx-dv-txt { position: relative; z-index: 1; flex: 1; min-width: 0; }
+.gx-dv-txt b { display: block; font-family: var(--gx-display); font-weight: 400; font-size: 23px; line-height: 1.15; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+.gx-dv-txt span { display: block; font-size: 12px; font-weight: 800; text-shadow: 0 1px 3px rgba(0, 0, 0, .45); }
+.gx-dv-txt em { display: inline-flex; align-items: center; gap: 3px; margin-top: 4px; font-style: normal; font-size: 12px; font-weight: 800; background: rgba(0, 0, 0, .3); border-radius: 10px; padding: 1px 8px; }
+.gx-dv-txt em .gx-i { width: 16px; height: 16px; }
+.gx-dv-go { position: relative; z-index: 1; flex-shrink: 0; font-size: 18px !important; padding: 8px 14px 4px !important; }
+.gx-dv-stamp { position: relative; z-index: 1; flex-shrink: 0; font-family: var(--gx-display); font-size: 19px; padding: 6px 12px 2px; color: #5A2E00; border-radius: 14px; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border: 3px solid #fff; box-shadow: 0 4px 0 var(--gx-gold-edge); transform: rotate(-8deg); animation: gxEmbPop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+.gx-dv-card.done { filter: saturate(1.05); }
+.gx-dv-tip { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 20px; color: #5A3A12; background: linear-gradient(#FFF6DC, #F6E2B0); border: 3px solid #B98A3E; box-shadow: 0 5px 0 #8D6424; }
+.gx-dv-tip img { width: 54px; height: 54px; flex-shrink: 0; animation: gxFloat 3s ease-in-out infinite; }
+.gx-dv-tip b { font-family: var(--gx-display); font-weight: 400; font-size: 18px; color: #8A3B00; }
+.gx-dv-tip p { margin: 0; font-weight: 800; font-size: 13px; line-height: 1.6; }
+
+/* ============================================================
+   الإنجيل — CHAPTER ROAD + MISSION BOARD
+   ============================================================ */
+.gx-chroad-wrap { margin-bottom: 16px; padding: 10px 0 4px; border-radius: 22px; background: rgba(30, 15, 80, .45); border: 2px solid rgba(255, 255, 255, .35); }
+.gx-chroad-head { display: flex; justify-content: space-between; align-items: center; padding: 0 12px 6px; color: #fff; }
+.gx-chroad-head b { font-family: var(--gx-display); font-weight: 400; font-size: 19px; }
+.gx-chroad-head span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; background: rgba(0, 0, 0, .3); border-radius: 10px; padding: 1px 8px; }
+html[data-look] .gx-chroad:not(#gx) { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; grid-template-columns: none !important; gap: 0 !important; overflow-x: auto; scrollbar-width: none; padding: 8px 10px 6px; scroll-behavior: smooth; }
+.gx-chroad::-webkit-scrollbar { display: none; }
+html[data-look] .gx-chroad .bible-ch-item:not(#gx) { position: relative; flex: 0 0 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; cursor: pointer; }
+html[data-look] .gx-chroad .bible-ch-item:not(#gx)::before { content: ""; position: absolute; top: 25px; right: 50%; width: 100%; height: 6px; background: rgba(255, 255, 255, .3); z-index: 0; }
+html[data-look] .gx-chroad .bible-ch-item:first-child::before { display: none; }
+html[data-look] .gx-chroad .bible-ch-item.done:not(#gx)::before { background: #FFB300; }
+html[data-look] .gx-chroad .bible-ch-num { position: relative; z-index: 1; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: var(--gx-display); font-size: 22px; padding-top: 3px; color: #fff; background: linear-gradient(var(--gx-blue-1), var(--gx-blue-2)); border: 3px solid #fff; box-shadow: 0 4px 0 rgba(0, 0, 0, .3); }
+html[data-look] .gx-chroad .bible-ch-item.done .bible-ch-num { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: #5A2E00; }
+html[data-look] .gx-chroad .bible-ch-item.current .bible-ch-num { width: 60px; height: 60px; margin-top: -4px; background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); animation: gxThrob 1.2s ease-in-out infinite; box-shadow: 0 4px 0 var(--gx-green-edge), 0 0 0 4px rgba(156, 255, 90, .35), 0 0 18px 6px rgba(156, 255, 90, .6); }
+html[data-look] .gx-chroad .bible-ch-title { font-size: 9.5px; font-weight: 800; line-height: 1.25; color: #fff; text-align: center; width: 68px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+html[data-look] .gx-chroad .bible-ch-check { position: absolute; top: -4px; left: 6px; z-index: 2; color: #2FB31A; background: #fff; border-radius: 50%; font-size: 16px; }
+html[data-look] .bible-chapter-card:not(#gx) { padding: 0 0 14px !important; overflow: hidden; background: linear-gradient(180deg, rgba(96, 62, 205, .9), rgba(62, 32, 152, .92)) !important; border: 4px solid #fff !important; border-radius: 24px !important; box-shadow: 0 7px 0 rgba(30, 10, 80, .5), 0 14px 26px rgba(0, 0, 0, .25) !important; }
+.gx-mission-tag { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 0 4px; font-family: var(--gx-display); font-size: 18px; color: #5A2E00; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border-bottom: 3px solid rgba(0, 0, 0, .2); }
+.gx-mission-tag .gx-i { width: 24px; height: 24px; }
+html[data-look] .bible-chapter-card > .bible-chapter-number { display: inline-block; margin: 14px auto 2px; padding: 4px 16px 1px; border-radius: 14px; font-size: 18px; color: #fff; background: rgba(0, 0, 0, .3); border: 2px solid rgba(255, 255, 255, .5); }
+html[data-look] .bible-chapter-card { text-align: center; }
+html[data-look] .bible-chapter-card > h3 { font-family: var(--gx-display); font-weight: 400; font-size: 26px; margin: 4px 14px; color: #fff; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+html[data-look] .bible-chapter-verses { display: inline-block; font-weight: 800; color: #fff; background: rgba(0, 0, 0, .25); border-radius: 10px; padding: 0 10px; }
+html[data-look] :is(.bible-chapter-summary, .bible-full-text, .bible-user-summary):not(#gx) { margin: 12px 12px 0 !important; text-align: right; color: #4A3010 !important; background: linear-gradient(#FFF8E4, #F4E1B4) !important; border: 3px solid #C9A057 !important; border-radius: 18px !important; box-shadow: 0 4px 0 #8D6424 !important; padding: 12px 14px !important; }
+html[data-look] :is(.bible-chapter-summary, .bible-full-text) :is(h4, p, span) { color: #4A3010 !important; }
+html[data-look] .bible-full-text-title, html[data-look] .bible-chapter-summary h4 { font-family: var(--gx-display); font-weight: 400 !important; font-size: 18px; color: #8A3B00 !important; }
+html[data-look] .bible-verse-line { border-radius: 8px; padding: 2px 4px; font-weight: 700; line-height: 2; transition: background .2s; }
+html[data-look] .bible-verse-line.highlighted { background: linear-gradient(transparent 35%, #FFE766 35%, #FFE766 85%, transparent 85%) !important; }
+html[data-look] .bible-full-text .bible-verse-num { color: #B23A00 !important; font-weight: 800; }
+html[data-look] .bible-share-btn { color: #8D6424 !important; }
+html[data-look] .bible-tap-hint { color: #8D6424 !important; }
+html[data-look] .bible-video-section:not(#gx) { margin: 12px 12px 0; padding: 10px !important; text-align: right; background: linear-gradient(#2B2F45, #14172A) !important; border: 4px solid #4B5070 !important; border-radius: 20px !important; box-shadow: 0 5px 0 #0A0C18 !important; }
+html[data-look] .bible-video-icon { color: #FF5252; font-size: 28px; }
+html[data-look] .bible-video-wrap iframe { border: 3px solid #000; }
+html[data-look] .bible-action-section:not(#gx) { margin: 12px 12px 0 !important; padding: 12px !important; text-align: right; background: linear-gradient(170deg, #4A93F0, #1C55B8) !important; border: 3px solid #fff !important; border-radius: 18px !important; box-shadow: 0 5px 0 rgba(0, 0, 0, .3) !important; }
+html[data-look] .bible-action-hint { font-family: var(--gx-display); font-size: 18px; color: #fff; }
+html[data-look] :is(.bible-done-badge, .bible-video-watched) { margin: 12px 12px 0; padding: 8px 12px 6px; border-radius: 14px; font-family: var(--gx-display); font-size: 17px; color: #fff; background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); border: 3px solid #fff; box-shadow: 0 4px 0 var(--gx-green-edge); }
+
+/* ============================================================
+   المتحف — TROPHY SHELF + COLLECTION ALBUM
+   ============================================================ */
+html[data-look] .museum-header-card:not(#gx) { display: flex; align-items: center; gap: 12px; padding: 12px 14px !important; color: #5A2E00; background: linear-gradient(170deg, #FFE16B, #E59A00) !important; border: 3px solid #fff !important; box-shadow: 0 5px 0 #A85E00 !important; }
+html[data-look] .museum-header-icon { font-size: 0 !important; width: 70px; height: 70px; flex-shrink: 0; background: url('images/ui/ic-chest-open.webp') center / contain no-repeat; animation: gxBob 2.2s ease-in-out infinite; }
+html[data-look] .museum-header-info h2 { font-family: var(--gx-display); font-weight: 400; font-size: 21px; color: #5A2E00 !important; margin: 0; }
+html[data-look] .museum-header-info p { color: #7A4A12 !important; font-weight: 800; font-size: 12px; margin: 0 0 4px; }
+html[data-look] .museum-header-card .museum-total-bar { border-color: #fff; background: rgba(90, 46, 0, .25) !important; }
+html[data-look] .museum-total-text { color: #5A2E00 !important; font-weight: 800; }
+html[data-look] .museum-trophies { position: relative; margin-top: 18px; }
+html[data-look] .museum-trophies > h3 { font-family: var(--gx-display); font-weight: 400; color: #fff; font-size: 21px; text-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+html[data-look] .museum-trophy-grid:not(#gx) { position: relative; display: grid !important; grid-template-columns: repeat(4, 1fr) !important; gap: 6px !important; padding: 8px 8px 26px; }
+html[data-look] .museum-trophy-grid::after { content: ""; position: absolute; left: 0; right: 0; bottom: 4px; height: 22px; border-radius: 6px; background: linear-gradient(#B07A44, #6B4220); border: 3px solid #3E2410; box-shadow: 0 5px 0 rgba(0, 0, 0, .35); }
+html[data-look] .museum-trophy-card:not(#gx) { position: relative; z-index: 1; background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; text-align: center; overflow: visible; }
+html[data-look] .museum-trophy-glow { display: none; }
+html[data-look] .museum-trophy-card .museum-trophy-icon.gx-show:not(#gx) { width: 72px !important; height: 72px !important; background: none !important; box-shadow: none !important; margin: 0 auto -4px; }
+html[data-look] .museum-trophy-card .museum-trophy-icon.gx-show > .gx-i { width: 66px; height: 66px; }
+html[data-look] .museum-trophy-card:not(.earned) .museum-trophy-icon .gx-i { filter: brightness(0) opacity(.45); }
+html[data-look] .museum-trophy-card.earned .museum-trophy-icon .gx-i { filter: drop-shadow(0 0 10px rgba(255, 214, 90, .9)); }
+html[data-look] .museum-trophy-card :is(.museum-trophy-name, .museum-trophy-progress):not(#gx) { color: #fff !important; font-size: 10.5px; line-height: 1.2; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+html[data-look] .museum-trophy-card .museum-trophy-progress:not(#gx) { display: inline-block; margin-top: 2px; background: rgba(0, 0, 0, .35); border-radius: 8px; padding: 0 6px; }
+html[data-look] .museum-subject:not(#gx) { padding: 0 0 12px !important; overflow: hidden; }
+html[data-look] .museum-subject-header { display: flex; justify-content: space-between; align-items: center; padding: 10px 14px 7px; margin-bottom: 10px; font-family: var(--gx-display); font-size: 19px; color: #fff; background: linear-gradient(var(--sub-color, #6C5CE7), color-mix(in srgb, var(--sub-color, #6C5CE7) 70%, #000)); border-bottom: 3px solid rgba(0, 0, 0, .25); }
+html[data-look] .museum-count { font-family: var(--gx-font); font-size: 12px; font-weight: 800; background: rgba(0, 0, 0, .3); border-radius: 10px; padding: 1px 9px; }
+html[data-look] .museum-grid { padding: 0 10px; }
+html[data-look] .museum-card:not(#gx) { --tile: linear-gradient(170deg, #3A4560, #1E2740); padding: 0 0 8px !important; text-align: center; }
+html[data-look] .museum-card.earned:not(#gx) { --tile: linear-gradient(170deg, #FFE16B, #E59A00); cursor: pointer; }
+html[data-look] .museum-card-visual { height: 84px; display: flex; align-items: center; justify-content: center; border-bottom: 3px solid rgba(0, 0, 0, .25); position: relative; overflow: hidden; }
+html[data-look] .museum-card-fa { font-size: 38px; color: #fff; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .35)); }
+html[data-look] .museum-card.earned .museum-card-fa { animation: gxFloat 3s ease-in-out infinite; }
+html[data-look] .museum-card-info { padding: 6px 8px 0; }
+html[data-look] .museum-card.earned :is(.museum-card-name, .museum-card-desc, .museum-card-verse) { color: #5A2E00 !important; }
+html[data-look] .museum-card-name { font-family: var(--gx-display); font-weight: 400; font-size: 16px; color: #fff; }
+html[data-look] .museum-card-hint { font-size: 10.5px; font-weight: 700; color: rgba(255, 255, 255, .8) !important; }
+html[data-look] .museum-header-card:not(#gx) { flex-direction: row !important; text-align: right; }
+html[data-look] .museum-header-info { flex: 1; min-width: 0; }
+html[data-look] .museum-trophy-grid:not(#gx) { padding: 8px 8px 6px !important; }
+html[data-look] .museum-trophy-grid::after { top: 72px; bottom: auto !important; height: 18px; z-index: 0; }
+html[data-look] .museum-trophy-card .museum-trophy-name:not(#gx) { margin-top: 14px; }
+/* lamp screen: the floating lamp blends into the scene instead of a dark box */
+html[data-look] .lamp-fixed-bottom { background: none !important; border: 0 !important; box-shadow: none !important; }
+html[data-look] .lamp-fixed-bottom img, html[data-look] .lamp-main-image { mix-blend-mode: screen; -webkit-mask: radial-gradient(circle, #000 42%, transparent 70%); mask: radial-gradient(circle, #000 42%, transparent 70%); background: none !important; }
+html[data-look] #lamp-screen .gx-hero::before { background: linear-gradient(270deg, rgba(var(--tint), .9) 35%, rgba(var(--tint), .2) 80%); }
+html[data-look] .lamp-mission-card .lamp-mission-chapter, html[data-look] .lamp-mission-card [style*="color"] { text-shadow: none; }
+html[data-look] .lamp-mission-card :is(div, p)[style*="background"] { background: rgba(0, 0, 0, .28) !important; color: #FFE766 !important; border-radius: 12px; }

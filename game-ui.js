@@ -448,7 +448,7 @@ var GameUI = (function () {
         var names = { bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي 👑' };
         var m = modal('<span class="gx-ribbon gx-ribbon--gold">ترقية!</span>',
             '<div class="gx-emb ' + tier + ' pop"><div class="sh"></div><div class="sh2"><img src="' + charImage(charKey) + '" alt=""></div><img class="gx-emb-badge" src="images/ui/ic-tier-' + tier + '.webp" alt=""></div>' +
-            '<div class="gx-boss-name">' + (ch ? ch.name : '') + ' · ' + (names[tier] || tier) + '</div>' +
+            '<div class="gx-modal-title">' + (ch ? ch.name : '') + ' · ' + (names[tier] || tier) + '</div>' +
             (title ? '<div class="gx-pill" style="background:linear-gradient(#FFE766,#FFB300);color:#5A2E00;border-color:#fff">لقب جديد: ' + title + '</div>' : '') +
             '<br><button class="gx-btn gx-btn--green gx-throb">يا سلام!</button>');
         m.el.querySelector('.gx-btn').onclick = m.close;
@@ -484,34 +484,37 @@ var GameUI = (function () {
     // ============================================================
     // Hub
     // ============================================================
-    var bossCache = null, bossAt = 0;
-    function renderBoss() {
-        var nameEl = $('gx-boss-name'), hpEl = $('gx-boss-hp'), meta = $('gx-boss-meta');
-        if (!nameEl) return;
-        function paint(b) {
-            var hp = b.bossHP || 500, dmg = Math.min(b.totalDamage || 0, hp);
-            nameEl.textContent = b.bossName || 'الوحش';
-            // boss art: Goliath when the admin names him, Arius otherwise
-            var key = /جليات|جوليات/.test(b.bossName || '') ? 'goliath' : 'arius';
-            document.documentElement.setAttribute('data-boss', key);
-            var fig = $('gx-boss-figure');
-            if (fig) fig.src = 'images/ui/boss-' + key + '.webp';
-            hpEl.style.width = Math.max(0, 100 - dmg / hp * 100) + '%';
-            var fought = GameState.bossFoughtDate === today();
-            var defeated = b.status === 'defeated' || dmg >= hp;
-            meta.textContent = defeated ? '🎉 الأبطال هزموه الأسبوع ده!' :
-                (fought ? '✅ قاتلت النهارده · ارجع بكره' : 'الأبطال ضربوه ' + Math.round(dmg / hp * 100) + '% · هاجم معاهم!');
-        }
-        if (bossCache) paint(bossCache);
-        if (typeof firebaseDb === 'undefined' || !firebaseDb || Date.now() - bossAt < 60000) return;
-        bossAt = Date.now();
-        firebaseDb.collection('bossBattle').doc('current').get().then(function (doc) {
-            if (!doc.exists) return;
-            var b = doc.data();
-            if (typeof getWeekKey === 'function' && b.weekKey !== getWeekKey()) { b.totalDamage = 0; b.status = 'active'; }
-            bossCache = b;
-            paint(b);
-        }).catch(function () {});
+    // ---------- "كمّل رحلتك": the subject the player is in the middle of ----------
+    var CONTINUE_ART = { l1_bible: 'card-l1', l1_service: 'card-faith', l2_life: 'card-life', l2_bible: 'card-james' };
+    var CONTINUE_HERO = { l1_bible: 'david', l1_service: 'verina', l2_life: 'philomena', l2_bible: 'paul' };
+    var continueKey = null;
+    function pickSubject() {
+        if (typeof LEVEL1_SUBJECTS === 'undefined' || typeof l1SubjectProgress !== 'function') return null;
+        var best = null;
+        Object.keys(LEVEL1_SUBJECTS).forEach(function (key) {
+            if (typeof isContentLocked === 'function' && isContentLocked('subject_' + key)) return;
+            var p = l1SubjectProgress(key);
+            if (p.passed >= p.total) return;
+            if (!best || p.pts > best.p.pts) best = { key: key, p: p };
+        });
+        return best;
+    }
+    function renderContinue() {
+        var box = $('gx-continue');
+        if (!box) return;
+        var pick = pickSubject();
+        if (!pick) { box.style.display = 'none'; return; }
+        box.style.display = '';
+        continueKey = pick.key;
+        var sub = LEVEL1_SUBJECTS[pick.key], st = sub.stations[pick.p.passed] || {};
+        $('gx-continue-title').textContent = sub.name;
+        $('gx-continue-sub').textContent = (sub.level === 2 ? 'المستوى الثاني' : 'المستوى الأول') + ' · المحطة ' + (pick.p.passed + 1) + ' من ' + pick.p.total + (st.title ? ': ' + st.title : '');
+        $('gx-continue-bar').style.width = Math.round(pick.p.passed / pick.p.total * 100) + '%';
+        $('gx-continue-art').style.backgroundImage = "url('images/ui/" + (CONTINUE_ART[pick.key] || 'card-l2') + ".webp')";
+        $('gx-continue-hero').src = charImage(CONTINUE_HERO[pick.key] || 'david');
+    }
+    function continueJourney() {
+        if (continueKey && typeof l1OpenSubject === 'function') l1OpenSubject(continueKey);
     }
 
     function renderTopbar() {
@@ -547,7 +550,7 @@ var GameUI = (function () {
         renderTopbar();
         renderDaily();
         renderSeason();
-        renderBoss();
+        renderContinue();
         renderProgress();
     }
 
@@ -595,7 +598,7 @@ var GameUI = (function () {
         document.body.appendChild(r);
         setTimeout(function () { r.remove(); }, 600);
     }
-    var REVEAL = '.gx-ribbon, .hub-card, .gx-season, .gx-boss, .spiritual-card, .l2-subject-card, .shop-item-card, .reward-card, ' +
+    var REVEAL = '.gx-ribbon, .hub-card, .gx-season, .gx-continue, .spiritual-card, .l2-subject-card, .shop-item-card, .reward-card, ' +
         '.compete-mode-card, .lb-item-modern, .achievement-card, .l1-game-card, .l1-subject-card, .settings-section, .museum-card, ' +
         '.pd-stat-card, .exercise-item, .lamp-mission-card, .qa-thread-row, .social-post, .info-way-card, .bible-ch-item, .category-card';
     var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (entries) {
@@ -622,8 +625,48 @@ var GameUI = (function () {
             io.observe(el);
         });
     }
+    // ---------- Card enhancer: emoji / glyph → 3D icon showcase, info chips ----------
+    var EMOJI_IC = {
+        '⛑': 'helmet', '🛡': 'shield', '🔰': 'shield', '🗡': 'sword', '⚔': 'sword', '🎁': 'gift', '🔥': 'flame', '🏆': 'trophy',
+        '⛪': 'church', '📖': 'bible', '🙏': 'pray', '⭐': 'star', '🌟': 'star', '🕊': 'dove', '📜': 'map', '💎': 'gem', '👑': 'crown',
+        '🏅': 'medal', '🥇': 'medal', '❤': 'heart', '🔒': 'lock', '💡': 'hint', '❄': 'freeze', '✂': 'scissors', '🕯': 'candle',
+        '💪': 'dumbbell', '🗺': 'map', '⏳': 'hourglass', '📢': 'megaphone', '👥': 'friends', '🔔': 'bell', '📷': 'camera', '📸': 'camera',
+        '💬': 'chat', '⚙': 'gear', '🧭': 'compass', '🏛': 'museum', '📈': 'chart', '📊': 'chart', '🎡': 'wheel', '🧰': 'chest',
+        '🪔': 'lamp', '🚩': 'flag', '📍': 'pin', '🛍': 'bag', '🛒': 'bag', '🤲': 'pray', '✝': 'church', '🎯': 'pin'
+    };
+    var MODE_IC = { sparkle: 'stars2', speed: 'hourglass', classic: 'trophy', team: 'friends', clues: 'crown', verse: 'bible', scenario: 'chat', startBlitz: 'flame', openDuelHub: 'sword' };
+    var ICON_BOX = '.shop-item-icon, .reward-icon, .streak-reward-icon, .compete-mode-icon, .ach-icon, .museum-card-visual, .museum-trophy-icon, ' +
+        '.pd-stat-icon, .info-way-icon, .l1-game-icon, .exercise-icon, .lamp-mission-icon, .cat-icon, .mg-card-icon, .ssc-icon, .l1-subject-icon, .l2-subject-icon, ' +
+        '.selfie-hero-emoji, .selfie-noteam-ico, .selfie-soon-ico, .fqs-hero-icon, .social-hero-icon, .qa-empty-icon, .devotion-icon';
+    function iconFor(box) {
+        var card = box.closest('.compete-mode-card');
+        if (card) {
+            var m = (card.getAttribute('onclick') || '').match(/selectCompeteMode\('(\w+)'\)|(startBlitz)|(openDuelHub)/);
+            if (m) return MODE_IC[m[1] || m[2] || m[3]];
+        }
+        var t = (box.textContent || '').replace(/\uFE0F/g, '').trim();
+        if (!t || Array.from(t).length > 2) return null;
+        return EMOJI_IC[Array.from(t)[0]] || null;
+    }
+    function enhance() {
+        document.querySelectorAll('.screen.active ' + ICON_BOX.split(', ').join(', .screen.active ')).forEach(function (box) {
+            if (box._gx) return;
+            box._gx = true;
+            box.classList.add('gx-show');
+            var name = iconFor(box), t = (box.textContent || '').trim();
+            if (name) box.innerHTML = img(name);
+            else if (t && !box.children.length && Array.from(t).length <= 3) box.innerHTML = '<span class="gx-emo">' + t + '</span>';
+        });
+        document.querySelectorAll('.screen.active .compete-mode-badge').forEach(function (b) {
+            if (b._gx) return;
+            b._gx = true;
+            var parts = b.textContent.split('·').map(function (x) { return x.trim(); }).filter(Boolean);
+            if (parts.length > 1) b.innerHTML = parts.map(function (x) { return '<span>' + x + '</span>'; }).join('');
+            b.classList.add('gx-chips');
+        });
+    }
     var scanTimer = null;
-    function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(scanReveal, 120); }
+    function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(function () { enhance(); scanReveal(); }, 100); }
     function bootMotion() {
         document.addEventListener('pointerdown', tapSpark, { passive: true });
         if (window.MutationObserver) new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
@@ -640,7 +683,7 @@ var GameUI = (function () {
 
     return {
         setLook: setLook, lookPref: lookPref, applyLook: applyLook,
-        onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
+        continueJourney: continueJourney, onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
         onNewDay: onNewDay, openDaily: openDaily, openSeason: openSeason,
         img: img, whenFree: whenFree, grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp, praise: praise, breakCombo: breakCombo,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal

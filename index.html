@@ -223,17 +223,17 @@
                 <div class="hub-team-badge" id="hub-team-badge" onclick="event.stopPropagation(); showScreen('teams-screen')"></div>
             </div>
 
-            <!-- ===== Weekly boss ===== -->
-            <div class="gx-boss gx-press" id="gx-boss" onclick="openBossBattle()">
-                <i class="gx-ember" style="left:30px"></i><i class="gx-ember" style="left:96px;animation-delay:-1s"></i><i class="gx-ember" style="left:210px;animation-delay:-.5s"></i><i class="gx-ember" style="left:290px;animation-delay:-1.8s"></i>
-                <img class="gx-boss-art" id="gx-boss-figure" src="images/ui/boss-arius.webp" alt="">
-                <div class="gx-boss-txt">
-                    <span class="gx-boss-tag">⚔️ معركة الوحش الأسبوعية</span>
-                    <div class="gx-boss-name" id="gx-boss-name">أريوس الهرطوقي</div>
-                    <div class="gx-hp"><i id="gx-boss-hp" style="width:100%"></i></div>
-                    <div class="gx-boss-meta" id="gx-boss-meta">هاجمه بالإجابات الصح مع كل الأبطال</div>
+            <!-- ===== Continue your journey (the player's own next station) ===== -->
+            <div class="gx-continue gx-press" id="gx-continue" onclick="GameUI.continueJourney()">
+                <div class="gx-continue-art" id="gx-continue-art"></div>
+                <img class="gx-continue-hero" id="gx-continue-hero" src="images/chars/david.png" alt="">
+                <div class="gx-continue-txt">
+                    <span class="gx-continue-tag">🎯 كمّل رحلتك</span>
+                    <div class="gx-continue-title" id="gx-continue-title">الكتاب المقدس</div>
+                    <div class="gx-continue-sub" id="gx-continue-sub">المستوى الأول · المحطة 1 من 6</div>
+                    <div class="gx-continue-bar"><i id="gx-continue-bar"></i></div>
                 </div>
-                <div class="gx-btn gx-btn--red gx-throb">هاجم ⚔️</div>
+                <div class="gx-btn gx-btn--green gx-throb gx-continue-go">كمّل ◀</div>
                 <span class="gx-shine"></span>
             </div>
 

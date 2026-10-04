@@ -240,30 +240,6 @@ html[data-look="night"] .gx-topbar { background: linear-gradient(#18205A, #0D133
 .gx-status .hub-team-badge { margin: 0 !important; }
 .gx-status .hub-team-badge:empty { display: none; }
 
-/* boss event banner */
-.gx-boss {
-    position: relative; height: 158px; border-radius: 20px; overflow: hidden; cursor: pointer; margin-bottom: 18px;
-    border: 4px solid #FFE766; box-shadow: 0 6px 0 #8A1B00, 0 0 0 3px #8A1B00;
-    background: radial-gradient(circle at 22% 62%, #FF7A2E, #C21E1E 55%, #4A0A2A);
-    animation: gxFlash 6s ease-in-out infinite;
-}
-.gx-boss-art { position: absolute; left: 0; bottom: 0; height: 100%; width: 46%; object-fit: contain; object-position: bottom left; }
-.gx-giant { position: absolute; left: 12px; bottom: -4px; width: 120px; height: 150px; animation: gxStomp 1.8s ease-in-out infinite; }
-.gx-giant i { position: absolute; display: block; }
-.gx-giant .sp { left: 100px; top: -8px; width: 6px; height: 150px; background: linear-gradient(#ddd, #6D4C2E 18%); transform: rotate(12deg); border-radius: 3px; }
-.gx-giant .bd { left: 8px; top: 46px; width: 104px; height: 110px; border-radius: 40px 40px 10px 10px; background: linear-gradient(#3A1450, #1A0828); }
-.gx-giant .hd { left: 38px; top: 4px; width: 44px; height: 48px; border-radius: 45% 45% 40% 40%; background: #2A0E3A; }
-.gx-giant .hm { left: 32px; top: -2px; width: 56px; height: 26px; border-radius: 30px 30px 6px 6px; background: linear-gradient(#9E9E9E, #4E4E4E); border: 2px solid #222; }
-.gx-giant .ey { top: 26px; width: 9px; height: 5px; background: #FF2A2A; border-radius: 50%; box-shadow: 0 0 8px 3px #FF2A2A; animation: gxBlinkEye 3s infinite; }
-.gx-ember { position: absolute; bottom: -6px; width: 5px; height: 5px; border-radius: 50%; background: #FFD54A; box-shadow: 0 0 6px 2px #FF7A00; animation: gxEmber 2.6s linear infinite; }
-.gx-boss-txt { position: absolute; top: 9px; right: 12px; width: 58%; }
-.gx-boss-tag { display: inline-block; font-size: 10.5px; font-weight: 800; background: #FFE766; color: #8A1B00; border-radius: 6px; padding: 0 6px; }
-.gx-boss-name { font-family: var(--gx-display); font-size: 25px; line-height: 1.1; text-shadow: 0 3px 0 rgba(0, 0, 0, .4); margin: 2px 0; }
-.gx-hp { height: 13px; border-radius: 8px; background: rgba(0, 0, 0, .45); border: 2px solid #fff; overflow: hidden; position: relative; }
-.gx-hp i { position: absolute; top: 0; bottom: 0; right: 0; background: linear-gradient(#FF5252, #B71C1C); transition: width 1s ease; }
-.gx-boss-meta { font-size: 10.5px; font-weight: 800; margin-top: 3px; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); }
-.gx-boss .gx-btn { position: absolute; bottom: 10px; right: 12px; padding: 5px 16px 2px; font-size: 18px; }
-
 /* section head */
 .gx-sec { display: flex; justify-content: space-between; align-items: baseline; margin: 4px 2px 6px; }
 .gx-sec-t { font-family: var(--gx-display); font-size: 19px; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
@@ -1319,11 +1295,7 @@ html[data-look] #compete-game-screen, html[data-look] #quiz-screen, html[data-lo
 }
 html[data-look] .l1-game-frame.arcade { background: linear-gradient(180deg, rgba(60, 30, 150, .35), rgba(42, 22, 112, .85)), url('images/ui/bg-quiz.webp') center / cover no-repeat; }
 
-/* boss: hub banner + battle popup */
-#home-hub-screen .gx-boss { background: linear-gradient(270deg, rgba(120, 10, 40, .85) 30%, rgba(60, 10, 60, .2) 75%), url('images/ui/bg-boss.webp') center / cover no-repeat; }
-.gx-boss .gx-boss-art { position: absolute; left: -6px; bottom: -6px; height: 112%; width: auto; max-width: 52%; object-fit: contain; object-position: bottom left; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .5)); animation: gxStomp 1.8s ease-in-out infinite; z-index: 1; }
-.gx-boss .gx-boss-txt { z-index: 2; }
-.gx-boss .gx-btn { z-index: 2; }
+/* boss battle popup */
 html[data-look] .boss-modal { background: linear-gradient(180deg, rgba(60, 10, 80, .55), rgba(26, 5, 48, .92)), url('images/ui/bg-boss.webp') center / cover no-repeat !important; }
 html[data-look] :is(.boss-emoji, .boss-fight-emoji, .boss-result-emoji) {
     font-size: 0 !important; width: 150px; height: 165px; margin: 0 auto; display: block;
@@ -1368,7 +1340,7 @@ html[data-look] .screen.active { animation: gxScreenIn .5s cubic-bezier(.2, 1.25
 @keyframes gxTapDot { from { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 1; } to { transform: rotate(var(--a)) translateX(34px) scale(.3); opacity: 0; } }
 
 /* every progress bar fills smoothly instead of jumping */
-html[data-look] :is(.gx-xp i, .l1-bar i, .bible-progress-fill, .pd-xp-fill, .pd-subject-fill, .museum-total-fill, .pd-collect-fill, .lamp-xp-fill, .l2-progress-fill, .quiz-progress-fill, .gx-season-bar i, .boss-hp-fill, .gx-hp i, .streak-progress-bar) { transition: width 1s cubic-bezier(.2, .9, .3, 1) !important; }
+html[data-look] :is(.gx-xp i, .l1-bar i, .bible-progress-fill, .pd-xp-fill, .pd-subject-fill, .museum-total-fill, .pd-collect-fill, .lamp-xp-fill, .l2-progress-fill, .quiz-progress-fill, .gx-season-bar i, .boss-hp-fill, .gx-continue-bar i, .streak-progress-bar) { transition: width 1s cubic-bezier(.2, .9, .3, 1) !important; }
 
 /* leaderboard rows slide in one after another */
 html[data-look] .lb-item-modern { animation: gxRowIn .45s cubic-bezier(.2, 1.3, .4, 1) both; }
@@ -1395,3 +1367,115 @@ html[data-look="night"] .gx-moon { display: none; }
 
 @media (prefers-reduced-motion: reduce) { .gx-tap { display: none; } .gx-reveal { animation: none !important; } }
 html[data-look] .hub-stagger-enter:not(.gx-reveal) { animation: none !important; opacity: 1 !important; transform: none; }
+
+/* ============================================================
+   "كمّل رحلتك" hub banner
+   ============================================================ */
+.gx-continue { position: relative; height: 164px; margin-bottom: 18px; border-radius: 22px; overflow: hidden; cursor: pointer; border: 4px solid #fff; box-shadow: 0 7px 0 rgba(0, 0, 0, .25), 0 14px 24px rgba(0, 0, 0, .22); }
+.gx-continue-art { position: absolute; inset: 0; background: #1C55B8 center / cover no-repeat; animation: gxKenBurns 16s ease-in-out infinite alternate; }
+.gx-continue::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(270deg, rgba(12, 44, 130, .9) 30%, rgba(12, 44, 130, .15) 72%); }
+.gx-continue-hero { position: absolute; left: 4px; bottom: 0; height: 156px; z-index: 2; filter: drop-shadow(0 6px 6px rgba(0, 0, 0, .4)); animation: gxBreathe 3s ease-in-out infinite; transform-origin: 50% 100%; }
+.gx-continue-txt { position: absolute; top: 10px; right: 12px; width: 60%; z-index: 3; }
+.gx-continue-tag { display: inline-block; font-size: 11px; font-weight: 800; color: #5A2E00; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border: 2px solid #fff; border-radius: 9px; padding: 0 8px; }
+.gx-continue-title { font-family: var(--gx-display); font-size: 25px; line-height: 1.15; margin: 4px 0 1px; text-shadow: 0 3px 0 rgba(0, 0, 0, .4); }
+.gx-continue-sub { font-size: 11px; font-weight: 800; line-height: 1.35; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gx-continue-bar { height: 11px; margin-top: 5px; border-radius: 8px; border: 2px solid #fff; background: rgba(0, 0, 0, .4); overflow: hidden; }
+.gx-continue-bar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(-45deg, #9CFF5A 0 7px, #5FD83A 7px 14px); background-size: 20px 20px; animation: gxStripes .8s linear infinite; }
+.gx-continue-go { position: absolute !important; bottom: 10px; right: 12px; z-index: 3; padding: 5px 18px 2px !important; font-size: 19px !important; }
+.gx-modal-title { font-family: var(--gx-display); font-size: 26px; line-height: 1.2; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); margin: 4px 0; }
+
+/* ============================================================
+   CARD SYSTEM 2.0 — every tile gets a lit, layered game surface
+   (:not(#gx) lifts specificity above the earlier per-screen rules)
+   ============================================================ */
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card, .achievement-card, .museum-card, .pd-stat-card, .info-way-card, .l1-game-card, .lamp-mission-card, .category-card, .mg-challenge-card):not(#gx) {
+    --tile: linear-gradient(170deg, #4A93F0, #1C55B8);
+    position: relative; overflow: hidden; color: #fff;
+    border: 3px solid rgba(0, 0, 0, .38) !important; border-radius: 22px !important;
+    background: radial-gradient(130% 60% at 50% 0%, rgba(255, 255, 255, .34), transparent 62%), repeating-linear-gradient(45deg, rgba(255, 255, 255, .055) 0 10px, transparent 10px 20px), var(--tile) !important;
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, .45), inset 0 -6px 0 rgba(0, 0, 0, .2), 0 6px 0 rgba(0, 0, 0, .3), 0 14px 22px rgba(0, 0, 0, .22) !important;
+}
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card, .museum-card, .pd-stat-card, .info-way-card, .l1-game-card, .lamp-mission-card, .category-card, .mg-challenge-card):nth-child(5n+2):not(#gx) { --tile: linear-gradient(170deg, #B38BFF, #6A35D9); }
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card, .museum-card, .pd-stat-card, .info-way-card, .l1-game-card, .lamp-mission-card, .category-card, .mg-challenge-card):nth-child(5n+3):not(#gx) { --tile: linear-gradient(170deg, #FFAA5E, #E2580A); }
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card, .museum-card, .pd-stat-card, .info-way-card, .l1-game-card, .lamp-mission-card, .category-card, .mg-challenge-card):nth-child(5n+4):not(#gx) { --tile: linear-gradient(170deg, #4FD8C9, #00897B); }
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card, .museum-card, .pd-stat-card, .info-way-card, .l1-game-card, .lamp-mission-card, .category-card, .mg-challenge-card):nth-child(5n+5):not(#gx) { --tile: linear-gradient(170deg, #FF8FBA, #C2185B); }
+html[data-look] :is(.shop-item-card.owned, .shop-item-card.equipped):not(#gx) { --tile: linear-gradient(170deg, #86E270, #2E9E2A); }
+html[data-look] .shop-item-card.earnable:not(#gx) { --tile: linear-gradient(170deg, #FFD54A, #E08A00); }
+html[data-look] .achievement-card:not(#gx) { --tile: linear-gradient(170deg, #6C7A99, #3E4A66); }
+html[data-look] .achievement-card.earned:not(#gx) { --tile: linear-gradient(170deg, #FFE16B, #E59A00); color: #5A2E00; }
+html[data-look] .l1-game-card.signature:not(#gx) { --tile: linear-gradient(135deg, #FFC94A, #E65100); border-color: #fff !important; }
+/* the old per-card shine pseudo would sit under the new surface: keep one sweep */
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card, .l1-game-card)::after { z-index: 2; }
+
+/* store + mode cards: showcase on top, title band, info, full-width action */
+html[data-look] :is(.shop-item-card, .reward-card, .compete-mode-card):not(#gx) { display: flex !important; flex-direction: column; align-items: stretch; text-align: center; padding: 0 0 12px !important; gap: 6px; }
+html[data-look] :is(.shop-item-icon, .reward-icon, .streak-reward-icon, .compete-mode-icon).gx-show:not(#gx) {
+    position: relative; display: flex !important; align-items: center; justify-content: center; overflow: hidden;
+    width: auto !important; height: 112px !important; margin: 0 !important; padding: 0 !important; border-radius: 0 !important; border: 0 !important; box-shadow: none !important; animation: none !important;
+    background: radial-gradient(circle at 50% 60%, rgba(255, 252, 230, .9) 0, rgba(255, 255, 255, .28) 30%, transparent 58%), linear-gradient(rgba(0, 0, 0, .24), rgba(0, 0, 0, .06)) !important;
+    border-bottom: 3px solid rgba(0, 0, 0, .2) !important; font-size: 56px !important;
+}
+html[data-look] :is(.shop-item-icon, .reward-icon, .streak-reward-icon, .compete-mode-icon).gx-show::before {
+    content: ""; position: absolute; width: 280px; height: 280px; left: 50%; top: 60%; margin: -140px 0 0 -140px; border-radius: 50%; z-index: 0; opacity: .5;
+    background: repeating-conic-gradient(rgba(255, 255, 255, .7) 0 9deg, transparent 9deg 18deg); -webkit-mask: radial-gradient(circle, #000 12%, transparent 66%); mask: radial-gradient(circle, #000 12%, transparent 66%);
+    animation: gxSpin 16s linear infinite;
+}
+html[data-look] :is(.shop-item-icon, .reward-icon, .streak-reward-icon, .compete-mode-icon).gx-show > :is(.gx-i, .gx-emo, i) {
+    position: relative; z-index: 1; width: 82px; height: 82px; font-size: 56px; line-height: 82px; color: #fff; animation: gxFloat 3s ease-in-out infinite; filter: drop-shadow(0 6px 4px rgba(0, 0, 0, .35));
+}
+html[data-look] :is(.shop-item-card h3, .reward-name, .compete-mode-card h5):not(#gx) {
+    margin: 2px 10px 0 !important; padding: 5px 8px 3px; border-radius: 12px; background: rgba(0, 0, 0, .26); box-shadow: inset 0 2px 0 rgba(255, 255, 255, .15);
+    font-family: var(--gx-display); font-weight: 400; font-size: 19px !important; line-height: 1.2; color: #fff !important; text-shadow: 0 2px 0 rgba(0, 0, 0, .4);
+}
+html[data-look] :is(.shop-item-desc, .reward-desc, .compete-mode-card p):not(#gx) { margin: 0 12px !important; color: #fff !important; font-size: 12.5px; font-weight: 700; line-height: 1.55; opacity: .95; }
+html[data-look] .shop-item-verse:not(#gx) { margin: 0 12px !important; font-size: 11.5px !important; }
+html[data-look] :is(.shop-item-card, .reward-card) :is(.btn, .reward-cost, .shop-badge, .shop-item-locked-hint):not(#gx) { margin: auto 10px 0 !important; align-self: stretch; width: auto !important; }
+html[data-look] :is(.shop-item-card, .reward-card) .btn:not(#gx) { font-size: 17px; padding: 7px 10px 4px; }
+html[data-look] .shop-badge.equipped-badge:not(#gx) { display: block; padding: 4px 0; font-size: 14px; }
+html[data-look] .shop-item-locked-hint:not(#gx) { background: rgba(0, 0, 0, .3); border-radius: 12px; padding: 6px; font-weight: 800; color: #fff; }
+html[data-look] .compete-mode-card .gx-chips:not(#gx) { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; margin: auto 8px 0 !important; padding: 0 !important; background: none !important; }
+html[data-look] .compete-mode-card .gx-chips span { background: rgba(0, 0, 0, .3); border: 1.5px solid rgba(255, 255, 255, .35); border-radius: 10px; padding: 1px 8px; font-size: 11px; font-weight: 800; white-space: nowrap; }
+html[data-look] .compete-mode-card:not(#gx)::before { content: "العب ◀"; position: absolute; top: 8px; left: 8px; right: auto; bottom: auto; width: auto; height: auto; opacity: 1; z-index: 3; font-family: var(--gx-display); font-size: 13px; padding: 2px 9px 0; border-radius: 9px; color: #fff; background: linear-gradient(var(--gx-green-1), var(--gx-green-2)); border: 2px solid var(--gx-green-ink); box-shadow: 0 2px 0 var(--gx-green-edge); animation: gxThrob 1.6s ease-in-out infinite; }
+html[data-look] .compete-mode-card:active:not(#gx), html[data-look] :is(.shop-item-card, .reward-card):active:not(#gx) { transform: scale(.96); }
+
+/* smaller tiles: icon sits in a glossy bubble */
+html[data-look] :is(.ach-icon, .museum-card-visual, .museum-trophy-icon, .pd-stat-icon, .info-way-icon, .l1-game-icon, .lamp-mission-icon, .cat-icon, .mg-card-icon).gx-show:not(#gx) {
+    display: inline-flex !important; align-items: center; justify-content: center; width: 66px !important; height: 66px !important; border-radius: 50% !important; font-size: 32px !important;
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, .92), rgba(255, 255, 255, .35) 45%, rgba(255, 255, 255, .08) 70%) !important;
+    box-shadow: inset 0 -4px 6px rgba(0, 0, 0, .2), 0 0 0 4px rgba(255, 255, 255, .22) !important; margin: 4px auto 6px; animation: gxFloat 3s ease-in-out infinite;
+}
+html[data-look] .l1-game-icon.gx-show:not(#gx) { margin: 0 0 4px; }
+html[data-look] .l1-game-card.signature .l1-game-icon.gx-show:not(#gx) { width: 80px !important; height: 80px !important; font-size: 42px !important; }
+html[data-look] :is(.ach-icon, .museum-card-visual, .museum-trophy-icon, .pd-stat-icon, .info-way-icon, .l1-game-icon, .lamp-mission-icon, .cat-icon, .mg-card-icon).gx-show > .gx-i { width: 46px; height: 46px; }
+html[data-look] .exercise-icon.gx-show > .gx-i { width: 34px; height: 34px; }
+html[data-look] .ssc-icon.gx-show > .gx-i { width: 34px; height: 34px; }
+html[data-look] .l1-subject-icon.gx-show > .gx-i { width: 56px; height: 56px; }
+html[data-look] .l2-subject-icon.gx-show > .gx-i { width: 38px; height: 38px; }
+html[data-look] :is(.achievement-card, .museum-card, .pd-stat-card, .info-way-card, .lamp-mission-card, .category-card):not(#gx) { text-align: center; padding: 12px 10px !important; }
+html[data-look] .achievement-card.earned :is(.ach-name, .ach-desc) { color: #5A2E00 !important; }
+html[data-look] :is(.ach-name, .museum-card-name, .info-way-card h4, .info-way-card b, .lamp-mission-chapter) { font-family: var(--gx-display); font-weight: 400; font-size: 16px; }
+html[data-look] .shop-item-card p[style*="background"]:not(#gx) { background: rgba(0, 0, 0, .3) !important; color: #fff !important; margin: 0 10px !important; border: 1.5px solid rgba(255, 255, 255, .25); }
+html[data-look] .reward-card.reward-locked:not(#gx) { opacity: 1 !important; filter: saturate(.55) brightness(.92); }
+html[data-look] :is(.museum-trophy-card, .exercise-item, .bible-ch-item, .pd-streak-item, .info-rank-row, .shop-suggest-chip):not(#gx) {
+    position: relative; overflow: hidden; border: 3px solid rgba(0, 0, 0, .38) !important; border-radius: 18px !important;
+    background: radial-gradient(130% 60% at 50% 0%, rgba(255, 255, 255, .32), transparent 62%), repeating-linear-gradient(45deg, rgba(255, 255, 255, .05) 0 10px, transparent 10px 20px), var(--tile, linear-gradient(170deg, #4A93F0, #1C55B8)) !important;
+    box-shadow: inset 0 3px 0 rgba(255, 255, 255, .42), inset 0 -5px 0 rgba(0, 0, 0, .2), 0 5px 0 rgba(0, 0, 0, .3) !important;
+}
+html[data-look] .museum-trophy-card:not(#gx) { --tile: linear-gradient(170deg, #FFD15A, #D98A00); }
+html[data-look] .museum-trophy-card :is(.museum-trophy-name, .museum-trophy-progress) { color: #5A2E00 !important; font-weight: 800; }
+html[data-look] :is(.exercise-item, .bible-ch-item, .shop-suggest-chip):nth-child(4n+2):not(#gx) { --tile: linear-gradient(170deg, #B38BFF, #6A35D9); }
+html[data-look] :is(.exercise-item, .bible-ch-item, .shop-suggest-chip):nth-child(4n+3):not(#gx) { --tile: linear-gradient(170deg, #FFAA5E, #E2580A); }
+html[data-look] :is(.exercise-item, .bible-ch-item, .shop-suggest-chip):nth-child(4n+4):not(#gx) { --tile: linear-gradient(170deg, #4FD8C9, #00897B); }
+html[data-look] :is(.exercise-item.done, .exercise-item.completed):not(#gx) { --tile: linear-gradient(170deg, #86E270, #2E9E2A); }
+html[data-look] #fun-zone-content:not(:empty) { background: linear-gradient(180deg, var(--gx-panel-2), var(--gx-panel)); border: 3px solid var(--gx-ink); border-radius: 22px; box-shadow: 0 6px 0 var(--gx-ink); padding: 18px 14px; text-align: center; }
+html[data-look] #fun-zone-content h3, html[data-look] #fun-zone-content h2 { font-family: var(--gx-display); font-weight: 400; color: var(--gx-gold-1); }
+html[data-look] #fun-zone-content p { color: #fff; font-weight: 700; }
+html[data-look] .selfie-hero:not(#gx) { position: relative; overflow: hidden; border-radius: 24px !important; border: 4px solid #fff !important; color: #fff; box-shadow: 0 7px 0 rgba(0, 0, 0, .25), 0 14px 26px rgba(0, 0, 0, .2) !important; background: radial-gradient(circle at 50% 22%, #FF8FBA, #D6125B 58%, #7A1450) !important; }
+html[data-look] .selfie-hero::before { content: ""; position: absolute; width: 560px; height: 560px; left: 50%; top: 22%; margin: -280px 0 0 -280px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, .3) 0 10deg, transparent 10deg 20deg); -webkit-mask: radial-gradient(circle, #000 15%, transparent 68%); mask: radial-gradient(circle, #000 15%, transparent 68%); animation: gxSpin 20s linear infinite; pointer-events: none; }
+html[data-look] .selfie-hero > * { position: relative; }
+html[data-look] .selfie-hero h2, html[data-look] .selfie-hero h3 { font-family: var(--gx-display); font-weight: 400; font-size: 28px; text-shadow: 0 3px 0 rgba(0, 0, 0, .35); }
+html[data-look] .selfie-hero p { color: #fff; font-weight: 700; }
+html[data-look] .selfie-week-chip { background: rgba(0, 0, 0, .28) !important; border: 2px solid rgba(255, 255, 255, .5) !important; color: #fff !important; font-weight: 800; }
+html[data-look] :is(.selfie-noteam, .selfie-empty):not(#gx) { background: linear-gradient(180deg, var(--gx-panel-2), var(--gx-panel)) !important; border: 3px solid var(--gx-ink) !important; border-radius: 20px !important; box-shadow: 0 5px 0 var(--gx-ink) !important; color: #fff; }
+html[data-look] :is(.selfie-hero-emoji, .fqs-hero-icon, .social-hero-icon).gx-show > .gx-i { width: 86px; height: 86px; animation: gxFloat 3s ease-in-out infinite; }
+html[data-look] :is(.selfie-noteam-ico, .selfie-soon-ico, .qa-empty-icon, .devotion-icon).gx-show > .gx-i { width: 52px; height: 52px; animation: gxFloat 3s ease-in-out infinite; }

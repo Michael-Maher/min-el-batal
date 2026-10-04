@@ -54,7 +54,7 @@ label.check input { width: 18px; height: 18px; accent-color: var(--done); }
 <div class="wrap">
   <header style="display:grid;gap:10px">
     <h1>صور مين البطل على Weave</h1>
-    <p class="lead">23 صورة بس بدل 62: الأيقونات بتتعمل 9 في صورة واحدة وأنا بقصّها. ابدأ بالكروت اللي عليها إطار ذهبي، دي اللي بتفرق أكتر في شكل اللعبة.</p>
+    <p class="lead">الدفعة الجديدة فوق (5 صور لقسم اسأل واتفاعل). الدفعات القديمة تحتها لو حبيت تعيد أي صورة.</p>
     <div class="progress"><span id="count">0 / 23</span><div class="bar"><i id="fill"></i></div></div>
   </header>
 
@@ -77,6 +77,13 @@ label.check input { width: 18px; height: 18px; accent-color: var(--done); }
 var STYLE = "Bright, saturated 3D cartoon mobile-game art like Brawl Stars and Clash Royale, soft warm sunlight, glossy rounded shapes, clean outlines, cheerful and family-friendly, Middle-Eastern biblical setting. Match the art style and colors of the attached reference image. No text, no letters, no numbers, no watermark, no UI.";
 var KEY = "STYLE: Solid flat pure magenta (#FF00FF) background filling everything behind the subject, no shadows on the background, no gradient.";
 var GROUPS = [
+  { title: "دفعة جديدة: اسأل واتفاعل", sub: "للكروت والخلفية بتاعة الأسئلة والمنشورات", jobs: [
+    { f: "card-ask", name: "كارت اسأل الخدّام", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: a friendly young Coptic church servant in casual clothes sitting on church courtyard steps with three cheerful kids, one kid raising a hand with a big glowing question bubble above him, warm afternoon light, olive tree. The right half is calm warm-orange sky with no objects, for text." },
+    { f: "card-friends", name: "كارت أسئلة أصحابك", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: a group of cheerful teenagers huddled together around a huge glowing purple question-mark bubble, sharing and chatting, sparkles. The right half is calm purple background with no objects, for text." },
+    { f: "card-posts", name: "كارت المنشورات", ar: "16:9", first: true, p: "Wide game card illustration. On the left side: a colorful wooden church notice board with pinned papers, stars, a small cross, a megaphone and confetti flying around. The right half is calm blue sky with no objects, for text." },
+    { f: "bg-community", name: "خلفية اسأل واتفاعل", ar: "9:16", first: true, p: "Vertical mobile game background of a warm Coptic church courtyard at golden hour, stone arches, olive trees, wooden benches, hanging lanterns, a small bell tower with a cross, soft light. Keep the middle open and calm for UI cards." },
+    { f: "icons-f", name: "أيقونات التفاعل", ar: "1:1", first: true, key: true, grid: ["صليب دهب","فقاعة سؤال","فقاعة رد","دبوس أحمر","سهم مشاركة","صندوق بريد","قلم","علامة صح","احتفال"], p: "A 3x3 grid of nine separate glossy 3D game icons, evenly spaced with wide gaps, each centered in its own cell: shiny golden Coptic cross, blue speech bubble with a big question mark, white speech bubble with a small golden cross, red pushpin, green curved share arrow, open red mailbox, yellow pencil, green round check-mark badge, colorful confetti party burst." }
+  ]},
   { title: "الخلفيات", sub: "9:16 · خلفية الشاشات", jobs: [
     { f: "bg-hub-day", name: "الرئيسية نهاري", ar: "9:16", first: true, p: "Vertical mobile game home-screen background. A wide sunny blue sky over the Sea of Galilee, small wooden fishing boats, soft green hills, a distant walled town of Jerusalem, puffy clouds. Keep the middle mostly open sky for buttons and cards." },
     { f: "bg-hub-night", name: "الرئيسية ليلي", ar: "9:16", first: true, p: "Vertical mobile game home-screen background at night. The same Sea of Galilee scene with a deep navy sky full of twinkling stars, a big glowing crescent moon, warm lantern lights in a small village, calm reflections on the water. Keep the middle mostly open for UI." },

@@ -100,9 +100,20 @@ var GameUI = (function () {
 
     // ---------- Counters + flying icons ----------
     function refreshCounters() {
-        var s = $('hub-stars'), g = $('hub-gems');
-        if (s && s.textContent !== fmt(GameState.stars)) { s.textContent = fmt(GameState.stars); pop(s); }
-        if (g && g.textContent !== fmt(GameState.gems)) { g.textContent = fmt(GameState.gems); pop(g); }
+        countTo($('hub-stars'), GameState.stars || 0);
+        countTo($('hub-gems'), GameState.gems || 0);
+    }
+    // Slot-machine style count from the shown number to the new one
+    function countTo(el, to) {
+        if (!el) return;
+        var from = parseInt((el.textContent || '').replace(/[^0-9]/g, ''), 10) || 0;
+        if (from === to) { el.textContent = fmt(to); return; }
+        var t0 = performance.now(), dur = Math.min(1200, 400 + Math.abs(to - from) * 2);
+        (function step(now) {
+            var k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+            el.textContent = fmt(Math.round(from + (to - from) * e));
+            if (k < 1) requestAnimationFrame(step); else pop(el);
+        })(t0);
     }
     function pop(el) {
         if (!el) return;
@@ -436,7 +447,7 @@ var GameUI = (function () {
         var ch = (typeof CHARACTERS !== 'undefined') ? CHARACTERS[charKey] : null;
         var names = { bronze: 'برونزي', silver: 'فضي', gold: 'ذهبي 👑' };
         var m = modal('<span class="gx-ribbon gx-ribbon--gold">ترقية!</span>',
-            '<div class="gx-emb ' + tier + ' pop"><div class="sh"></div><div class="sh2"><img src="' + charImage(charKey) + '" alt=""></div></div>' +
+            '<div class="gx-emb ' + tier + ' pop"><div class="sh"></div><div class="sh2"><img src="' + charImage(charKey) + '" alt=""></div><img class="gx-emb-badge" src="images/ui/ic-tier-' + tier + '.webp" alt=""></div>' +
             '<div class="gx-boss-name">' + (ch ? ch.name : '') + ' · ' + (names[tier] || tier) + '</div>' +
             (title ? '<div class="gx-pill" style="background:linear-gradient(#FFE766,#FFB300);color:#5A2E00;border-color:#fff">لقب جديد: ' + title + '</div>' : '') +
             '<br><button class="gx-btn gx-btn--green gx-throb">يا سلام!</button>');
@@ -510,9 +521,8 @@ var GameUI = (function () {
             if ($('gx-level')) $('gx-level').textContent = lv;
             if ($('gx-xp-fill')) $('gx-xp-fill').style.width = (info.progress || 0) + '%';
         } catch (e) {}
-        var s = $('hub-stars'), g = $('hub-gems');
-        if (s) s.textContent = fmt(GameState.stars);
-        if (g) g.textContent = fmt(GameState.gems);
+        countTo($('hub-stars'), GameState.stars || 0);
+        countTo($('hub-gems'), GameState.gems || 0);
         var img = $('hub-avatar-img');
         if (img && GameState.character) img.src = charImage(GameState.character);
         var wb = $('gx-wheel-badge');
@@ -562,10 +572,68 @@ var GameUI = (function () {
         }
         if (id === 'home-hub-screen') renderHub();
         if (id === 'settings-screen') markLook();
+        scheduleScan();
+    }
+
+    // ============================================================
+    // Motion layer: tap sparkles + cards that pop in as they scroll into view
+    // ============================================================
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var TAPPABLE = 'button, .btn, [onclick], .gx-qbtn, .l1-subject-card, .l1-game-card, .compete-mode-card';
+    function tapSpark(e) {
+        if (reduceMotion || !document.documentElement.hasAttribute('data-look')) return;
+        if (!e.target.closest || !e.target.closest(TAPPABLE)) return;
+        var r = document.createElement('div');
+        r.className = 'gx-tap';
+        r.style.left = e.clientX + 'px';
+        r.style.top = e.clientY + 'px';
+        for (var i = 0; i < 6; i++) {
+            var d = document.createElement('i');
+            d.style.setProperty('--a', (i * 60) + 'deg');
+            r.appendChild(d);
+        }
+        document.body.appendChild(r);
+        setTimeout(function () { r.remove(); }, 600);
+    }
+    var REVEAL = '.gx-ribbon, .hub-card, .gx-season, .gx-boss, .spiritual-card, .l2-subject-card, .shop-item-card, .reward-card, ' +
+        '.compete-mode-card, .lb-item-modern, .achievement-card, .l1-game-card, .l1-subject-card, .settings-section, .museum-card, ' +
+        '.pd-stat-card, .exercise-item, .lamp-mission-card, .qa-thread-row, .social-post, .info-way-card, .bible-ch-item, .category-card';
+    var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+            if (!en.isIntersecting) return;
+            var el = en.target;
+            io.unobserve(el);
+            // stagger siblings that enter together
+            var idx = Array.prototype.indexOf.call(el.parentNode ? el.parentNode.children : [], el);
+            el.style.setProperty('--gx-d', (Math.min(Math.max(idx, 0), 8) * 0.06) + 's');
+            el.classList.add('gx-reveal');
+            el.addEventListener('animationend', function done(ev) {
+                if (ev.animationName !== 'gxReveal') return;
+                el.classList.remove('gx-reveal');
+                el.removeEventListener('animationend', done);
+            });
+        });
+    }, { threshold: 0.12 }) : null;
+    function scanReveal() {
+        if (!io || reduceMotion) return;
+        document.querySelectorAll('.screen.active ' + REVEAL.split(', ').join(', .screen.active ')).forEach(function (el) {
+            if (el._gxSeen) return;
+            el._gxSeen = true;
+            io.observe(el);
+        });
+    }
+    var scanTimer = null;
+    function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(scanReveal, 120); }
+    function bootMotion() {
+        document.addEventListener('pointerdown', tapSpark, { passive: true });
+        if (window.MutationObserver) new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
+        scheduleScan();
     }
 
     // ---------- Boot ----------
     applyLook();
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bootMotion);
+    else bootMotion();
     setInterval(function () { if (lookPref() === 'auto') applyLook(); }, 5 * 60000);
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', buildSky);
     else buildSky();
@@ -620,6 +688,14 @@ var GameUI = (function () {
             GameUI.whenFree(function () { orig.apply(self, args); });
         };
     })();
+    // Quiz power-ups: Font Awesome glyphs → 3D icons
+    wrap('renderPowerUps', function () {
+        var names = ['scissors', 'skip', 'stars2', 'freeze', 'hint'];
+        document.querySelectorAll('#power-ups .power-up-btn').forEach(function (b, i) {
+            var g = b.querySelector('i.fas');
+            if (g && names[i]) g.outerHTML = GameUI.img(names[i]);
+        });
+    });
     // Boss fight: correct answer = sword slash + damage number + boss recoil
     wrap('answerBoss', function (args) {
         if (args[0] !== args[1]) return;

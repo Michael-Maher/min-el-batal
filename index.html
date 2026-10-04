@@ -209,17 +209,17 @@
                 <div class="gx-qbtn gx-qbtn--gold" onclick="openSpinWheel()"><span class="gx-wig"><img class="gx-i" src="images/ui/ic-wheel.webp" alt=""></span><span class="gx-badge" id="gx-wheel-badge" style="display:none">1</span><small>العجلة</small></div>
                 <div class="gx-qbtn gx-qbtn--purple" onclick="showScreen('rewards-shop-screen')"><span class="gx-wig"><img class="gx-i" src="images/ui/ic-gift.webp" alt=""></span><small>الهدايا</small></div>
                 <div class="gx-qbtn gx-qbtn--red" onclick="showScreen('shop-screen')"><span><img class="gx-i" src="images/ui/ic-sword.webp" alt=""></span><small>السلاح</small></div>
-                <div class="gx-qbtn gx-qbtn--green" onclick="showScreen('progress-dashboard-screen')"><span>📈</span><small>تقدّمي</small></div>
-                <div class="gx-qbtn" onclick="showScreen('museum-screen')"><span>🏛️</span><small>المتحف</small></div>
-                <div class="gx-qbtn" onclick="showScreen('info-screen')"><span>🧭</span><small>الدليل</small></div>
-                <div class="gx-qbtn" onclick="showScreen('settings-screen')"><span>⚙️</span><small>الإعدادات</small></div>
-                <div class="gx-qbtn" onclick="reloadApp()"><span>🔄</span><small>تحديث</small></div>
+                <div class="gx-qbtn gx-qbtn--green" onclick="showScreen('progress-dashboard-screen')"><span><img class="gx-i" src="images/ui/ic-chart.webp" alt=""></span><small>تقدّمي</small></div>
+                <div class="gx-qbtn" onclick="showScreen('museum-screen')"><span><img class="gx-i" src="images/ui/ic-museum.webp" alt=""></span><small>المتحف</small></div>
+                <div class="gx-qbtn" onclick="showScreen('info-screen')"><span><img class="gx-i" src="images/ui/ic-compass.webp" alt=""></span><small>الدليل</small></div>
+                <div class="gx-qbtn" onclick="showScreen('settings-screen')"><span><img class="gx-i" src="images/ui/ic-gear.webp" alt=""></span><small>الإعدادات</small></div>
+                <div class="gx-qbtn" onclick="reloadApp()"><span><img class="gx-i" src="images/ui/ic-hourglass.webp" alt=""></span><small>تحديث</small></div>
             </div>
 
             <!-- ===== Status chips ===== -->
             <div class="gx-status">
                 <span class="gx-pill"><span class="gx-ic"><img class="gx-i" src="images/ui/ic-flame.webp" alt=""></span><b id="hub-streak-num">0</b>&nbsp;يوم</span>
-                <span class="gx-pill"><span class="pic-chip-online-dot"></span>&nbsp;<b id="hub-online-count">—</b>&nbsp;أونلاين</span>
+                <span class="gx-pill"><span class="gx-ic"><img class="gx-i" src="images/ui/ic-friends.webp" alt=""></span><span class="pic-chip-online-dot"></span>&nbsp;<b id="hub-online-count">—</b>&nbsp;أونلاين</span>
                 <div class="hub-team-badge" id="hub-team-badge" onclick="event.stopPropagation(); showScreen('teams-screen')"></div>
             </div>
 
@@ -1679,9 +1679,9 @@
     <!-- ===== Game bottom nav (game-ui.js shows it on the lobby screens) ===== -->
     <nav class="gx-nav" id="gx-nav">
         <div class="gx-nav-in">
-            <button data-nav="shop-screen" onclick="GameUI.nav('shop-screen')"><span>🛒</span><b>المتجر</b></button>
+            <button data-nav="shop-screen" onclick="GameUI.nav('shop-screen')"><span><img class="gx-i" src="images/ui/ic-bag.webp" alt=""></span><b>المتجر</b></button>
             <button data-nav="compete-screen" onclick="GameUI.nav('compete-screen')"><span><img class="gx-i" src="images/ui/ic-trophy.webp" alt=""></span><b>منافسات</b></button>
-            <button data-nav="home-hub-screen" onclick="GameUI.nav('home-hub-screen')"><span>🏠</span><b>الرئيسية</b></button>
+            <button data-nav="home-hub-screen" onclick="GameUI.nav('home-hub-screen')"><span><img class="gx-i" src="images/ui/ic-church.webp" alt=""></span><b>الرئيسية</b></button>
             <button data-nav="leaderboard-screen" onclick="GameUI.nav('leaderboard-screen')"><span><img class="gx-i" src="images/ui/ic-crown.webp" alt=""></span><b>الأبطال</b></button>
             <button data-nav="teams-screen" onclick="GameUI.nav('teams-screen')"><span><img class="gx-i" src="images/ui/ic-shield.webp" alt=""></span><b>فريقي</b></button>
         </div>

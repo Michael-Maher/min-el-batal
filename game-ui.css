@@ -1346,3 +1346,52 @@ html[data-look] #leaderboard-screen {
     background-image: linear-gradient(180deg, rgba(140, 20, 40, .2) 0, rgba(130, 24, 44, .8) 75vh, #8E1C2C 100vh), url('images/ui/bg-leaderboard.webp');
     background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
 }
+
+/* ============================================================
+   MOTION PASS (whole game)
+   ============================================================ */
+/* screen change: springy slide-up instead of a plain fade */
+html[data-look] .screen.active { animation: gxScreenIn .5s cubic-bezier(.2, 1.25, .4, 1); }
+@keyframes gxScreenIn { from { opacity: 0; transform: translateY(26px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* cards pop in as they scroll into view (added by GameUI, removed when done) */
+.gx-reveal { animation: gxReveal .55s cubic-bezier(.2, 1.5, .4, 1) var(--gx-d, 0s) both !important; }
+@keyframes gxReveal { from { opacity: .35; transform: translateY(22px) scale(.9); } to { opacity: 1; transform: none; } }
+.gx-ribbon.gx-reveal { animation-name: gxRibbonIn !important; }
+@keyframes gxRibbonIn { 0% { opacity: .3; transform: scale(.4) rotate(-6deg); } 70% { transform: scale(1.08) rotate(2deg); } 100% { opacity: 1; transform: none; } }
+
+/* tap sparkle burst on every button / card */
+.gx-tap { position: fixed; z-index: 100003; width: 0; height: 0; pointer-events: none; }
+.gx-tap::before { content: ""; position: absolute; left: -22px; top: -22px; width: 44px; height: 44px; border-radius: 50%; border: 3px solid rgba(255, 240, 160, .95); animation: gxTapRing .5s ease-out forwards; }
+.gx-tap i { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #FFE766; box-shadow: 0 0 6px 2px rgba(255, 214, 90, .9); animation: gxTapDot .55s ease-out forwards; }
+@keyframes gxTapRing { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.5); opacity: 0; } }
+@keyframes gxTapDot { from { transform: rotate(var(--a)) translateX(0) scale(1); opacity: 1; } to { transform: rotate(var(--a)) translateX(34px) scale(.3); opacity: 0; } }
+
+/* every progress bar fills smoothly instead of jumping */
+html[data-look] :is(.gx-xp i, .l1-bar i, .bible-progress-fill, .pd-xp-fill, .pd-subject-fill, .museum-total-fill, .pd-collect-fill, .lamp-xp-fill, .l2-progress-fill, .quiz-progress-fill, .gx-season-bar i, .boss-hp-fill, .gx-hp i, .streak-progress-bar) { transition: width 1s cubic-bezier(.2, .9, .3, 1) !important; }
+
+/* leaderboard rows slide in one after another */
+html[data-look] .lb-item-modern { animation: gxRowIn .45s cubic-bezier(.2, 1.3, .4, 1) both; }
+html[data-look] .lb-item-modern:nth-child(2) { animation-delay: .05s; } html[data-look] .lb-item-modern:nth-child(3) { animation-delay: .1s; }
+html[data-look] .lb-item-modern:nth-child(4) { animation-delay: .15s; } html[data-look] .lb-item-modern:nth-child(5) { animation-delay: .2s; }
+html[data-look] .lb-item-modern:nth-child(n+6) { animation-delay: .25s; }
+@keyframes gxRowIn { from { opacity: 0; transform: translateX(-30px); } to { opacity: 1; transform: none; } }
+
+/* idle life on headers and badges */
+html[data-look] .top-bar h2 i { display: inline-block; animation: gxWiggle 3.4s ease-in-out infinite; }
+html[data-look] .back-btn i { transition: transform .2s; }
+html[data-look] .back-btn:active i { transform: translateX(4px); }
+html[data-look] .questions-unread-badge, html[data-look] .qa-badge-new { animation: gxBounce 1.6s ease-in-out infinite; }
+
+/* Weave icons: sizes in new places */
+.gx-pill .gx-ic + .pic-chip-online-dot { margin-inline-start: 2px; }
+html[data-look] .power-up-btn .gx-i { width: 28px; height: 28px; display: block; margin: 0 auto 1px; }
+html[data-look] .power-up-btn:not(.disabled) .gx-i { animation: gxFloat 2.6s ease-in-out infinite; }
+.gx-emb-badge { position: absolute; right: -18px; bottom: -6px; width: 64px; height: 64px; object-fit: contain; filter: drop-shadow(0 4px 3px rgba(0, 0, 0, .35)); animation: gxEmbPop .7s cubic-bezier(.2, 1.6, .4, 1) .35s both; }
+
+/* night sky = Weave night scene */
+html[data-look="night"] #gx-sky { background: linear-gradient(180deg, rgba(8, 14, 50, .05) 0%, rgba(10, 16, 60, .35) 50%, rgba(14, 18, 70, .7) 100%), url('images/ui/bg-hub-night.webp') center / cover no-repeat; }
+html[data-look="night"] .gx-moon { display: none; }
+
+@media (prefers-reduced-motion: reduce) { .gx-tap { display: none; } .gx-reveal { animation: none !important; } }
+html[data-look] .hub-stagger-enter:not(.gx-reveal) { animation: none !important; opacity: 1 !important; transform: none; }

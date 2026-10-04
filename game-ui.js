@@ -575,6 +575,7 @@ var GameUI = (function () {
         }
         if (id === 'home-hub-screen') renderHub();
         if (id === 'settings-screen') markLook();
+        renderHero(id);
         scheduleScan();
     }
 
@@ -625,6 +626,136 @@ var GameUI = (function () {
             io.observe(el);
         });
     }
+    // ============================================================
+    // Screen heroes: art banner + 3D icon + title on content screens
+    // ============================================================
+    var HEROES = {
+        'teams-screen': { icon: 'friends', art: 'card-compete', tint: '200,20,110', title: 'فريقي', sub: function () { return GameState.team ? 'فريق «' + GameState.team + '» · العبوا ونافسوا سوا' : 'كوّن فريقك أو انضم لأصحابك'; } },
+        'settings-screen': { icon: 'gear', art: 'bg-hub-day', tint: '25,90,200', title: 'الإعدادات', sub: 'خصّص شكل لعبتك وإشعاراتك' },
+        'museum-screen': { icon: 'museum', art: 'card-faith', tint: '106,53,217', title: 'متحف الكنوز', sub: 'كل كنز بتجمعه من دروسك بيتعرض هنا' },
+        'info-screen': { icon: 'compass', art: 'card-l2', tint: '25,90,200', title: 'دليل اللعبة', sub: 'إزاي تلعب وتكسب نجوم وجواهر' },
+        'rewards-shop-screen': { icon: 'gift', art: 'bg-shop', tint: '190,90,10', title: 'متجر الهدايا', sub: 'استبدل نجومك وجواهرك بهدايا حقيقية' },
+        'bible-reading-screen': { icon: 'bible', art: 'card-james', tint: '90,50,200', title: 'إنجيل مار مرقس', sub: 'أصحاح كل يوم يقرّبك أكتر' },
+        'devotion-screen': { icon: 'candle', art: 'bg-spiritual', tint: '90,50,200', title: 'خلوتي الشخصية', sub: 'وقتك الخاص مع ربنا الصبح وبليل' },
+        'exercises-screen': { icon: 'dumbbell', art: 'bg-spiritual', tint: '90,50,200', title: 'التداريب الروحية', sub: 'تمرين صغير كل يوم بيعمل فرق كبير' },
+        'shop-screen': { icon: 'sword', art: 'bg-shop', tint: '150,70,10', title: 'متجر سلاح الله', sub: 'البس سلاح الله الكامل واكسب قوى جديدة' }
+    };
+    function renderHero(id) {
+        var cfg = HEROES[id], screen = $(id);
+        if (!cfg || !screen) return;
+        var inner = screen.querySelector('.screen-inner') || screen;
+        var hero = inner.querySelector(':scope > .gx-hero');
+        if (!hero) {
+            hero = document.createElement('div');
+            hero.className = 'gx-hero';
+            hero.style.setProperty('--tint', cfg.tint);
+            hero.innerHTML = '<div class="gx-hero-art" style="background-image:url(\'images/ui/' + cfg.art + '.webp\')"></div>' +
+                '<div class="gx-rays gx-hero-rays"></div><img class="gx-hero-ic" src="images/ui/ic-' + cfg.icon + '.webp" alt="">' +
+                '<div class="gx-hero-txt"><div class="gx-hero-title">' + cfg.title + '</div><div class="gx-hero-sub"></div></div><span class="gx-shine"></span>';
+            var bar = inner.querySelector(':scope > .top-bar');
+            if (bar) bar.insertAdjacentElement('afterend', hero); else inner.insertBefore(hero, inner.firstChild);
+            screen.classList.add('gx-heroed');
+        }
+        hero.querySelector('.gx-hero-sub').textContent = typeof cfg.sub === 'function' ? cfg.sub() : cfg.sub;
+    }
+
+    // ============================================================
+    // تقدّمي: player profile page (replaces the plain dashboard markup)
+    // ============================================================
+    var JOURNEY_ART = { l1_bible: 'card-l1', l1_service: 'card-faith', l2_life: 'card-life', l2_bible: 'card-james', faith: 'card-faith', ritual: 'card-faith' };
+    function renderProfile() {
+        var box = $('progress-dashboard-body');
+        if (!box) return;
+        var ch = (typeof CHARACTERS !== 'undefined') ? CHARACTERS[GameState.character] : null;
+        var lv = 1, xp = { progress: 0, xpInLevel: 0, xpNeeded: 0 }, phase = { name: '', color: '#FFB300' }, rank = { title: '', emoji: '' }, tier = 'bronze';
+        try { lv = getPlayerLevel(); xp = getXpForNextLevel(); phase = getLevelPhase(); } catch (e) {}
+        try { rank = getRank(); } catch (e) {}
+        try { tier = getCharacterTier(GameState.character) || 'bronze'; } catch (e) {}
+        var title = (GameState.equippedTitle && typeof PLAYER_TITLES !== 'undefined' && PLAYER_TITLES[GameState.equippedTitle]) ? PLAYER_TITLES[GameState.equippedTitle].name : (rank.emoji + ' ' + rank.title);
+        var h = '';
+        // hero card
+        h += '<div class="gx-profile">' +
+            '<div class="gx-rays gx-profile-rays"></div>' +
+            '<img class="gx-profile-char" src="' + charImage(GameState.character || 'david') + '" alt="">' +
+            '<img class="gx-profile-tier" src="images/ui/ic-tier-' + tier + '.webp" alt="">' +
+            '<div class="gx-profile-txt"><div class="gx-profile-name">' + (GameState.playerName || 'بطل') + '</div>' +
+            '<div class="gx-profile-title">' + title + '</div>' +
+            (ch ? '<div class="gx-profile-char-name">' + ch.name + '</div>' : '') + '</div>' +
+            '<div class="gx-profile-level"><div class="gx-lring" style="--p:' + (xp.progress || 0) + '"><b>' + lv + '</b><small>مستوى</small></div>' +
+            '<div class="gx-profile-xp"><div class="gx-profile-xpbar"><i style="width:' + (xp.progress || 0) + '%"></i></div><span>' + (xp.xpInLevel || 0) + ' / ' + (xp.xpNeeded || 0) + ' XP · ' + phase.name + '</span></div></div>' +
+            '</div>';
+        // stats
+        var stats = [['star', GameState.stars, 'نجوم'], ['gem', GameState.gems, 'جواهر'], ['flame', GameState.loginStreak, 'يوم ورا بعض'], ['church', GameState.faithPoints, 'نقاط إيمان']];
+        h += '<div class="gx-pstats">' + stats.map(function (s) {
+            return '<div class="gx-pstat"><img class="gx-i" src="images/ui/ic-' + s[0] + '.webp" alt=""><b data-count="' + (s[1] || 0) + '">0</b><small>' + s[2] + '</small></div>';
+        }).join('') + '</div>';
+        // journeys
+        var journeys = [];
+        if (typeof LEVEL1_SUBJECTS !== 'undefined' && typeof l1SubjectProgress === 'function') {
+            Object.keys(LEVEL1_SUBJECTS).forEach(function (k) {
+                var p = l1SubjectProgress(k), sub = LEVEL1_SUBJECTS[k];
+                journeys.push({ key: k, name: sub.name, level: sub.level === 2 ? 'المستوى الثاني' : 'المستوى الأول', done: p.passed, total: p.total, open: "l1OpenSubject('" + k + "')" });
+            });
+        }
+        if (typeof LEVEL2_SUBJECTS !== 'undefined' && typeof getLessonMasteryTier === 'function') {
+            ['faith', 'ritual'].forEach(function (k) {
+                var sd = LEVEL2_SUBJECTS[k];
+                if (!sd) return;
+                var n = sd.lessons ? sd.lessons.length : 6, d = 0;
+                for (var i = 0; i < n; i++) if (getLessonMasteryTier(k, i)) d++;
+                journeys.push({ key: k, name: sd.name, level: 'المستوى الثاني', done: d, total: n, open: "showScreen('level2-subjects-screen')" });
+            });
+        }
+        h += '<div class="gx-psec"><span class="gx-ribbon gx-ribbon--blue">رحلاتي</span></div><div class="gx-journeys">';
+        journeys.forEach(function (j) {
+            var pct = j.total ? Math.round(j.done / j.total * 100) : 0;
+            h += '<div class="gx-journey gx-press" onclick="' + j.open + '">' +
+                '<div class="gx-journey-art" style="background-image:url(\'images/ui/' + (JOURNEY_ART[j.key] || 'card-l2') + '.webp\')"></div>' +
+                '<div class="gx-journey-txt"><small>' + j.level + '</small><b>' + j.name + '</b>' +
+                '<div class="gx-journey-bar"><i style="width:' + pct + '%"></i></div><span>' + j.done + ' / ' + j.total + ' محطات' + (pct === 100 ? ' · خلصتها 🏆' : '') + '</span></div>' +
+                (pct === 100 ? '<img class="gx-journey-badge" src="images/ui/ic-trophy.webp" alt="">' : '<span class="gx-journey-go">◀</span>') + '</div>';
+        });
+        h += '</div>';
+        // mastery badges
+        var badges = [], gold = 0;
+        if (typeof LEVEL2_SUBJECTS !== 'undefined' && typeof getLessonMasteryTier === 'function') {
+            ['faith', 'bible', 'life', 'ritual'].forEach(function (k) {
+                var sd = LEVEL2_SUBJECTS[k];
+                if (!sd) return;
+                (sd.lessons || []).forEach(function (ls, i) {
+                    var t = getLessonMasteryTier(k, i);
+                    if (!t) return;
+                    if (t === 'gold') gold++;
+                    badges.push({ t: t, name: ls.name || ('درس ' + (i + 1)) });
+                });
+            });
+        }
+        h += '<div class="gx-psec"><span class="gx-ribbon gx-ribbon--gold">شارات الإتقان</span></div>';
+        h += badges.length ? '<div class="gx-pbadges">' + badges.map(function (b) {
+            return '<div class="gx-pbadge gx-pbadge--' + b.t + '"><img src="images/ui/ic-tier-' + b.t + '.webp" alt=""><span>' + b.name + '</span></div>';
+        }).join('') + '</div><div class="gx-psum">' + badges.length + ' شارة · ' + gold + ' دهبي</div>'
+            : '<div class="gx-pempty"><img src="images/ui/ic-medal.webp" alt=""><span>لسه ما جمعتش شارات — خلّص درس وخد أول شارة!</span></div>';
+        // treasures
+        var tot = 0, got = 0;
+        try {
+            ['faith', 'bible', 'life', 'ritual'].forEach(function (k) {
+                (LESSON_COLLECTIBLES[k] || []).forEach(function (c) { tot++; if (GameState.collectibles && GameState.collectibles[c.id]) got++; });
+            });
+        } catch (e) {}
+        h += '<div class="gx-ptreasure gx-press" onclick="showScreen(\'museum-screen\')"><img src="images/ui/ic-chest-open.webp" alt=""><div><b>كنوز الإيمان</b><div class="gx-journey-bar"><i style="width:' + (tot ? Math.round(got / tot * 100) : 0) + '%"></i></div><span>' + got + ' / ' + tot + ' كنز · افتح المتحف ◀</span></div></div>';
+        // commitment road
+        var streak = GameState.loginStreak || 0, claimed = GameState.claimedStreakRewards || [];
+        h += '<div class="gx-psec"><span class="gx-ribbon gx-ribbon--orange">طريق الالتزام</span></div><div class="gx-road">';
+        (typeof ENHANCED_STREAK_MILESTONES !== 'undefined' ? ENHANCED_STREAK_MILESTONES : []).forEach(function (m, i) {
+            var st = claimed.indexOf('streak' + m.days) >= 0 ? 'got' : (streak >= m.days ? 'ready' : 'lock');
+            h += (i ? '<i class="gx-road-link' + (streak >= m.days ? ' on' : '') + '"></i>' : '') +
+                '<div class="gx-road-step gx-road-step--' + st + '"><div class="gx-road-node"><img src="images/ui/ic-' + (st === 'lock' ? 'lock' : 'flame') + '.webp" alt=""><b>' + m.days + '</b></div><span>' + m.desc + '</span></div>';
+        });
+        h += '</div>';
+        box.innerHTML = h;
+        box.querySelectorAll('[data-count]').forEach(function (el) { countTo(el, parseInt(el.getAttribute('data-count'), 10) || 0); });
+    }
+
     // ---------- Card enhancer: emoji / glyph → 3D icon showcase, info chips ----------
     var EMOJI_IC = {
         '⛑': 'helmet', '🛡': 'shield', '🔰': 'shield', '🗡': 'sword', '⚔': 'sword', '🎁': 'gift', '🔥': 'flame', '🏆': 'trophy',
@@ -657,6 +788,21 @@ var GameUI = (function () {
             if (name) box.innerHTML = img(name);
             else if (t && !box.children.length && Array.from(t).length <= 3) box.innerHTML = '<span class="gx-emo">' + t + '</span>';
         });
+        // فريقي: team colour on the banner
+        var th = document.querySelector('.screen.active .my-team-header');
+        if (th && GameState.teamColor) th.style.setProperty('--team', GameState.teamColor);
+        // فريقي: show the squad as 6 slots
+        document.querySelectorAll('.screen.active .my-team-members-list').forEach(function (list) {
+            if (list._gx) return;
+            list._gx = true;
+            var n = list.querySelectorAll('.my-team-member').length;
+            for (var i = n; i < 6; i++) {
+                var d = document.createElement('div');
+                d.className = 'my-team-member gx-slot-empty';
+                d.innerHTML = '<span class="member-num">' + (i + 1) + '</span><span>مكان فاضي</span>';
+                list.appendChild(d);
+            }
+        });
         document.querySelectorAll('.screen.active .compete-mode-badge').forEach(function (b) {
             if (b._gx) return;
             b._gx = true;
@@ -683,7 +829,7 @@ var GameUI = (function () {
 
     return {
         setLook: setLook, lookPref: lookPref, applyLook: applyLook,
-        continueJourney: continueJourney, onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
+        continueJourney: continueJourney, renderProfile: renderProfile, onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
         onNewDay: onNewDay, openDaily: openDaily, openSeason: openSeason,
         img: img, whenFree: whenFree, grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp, praise: praise, breakCombo: breakCombo,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal
@@ -731,6 +877,8 @@ var GameUI = (function () {
             GameUI.whenFree(function () { orig.apply(self, args); });
         };
     })();
+    // تقدّمي: the profile page replaces the plain dashboard every time it renders
+    wrap('renderProgressDashboard', function () { GameUI.renderProfile(); });
     // Quiz power-ups: Font Awesome glyphs → 3D icons
     wrap('renderPowerUps', function () {
         var names = ['scissors', 'skip', 'stars2', 'freeze', 'hint'];

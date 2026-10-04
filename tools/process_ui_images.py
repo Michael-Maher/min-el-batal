@@ -46,15 +46,67 @@ def key_magenta(img):
     for y in range(img.height):
         for x in range(img.width):
             r, g, b, a = px[x, y]
-            # how "magenta" the pixel is: high red+blue, low green
+            # Key only true magenta: red ≈ blue, both bright, green low.
+            # (A purple aura has blue well above red, so it survives.)
+            if abs(r - b) > 70:
+                continue
             m = min(r, b) - g
-            if m > 120:
+            if min(r, b) > 170 and m > 120:
                 px[x, y] = (r, g, b, 0)
-            elif m > 50:
-                k = (m - 50) / 70.0
+            elif min(r, b) > 110 and m > 60:
+                k = min(1.0, (m - 60) / 60.0)
                 # pull the pink fringe toward neutral before fading it
                 px[x, y] = (int(r - (r - g) * k * 0.6), g, int(b - (b - g) * k * 0.6), int(a * (1 - k)))
     return img
+
+
+def split_sheet(img, count=9):
+    """Split a keyed icon sheet into `count` icons. Every opaque blob is found;
+    the `count` largest are the icons, smaller blobs (sparkles, light rays) join
+    the nearest icon. Returns icon crops in reading order (rows top to bottom,
+    left to right inside a row)."""
+    w, h = img.size
+    ap = img.getchannel('A').load()
+    label = [0] * (w * h)
+    blobs = []  # [size, minx, miny, maxx, maxy]
+    for sy in range(h):
+        for sx in range(w):
+            if ap[sx, sy] <= 40 or label[sy * w + sx]:
+                continue
+            n = len(blobs) + 1
+            box = [0, sx, sy, sx, sy]
+            stack = [(sx, sy)]
+            label[sy * w + sx] = n
+            while stack:
+                x, y = stack.pop()
+                box[0] += 1
+                if x < box[1]: box[1] = x
+                if y < box[2]: box[2] = y
+                if x > box[3]: box[3] = x
+                if y > box[4]: box[4] = y
+                for nx, ny in ((x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)):
+                    if 0 <= nx < w and 0 <= ny < h and not label[ny * w + nx] and ap[nx, ny] > 40:
+                        label[ny * w + nx] = n
+                        stack.append((nx, ny))
+            blobs.append(box)
+    blobs.sort(key=lambda b: -b[0])
+    icons = [list(b[1:]) for b in blobs[:count]]
+    for b in blobs[count:]:
+        if b[0] < 30:
+            continue
+        cx, cy = (b[1] + b[3]) / 2, (b[2] + b[4]) / 2
+        best = min(icons, key=lambda r: (max(r[0] - cx, 0, cx - r[2])) ** 2 + (max(r[1] - cy, 0, cy - r[3])) ** 2)
+        if (max(best[0] - cx, 0, cx - best[2])) ** 2 + (max(best[1] - cy, 0, cy - best[3])) ** 2 < 60 ** 2:
+            best[0] = min(best[0], b[1]); best[1] = min(best[1], b[2])
+            best[2] = max(best[2], b[3]); best[3] = max(best[3], b[4])
+    # reading order: group into rows by vertical centre, then left to right
+    icons.sort(key=lambda r: (r[1] + r[3]) / 2)
+    rows, per = [], max(1, round(count ** 0.5))
+    for i in range(0, len(icons), per):
+        rows.append(sorted(icons[i:i + per], key=lambda r: r[0]))
+    pad = 6
+    return [img.crop((max(0, r[0] - pad), max(0, r[1] - pad), min(w, r[2] + pad + 1), min(h, r[3] + pad + 1)))
+            for row in rows for r in row]
 
 
 def trim(img, pad=8):
@@ -81,12 +133,8 @@ def main():
     elif kind == 'icons':
         if len(names) != 9:
             sys.exit('icons needs exactly 9 names')
-        keyed = key_magenta(img)
-        cw, ch = keyed.width / 3, keyed.height / 3
-        for i, n in enumerate(names):
-            cx, cy = i % 3, i // 3
-            cell = keyed.crop((round(cx * cw), round(cy * ch), round((cx + 1) * cw), round((cy + 1) * ch)))
-            save(fit_width(trim(cell, 4), 256), 'ic-' + n, 85)
+        for n, icon in zip(names, split_sheet(key_magenta(img))):
+            save(fit_width(icon, 256), 'ic-' + n, 85)
     else:
         sys.exit('unknown kind: ' + kind)
 

@@ -76,15 +76,17 @@ var GameUI = (function () {
             });
         }
         save();
-        if (reward.stars) fly('⭐', fromEl, $('gx-pill-stars'), Math.min(8, 3 + Math.floor(reward.stars / 50)));
-        if (reward.gems) fly('💎', fromEl, $('gx-pill-gems'), Math.min(8, 3 + Math.floor(reward.gems / 5)));
+        if (reward.stars) fly(img('star'), fromEl, $('gx-pill-stars'), Math.min(8, 3 + Math.floor(reward.stars / 50)));
+        if (reward.gems) fly(img('gem'), fromEl, $('gx-pill-gems'), Math.min(8, 3 + Math.floor(reward.gems / 5)));
         setTimeout(refreshCounters, 900);
     }
+    // 3D icon from images/ui (Weave art)
+    function img(name) { return '<img class="gx-i" src="images/ui/ic-' + name + '.webp" alt="">'; }
     function rewardIcon(r) {
-        if (r.chest) return '🧰';
-        if (r.gems && !r.stars) return '💎';
-        if (r.powerUps) return POWER_ICON[Object.keys(r.powerUps)[0]] || '🎁';
-        return '⭐';
+        if (r.chest) return img('chest');
+        if (r.gems && !r.stars) return img('gem');
+        if (r.powerUps) return img(POWER_ICON[Object.keys(r.powerUps)[0]] || 'gift');
+        return img('star');
     }
     function rewardLabel(r) {
         var p = [];
@@ -93,7 +95,7 @@ var GameUI = (function () {
         if (r.powerUps) Object.keys(r.powerUps).forEach(function (k) { p.push(r.powerUps[k] + ' ' + (POWER_NAME[k] || k)); });
         return p.join(' · ');
     }
-    var POWER_ICON = { fiftyFifty: '✂️', skip: '⏭️', doublePoints: '✖️2', freeze: '❄️', hint: '💡' };
+    var POWER_ICON = { fiftyFifty: 'scissors', skip: 'skip', doublePoints: 'stars2', freeze: 'freeze', hint: 'hint' };
     var POWER_NAME = { fiftyFifty: '50:50', skip: 'تخطي', doublePoints: 'نقط مضاعفة', freeze: 'تجميد', hint: 'تلميح' };
 
     // ---------- Counters + flying icons ----------
@@ -118,7 +120,7 @@ var GameUI = (function () {
             (function (i) {
                 var f = document.createElement('div');
                 f.className = 'gx-flyer';
-                f.textContent = icon;
+                f.innerHTML = icon;
                 var jx = (Math.random() - 0.5) * 60, jy = (Math.random() - 0.5) * 40;
                 f.style.left = (a.x + jx - 11) + 'px';
                 f.style.top = (a.y + jy - 11) + 'px';
@@ -136,7 +138,7 @@ var GameUI = (function () {
         icons.forEach(function (ic, i) {
             var b = document.createElement('div');
             b.className = 'gx-burst';
-            b.textContent = ic;
+            b.innerHTML = ic;
             var ang = (i / icons.length) * Math.PI * 2, dist = 90 + Math.random() * 70;
             b.style.left = (c.x - 11) + 'px';
             b.style.top = (c.y - 11) + 'px';
@@ -215,7 +217,7 @@ var GameUI = (function () {
         var label = big ? ('يوم ' + (i + 1)) : (i + 1);
         if (i < cur || (i === cur && !claimable)) cls += ' gx-day--got';
         else if (i === cur && claimable) { cls += ' gx-day--now'; label = 'النهارده'; }
-        var inner = big && r.chest ? '<b>🧰</b> يوم ٧: صندوق البطل الكبير' : label + '<b>' + rewardIcon(r) + '</b>' + (big ? rewardLabel(r).split(' · ')[0] : '');
+        var inner = big && r.chest ? '<b>' + img('chest') + '</b> يوم ٧: صندوق البطل الكبير' : label + '<b>' + rewardIcon(r) + '</b>' + (big ? rewardLabel(r).split(' · ')[0] : '');
         return '<div class="' + cls + '" data-day="' + i + '">' + inner + '</div>';
     }
 
@@ -393,9 +395,9 @@ var GameUI = (function () {
     function chest(reward, title, opts) {
         opts = opts || {};
         var loot = [];
-        if (reward.stars) loot.push('⭐');
-        if (reward.gems) loot.push('💎');
-        if (reward.powerUps) loot.push(POWER_ICON[Object.keys(reward.powerUps)[0]] || '🎁');
+        if (reward.stars) loot.push(img('star'));
+        if (reward.gems) loot.push(img('gem'));
+        if (reward.powerUps) loot.push(img(POWER_ICON[Object.keys(reward.powerUps)[0]] || 'gift'));
         var lootHtml = loot.map(function (ic, i) { return '<div class="gx-loot" data-i="' + i + '">' + ic + '</div>'; }).join('');
         var m = modal('<span class="gx-ribbon gx-ribbon--purple">' + (title || 'صندوق المفاجآت') + '</span>',
             '<div class="gx-modal-sub" id="gx-chest-hint">دوس على الصندوق علشان تفتحه!</div>' +
@@ -478,6 +480,11 @@ var GameUI = (function () {
         function paint(b) {
             var hp = b.bossHP || 500, dmg = Math.min(b.totalDamage || 0, hp);
             nameEl.textContent = b.bossName || 'الوحش';
+            // boss art: Goliath when the admin names him, Arius otherwise
+            var key = /جليات|جوليات/.test(b.bossName || '') ? 'goliath' : 'arius';
+            document.documentElement.setAttribute('data-boss', key);
+            var fig = $('gx-boss-figure');
+            if (fig) fig.src = 'images/ui/boss-' + key + '.webp';
             hpEl.style.width = Math.max(0, 100 - dmg / hp * 100) + '%';
             var fought = GameState.bossFoughtDate === today();
             var defeated = b.status === 'defeated' || dmg >= hp;
@@ -567,7 +574,7 @@ var GameUI = (function () {
         setLook: setLook, lookPref: lookPref, applyLook: applyLook,
         onScreen: onScreen, renderHub: renderHub, scrollHubTop: scrollHubTop, nav: nav,
         onNewDay: onNewDay, openDaily: openDaily, openSeason: openSeason,
-        whenFree: whenFree, grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp, praise: praise, breakCombo: breakCombo,
+        img: img, whenFree: whenFree, grant: grant, fly: fly, burst: burst, toast: toast, chest: chest, tierUp: tierUp, praise: praise, breakCombo: breakCombo,
         charImage: charImage, refreshCounters: refreshCounters, modal: modal
     };
 })();
@@ -640,7 +647,7 @@ var GameUI = (function () {
     wrap('onSpinComplete', function (args, before) {
         var canvas = document.getElementById('spin-canvas');
         var prize = (typeof SPIN_PRIZES !== 'undefined') ? SPIN_PRIZES[args[0]] : null;
-        GameUI.burst(['⭐', '💎', '✨', '⭐', '✨', '💎'], canvas);
+        GameUI.burst([GameUI.img('star'), GameUI.img('gem'), '✨', GameUI.img('star'), '✨', GameUI.img('gem')], canvas);
         GameUI.refreshCounters();
         if (prize && prize.type === 'mystery') {
             var gotStars = (GameState.stars || 0) - before.stars, gotGems = (GameState.gems || 0) - before.gems;

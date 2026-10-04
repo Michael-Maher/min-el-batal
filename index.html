@@ -57,8 +57,7 @@
                 <p class="sub-badge">مدرسة أتبعني للتلمذة</p>
             </div>
             <div class="gx-splash-rays gx-rays"></div>
-            <div class="gx-logo-crown">👑</div>
-            <h1 class="game-title gx-logo"><span class="title-accent">مين</span><span class="title-main">البطل؟</span></h1>
+            <h1 class="game-title gx-logo"><img class="gx-logo-img" src="images/ui/logo-min-el-batal.webp" alt="مين البطل؟"></h1>
             <p class="tagline">إثبت إنك بطل في معرفة كتابك المقدس وكنيستك</p>
             <div class="gx-lineup" aria-hidden="true">
                 <img src="images/chars/verina.png" alt="" class="gx-lu gx-lu-1">
@@ -197,8 +196,8 @@
                     <div class="gx-rank"><p class="hub-rank" id="hub-rank"></p></div>
                     <div class="gx-xp"><i id="gx-xp-fill"></i></div>
                 </div>
-                <div class="gx-pill" id="gx-pill-stars" onclick="showScreen('leaderboard-screen')"><span class="gx-ic">⭐</span><b id="hub-stars">0</b></div>
-                <div class="gx-pill" id="gx-pill-gems" onclick="showScreen('shop-screen')"><span class="gx-ic" style="animation-delay:.5s">💎</span><b id="hub-gems">0</b><span class="gx-plus">+</span></div>
+                <div class="gx-pill" id="gx-pill-stars" onclick="showScreen('leaderboard-screen')"><span class="gx-ic"><img class="gx-i" src="images/ui/ic-star.webp" alt=""></span><b id="hub-stars">0</b></div>
+                <div class="gx-pill" id="gx-pill-gems" onclick="showScreen('shop-screen')"><span class="gx-ic" style="animation-delay:.5s"><img class="gx-i" src="images/ui/ic-gem.webp" alt=""></span><b id="hub-gems">0</b><span class="gx-plus">+</span></div>
             </div>
         </div>
         <div class="screen-inner hub-screen-inner">
@@ -207,9 +206,9 @@
 
             <!-- ===== Quick actions ===== -->
             <div class="gx-quick">
-                <div class="gx-qbtn gx-qbtn--gold" onclick="openSpinWheel()"><span class="gx-spin">🎡</span><span class="gx-badge" id="gx-wheel-badge" style="display:none">1</span><small>العجلة</small></div>
-                <div class="gx-qbtn gx-qbtn--purple" onclick="showScreen('rewards-shop-screen')"><span class="gx-wig">🎁</span><small>الهدايا</small></div>
-                <div class="gx-qbtn gx-qbtn--red" onclick="showScreen('shop-screen')"><span>🛡️</span><small>السلاح</small></div>
+                <div class="gx-qbtn gx-qbtn--gold" onclick="openSpinWheel()"><span class="gx-wig"><img class="gx-i" src="images/ui/ic-wheel.webp" alt=""></span><span class="gx-badge" id="gx-wheel-badge" style="display:none">1</span><small>العجلة</small></div>
+                <div class="gx-qbtn gx-qbtn--purple" onclick="showScreen('rewards-shop-screen')"><span class="gx-wig"><img class="gx-i" src="images/ui/ic-gift.webp" alt=""></span><small>الهدايا</small></div>
+                <div class="gx-qbtn gx-qbtn--red" onclick="showScreen('shop-screen')"><span><img class="gx-i" src="images/ui/ic-sword.webp" alt=""></span><small>السلاح</small></div>
                 <div class="gx-qbtn gx-qbtn--green" onclick="showScreen('progress-dashboard-screen')"><span>📈</span><small>تقدّمي</small></div>
                 <div class="gx-qbtn" onclick="showScreen('museum-screen')"><span>🏛️</span><small>المتحف</small></div>
                 <div class="gx-qbtn" onclick="showScreen('info-screen')"><span>🧭</span><small>الدليل</small></div>
@@ -219,7 +218,7 @@
 
             <!-- ===== Status chips ===== -->
             <div class="gx-status">
-                <span class="gx-pill"><span class="gx-ic">🔥</span><b id="hub-streak-num">0</b>&nbsp;يوم</span>
+                <span class="gx-pill"><span class="gx-ic"><img class="gx-i" src="images/ui/ic-flame.webp" alt=""></span><b id="hub-streak-num">0</b>&nbsp;يوم</span>
                 <span class="gx-pill"><span class="pic-chip-online-dot"></span>&nbsp;<b id="hub-online-count">—</b>&nbsp;أونلاين</span>
                 <div class="hub-team-badge" id="hub-team-badge" onclick="event.stopPropagation(); showScreen('teams-screen')"></div>
             </div>
@@ -227,7 +226,7 @@
             <!-- ===== Weekly boss ===== -->
             <div class="gx-boss gx-press" id="gx-boss" onclick="openBossBattle()">
                 <i class="gx-ember" style="left:30px"></i><i class="gx-ember" style="left:96px;animation-delay:-1s"></i><i class="gx-ember" style="left:210px;animation-delay:-.5s"></i><i class="gx-ember" style="left:290px;animation-delay:-1.8s"></i>
-                <div class="gx-giant" id="gx-boss-figure"><i class="sp"></i><i class="bd"></i><i class="hd"></i><i class="hm"></i><i class="ey" style="left:48px"></i><i class="ey" style="left:66px"></i></div>
+                <img class="gx-boss-art" id="gx-boss-figure" src="images/ui/boss-arius.webp" alt="">
                 <div class="gx-boss-txt">
                     <span class="gx-boss-tag">⚔️ معركة الوحش الأسبوعية</span>
                     <div class="gx-boss-name" id="gx-boss-name">أريوس الهرطوقي</div>
@@ -279,25 +278,25 @@
                 <div class="gx-ribbon-wrap"><span class="gx-ribbon gx-ribbon--purple">حياتي الروحية</span></div>
                 <div class="spiritual-cards-grid">
                     <div class="spiritual-card" onclick="showScreen('bible-reading-screen')">
-                        <div class="spiritual-card-icon">📖</div>
+                        <div class="spiritual-card-icon"><img class="gx-i" src="images/ui/ic-bible.webp" alt=""></div>
                         <h4>إنجيل مار مرقس</h4>
                         <p>أصحاح يومي + تلخيص</p>
                         <div class="spiritual-card-streak" id="bible-streak-badge-top"></div>
                     </div>
                     <div class="spiritual-card" onclick="showScreen('devotion-screen')">
-                        <div class="spiritual-card-icon">🕯️</div>
+                        <div class="spiritual-card-icon"><img class="gx-i" src="images/ui/ic-candle.webp" alt=""></div>
                         <h4>خلوتي الشخصية</h4>
                         <p>صلاة الصبح وبليل</p>
                         <div class="spiritual-card-streak" id="devotion-streak-badge-top"></div>
                     </div>
                     <div class="spiritual-card" onclick="showScreen('exercises-screen')">
-                        <div class="spiritual-card-icon">💪</div>
+                        <div class="spiritual-card-icon"><img class="gx-i" src="images/ui/ic-dumbbell.webp" alt=""></div>
                         <h4>التداريب اليومية</h4>
                         <p>تداريب روحية يومية وأسبوعية</p>
                         <div class="spiritual-card-streak" id="exercise-streak-badge-top"></div>
                     </div>
                     <div class="spiritual-card" onclick="openVerseWheel()">
-                        <div class="spiritual-card-icon">🕊️</div>
+                        <div class="spiritual-card-icon"><img class="gx-i" src="images/ui/ic-dove.webp" alt=""></div>
                         <h4>صوت يسوع</h4>
                         <p>آيتك لهذا اليوم</p>
                         <div class="spiritual-card-streak" id="verse-spin-badge"></div>
@@ -311,8 +310,8 @@
             <div class="hub-section hub-section-learn">
                 <div class="gx-ribbon-wrap"><span class="gx-ribbon">اختار مغامرتك</span></div>
                 <div class="hub-cards-grid">
-                    <div class="hub-card hub-card-active hub-card-l1-open" onclick="openLevel1()" style="--gx-tint:linear-gradient(270deg,rgba(255,143,0,.93) 32%,rgba(255,143,0,.12) 78%)">
-                        <div class="hub-card-bg" style="background-image:url('images/l1-bible-map.jpg')">
+                    <div class="hub-card hub-card-active hub-card-l1-open" onclick="openLevel1()" style="--gx-tint:linear-gradient(270deg,rgba(232,120,0,.72) 25%,rgba(232,120,0,0) 62%)">
+                        <div class="hub-card-bg" style="background-image:url('images/ui/card-l1.webp')">
                             <div class="hub-card-overlay"></div>
                         </div>
                         <div class="gx-rays gx-card-rays"></div>
@@ -325,8 +324,8 @@
                         </div>
                         <div class="hub-card-shine"></div>
                     </div>
-                    <div class="hub-card hub-card-active" onclick="showScreen('level2-subjects-screen')" style="--gx-tint:linear-gradient(270deg,rgba(40,70,190,.93) 32%,rgba(40,70,190,.12) 78%)">
-                        <div class="hub-card-bg" style="background-image:url('images/l2-bible-map.jpg');animation-delay:-6s">
+                    <div class="hub-card hub-card-active" onclick="showScreen('level2-subjects-screen')" style="--gx-tint:linear-gradient(270deg,rgba(25,90,200,.72) 25%,rgba(25,90,200,0) 62%)">
+                        <div class="hub-card-bg" style="background-image:url('images/ui/card-l2.webp');animation-delay:-6s">
                             <div class="hub-card-overlay"></div>
                         </div>
                         <div class="gx-rays gx-card-rays"></div>
@@ -346,8 +345,8 @@
             <div class="hub-section hub-section-challenges">
                 <div class="gx-ribbon-wrap"><span class="gx-ribbon gx-ribbon--orange">التحديات</span></div>
                 <div class="hub-cards-grid">
-                    <div class="hub-card hub-card-competitions" onclick="showScreen('compete-screen')" style="--gx-tint:linear-gradient(270deg,rgba(214,18,91,.92) 34%,rgba(120,20,160,.2) 80%)">
-                        <div class="hub-card-bg" style="background-image:url('images/competitions-bg-opt.jpg')">
+                    <div class="hub-card hub-card-competitions" onclick="showScreen('compete-screen')" style="--gx-tint:linear-gradient(270deg,rgba(200,20,110,.6) 25%,rgba(200,20,110,0) 62%)">
+                        <div class="hub-card-bg" style="background-image:url('images/ui/card-compete.webp')">
                             <div class="hub-card-overlay"></div>
                         </div>
                         <div class="gx-rays gx-card-rays"></div>
@@ -1681,10 +1680,10 @@
     <nav class="gx-nav" id="gx-nav">
         <div class="gx-nav-in">
             <button data-nav="shop-screen" onclick="GameUI.nav('shop-screen')"><span>🛒</span><b>المتجر</b></button>
-            <button data-nav="compete-screen" onclick="GameUI.nav('compete-screen')"><span>🏆</span><b>منافسات</b></button>
+            <button data-nav="compete-screen" onclick="GameUI.nav('compete-screen')"><span><img class="gx-i" src="images/ui/ic-trophy.webp" alt=""></span><b>منافسات</b></button>
             <button data-nav="home-hub-screen" onclick="GameUI.nav('home-hub-screen')"><span>🏠</span><b>الرئيسية</b></button>
-            <button data-nav="leaderboard-screen" onclick="GameUI.nav('leaderboard-screen')"><span>👑</span><b>الأبطال</b></button>
-            <button data-nav="teams-screen" onclick="GameUI.nav('teams-screen')"><span>🛡️</span><b>فريقي</b></button>
+            <button data-nav="leaderboard-screen" onclick="GameUI.nav('leaderboard-screen')"><span><img class="gx-i" src="images/ui/ic-crown.webp" alt=""></span><b>الأبطال</b></button>
+            <button data-nav="teams-screen" onclick="GameUI.nav('teams-screen')"><span><img class="gx-i" src="images/ui/ic-shield.webp" alt=""></span><b>فريقي</b></button>
         </div>
     </nav>
 

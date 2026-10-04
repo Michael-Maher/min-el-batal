@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v30';
+var CACHE_NAME = 'min-el-batal-v31';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -26,6 +26,11 @@ var STATIC_ASSETS = [
     '/images/chars/david.png',
     '/images/chars/paul.png',
     '/images/chars/george.png',
+    '/images/ui/logo-min-el-batal.webp',
+    '/images/ui/bg-login.webp',
+    '/images/ui/bg-hub-day.webp',
+    '/images/ui/ic-star.webp',
+    '/images/ui/ic-gem.webp',
     '/level2-bible-data.js',
     '/level2-arcade-bible.js',
     '/images/l2-bible-map.jpg',

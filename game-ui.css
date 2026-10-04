@@ -1014,7 +1014,7 @@ html[data-look="night"] :is(#bible-reading-screen, #devotion-screen, #exercises-
 html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) .top-bar { background: linear-gradient(#4A2BB0, #2E1780); border-color: #1C0D52; box-shadow: 0 5px 0 #1C0D52; }
 html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) .back-btn { background: linear-gradient(var(--gx-purple-1), var(--gx-purple-2)); border-color: var(--gx-purple-ink); box-shadow: 0 3px 0 var(--gx-purple-edge); }
 html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) :is(.bible-chapter-card, .bible-video-section, .bible-full-text, .bible-action-section, .devotion-streak-card, .devotion-card, .devotion-tip-card, .exercise-total-card, .lamp-score-area, .detail-card, .bible-progress-section, .lamp-week-header, .lamp-missions-container) {
-    background: linear-gradient(180deg, rgba(255, 255, 255, .2), rgba(255, 255, 255, .08)) !important; border-color: rgba(255, 255, 255, .55) !important; box-shadow: 0 5px 0 rgba(46, 23, 128, .55) !important;
+    background: linear-gradient(180deg, rgba(96, 62, 205, .8), rgba(62, 32, 152, .82)) !important; border-color: rgba(255, 255, 255, .55) !important; box-shadow: 0 5px 0 rgba(46, 23, 128, .55) !important;
 }
 html[data-look] .bible-chapter-number { font-family: var(--gx-display); font-weight: 400; color: #FFE766; text-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
 html[data-look] :is(.bible-full-text, .detail-verse-text) { line-height: 2; }
@@ -1274,3 +1274,65 @@ html[data-look] .today-verse-label { font-family: var(--gx-display); font-weight
 html[data-look] .today-verse-pending { cursor: pointer; animation: gxThrob 1.8s ease-in-out infinite; }
 html[data-look] .today-verse-spin-prompt { font-weight: 800; }
 html[data-look] :is(.qa-hero-sub, .fqs-hero-sub, .social-hero-sub) { color: #fff !important; font-weight: 700; text-shadow: 0 1px 3px rgba(0, 0, 0, .35); }
+
+/* ============================================================
+   WEAVE ART (images/ui)
+   ============================================================ */
+.gx-i { width: 1.15em; height: 1.15em; object-fit: contain; display: inline-block; vertical-align: -0.2em; filter: drop-shadow(0 2px 1px rgba(0, 0, 0, .25)); pointer-events: none; }
+.gx-pill .gx-ic .gx-i { width: 20px; height: 20px; }
+.gx-qbtn .gx-i { width: 36px; height: 36px; }
+.gx-nav button .gx-i { width: 28px; height: 28px; }
+.gx-nav button.on .gx-i { width: 34px; height: 34px; }
+#home-hub-screen.gx-hub .spiritual-card-icon .gx-i { width: 40px; height: 40px; filter: drop-shadow(0 3px 2px rgba(0, 0, 0, .3)); }
+.gx-day b .gx-i { width: 22px; height: 22px; }
+.gx-dgrid .gx-day b .gx-i { width: 36px; height: 36px; }
+.gx-dgrid .gx-day--chest b .gx-i { width: 40px; height: 40px; }
+.gx-snode .gx-i { width: 26px; height: 26px; }
+.gx-srew span .gx-i { width: 30px; height: 30px; }
+.gx-btn .gx-i { width: 26px; height: 26px; }
+.gx-flyer .gx-i, .gx-burst .gx-i { width: 28px; height: 28px; }
+.gx-loot .gx-i { width: 52px; height: 52px; }
+.gx-toast-ic .gx-i { width: 36px; height: 36px; }
+
+/* day sky = Weave Galilee scene; night keeps the CSS sky with moon and stars */
+html[data-look="day"] #gx-sky { background: linear-gradient(180deg, rgba(30, 140, 235, .1) 0%, rgba(20, 90, 200, .25) 45%, rgba(10, 50, 150, .62) 100%), url('images/ui/bg-hub-day.webp') center / cover no-repeat; }
+html[data-look="day"] .gx-cloud { opacity: .35; }
+
+/* tall screens: art sits at the top and fades into the screen colour */
+html[data-look] #splash-screen { background: linear-gradient(180deg, rgba(30, 140, 235, 0) 40%, rgba(15, 74, 168, .55) 100%), url('images/ui/bg-login.webp') top center / cover no-repeat; }
+html[data-look] #splash-screen .gx-splash-rays { opacity: .18; }
+html[data-look] .gx-logo-img { width: min(340px, 86vw); height: auto; display: block; margin: 6px auto 0; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .35)); }
+html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) {
+    background-color: #6A45D8;
+    background-image: linear-gradient(180deg, rgba(70, 40, 170, .35) 0, rgba(90, 60, 210, .72) 70vh, #6A45D8 100vh), url('images/ui/bg-spiritual.webp');
+    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
+}
+html[data-look] :is(#compete-screen, #compete-lobby-screen) {
+    background-color: #1A4BA8;
+    background-image: linear-gradient(180deg, rgba(20, 70, 170, .25) 0, rgba(20, 70, 170, .7) 70vh, #1A4BA8 100vh), url('images/ui/bg-arena.webp');
+    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
+}
+html[data-look] #compete-game-screen, html[data-look] #quiz-screen, html[data-look] :is(#psalm-screen, #spotdiff-screen, #memory-screen, #imgpuzzle-screen, #truefalse-screen, #maze-screen, #picguess-screen, #missing-screen, #puzzle-screen, #connect-screen, #order-screen, #emoji-game-screen, #category-screen) {
+    background-color: #3A1E8A;
+    background-image: linear-gradient(180deg, rgba(60, 30, 150, .3) 0, rgba(58, 30, 138, .78) 70vh, #3A1E8A 100vh), url('images/ui/bg-quiz.webp');
+    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
+}
+html[data-look] .l1-game-frame.arcade { background: linear-gradient(180deg, rgba(60, 30, 150, .35), rgba(42, 22, 112, .85)), url('images/ui/bg-quiz.webp') center / cover no-repeat; }
+
+/* boss: hub banner + battle popup */
+#home-hub-screen .gx-boss { background: linear-gradient(270deg, rgba(120, 10, 40, .85) 30%, rgba(60, 10, 60, .2) 75%), url('images/ui/bg-boss.webp') center / cover no-repeat; }
+.gx-boss .gx-boss-art { position: absolute; left: -6px; bottom: -6px; height: 112%; width: auto; max-width: 52%; object-fit: contain; object-position: bottom left; filter: drop-shadow(0 6px 8px rgba(0, 0, 0, .5)); animation: gxStomp 1.8s ease-in-out infinite; z-index: 1; }
+.gx-boss .gx-boss-txt { z-index: 2; }
+.gx-boss .gx-btn { z-index: 2; }
+html[data-look] .boss-modal { background: linear-gradient(180deg, rgba(60, 10, 80, .55), rgba(26, 5, 48, .92)), url('images/ui/bg-boss.webp') center / cover no-repeat !important; }
+html[data-look] :is(.boss-emoji, .boss-fight-emoji, .boss-result-emoji) {
+    font-size: 0 !important; width: 150px; height: 165px; margin: 0 auto; display: block;
+    background: url('images/ui/boss-arius.webp') center bottom / contain no-repeat; filter: drop-shadow(0 0 16px rgba(255, 40, 40, .55)) drop-shadow(0 6px 0 rgba(0, 0, 0, .35));
+}
+html[data-boss="goliath"][data-look] :is(.boss-emoji, .boss-fight-emoji, .boss-result-emoji) { background-image: url('images/ui/boss-goliath.webp'); }
+
+/* Level 2 subject cards → Weave card art */
+html[data-look] .l2-subject-card:nth-child(1) { background: linear-gradient(270deg, rgba(106, 53, 217, .9) 42%, rgba(106, 53, 217, .05) 82%), url('images/ui/card-faith.webp') center / cover no-repeat !important; }
+html[data-look] .l2-subject-card:nth-child(2) { background: linear-gradient(270deg, rgba(21, 101, 192, .9) 42%, rgba(21, 101, 192, .05) 82%), url('images/ui/card-james.webp') center / cover no-repeat !important; }
+html[data-look] .l2-subject-card:nth-child(3) { background: linear-gradient(270deg, rgba(232, 101, 10, .9) 42%, rgba(232, 101, 10, .05) 82%), url('images/ui/card-life.webp') center / cover no-repeat !important; }
+html[data-look] .boss-hp-section { display: block; } html[data-look] .boss-hp-label { display: flex; justify-content: space-between; margin-bottom: 4px; } html[data-look] .boss-hp-bar { width: 100%; display: block; }

@@ -566,6 +566,7 @@ var GameUI = (function () {
     function onScreen(id) {
         var el = $(id);
         if (!el || !el.classList.contains('active')) return;
+        document.body.setAttribute('data-screen', id); // picks the fixed backdrop art (game-ui.css)
         var showNav = !!NAV_SCREENS[id];
         document.body.classList.toggle('gx-nav-on', showNav);
         if (showNav) {
@@ -880,7 +881,7 @@ var GameUI = (function () {
             if (b._gx) return;
             b._gx = true;
             var parts = b.textContent.split('·').map(function (x) { return x.trim(); }).filter(Boolean);
-            if (parts.length > 1) b.innerHTML = parts.map(function (x) { return '<span>' + x + '</span>'; }).join('');
+            if (parts.length) b.innerHTML = parts.map(function (x) { return '<span>' + x + '</span>'; }).join('');
             b.classList.add('gx-chips');
         });
     }

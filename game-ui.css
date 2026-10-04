@@ -1278,21 +1278,6 @@ html[data-look="day"] .gx-cloud { opacity: .35; }
 html[data-look] #splash-screen { background: linear-gradient(180deg, rgba(30, 140, 235, 0) 40%, rgba(15, 74, 168, .55) 100%), url('images/ui/bg-login.webp') top center / cover no-repeat; }
 html[data-look] #splash-screen .gx-splash-rays { opacity: .18; }
 html[data-look] .gx-logo-img { width: min(340px, 86vw); height: auto; display: block; margin: 6px auto 0; filter: drop-shadow(0 8px 10px rgba(0, 0, 0, .35)); }
-html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen) {
-    background-color: #6A45D8;
-    background-image: linear-gradient(180deg, rgba(70, 40, 170, .35) 0, rgba(90, 60, 210, .72) 70vh, #6A45D8 100vh), url('images/ui/bg-spiritual.webp');
-    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
-}
-html[data-look] :is(#compete-screen, #compete-lobby-screen) {
-    background-color: #1A4BA8;
-    background-image: linear-gradient(180deg, rgba(20, 70, 170, .25) 0, rgba(20, 70, 170, .7) 70vh, #1A4BA8 100vh), url('images/ui/bg-arena.webp');
-    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
-}
-html[data-look] #compete-game-screen, html[data-look] #quiz-screen, html[data-look] :is(#psalm-screen, #spotdiff-screen, #memory-screen, #imgpuzzle-screen, #truefalse-screen, #maze-screen, #picguess-screen, #missing-screen, #puzzle-screen, #connect-screen, #order-screen, #emoji-game-screen, #category-screen) {
-    background-color: #3A1E8A;
-    background-image: linear-gradient(180deg, rgba(60, 30, 150, .3) 0, rgba(58, 30, 138, .78) 70vh, #3A1E8A 100vh), url('images/ui/bg-quiz.webp');
-    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
-}
 html[data-look] .l1-game-frame.arcade { background: linear-gradient(180deg, rgba(60, 30, 150, .35), rgba(42, 22, 112, .85)), url('images/ui/bg-quiz.webp') center / cover no-repeat; }
 
 /* boss battle popup */
@@ -1308,16 +1293,6 @@ html[data-look] .l2-subject-card:nth-child(1) { background: linear-gradient(270d
 html[data-look] .l2-subject-card:nth-child(2) { background: linear-gradient(270deg, rgba(21, 101, 192, .9) 42%, rgba(21, 101, 192, .05) 82%), url('images/ui/card-james.webp') center / cover no-repeat !important; }
 html[data-look] .l2-subject-card:nth-child(3) { background: linear-gradient(270deg, rgba(232, 101, 10, .9) 42%, rgba(232, 101, 10, .05) 82%), url('images/ui/card-life.webp') center / cover no-repeat !important; }
 html[data-look] .boss-hp-section { display: block; } html[data-look] .boss-hp-label { display: flex; justify-content: space-between; margin-bottom: 4px; } html[data-look] .boss-hp-bar { width: 100%; display: block; }
-html[data-look] #shop-screen, html[data-look] #rewards-shop-screen {
-    background-color: #8A4B10;
-    background-image: linear-gradient(180deg, rgba(120, 60, 10, .3) 0, rgba(110, 58, 14, .78) 70vh, #8A4B10 100vh), url('images/ui/bg-shop.webp');
-    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
-}
-html[data-look] #leaderboard-screen {
-    background-color: #8E1C2C;
-    background-image: linear-gradient(180deg, rgba(140, 20, 40, .2) 0, rgba(130, 24, 44, .8) 75vh, #8E1C2C 100vh), url('images/ui/bg-leaderboard.webp');
-    background-size: 100% 100vh, auto 100vh; background-position: top center, top center; background-repeat: no-repeat;
-}
 
 /* ============================================================
    MOTION PASS (whole game)
@@ -1732,3 +1707,25 @@ html[data-look] .lamp-fixed-bottom img, html[data-look] .lamp-main-image { mix-b
 html[data-look] #lamp-screen .gx-hero::before { background: linear-gradient(270deg, rgba(var(--tint), .9) 35%, rgba(var(--tint), .2) 80%); }
 html[data-look] .lamp-mission-card .lamp-mission-chapter, html[data-look] .lamp-mission-card [style*="color"] { text-shadow: none; }
 html[data-look] .lamp-mission-card :is(div, p)[style*="background"] { background: rgba(0, 0, 0, .28) !important; color: #FFE766 !important; border-radius: 12px; }
+
+/* ============================================================
+   SCREEN BACKDROPS — art lives in the fixed sky layer, so it always
+   fills the screen whatever the scroll; the screen itself stays clear
+   ============================================================ */
+html[data-look] :is(#bible-reading-screen, #devotion-screen, #exercises-screen, #verse-detail-screen, #lamp-screen,
+    #compete-screen, #compete-lobby-screen, #compete-game-screen, #quiz-screen, #psalm-screen, #spotdiff-screen, #memory-screen,
+    #imgpuzzle-screen, #truefalse-screen, #maze-screen, #picguess-screen, #missing-screen, #puzzle-screen, #connect-screen,
+    #order-screen, #emoji-game-screen, #category-screen, #shop-screen, #rewards-shop-screen, #leaderboard-screen) { background: transparent !important; }
+body:is([data-screen="bible-reading-screen"], [data-screen="devotion-screen"], [data-screen="exercises-screen"], [data-screen="verse-detail-screen"], [data-screen="lamp-screen"]) #gx-sky {
+    background: linear-gradient(180deg, rgba(70, 40, 170, .45) 0%, rgba(80, 50, 190, .62) 55%, rgba(60, 30, 150, .8) 100%), url('images/ui/bg-spiritual.webp') center / cover no-repeat !important; }
+body:is([data-screen="compete-screen"], [data-screen="compete-lobby-screen"]) #gx-sky {
+    background: linear-gradient(180deg, rgba(20, 60, 160, .4) 0%, rgba(20, 60, 160, .62) 55%, rgba(14, 40, 120, .82) 100%), url('images/ui/bg-arena.webp') center / cover no-repeat !important; }
+body:is([data-screen="compete-game-screen"], [data-screen="quiz-screen"], [data-screen="psalm-screen"], [data-screen="spotdiff-screen"], [data-screen="memory-screen"], [data-screen="imgpuzzle-screen"], [data-screen="truefalse-screen"], [data-screen="maze-screen"], [data-screen="picguess-screen"], [data-screen="missing-screen"], [data-screen="puzzle-screen"], [data-screen="connect-screen"], [data-screen="order-screen"], [data-screen="emoji-game-screen"], [data-screen="category-screen"]) #gx-sky {
+    background: linear-gradient(180deg, rgba(60, 30, 150, .4) 0%, rgba(58, 30, 138, .6) 55%, rgba(42, 20, 110, .82) 100%), url('images/ui/bg-quiz.webp') center / cover no-repeat !important; }
+body:is([data-screen="shop-screen"], [data-screen="rewards-shop-screen"]) #gx-sky {
+    background: linear-gradient(180deg, rgba(110, 55, 10, .42) 0%, rgba(110, 58, 14, .6) 55%, rgba(80, 40, 8, .8) 100%), url('images/ui/bg-shop.webp') center / cover no-repeat !important; }
+body[data-screen="leaderboard-screen"] #gx-sky {
+    background: linear-gradient(180deg, rgba(120, 15, 35, .55) 0%, rgba(120, 20, 40, .68) 55%, rgba(90, 12, 28, .85) 100%), url('images/ui/bg-leaderboard.webp') center top / cover no-repeat !important; }
+html[data-look="night"] body[data-screen]:not([data-screen="home-hub-screen"]) #gx-sky::after { content: ""; position: absolute; inset: 0; background: rgba(8, 10, 40, .35); }
+body[data-screen]:not([data-screen="home-hub-screen"]):not([data-screen="splash-screen"]):not([data-screen="login-screen"]) .gx-cloud,
+body[data-screen]:not([data-screen="home-hub-screen"]) .gx-star { display: none; }

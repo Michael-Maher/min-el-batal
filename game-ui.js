@@ -862,8 +862,8 @@ var GameUI = (function () {
             if (name) box.innerHTML = img(name);
             else if (t && !box.children.length && Array.from(t).length <= 3) box.innerHTML = '<span class="gx-emo">' + t + '</span>';
         });
-        // post reactions: emoji → 3D icon (✝ keeps its emoji until a cross icon exists)
-        var REACT_IC = { '❤': 'heart', '🙏': 'pray', '🔥': 'flame', '⭐': 'star' };
+        // post reactions: emoji → 3D icon
+        var REACT_IC = { '❤': 'heart', '🙏': 'pray', '✝': 'cross', '🔥': 'flame', '⭐': 'star' };
         document.querySelectorAll('.screen.active .social-reaction-btn').forEach(function (b) {
             if (b._gx) return;
             b._gx = true;
@@ -874,14 +874,22 @@ var GameUI = (function () {
         });
         // اسأل الخدّام: 3D chat icon in the hero
         var qh = document.querySelector('.screen.active .qa-screen-hero');
-        if (qh && !qh.querySelector('.gx-hero-float')) qh.insertAdjacentHTML('afterbegin', '<img class="gx-hero-float" src="images/ui/ic-chat.webp" alt="">');
+        if (qh && !qh.querySelector('.gx-hero-float')) qh.insertAdjacentHTML('afterbegin', '<img class="gx-hero-float" src="images/ui/ic-ask.webp" alt="">');
+        // small glyphs in the ask & interact screens → 3D icons
+        [['.social-post-pinned-tag i', 'pushpin'], ['.social-share-btn i', 'share'], ['.fqs-share-btn i.fa-share-alt', 'share'], ['.qa-share-thread-btn i', 'share'],
+         ['.social-fab-compose i', 'pencil'], ['.qa-notice-pin', 'pushpin']].forEach(function (pair) {
+            document.querySelectorAll('.screen.active ' + pair[0]).forEach(function (el) {
+                if (el._gx) return;
+                el._gx = true;
+                if (el.tagName === 'I') el.outerHTML = img(pair[1]); else el.innerHTML = img(pair[1]);
+            });
+        });
         // thread rows + Q&A cards: icon bubbles
         document.querySelectorAll('.screen.active .qa-thread-icon, .screen.active .fqs-q-icon, .screen.active .fqs-a-icon').forEach(function (el) {
             if (el._gx) return;
             el._gx = true;
             el.classList.add('gx-show');
-            var a = el.classList.contains('fqs-a-icon');
-            el.innerHTML = img(a ? 'church' : 'chat');
+            el.innerHTML = img(el.classList.contains('fqs-a-icon') ? 'answer' : 'ask');
         });
         // فريقي: team colour on the banner
         var th = document.querySelector('.screen.active .my-team-header');

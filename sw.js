@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v32';
+var CACHE_NAME = 'min-el-batal-v33';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -30,6 +30,7 @@ var STATIC_ASSETS = [
     '/images/ui/bg-login.webp',
     '/images/ui/bg-hub-day.webp',
     '/images/ui/bg-hub-night.webp',
+    '/images/ui/bg-community.webp',
     '/images/ui/ic-star.webp',
     '/images/ui/ic-gem.webp',
     '/level2-bible-data.js',

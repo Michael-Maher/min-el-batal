@@ -1873,3 +1873,13 @@ html[data-look] .fqs-empty-icon { font-size: 0 !important; width: 84px; height: 
 html[data-look] :is(.fqs-empty-sub, .qa-empty-sub) { color: var(--gx-text-2) !important; }
 html[data-look] .fqs-view-btn:not(#gx) { background: linear-gradient(var(--gx-green-1), var(--gx-green-2)) !important; color: #fff !important; border-color: var(--gx-green-ink) !important; box-shadow: 0 3px 0 var(--gx-green-edge) !important; }
 html[data-look] .social-reaction-btn .gx-i { width: 22px; height: 22px; vertical-align: -6px; }
+
+/* ask & interact: courtyard backdrop + new icons */
+html[data-look] :is(#questions-screen, #friends-questions-screen, #social-screen, #my-posts-screen, #social-post-screen, #question-thread-screen) { background: transparent !important; }
+body:is([data-screen="questions-screen"], [data-screen="friends-questions-screen"], [data-screen="social-screen"], [data-screen="my-posts-screen"], [data-screen="social-post-screen"], [data-screen="question-thread-screen"]) #gx-sky {
+    background: linear-gradient(180deg, rgba(30, 90, 190, .25) 0%, rgba(25, 75, 170, .5) 55%, rgba(18, 55, 140, .75) 100%), url('images/ui/bg-community.webp') center / cover no-repeat !important; }
+html[data-look] .social-feed-empty-icon { background-image: url('images/ui/ic-mailbox.webp') !important; }
+html[data-look] .social-post-pinned-tag .gx-i { width: 16px; height: 16px; vertical-align: -3px; }
+html[data-look] :is(.social-share-btn, .fqs-share-btn, .qa-share-thread-btn) .gx-i { width: 22px; height: 22px; vertical-align: -6px; }
+html[data-look] .social-fab-compose .gx-i { width: 36px; height: 36px; }
+html[data-look] .qa-notice-pin .gx-i { width: 30px; height: 30px; }

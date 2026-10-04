@@ -1629,7 +1629,7 @@ html[data-look] .team-logo-option.selected:not(#gx) { transform: scale(1.12); }
 .gx-chroad-head { display: flex; justify-content: space-between; align-items: center; padding: 0 12px 6px; color: #fff; }
 .gx-chroad-head b { font-family: var(--gx-display); font-weight: 400; font-size: 19px; }
 .gx-chroad-head span { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; background: rgba(0, 0, 0, .3); border-radius: 10px; padding: 1px 8px; }
-html[data-look] .gx-chroad:not(#gx) { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; grid-template-columns: none !important; gap: 0 !important; overflow-x: auto; scrollbar-width: none; padding: 8px 10px 6px; scroll-behavior: smooth; }
+html[data-look] .gx-chroad:not(#gx) { display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; grid-template-columns: none !important; gap: 0 !important; overflow-x: auto; scrollbar-width: none; padding: 18px 14px 8px; scroll-behavior: smooth; }
 .gx-chroad::-webkit-scrollbar { display: none; }
 html[data-look] .gx-chroad .bible-ch-item:not(#gx) { position: relative; flex: 0 0 72px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 0 !important; background: none !important; border: 0 !important; box-shadow: none !important; cursor: pointer; }
 html[data-look] .gx-chroad .bible-ch-item:not(#gx)::before { content: ""; position: absolute; top: 25px; right: 50%; width: 100%; height: 6px; background: rgba(255, 255, 255, .3); z-index: 0; }
@@ -1882,4 +1882,6 @@ html[data-look] .social-feed-empty-icon { background-image: url('images/ui/ic-ma
 html[data-look] .social-post-pinned-tag .gx-i { width: 16px; height: 16px; vertical-align: -3px; }
 html[data-look] :is(.social-share-btn, .fqs-share-btn, .qa-share-thread-btn) .gx-i { width: 22px; height: 22px; vertical-align: -6px; }
 html[data-look] .social-fab-compose .gx-i { width: 36px; height: 36px; }
+html[data-look] .social-fab-compose.gx-compose:not(#gx) { position: static !important; width: auto !important; height: auto !important; padding: 7px 14px !important; border-radius: 14px !important; font-size: 13px; font-weight: 800; gap: 6px; animation: none; box-shadow: 0 3px 0 var(--gx-green-edge) !important; }
+html[data-look] .social-fab-compose.gx-compose .gx-i { width: 22px; height: 22px; }
 html[data-look] .qa-notice-pin .gx-i { width: 30px; height: 30px; }

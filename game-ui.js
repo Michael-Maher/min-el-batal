@@ -916,7 +916,16 @@ var GameUI = (function () {
     }
     var scanTimer = null;
     function scheduleScan() { clearTimeout(scanTimer); scanTimer = setTimeout(function () { enhance(); scanReveal(); }, 100); }
+    // The floating compose button sat on top of the feed's comment boxes: dock it in the toolbar instead.
+    function dockCompose() {
+        var fab = document.querySelector('#social-screen .social-fab-compose'), bar = document.querySelector('#social-screen .social-toolbar');
+        if (!fab || !bar) return;
+        fab.classList.add('gx-compose');
+        fab.innerHTML = '<i class="fas fa-pen"></i> اكتب منشور';
+        bar.insertBefore(fab, bar.firstChild);
+    }
     function bootMotion() {
+        dockCompose();
         document.addEventListener('pointerdown', tapSpark, { passive: true });
         if (window.MutationObserver) new MutationObserver(scheduleScan).observe(document.body, { childList: true, subtree: true });
         scheduleScan();

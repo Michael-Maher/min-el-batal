@@ -1,7 +1,7 @@
 // ============================================================
 // COMPETE BANK — one question bank for group games, built from every subject.
 // Loaded after level1.js. Sources:
-//   - faith: LEVEL2_SUBJECTS.faith lessons (old Level 2 engine, schedule-gated)
+//   - faith, ritual: LEVEL2_SUBJECTS lessons (old Level 2 engine, schedule-gated)
 //   - l2_bible, l2_life, l1_bible, l1_service: subject engine data (LEVEL1_SUBJECTS)
 //     check cards, arcade questions, and lesson games turned into questions:
 //     swipe -> "يخص مين؟", clues -> "مين أنا؟", scenario -> "موقف", fillVerse -> "كمّل الآية",
@@ -14,6 +14,7 @@ var COMPETE_SUBJECTS = [
     { key: 'faith',      label: '✝️ عقيدة ولاهوت',        short: 'عقيدة',         color: '#e74c3c', level: 2 },
     { key: 'l2_bible',   label: '📖 كتاب مقدس (م٢)',       short: 'كتاب مقدس م٢',  color: '#3498db', level: 2 },
     { key: 'l2_life',    label: '🌟 مهارات الحياة والقيادة', short: 'مهارات الحياة', color: '#f39c12', level: 2 },
+    { key: 'ritual',     label: '⛪ طقس',                 short: 'طقس',           color: '#9b59b6', level: 2 },
     { key: 'l1_bible',   label: '📜 كتاب مقدس (م١)',       short: 'كتاب مقدس م١',  color: '#d4a24c', level: 1 },
     { key: 'l1_service', label: '🤲 الخدمة (م١)',          short: 'الخدمة',        color: '#2f9e8f', level: 1 }
 ];
@@ -35,9 +36,12 @@ function competeSubjectMeta(key) {
 }
 
 // Lessons (stations) of a subject: [{ idx, name }]
+// Subjects still on the old Level 2 lesson engine (LEVEL2_SUBJECTS[key].lessons[].questions)
+var COMPETE_LEGACY_SUBJECTS = ['faith', 'ritual'];
+
 function competeLessonsOf(key) {
-    if (key === 'faith') {
-        var f = (typeof LEVEL2_SUBJECTS !== 'undefined' && LEVEL2_SUBJECTS.faith) || { lessons: [] };
+    if (COMPETE_LEGACY_SUBJECTS.indexOf(key) >= 0) {
+        var f = (typeof LEVEL2_SUBJECTS !== 'undefined' && LEVEL2_SUBJECTS[key]) || { lessons: [] };
         return f.lessons.map(function(l, i) { return { idx: i, name: l.name }; })
             .filter(function(l) { return typeof isLessonScheduled !== 'function' || isLessonScheduled(l.idx); });
     }
@@ -141,12 +145,12 @@ function _cbStationQuestions(key, idx, st) {
 function competeQuestionsFor(key, lessons) {
     var want = lessons && lessons.length ? lessons : null;
     var out = [];
-    if (key === 'faith') {
-        competeLessonsOf('faith').forEach(function(l) {
+    if (COMPETE_LEGACY_SUBJECTS.indexOf(key) >= 0) {
+        competeLessonsOf(key).forEach(function(l) {
             if (want && want.indexOf(l.idx) < 0) return;
-            var lesson = LEVEL2_SUBJECTS.faith.lessons[l.idx];
+            var lesson = LEVEL2_SUBJECTS[key].lessons[l.idx];
             (lesson.questions || []).forEach(function(q) {
-                var item = { q: q.q, options: q.options.slice(), correct: q.correct, explain: q.explanation, kind: 'mcq', subject: 'faith', lesson: l.idx };
+                var item = { q: q.q, options: q.options.slice(), correct: q.correct, explain: q.explanation, kind: 'mcq', subject: key, lesson: l.idx };
                 if (_cbValid(item)) out.push(item);
             });
         });

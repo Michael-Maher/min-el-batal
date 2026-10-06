@@ -791,6 +791,8 @@ html[data-look] .fab-container { display: none !important; }
 html[data-look] .lb-tabs-modern { background: rgba(5, 20, 55, .45); border: 2px solid rgba(255, 255, 255, .25); border-radius: 16px; padding: 4px; gap: 3px; }
 html[data-look] .lb-tab-modern { font-family: var(--gx-font); font-weight: 800; color: #fff; border-radius: 12px; }
 html[data-look] .lb-tab-modern.active { color: #5A2E00; }
+html[data-look] .lb-level-btn { font-family: var(--gx-font); font-weight: 800; color: #fff; background: rgba(5, 20, 55, .45); border: 2px solid rgba(255, 255, 255, .3); border-radius: 14px; }
+html[data-look] .lb-level-btn.active { color: #5A2E00; background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border-color: #fff; box-shadow: 0 3px 0 var(--gx-gold-edge); }
 html[data-look] .lb-tab-indicator { background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); border-radius: 12px; box-shadow: 0 3px 0 var(--gx-gold-edge); }
 html[data-look] .lb-podium { align-items: flex-end; gap: 8px; margin-top: 30px; }
 html[data-look] .lb-podium-item {

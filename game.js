@@ -97,6 +97,9 @@ const GameState = {
     claimedStreakRewards: [], // ['streak7', 'streak14', 'streak30']
     dailyRewardDate: '',      // last day the 7-day attendance reward was claimed (game-ui.js)
     season: null,             // { id, startStars, startStations, claimed[], heroClaimed[] } — طريق البطل (game-ui.js)
+    scoreSeasonId: '',        // score season this player's points belong to (gameContent/season, see ensureScoreSeason)
+    playerLevel: 0,           // 1 | 2 — set by admin; 0 = derived from lesson progress (playerLevelOf)
+    createdAt: '',            // account creation (read-only here; written at registration)
     questionHistory: {},       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
     consumableWeapons: {},     // { 'sling': 2, 'scroll': 1 }
     weaponTimedEffects: {},    // { 'doubleSword': expiry_ms }
@@ -292,9 +295,11 @@ function submitLogin() {
                 GameState[scoreKey] = merged;
             });
             // Merge numeric stats
-            ['stars', 'gems', 'totalCorrect', 'totalAnswered', 'bestStreak', 'gamesPlayed', 'xp'].forEach(function(k) {
-                GameState[k] = Math.max(GameState[k] || 0, localBackup[k] || 0);
-            });
+            if ((localBackup.scoreSeasonId || '') === (GameState.scoreSeasonId || '')) {  // never revive points from an older score season
+                ['stars', 'gems', 'totalCorrect', 'totalAnswered', 'bestStreak', 'gamesPlayed', 'xp'].forEach(function(k) {
+                    GameState[k] = Math.max(GameState[k] || 0, localBackup[k] || 0);
+                });
+            }
             // Merge powerUps per-key with Math.max so locally earned powerUps are never lost
             var cPU = existingData.powerUps || {}, lPU = localBackup.powerUps || {};
             GameState.powerUps = {
@@ -513,8 +518,65 @@ function logPlayerEvent(type, data) {
 //  CONTENT LOCKS — live subscription + helpers
 // ════════════════════════════════
 var _locksUnsub = null;
+// ---------- Score seasons ----------
+// The admin starts a new season from admin.html: it archives every player's points + gems,
+// zeroes them in players/ and leaderboard/, then writes gameContent/season { id, startedAt }.
+// Each client also zeroes its own copy once per season, because login merges keep the max of
+// cloud and localStorage values and would otherwise bring the old points back.
+var SCORE_SEASON_FIELDS = ['stars', 'gems', 'xp', 'streak', 'bestStreak', 'totalCorrect', 'totalAnswered', 'gamesPlayed', 'perfectLevels', 'blitzWeeklyScore'];
+var _scoreSeason = null, _scoreSeasonUnsub = null;
+
+function _seasonMs(v) {
+    if (!v) return 0;
+    if (typeof v.toDate === 'function') return v.toDate().getTime();
+    if (typeof v === 'string') return Date.parse(v) || 0;
+    if (v.seconds) return v.seconds * 1000;                        // Timestamp after a localStorage round-trip
+    return +v || 0;
+}
+
+// Moves the logged-in player into the current season; true when their points were zeroed.
+function ensureScoreSeason() {
+    var s = _scoreSeason;
+    if (!s || !s.id || !GameState.playerPhone || GameState.scoreSeasonId === s.id) return false;
+    GameState.scoreSeasonId = s.id;
+    var joined = _seasonMs(GameState.createdAt);
+    if (joined && joined >= _seasonMs(s.startedAt)) return false;   // joined during this season: nothing old to clear
+    SCORE_SEASON_FIELDS.forEach(function(k) { GameState[k] = 0; });
+    if (GameState.season) GameState.season.startStars = 0;          // طريق البطل counts stars from zero again
+    return true;
+}
+
+function onScoreSeasonReset() {
+    saveToLocalStorage(true);
+    syncLeaderboard();
+    try { if (typeof GameUI !== 'undefined') GameUI.refreshCounters(); } catch(e) {}
+    try { var act = document.querySelector('.screen.active'); if (act && act.id === 'home-hub-screen') renderHomeHub(); } catch(e) {}
+    showToast('🏁 بدأ موسم جديد! النقاط اتصفّرت — يلا نبدأ السباق من الأول', 5000, 'success');
+}
+
+function subscribeScoreSeason() {
+    if (!firebaseDb || _scoreSeasonUnsub) return;
+    try {
+        _scoreSeasonUnsub = firebaseDb.collection('gameContent').doc('season').onSnapshot(function(snap) {
+            _scoreSeason = (snap && snap.exists) ? snap.data() : null;
+            if (ensureScoreSeason()) { onScoreSeasonReset(); saveToCloud(); }
+        }, function(err) { console.warn('season snap err', err); });
+    } catch(e) { console.warn('subscribeScoreSeason failed', e); }
+}
+
+// المستوى الأول / الثاني of a player or leaderboard doc: admin's choice, else any Level 2 lesson progress
+var L2_PROGRESS_PREFIXES = ['faith_', 'ritual_', 'l2_bible_', 'l2_life_'];
+function playerLevelOf(p) {
+    if (p && (p.playerLevel === 1 || p.playerLevel === 2)) return p.playerLevel;
+    var ss = (p && p.stationScores) || {};
+    return Object.keys(ss).some(function(k) {
+        return (ss[k] && ss[k].total > 0) && L2_PROGRESS_PREFIXES.some(function(pre) { return k.indexOf(pre) === 0; });
+    }) ? 2 : 1;
+}
+
 function subscribeContentLocks() {
     if (!firebaseDb) return;
+    subscribeScoreSeason();
     if (_locksUnsub) { try { _locksUnsub(); } catch(e){} _locksUnsub = null; }
     try {
         _locksUnsub = firebaseDb.collection('gameContent').doc('locks').onSnapshot(function(snap){
@@ -744,6 +806,7 @@ function submitRegister() {
         saveData.username = username;
         saveData.email = email;
         saveData.createdAt = new Date().toISOString();
+        GameState.createdAt = saveData.createdAt;
         saveData.lastUpdated = new Date().toISOString();
 
         firebaseDb.collection('players').doc(phone).set(saveData)
@@ -961,6 +1024,7 @@ function handleRememberMe(rememberMe, phone) {
 
 function saveToCloud() {
     if (!firebaseDb || !GameState.playerPhone) return Promise.resolve();
+    if (ensureScoreSeason()) onScoreSeasonReset();
     const docRef = firebaseDb.collection('players').doc(GameState.playerPhone);
     const data = {
         playerName: GameState.playerName,
@@ -1027,6 +1091,7 @@ function saveToCloud() {
         claimedStreakRewards: GameState.claimedStreakRewards || [],
         dailyRewardDate: GameState.dailyRewardDate || '',
         season: GameState.season || null,
+        scoreSeasonId: GameState.scoreSeasonId || '',
         consumableWeapons: GameState.consumableWeapons || {},
         weaponTimedEffects: GameState.weaponTimedEffects || {},
         dailyDealDate: GameState.dailyDealDate || '',
@@ -1135,7 +1200,9 @@ function loadFromCloud(phone) {
                             } else { GameState[key] = cArr2; }
                         } else if (key === 'stars' || key === 'gems' || key === 'totalCorrect' || key === 'totalAnswered' || key === 'bestStreak' || key === 'gamesPlayed' || key === 'xp') {
                             // For numeric scores, take max of cloud and local (xp included so a stale cloud value never regresses the player's level)
-                            GameState[key] = Math.max(data[key] || 0, localBackup[key] || GameState[key] || 0);
+                            // — but never revive local points from an older score season
+                            var sameSeason = (localBackup.scoreSeasonId || '') === (data.scoreSeasonId || '');
+                            GameState[key] = sameSeason ? Math.max(data[key] || 0, localBackup[key] || GameState[key] || 0) : (data[key] || 0);
                         } else if (['lessonSummaries', 'watchedVideos', 'dailyVerseLog',
                                     'bibleReadingLog', 'devotionLog', 'exerciseLog',
                                     'paulJourneyData', 'highlightedVerses',
@@ -1188,6 +1255,7 @@ function loadFromCloud(phone) {
 
 function syncLeaderboard() {
     if (!firebaseDb || !GameState.playerPhone) return Promise.resolve();
+    if (ensureScoreSeason()) onScoreSeasonReset();
     const docRef = firebaseDb.collection('leaderboard').doc(GameState.playerPhone);
     const entry = {
         playerName: GameState.playerName,
@@ -5406,6 +5474,15 @@ function submitChallengeReflection() {
 // --- Leaderboard ---
 var leaderboardData = [];
 var currentLBTab = 'stars';
+var currentLBLevel = 0;   // 0 = all, 1 / 2 = المستوى الأول / الثاني (playerLevelOf)
+
+function setLBLevel(lvl) {
+    currentLBLevel = lvl;
+    document.querySelectorAll('#lb-level-filter .lb-level-btn').forEach(function(b) {
+        b.classList.toggle('active', +b.getAttribute('data-lvl') === lvl);
+    });
+    renderLeaderboardList();
+}
 
 function renderLeaderboard() {
     // Player card (glassmorphism)
@@ -5477,12 +5554,13 @@ function renderLeaderboardList() {
             level: p.currentLevel || p.level || 1,
             character: p.character || 'david',
             xp: p.xp || 0,
-            team: p.team || ''
+            team: p.team || '',
+            playerLevel: playerLevelOf(p)
         };
     });
     var meExists = allPlayers.find(function(p) { return p.phone === GameState.playerPhone; });
     if (!meExists && GameState.playerName) {
-        allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel, character: GameState.character, xp: GameState.xp || 0, team: GameState.team || '' });
+        allPlayers.push({ name: GameState.playerName, phone: GameState.playerPhone, stars: GameState.stars, streak: GameState.bestStreak, gems: GameState.gems, level: GameState.currentLevel, character: GameState.character, xp: GameState.xp || 0, team: GameState.team || '', playerLevel: playerLevelOf(GameState) });
     }
     // Update current player data in list
     allPlayers.forEach(function(p) {
@@ -5495,8 +5573,10 @@ function renderLeaderboardList() {
             p.character = GameState.character;
             p.xp = GameState.xp || 0;
             p.team = GameState.team || '';
+            p.playerLevel = playerLevelOf(GameState);
         }
     });
+    if (currentLBLevel) allPlayers = allPlayers.filter(function(p) { return p.playerLevel === currentLBLevel; });
 
     var sortKey = currentLBTab === 'stars' ? 'stars' : currentLBTab === 'streak' ? 'streak' : currentLBTab === 'gems' ? 'gems' : currentLBTab === 'xp' ? 'xp' : 'level';
     allPlayers.sort(function(a, b) { return (b[sortKey] || 0) - (a[sortKey] || 0); });
@@ -5541,6 +5621,8 @@ function renderLeaderboardList() {
 function switchLBTab(tab) {
     currentLBTab = tab;
     updateLBTabIndicator();
+    var lf = document.getElementById('lb-level-filter');
+    if (lf) lf.style.display = tab === 'teams' ? 'none' : '';
     if (tab === 'teams') {
         renderTeamLeaderboard();
     } else {
@@ -5684,6 +5766,9 @@ function logout() {
     GameState.username = '';
     GameState.email = '';
     GameState.academicYear = '';
+    GameState.scoreSeasonId = '';
+    GameState.playerLevel = 0;
+    GameState.createdAt = '';
     GameState.character = 'david';
     GameState.currentLevel = 1;
     GameState.stars = 0;

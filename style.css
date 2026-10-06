@@ -565,6 +565,9 @@ body {
 
 /* Tabs with sliding indicator */
 .lb-tabs-modern { display: flex; background: var(--bg-card); border-radius: var(--radius-full); padding: 4px; margin-bottom: 24px; position: relative; border: 1px solid var(--border); }
+.lb-level-filter { display: flex; justify-content: center; gap: 8px; margin: -12px 0 20px; }
+.lb-level-btn { font-family: inherit; font-size: 13px; font-weight: 700; padding: 6px 14px; border-radius: var(--radius-full); border: 1px solid var(--border); background: var(--bg-card); color: var(--text-muted); cursor: pointer; }
+.lb-level-btn.active { background: var(--accent, #6366f1); border-color: transparent; color: #fff; }
 .lb-tab-modern { flex: 1; padding: 10px 8px; background: none; border: none; font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 700; color: var(--text-muted); cursor: pointer; transition: color 0.3s; z-index: 1; position: relative; }
 .lb-tab-modern.active { color: white; }
 .lb-tab-indicator { position: absolute; height: calc(100% - 8px); top: 4px; background: var(--primary); border-radius: var(--radius-full); transition: all 0.3s cubic-bezier(0.4,0,0.2,1); z-index: 0; }

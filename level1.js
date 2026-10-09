@@ -25,6 +25,17 @@ var L1_MAX = 200;
 var L1_BUCKET_MAX = { learnRead: 20, learnChecks: 20, summary: 20, games: 140 };
 var L1_SUMMARY_MIN_CHARS = 40;
 
+// Per-subject caps: a subject may set `scoring: { games, max }` (Bible subjects do). Pass mark and the
+// other buckets are shared by every subject.
+function l1BucketMax(field) {
+    var s = l1Subject() && l1Subject().scoring;
+    return (field === 'games' && s && s.games) || L1_BUCKET_MAX[field];
+}
+function l1MaxTotal() {
+    var s = l1Subject() && l1Subject().scoring;
+    return (s && s.max) || L1_MAX;
+}
+
 // Station badge positions (% of map image). Station 0 = the wooden bridge.
 var L1_MAP_POSITIONS = {
     l1_bible: [
@@ -178,7 +189,7 @@ function l1GamesTotal(n) {
     var st = l1Station(n);
     var sum = 0;
     (st.games || []).forEach(function(g) { sum += Math.min(l1GameBest(n, g), g.max); });
-    return Math.min(sum, L1_BUCKET_MAX.games);
+    return Math.min(sum, l1BucketMax('games'));
 }
 function l1GameBest(n, g) {
     return (GameState.miniGameScores && GameState.miniGameScores[l1Key(n) + '_mg_' + g.id]) || 0;
@@ -191,9 +202,9 @@ function l1SetBucket(n, field, value, localOnly) {
     var key = l1Key(n);
     var cur = GameState.stationScores[key] || { learnRead: 0, learnChecks: 0, summary: 0, games: 0, total: 0 };
     var prevTotal = cur.total || 0;
-    var v = Math.max(0, Math.min(Math.round(value), L1_BUCKET_MAX[field]));
+    var v = Math.max(0, Math.min(Math.round(value), l1BucketMax(field)));
     if (v > (cur[field] || 0)) cur[field] = v;
-    cur.total = Math.min((cur.learnRead || 0) + (cur.learnChecks || 0) + (cur.summary || 0) + (cur.games || 0), L1_MAX);
+    cur.total = Math.min((cur.learnRead || 0) + (cur.learnChecks || 0) + (cur.summary || 0) + (cur.games || 0), l1MaxTotal());
     GameState.stationScores[key] = cur;
     var passed = prevTotal < L1_PASS && cur.total >= L1_PASS;
     if (passed) l1OnStationPassed(n);
@@ -202,7 +213,10 @@ function l1SetBucket(n, field, value, localOnly) {
 }
 
 function l1IsOpen(n) { return n === 0 || l1GetScore(n - 1).total >= L1_PASS; }
-function l1Stars(total) { return total >= L1_MAX ? 3 : total >= 170 ? 2 : total >= L1_PASS ? 1 : 0; }
+function l1Stars(total) {
+    var max = l1MaxTotal();
+    return total >= max ? 3 : total >= L1_PASS + (max - L1_PASS) / 2 ? 2 : total >= L1_PASS ? 1 : 0;
+}
 function l1StarsHtml(k, of) {
     var h = '';
     for (var i = 0; i < (of || 3); i++) h += '<i class="fas fa-star' + (i < k ? ' on' : '') + '"></i>';
@@ -554,7 +568,7 @@ function l1OpenSheet(n) {
     h += l1PartBar('✍️ لخّص', sc.summary || 0, 20);
     h += l1PartBar('🎮 العب', sc.games || 0, 140);
     h += '</div>';
-    h += '<div class="l1-sheet-total">' + (sc.total || 0) + ' / ' + L1_MAX + ' <small>(تعدّي المحطة من ' + L1_PASS + ')</small></div>';
+    h += '<div class="l1-sheet-total">' + (sc.total || 0) + ' / ' + l1MaxTotal() + ' <small>(تعدّي المحطة من ' + L1_PASS + ')</small></div>';
     h += '<button class="l1-cta" onclick="l1StartStation(' + n + ')">ادخل المحطة <i class="fas fa-arrow-left"></i></button>';
     document.getElementById('l1-sheet').innerHTML = h;
     document.getElementById('l1-sheet').classList.add('open');
@@ -615,7 +629,7 @@ function l1BackToMap() {
     enterMapLandscape();
 }
 
-function l1GamesUnlocked() { return (l1GetScore(l1State.station).learnRead || 0) >= L1_BUCKET_MAX.learnRead; }
+function l1GamesUnlocked() { return (l1GetScore(l1State.station).learnRead || 0) >= l1BucketMax('learnRead'); }
 
 function l1SetTab(tab) {
     if (tab === 'games' && !l1GamesUnlocked()) {
@@ -635,7 +649,7 @@ function renderL1Lesson() {
     h += '<div class="l1-lesson-top">';
     h += '<button class="l1-icon-btn" onclick="l1LessonBack()" aria-label="رجوع"><i class="fas fa-arrow-right"></i></button>';
     h += '<div class="l1-lesson-title"><small>' + l1Esc(l1Subject().name) + ' · المحطة ' + l1Num(n) + '</small><b>' + l1Esc(st.title) + '</b></div>';
-    h += '<div class="l1-lesson-score" id="l1-lesson-score">' + (sc.total || 0) + '<small>/' + L1_MAX + '</small></div>';
+    h += '<div class="l1-lesson-score" id="l1-lesson-score">' + (sc.total || 0) + '<small>/' + l1MaxTotal() + '</small></div>';
     h += '</div>';
 
     var learnDone = (sc.learnRead || 0) >= 20;
@@ -672,7 +686,7 @@ function l1LessonBack() {
 
 function l1RefreshScoreChip() {
     var el = document.getElementById('l1-lesson-score');
-    if (el) el.innerHTML = (l1GetScore(l1State.station).total || 0) + '<small>/' + L1_MAX + '</small>';
+    if (el) el.innerHTML = (l1GetScore(l1State.station).total || 0) + '<small>/' + l1MaxTotal() + '</small>';
 }
 
 // ============================================================
@@ -793,11 +807,11 @@ function l1CycleHtml(itemsHtml) {
 
 function l1MarkSeen(i) {
     var cards = l1Station(l1State.station).cards;
-    var seen = Math.round(L1_BUCKET_MAX.learnRead * (i + 1) / cards.length);
+    var seen = Math.round(l1BucketMax('learnRead') * (i + 1) / cards.length);
     var before = l1GetScore(l1State.station).learnRead || 0;
     if (seen > before) {
-        l1SetBucket(l1State.station, 'learnRead', seen, seen < L1_BUCKET_MAX.learnRead);
-        if (seen >= L1_BUCKET_MAX.learnRead && before < L1_BUCKET_MAX.learnRead) {
+        l1SetBucket(l1State.station, 'learnRead', seen, seen < l1BucketMax('learnRead'));
+        if (seen >= l1BucketMax('learnRead') && before < l1BucketMax('learnRead')) {
             showToast('🎮 الألعاب اتفتحت!', 'success');
             renderL1LessonKeepCard();
         }
@@ -836,7 +850,7 @@ function l1AnswerCheck(i, k) {
     }
     var checks = st.cards.map(function(cc, idx) { return cc.type === 'check' ? idx : -1; }).filter(function(x) { return x >= 0; });
     var correct = checks.filter(function(idx) { return l1State.checks[idx] === true; }).length;
-    l1SetBucket(l1State.station, 'learnChecks', L1_BUCKET_MAX.learnChecks * correct / checks.length);
+    l1SetBucket(l1State.station, 'learnChecks', l1BucketMax('learnChecks') * correct / checks.length);
     l1RenderLearn(document.getElementById('l1-lesson-body'));
     l1RefreshScoreChip();
 }
@@ -984,7 +998,7 @@ function l1SubmitSummary() {
         date: getTodayKey(),
         level: 1
     };
-    l1SetBucket(l1State.station, 'summary', L1_BUCKET_MAX.summary);
+    l1SetBucket(l1State.station, 'summary', l1BucketMax('summary'));
     showToast('التلخيص اتسلّم! 👏', 'success');
     try { logPlayerEvent('lesson_summary', { subject: l1State.subject, lesson: l1State.station }); } catch (e) {}
     l1State.tab = l1GamesUnlocked() ? 'games' : 'learn';

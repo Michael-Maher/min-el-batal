@@ -4,6 +4,7 @@
 
 var L1_BIBLE = {
   key: 'l1_bible', name: 'الكتاب المقدس', icon: '📖', color: '#d4a24c',
+  scoring: { games: 250, max: 310 },
   mapImage: 'images/l1-bible-map.jpg', mapTiny: 'images/l1-bible-map-tiny.jpg',
     mapRatio: 3616 / 2415,
     numberBase: 0,

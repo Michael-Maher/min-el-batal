@@ -7,6 +7,7 @@
 
 var L2_BIBLE = {
   key: 'l2_bible', name: 'الكتاب المقدس', icon: '📖', color: '#3b82f6', level: 2,
+  scoring: { games: 250, max: 310 },
   mapImage: 'images/l2-bible-map.jpg', mapTiny: 'images/l2-bible-map-tiny.jpg', mapRatio: 4510 / 2539,
   numberBase: 1,
   backScreen: 'level2-subjects-screen',

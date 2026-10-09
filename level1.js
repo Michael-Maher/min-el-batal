@@ -1740,3 +1740,65 @@ L1_GAME_TYPES.fillVerse = function(host, data, api) {
     render();
     return { destroy: function() {}, partial: function() { return [raw, rawMax]; } };
 };
+// ---- verseOrder: tap the verse tiles in reading order ----
+// Split a verse into tiles of `chunk` words; the last tile may be shorter.
+function l1VoTiles(text, chunk) {
+    var words = String(text || '').trim().split(/\s+/), out = [], n = Math.max(1, chunk || 2);
+    if (!words[0]) return out;
+    for (var i = 0; i < words.length; i += n) out.push(words.slice(i, i + n).join(' '));
+    return out;
+}
+L1_GAME_TYPES.verseOrder = function(host, data, api) {
+    var verses = l1Pick(data.verses, data.pick || 3);
+    var sets = verses.map(function(x) { return l1VoTiles(x.text, data.chunk || 2); });
+    var rawMax = sets.reduce(function(a, t) { return a + t.length; }, 0) || 1;
+    var v = 0, raw = 0, done = false, wait = null;
+    var tr = l1Tracker(api, rawMax);
+    function render() {
+        var tiles = sets[v], next = 0, mistakes = 0;
+        var order = l1Shuffle(tiles.map(function(_, i) { return i; }));
+        if (tiles.length > 1 && order.every(function(x, i) { return x === i; })) order.reverse();
+        var h = '<div class="l1-vo"><div class="l1-vo-line" id="l1-vo-line"></div>';
+        h += '<div class="l1-decode-ref">' + l1Esc(verses[v].ref || '') + '</div>';
+        h += '<div class="l1-decode-progress">آية ' + (v + 1) + ' من ' + verses.length + '</div><div class="l1-tray">';
+        order.forEach(function(i) { h += '<button class="l1-chip">' + l1Esc(tiles[i]) + '</button>'; });
+        h += '</div></div>';
+        host.innerHTML = h;
+        var line = document.getElementById('l1-vo-line');
+        host.querySelectorAll('.l1-chip').forEach(function(btn) {
+            btn.onclick = function() {
+                if (done || next >= tiles.length) return;
+                // Compare by text so duplicate tiles are interchangeable
+                if (btn.textContent === tiles[next]) {
+                    var s = document.createElement('span');
+                    s.className = 'l1-vo-word';
+                    s.textContent = tiles[next];
+                    line.appendChild(s);
+                    btn.classList.add('used');
+                    btn.disabled = true;
+                    l1FxAt(api, s, host);
+                    tr.hit();
+                    next++;
+                    if (next >= tiles.length) {
+                        raw += Math.max(0, tiles.length - mistakes);
+                        line.classList.add('solved');
+                        wait = setTimeout(function() {
+                            v++;
+                            if (v >= verses.length) { done = true; api.end(raw, rawMax); } else render();
+                        }, 1300);
+                    }
+                } else {
+                    mistakes++;
+                    tr.miss();
+                    l1Shake(btn);
+                }
+            };
+        });
+    }
+    if (!sets.length) { host.innerHTML = '<p class="l1-empty">اللعبة دي مش جاهزة لسه 🙏</p>'; return { destroy: function() {}, partial: function() { return [0, 1]; } }; }
+    render();
+    return {
+        destroy: function() { done = true; clearTimeout(wait); },
+        partial: function() { return [raw, rawMax]; }
+    };
+};

@@ -142,6 +142,24 @@ test('l1GamesTotal clamping: Bible 250, Service 140', function () {
     }
 });
 
+/* ---------------- verseOrder ---------------- */
+test('l1VoTiles splits into chunks of 2 words, last shorter', function () {
+    assert.deepStrictEqual(Array.from(ctx.l1VoTiles('في البدء خلق الله السماوات والأرض', 2)),
+        ['في البدء', 'خلق الله', 'السماوات والأرض']);
+    assert.deepStrictEqual(Array.from(ctx.l1VoTiles('سراج لرجلي كلامك ونور لسبيلي', 2)),
+        ['سراج لرجلي', 'كلامك ونور', 'لسبيلي']);
+});
+test('l1VoTiles trims and collapses spaces, chunk defaults to 2', function () {
+    assert.deepStrictEqual(Array.from(ctx.l1VoTiles('  الله   محبة  ')), ['الله محبة']);
+    assert.deepStrictEqual(Array.from(ctx.l1VoTiles('أ ب ج', 1)), ['أ', 'ب', 'ج']);
+});
+test('l1VoTiles keeps duplicate tiles', function () {
+    assert.deepStrictEqual(Array.from(ctx.l1VoTiles('الله محبة الله محبة', 2)), ['الله محبة', 'الله محبة']);
+});
+test('verseOrder type is registered', function () {
+    assert.strictEqual(typeof ctx.L1_GAME_TYPES.verseOrder, 'function');
+});
+
 /* ---------------- report ---------------- */
 // (later tasks insert more test blocks above this line)
 console.log(passed + ' passed, ' + failed + ' failed');

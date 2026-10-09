@@ -92,32 +92,54 @@ test('service games still clamp at 140', function () {
     });
     ctx.GameState.stationScores = {};
 });
-test('l1GamesTotal uses per-subject cap helper', function () {
+test('l1GamesTotal clamping: Bible 250, Service 140', function () {
     // l1GamesTotal(n) sums individual game scores (capped at each game.max) then clamps to l1BucketMax('games').
-    // Currently Bible and Service stations have games summing to 140. Bible cap is 250, Service is 140.
-    // This test verifies the clamping infrastructure is in place; once new games are added in later tasks,
-    // Bible can exceed 250 and will be properly capped.
-    withSubject('l1_bible', function () {
-        ctx.GameState.miniGameScores = {};
-        var st = ctx.LEVEL1_SUBJECTS.l1_bible.stations[0];
-        (st.games || []).forEach(function(g) {
-            ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_' + g.id] = g.max;
+    // This test feeds in sums that exceed both caps to verify the per-subject clamping works.
+    // Bible real games sum to 140; add 3 synthetic games (60 each) to reach 320 total.
+    // Service real games sum to 140; add similar to exceed its 140 cap.
+    // Also verify a middle case: Bible with only 200 total returns 200 (not 140, proving cap is not hardcoded).
+    try {
+        withSubject('l1_bible', function () {
+            ctx.GameState.miniGameScores = {};
+            var st = ctx.LEVEL1_SUBJECTS.l1_bible.stations[0];
+            var originalLength = st.games.length;
+            // Add synthetic games
+            st.games.push({ id: 's0_t1', max: 60 });
+            st.games.push({ id: 's0_t2', max: 60 });
+            st.games.push({ id: 's0_t3', max: 60 });
+            // Seed all games to max (real: 140, synthetic: 180, total: 320)
+            (st.games || []).forEach(function(g) {
+                ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_' + g.id] = g.max;
+            });
+            var total = ctx.l1GamesTotal(0);
+            assert.strictEqual(total, 250, 'bible sum 320 capped at 250');
+            // Restore and test middle case: only synthetic games summing to 200
+            st.games.length = originalLength;
+            ctx.GameState.miniGameScores = {};
+            st.games.push({ id: 's0_mid', max: 200 });
+            ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_s0_mid'] = 200;
+            var mid = ctx.l1GamesTotal(0);
+            assert.strictEqual(mid, 200, 'bible 200 sum returns 200 (not hardcoded 140)');
+            st.games.length = originalLength;
         });
-        var total = ctx.l1GamesTotal(0);
-        // Games sum to 140 (under the 250 cap), so returns 140
-        assert.strictEqual(total, Math.min(140, ctx.l1BucketMax('games')), 'bible uses l1BucketMax');
-    });
-    withSubject('l1_service', function () {
-        ctx.GameState.miniGameScores = {};
-        var st = ctx.LEVEL1_SUBJECTS.l1_service.stations[0];
-        (st.games || []).forEach(function(g) {
-            ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_' + g.id] = g.max;
+        withSubject('l1_service', function () {
+            ctx.GameState.miniGameScores = {};
+            var st = ctx.LEVEL1_SUBJECTS.l1_service.stations[0];
+            var originalLength = st.games.length;
+            // Add synthetic games to exceed service cap of 140
+            st.games.push({ id: 's0_syn1', max: 100 });
+            st.games.push({ id: 's0_syn2', max: 100 });
+            (st.games || []).forEach(function(g) {
+                ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_' + g.id] = g.max;
+            });
+            var total = ctx.l1GamesTotal(0);
+            assert.strictEqual(total, 140, 'service sum exceeds 140 but caps at 140');
+            st.games.length = originalLength;
         });
-        var total = ctx.l1GamesTotal(0);
-        // Games sum to 140, cap is 140
-        assert.strictEqual(total, Math.min(140, ctx.l1BucketMax('games')), 'service uses l1BucketMax');
-    });
-    ctx.GameState.miniGameScores = {};
+    } finally {
+        // Clean up: reset scores
+        ctx.GameState.miniGameScores = {};
+    }
 });
 
 /* ---------------- report ---------------- */

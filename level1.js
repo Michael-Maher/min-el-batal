@@ -564,9 +564,9 @@ function l1OpenSheet(n) {
     h += '<div class="l1-chips">' + (st.topics || []).map(function(t) { return '<span>' + l1Esc(t) + '</span>'; }).join('') + '</div>';
     if (st.verse) h += '<blockquote class="l1-sheet-verse">' + l1Esc(st.verse.text) + ' <cite>' + l1Esc(st.verse.ref) + '</cite></blockquote>';
     h += '<div class="l1-sheet-parts">';
-    h += l1PartBar('📖 تعلّم', (sc.learnRead || 0) + (sc.learnChecks || 0), 40);
-    h += l1PartBar('✍️ لخّص', sc.summary || 0, 20);
-    h += l1PartBar('🎮 العب', sc.games || 0, 140);
+    h += l1PartBar('📖 تعلّم', (sc.learnRead || 0) + (sc.learnChecks || 0), l1BucketMax('learnRead') + l1BucketMax('learnChecks'));
+    h += l1PartBar('✍️ لخّص', sc.summary || 0, l1BucketMax('summary'));
+    h += l1PartBar('🎮 العب', sc.games || 0, l1BucketMax('games'));
     h += '</div>';
     h += '<div class="l1-sheet-total">' + (sc.total || 0) + ' / ' + l1MaxTotal() + ' <small>(تعدّي المحطة من ' + L1_PASS + ')</small></div>';
     h += '<button class="l1-cta" onclick="l1StartStation(' + n + ')">ادخل المحطة <i class="fas fa-arrow-left"></i></button>';
@@ -652,12 +652,12 @@ function renderL1Lesson() {
     h += '<div class="l1-lesson-score" id="l1-lesson-score">' + (sc.total || 0) + '<small>/' + l1MaxTotal() + '</small></div>';
     h += '</div>';
 
-    var learnDone = (sc.learnRead || 0) >= 20;
-    var sumDone = (sc.summary || 0) >= 20;
+    var learnDone = (sc.learnRead || 0) >= l1BucketMax('learnRead');
+    var sumDone = (sc.summary || 0) >= l1BucketMax('summary');
     var tabs = [
-        { id: 'learn', icon: '📖', label: 'تعلّم', done: learnDone, pts: (sc.learnRead || 0) + (sc.learnChecks || 0) + '/40' },
-        { id: 'summary', icon: '✍️', label: 'لخّص', done: sumDone, pts: (sc.summary || 0) + '/20' },
-        { id: 'games', icon: '🎮', label: 'العب', done: (sc.games || 0) >= 140, locked: !learnDone, pts: (sc.games || 0) + '/140' }
+        { id: 'learn', icon: '📖', label: 'تعلّم', done: learnDone, pts: (sc.learnRead || 0) + (sc.learnChecks || 0) + '/' + (l1BucketMax('learnRead') + l1BucketMax('learnChecks')) },
+        { id: 'summary', icon: '✍️', label: 'لخّص', done: sumDone, pts: (sc.summary || 0) + '/' + l1BucketMax('summary') },
+        { id: 'games', icon: '🎮', label: 'العب', done: (sc.games || 0) >= l1BucketMax('games'), locked: !learnDone, pts: (sc.games || 0) + '/' + l1BucketMax('games') }
     ];
     h += '<nav class="l1-journey">';
     tabs.forEach(function(t, i) {
@@ -869,7 +869,7 @@ function l1SaveVerse(i) {
 function l1FinishLearn() {
     l1MarkSeen(l1Station(l1State.station).cards.length - 1);
     var sc = l1GetScore(l1State.station);
-    l1State.tab = (sc.summary || 0) >= 20 ? 'games' : 'summary';
+    l1State.tab = (sc.summary || 0) >= l1BucketMax('summary') ? 'games' : 'summary';
     renderL1Lesson();
 }
 

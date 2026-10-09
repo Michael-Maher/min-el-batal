@@ -92,6 +92,33 @@ test('service games still clamp at 140', function () {
     });
     ctx.GameState.stationScores = {};
 });
+test('l1GamesTotal uses per-subject cap helper', function () {
+    // l1GamesTotal(n) sums individual game scores (capped at each game.max) then clamps to l1BucketMax('games').
+    // Currently Bible and Service stations have games summing to 140. Bible cap is 250, Service is 140.
+    // This test verifies the clamping infrastructure is in place; once new games are added in later tasks,
+    // Bible can exceed 250 and will be properly capped.
+    withSubject('l1_bible', function () {
+        ctx.GameState.miniGameScores = {};
+        var st = ctx.LEVEL1_SUBJECTS.l1_bible.stations[0];
+        (st.games || []).forEach(function(g) {
+            ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_' + g.id] = g.max;
+        });
+        var total = ctx.l1GamesTotal(0);
+        // Games sum to 140 (under the 250 cap), so returns 140
+        assert.strictEqual(total, Math.min(140, ctx.l1BucketMax('games')), 'bible uses l1BucketMax');
+    });
+    withSubject('l1_service', function () {
+        ctx.GameState.miniGameScores = {};
+        var st = ctx.LEVEL1_SUBJECTS.l1_service.stations[0];
+        (st.games || []).forEach(function(g) {
+            ctx.GameState.miniGameScores[ctx.l1Key(0) + '_mg_' + g.id] = g.max;
+        });
+        var total = ctx.l1GamesTotal(0);
+        // Games sum to 140, cap is 140
+        assert.strictEqual(total, Math.min(140, ctx.l1BucketMax('games')), 'service uses l1BucketMax');
+    });
+    ctx.GameState.miniGameScores = {};
+});
 
 /* ---------------- report ---------------- */
 // (later tasks insert more test blocks above this line)

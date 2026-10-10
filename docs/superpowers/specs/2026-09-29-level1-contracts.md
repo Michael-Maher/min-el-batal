@@ -52,6 +52,9 @@ david-shepherd, elijah-chariot, tobit-angel, judith (all `.jpg`).
 ```
 `id` unique across the subject, snake-case, prefixed with `s<station>_`.
 
+Subject-level `scoring: { games, max }` (optional) overrides the games bucket cap (default 140) and the station max
+(default 200) for that subject only. Pass mark stays `L1_PASS` (140). Bible subjects use `{ games: 250, max: 310 }`.
+
 ### Game `data` per type (DOM types, implemented in level1.js)
 ```js
 timeline: { prompt, items:['first','second',...], pick:6, slotLabels?:['اليوم ١',...] }
@@ -62,6 +65,9 @@ connect:  { prompt, left:'title', right:'title', pairs:[['a','b'],...], pick:5 }
 swipe:    { prompt, bins:['شاول','داود','سليمان'], items:[{t:'من سبط بنيامين', bin:0}], pick:12, time:60 }  // 2 or 3 bins
 clues:    { prompt, rounds:[{ answer:'نوح', clues:['clue1 (hard)','clue2','clue3 (easy)'], options:['نوح','إبراهيم','شيث','لامك'] }], pick:4 }
 decode:   { prompt, verses:[{ text:'في البدء خلق الله السماوات والأرض', ref:'(تك ١: ١)' }], pick:2 }  // no tashkeel in decode text
+treasure:   { prompt, questions:[{ q, options:[4], correct, explain, hint, level:1|2|3 }], pick:10, time:20 }  // ladder ordered by level, 3 hearts, lifelines 50:50 / hint / +15s; raw = sum of levels answered right
+wordSearch: { prompt, words:[{ w:'نوح', clue:'...' }], pick:6, size:8, time:120 }   // w: no tashkeel, no spaces, 3..size letters; grid renders RTL
+verseOrder: { prompt, verses:[{ text, ref }], pick:3, chunk:2 }                   // tap tiles of `chunk` words in reading order
 ```
 
 ### Arcade game `data` (type:'arcade', field `arcade` names the game in L1_ARCADE)

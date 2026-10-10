@@ -204,6 +204,47 @@ test('wordSearch type is registered', function () {
     assert.strictEqual(typeof ctx.L1_GAME_TYPES.wordSearch, 'function');
 });
 
+/* ---------------- treasure ---------------- */
+function tq(level, i) { return { q: 'q' + i, options: ['a', 'b', 'c', 'd'], correct: i % 4, explain: 'e', hint: 'h', level: level }; }
+test('l1TreasureDeck picks n and orders by level', function () {
+    var qs = [];
+    for (var i = 0; i < 15; i++) qs.push(tq((i % 3) + 1, i));
+    var d = ctx.l1TreasureDeck(qs, 10);
+    assert.strictEqual(d.length, 10);
+    for (var k = 1; k < d.length; k++) assert.ok(d[k - 1].level <= d[k].level, 'sorted');
+    assert.strictEqual(ctx.l1TreasureDeck(qs.slice(0, 4), 10).length, 4, 'uses all when fewer than pick');
+});
+test('l1TreasureFifty hides two wrong options, never the right one', function () {
+    for (var c = 0; c < 4; c++) {
+        for (var n = 0; n < 30; n++) {
+            var hide = Array.from(ctx.l1TreasureFifty({ options: ['a', 'b', 'c', 'd'], correct: c }));
+            assert.strictEqual(hide.length, 2);
+            assert.ok(hide.indexOf(c) < 0);
+            assert.notStrictEqual(hide[0], hide[1]);
+        }
+    }
+});
+test('l1TreasureTick does nothing while locked, hidden or finished', function () {
+    ['locked', 'hidden', 'finished'].forEach(function (f) {
+        var st = { left: 5, locked: false, finished: false, hidden: false };
+        st[f] = true;
+        assert.strictEqual(ctx.l1TreasureTick(st), 'idle', f);
+        assert.strictEqual(st.left, 5, f);
+    });
+});
+test('l1TreasureTick counts down, ticks near the end, times out once', function () {
+    var st = { left: 7, locked: false, finished: false, hidden: false };
+    assert.strictEqual(ctx.l1TreasureTick(st), 'count'); assert.strictEqual(st.left, 6);
+    assert.strictEqual(ctx.l1TreasureTick(st), 'tick');  assert.strictEqual(st.left, 5);
+    st.left = 1;
+    assert.strictEqual(ctx.l1TreasureTick(st), 'timeout'); assert.strictEqual(st.left, 0);
+    st.locked = true; // the game locks on timeout
+    assert.strictEqual(ctx.l1TreasureTick(st), 'idle'); assert.strictEqual(st.left, 0);
+});
+test('treasure type is registered', function () {
+    assert.strictEqual(typeof ctx.L1_GAME_TYPES.treasure, 'function');
+});
+
 /* ---------------- report ---------------- */
 // (later tasks insert more test blocks above this line)
 console.log(passed + ' passed, ' + failed + ' failed');

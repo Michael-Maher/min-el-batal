@@ -1931,3 +1931,118 @@ L1_GAME_TYPES.wordSearch = function(host, data, api) {
         partial: function() { return [nFound, placed.length || 1]; }
     };
 };
+
+// ---- treasure: 10-step question ladder with 3 hearts and 3 one-time lifelines ----
+function l1TreasureDeck(questions, pick) {
+    return l1Pick(questions, pick || 10).sort(function(a, b) { return (a.level || 1) - (b.level || 1); });
+}
+function l1TreasureFifty(q) {
+    var wrong = [];
+    q.options.forEach(function(_, k) { if (k !== q.correct) wrong.push(k); });
+    return l1Shuffle(wrong).slice(0, Math.max(0, q.options.length - 2));
+}
+// One second of the per-question countdown. Pure: only touches st.left.
+function l1TreasureTick(st) {
+    if (st.finished || st.locked || st.hidden) return 'idle';
+    st.left--;
+    if (st.left <= 0) return 'timeout';
+    return st.left <= 5 ? 'tick' : 'count';
+}
+L1_GAME_TYPES.treasure = function(host, data, api) {
+    var deck = l1TreasureDeck(data.questions, data.pick || 10);
+    var per = data.time || 20;
+    var rawMax = deck.reduce(function(a, q) { return a + (q.level || 1); }, 0) || 1;
+    var i = 0, raw = 0, hearts = 3, wait = null;
+    var st = { left: per, locked: false, finished: false, hidden: false };
+    var used = { fifty: false, hint: false, time: false };
+    var tr = l1Tracker(api, deck.length);
+    function ladder() {
+        var h = '<ol class="l1-tr-ladder">';
+        for (var k = deck.length - 1; k >= 0; k--) h += '<li class="' + (k < i ? 'won' : k === i ? 'now' : '') + '">' + (k + 1) + '</li>';
+        return h + '</ol>';
+    }
+    function heartsHtml() { var h = ''; for (var k = 0; k < 3; k++) h += k < hearts ? '❤️' : '🤍'; return h; }
+    function showTime() {
+        var t = document.getElementById('l1-tr-time'), bar = document.getElementById('l1-tr-bar');
+        if (t) t.textContent = '⏱️ ' + Math.max(0, st.left);
+        if (bar) bar.style.width = Math.min(100, st.left / per * 100) + '%';
+    }
+    function render() {
+        var q = deck[i];
+        st.left = per;
+        st.locked = false;
+        var h = '<div class="l1-tr">' + ladder() + '<div class="l1-tr-main">';
+        h += '<div class="l1-tr-top"><span>' + heartsHtml() + '</span><span id="l1-tr-time"></span></div>';
+        h += '<div class="l1-swipe-timer"><i id="l1-tr-bar"></i></div>';
+        h += '<h3 class="l1-tr-q">' + l1Esc(q.q) + '</h3><div class="l1-check-opts">';
+        q.options.forEach(function(o, k) { h += '<button class="l1-opt" data-k="' + k + '">' + l1Esc(o) + '</button>'; });
+        h += '</div><p class="l1-check-explain" id="l1-tr-explain"></p><div class="l1-tr-life">';
+        h += '<button data-l="fifty"' + (used.fifty ? ' disabled' : '') + '>50:50</button>';
+        h += '<button data-l="hint"' + (used.hint ? ' disabled' : '') + '>🙋 اسأل الخادم</button>';
+        h += '<button data-l="time"' + (used.time ? ' disabled' : '') + '>⏱️ وقت زيادة</button>';
+        h += '</div></div></div>';
+        host.innerHTML = h;
+        showTime();
+        host.querySelectorAll('.l1-opt').forEach(function(btn) {
+            btn.onclick = function() { answer(+btn.getAttribute('data-k')); };
+        });
+        host.querySelectorAll('.l1-tr-life button').forEach(function(btn) {
+            btn.onclick = function() { lifeline(btn.getAttribute('data-l'), btn); };
+        });
+    }
+    function lifeline(kind, btn) {
+        if (used[kind] || st.locked || st.finished) return;
+        used[kind] = true;
+        btn.disabled = true;
+        var q = deck[i];
+        if (kind === 'fifty') {
+            var opts = host.querySelectorAll('.l1-opt');
+            l1TreasureFifty(q).forEach(function(k) { if (opts[k]) { opts[k].disabled = true; opts[k].classList.add('dim'); } });
+        } else if (kind === 'hint') {
+            var ex = document.getElementById('l1-tr-explain');
+            if (ex) ex.textContent = '🙋 ' + (q.hint || q.explain || '');
+        } else {
+            st.left += 15;
+            showTime();
+        }
+        api.sfx('good');
+    }
+    function answer(k) {
+        if (st.locked || st.finished) return;
+        st.locked = true;
+        var q = deck[i], ok = k === q.correct;
+        host.querySelectorAll('.l1-opt').forEach(function(b, bi) {
+            b.disabled = true;
+            b.classList.add(bi === q.correct ? 'right' : (bi === k ? 'wrong' : 'dim'));
+        });
+        if (ok) { raw += (q.level || 1); tr.hit(); l1FxAt(api, host.querySelector('.l1-opt.right'), host); }
+        else { hearts--; tr.miss(); }
+        var ex = document.getElementById('l1-tr-explain');
+        if (ex) ex.textContent = (ok ? '👏 ' : (k < 0 ? '⏰ الوقت خلص! ' : '💡 ')) + (q.explain || '');
+        wait = setTimeout(function() {
+            i++;
+            if (hearts <= 0 || i >= deck.length) end(); else render();
+        }, ok ? 1300 : 2200);
+    }
+    function end() {
+        if (st.finished) return;
+        st.finished = true;
+        clearInterval(timer);
+        clearTimeout(wait);
+        api.end(raw, rawMax);
+    }
+    var timer = setInterval(function() {
+        st.hidden = document.hidden;
+        var r = l1TreasureTick(st);
+        if (r === 'idle') return;
+        showTime();
+        if (r === 'tick') api.sfx('tick');
+        if (r === 'timeout') answer(-1);
+    }, 1000);
+    if (!deck.length) { end(); return { destroy: function() {}, partial: function() { return [0, 1]; } }; }
+    render();
+    return {
+        destroy: function() { st.finished = true; clearInterval(timer); clearTimeout(wait); },
+        partial: function() { return [raw, rawMax]; }
+    };
+};

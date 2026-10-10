@@ -544,3 +544,21 @@
 }
 .l1-vo-word { animation: l1-pop .35s; }
 .l1-vo-line.solved { box-shadow: 0 0 0 4px #2fbf8a; }
+/* ---- wordSearch ---- */
+.l1-ws { display: grid; gap: 10px; }
+.l1-ws-grid {
+    direction: rtl; display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px;
+    width: 100%; max-width: 360px; margin: 0 auto;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.l1-ws-cell {
+    aspect-ratio: 1; display: flex; align-items: center; justify-content: center; border-radius: 8px;
+    background: var(--l1-parch); color: var(--l1-ink); font: 800 18px 'Cairo', sans-serif;
+    transition: background .15s, transform .15s;
+}
+.l1-ws-cell.sel { background: var(--l1-gold-2); transform: scale(1.06); }
+.l1-ws-cell.found { background: #2fbf8a; color: #fff; }
+.l1-ws-list { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.l1-ws-word { padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, .12); font-weight: 700; font-size: 13px; }
+.l1-ws-word.done { background: #2fbf8a; color: #fff; text-decoration: line-through; }
+.l1-ws-clue { text-align: center; min-height: 2.6em; font-size: 14px; line-height: 1.6; margin: 0; }

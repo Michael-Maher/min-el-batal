@@ -160,6 +160,50 @@ test('verseOrder type is registered', function () {
     assert.strictEqual(typeof ctx.L1_GAME_TYPES.verseOrder, 'function');
 });
 
+/* -------- wordSearch -------- */
+test('l1WsCells strips tashkeel, tatweel and spaces, keeps hamza forms', function () {
+    assert.deepStrictEqual(Array.from(ctx.l1WsCells('إِبْرَاهِيم')), ['إ', 'ب', 'ر', 'ا', 'ه', 'ي', 'م']);
+    assert.deepStrictEqual(Array.from(ctx.l1WsCells('آدم وحواء')), ['آ', 'د', 'م', 'و', 'ح', 'و', 'ا', 'ء']);
+    assert.deepStrictEqual(Array.from(ctx.l1WsCells('مـوسى')), ['م', 'و', 'س', 'ى']);
+});
+test('l1WsBuild places every fitting word and fills the grid', function () {
+    var words = [{ w: 'نوح', clue: 'a' }, { w: 'إبراهيم', clue: 'b' }, { w: 'يعقوب', clue: 'c' },
+                 { w: 'يوسف', clue: 'd' }, { w: 'موسى', clue: 'e' }, { w: 'داود', clue: 'f' }];
+    for (var s = 1; s <= 200; s++) {
+        var b = ctx.l1WsBuild(words, 8, rng(s));
+        assert.strictEqual(b.grid.length, 8);
+        b.grid.forEach(function (row) {
+            assert.strictEqual(row.length, 8);
+            row.forEach(function (ch) { assert.ok(ch && ch.length === 1, 'empty cell seed ' + s); });
+        });
+        assert.strictEqual(b.placed.length, 6, 'seed ' + s);
+        b.placed.forEach(function (p) {
+            var spelled = p.cells.map(function (rc) { return b.grid[rc[0]][rc[1]]; }).join('');
+            assert.strictEqual(spelled, ctx.l1WsCells(p.w).join(''), 'seed ' + s + ' ' + p.w);
+            assert.ok(ctx.l1WsLine(p.cells[0], p.cells[p.cells.length - 1]), 'straight ' + p.w);
+        });
+    }
+});
+test('l1WsBuild drops words longer than the grid', function () {
+    var b = ctx.l1WsBuild([{ w: 'الإسكندرية', clue: '' }, { w: 'نوح', clue: '' }], 8, rng(7));
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(b.placed.map(function (p) { return p.w; }))), ['نوح']);
+});
+test('l1WsLine accepts straight lines only', function () {
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.l1WsLine([2, 1], [2, 4]))), [[2, 1], [2, 2], [2, 3], [2, 4]]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.l1WsLine([4, 4], [1, 1]))), [[4, 4], [3, 3], [2, 2], [1, 1]]);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(ctx.l1WsLine([3, 3], [3, 3]))), [[3, 3]]);
+    assert.strictEqual(ctx.l1WsLine([0, 0], [1, 3]), null);
+});
+test('l1WsMatch finds a word from either end', function () {
+    var placed = [{ w: 'نوح', cells: [[0, 0], [0, 1], [0, 2]] }, { w: 'سام', cells: [[1, 0], [2, 0], [3, 0]] }];
+    assert.strictEqual(ctx.l1WsMatch(placed, [0, 0], [0, 2]), 0);
+    assert.strictEqual(ctx.l1WsMatch(placed, [3, 0], [1, 0]), 1);
+    assert.strictEqual(ctx.l1WsMatch(placed, [0, 0], [0, 1]), -1);
+});
+test('wordSearch type is registered', function () {
+    assert.strictEqual(typeof ctx.L1_GAME_TYPES.wordSearch, 'function');
+});
+
 /* ---------------- report ---------------- */
 // (later tasks insert more test blocks above this line)
 console.log(passed + ' passed, ' + failed + ' failed');

@@ -1802,3 +1802,132 @@ L1_GAME_TYPES.verseOrder = function(host, data, api) {
         partial: function() { return [raw, rawMax]; }
     };
 };
+// ---- wordSearch: drag across the grid to find the lesson words ----
+// Grid space grid[r][c]; the grid renders RTL so c+1 reads right-to-left on screen.
+var L1_WS_DIRS = [[0, 1], [1, 0], [1, 1]];
+function l1WsCells(w) {
+    return String(w || '').replace(/[ً-ْٰـ\s]/g, '').split('');
+}
+function l1WsBuild(words, size, rnd) {
+    rnd = rnd || Math.random;
+    var grid = [], placed = [], r, c;
+    for (r = 0; r < size; r++) { grid.push([]); for (c = 0; c < size; c++) grid[r].push(''); }
+    words.forEach(function(item) {
+        var cells = l1WsCells(item.w);
+        if (!cells.length || cells.length > size) return;
+        for (var tries = 0; tries < 200; tries++) {
+            var d = L1_WS_DIRS[Math.floor(rnd() * L1_WS_DIRS.length)];
+            var r0 = Math.floor(rnd() * (size - d[0] * (cells.length - 1)));
+            var c0 = Math.floor(rnd() * (size - d[1] * (cells.length - 1)));
+            var pos = [], ok = true;
+            for (var k = 0; k < cells.length; k++) {
+                var rr = r0 + d[0] * k, cc = c0 + d[1] * k;
+                if (grid[rr][cc] && grid[rr][cc] !== cells[k]) { ok = false; break; }
+                pos.push([rr, cc]);
+            }
+            if (!ok) continue;
+            pos.forEach(function(p, k) { grid[p[0]][p[1]] = cells[k]; });
+            placed.push({ w: item.w, clue: item.clue || '', cells: pos });
+            return;
+        }
+    });
+    var pool = [];
+    placed.forEach(function(p) { pool = pool.concat(l1WsCells(p.w)); });
+    if (!pool.length) pool = ['ا', 'ب', 'ت'];
+    for (r = 0; r < size; r++) for (c = 0; c < size; c++) if (!grid[r][c]) grid[r][c] = pool[Math.floor(rnd() * pool.length)];
+    return { grid: grid, placed: placed };
+}
+function l1WsLine(a, b) {
+    var dr = b[0] - a[0], dc = b[1] - a[1];
+    if (dr && dc && Math.abs(dr) !== Math.abs(dc)) return null;
+    var n = Math.max(Math.abs(dr), Math.abs(dc)), sr = (dr > 0) - (dr < 0), sc = (dc > 0) - (dc < 0), out = [];
+    for (var k = 0; k <= n; k++) out.push([a[0] + sr * k, a[1] + sc * k]);
+    return out;
+}
+function l1WsMatch(placed, a, b) {
+    function same(p, q) { return p[0] === q[0] && p[1] === q[1]; }
+    for (var i = 0; i < placed.length; i++) {
+        var cs = placed[i].cells, s = cs[0], e = cs[cs.length - 1];
+        if ((same(s, a) && same(e, b)) || (same(s, b) && same(e, a))) return i;
+    }
+    return -1;
+}
+L1_GAME_TYPES.wordSearch = function(host, data, api) {
+    var size = data.size || 8;
+    var build = l1WsBuild(l1Pick(data.words, data.pick || 6), size);
+    var placed = build.placed, found = {}, nFound = 0, left = data.time || 120, total = left, finished = false, wait = null;
+    var tr = l1Tracker(api, placed.length);
+    var h = '<div class="l1-ws"><div class="l1-swipe-timer"><i id="l1-ws-bar"></i></div>';
+    h += '<div class="l1-ws-grid" id="l1-ws-grid" style="--n:' + size + '">';
+    build.grid.forEach(function(row, r) {
+        row.forEach(function(ch, c) { h += '<span class="l1-ws-cell" data-r="' + r + '" data-c="' + c + '">' + l1Esc(ch) + '</span>'; });
+    });
+    h += '</div><div class="l1-ws-list">';
+    placed.forEach(function(p, i) { h += '<span class="l1-ws-word" id="l1-ws-w' + i + '">' + l1Esc(p.w) + '</span>'; });
+    h += '</div><p class="l1-ws-clue" id="l1-ws-clue">اسحب صباعك على الكلمة من أولها لآخرها</p></div>';
+    host.innerHTML = h;
+    var grid = document.getElementById('l1-ws-grid');
+    var bar = document.getElementById('l1-ws-bar');
+    var clue = document.getElementById('l1-ws-clue');
+    function cellAt(x, y) {
+        var el = document.elementFromPoint(x, y);
+        el = el && el.closest ? el.closest('.l1-ws-cell') : null;
+        return el ? [+el.getAttribute('data-r'), +el.getAttribute('data-c')] : null;
+    }
+    function cellEl(p) { return grid.querySelector('.l1-ws-cell[data-r="' + p[0] + '"][data-c="' + p[1] + '"]'); }
+    function paint(cells, cls, on) { (cells || []).forEach(function(p) { var el = cellEl(p); if (el) el.classList.toggle(cls, on); }); }
+    var start = null, sel = null;
+    function reset() { paint(sel, 'sel', false); start = null; sel = null; }
+    grid.addEventListener('pointerdown', function(e) {
+        if (finished) return;
+        start = cellAt(e.clientX, e.clientY);
+        if (!start) return;
+        try { grid.setPointerCapture(e.pointerId); } catch (err) {}
+        sel = [start];
+        paint(sel, 'sel', true);
+    });
+    grid.addEventListener('pointermove', function(e) {
+        if (!start) return;
+        var p = cellAt(e.clientX, e.clientY), line = p && l1WsLine(start, p);
+        if (!line) return;
+        paint(sel, 'sel', false);
+        sel = line;
+        paint(sel, 'sel', true);
+    });
+    grid.addEventListener('pointercancel', reset);
+    grid.addEventListener('pointerup', function() {
+        if (!start) return;
+        var s = sel;
+        reset();
+        if (finished || s.length < 2) return;           // a tap is not a guess
+        var i = l1WsMatch(placed, s[0], s[s.length - 1]);
+        if (i < 0) { tr.miss(); l1Shake(grid); return; }
+        if (found[i]) return;
+        found[i] = true;
+        nFound++;
+        paint(placed[i].cells, 'found', true);
+        document.getElementById('l1-ws-w' + i).classList.add('done');
+        clue.textContent = '✨ ' + placed[i].w + (placed[i].clue ? ': ' + placed[i].clue : '');
+        l1FxAt(api, cellEl(placed[i].cells[0]), host);
+        tr.hit();
+        if (nFound >= placed.length) wait = setTimeout(end, 900);
+    });
+    function end() {
+        if (finished) return;
+        finished = true;
+        clearInterval(timer);
+        api.end(nFound, placed.length || 1);
+    }
+    var timer = setInterval(function() {
+        if (document.hidden || finished) return;
+        left--;
+        if (bar) bar.style.width = (left / total * 100) + '%';
+        if (left <= 10 && left > 0) api.sfx('tick');
+        if (left <= 0) end();
+    }, 1000);
+    if (!placed.length) end();
+    return {
+        destroy: function() { finished = true; clearInterval(timer); clearTimeout(wait); },
+        partial: function() { return [nFound, placed.length || 1]; }
+    };
+};

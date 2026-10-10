@@ -98,6 +98,7 @@ const GameState = {
     dailyRewardDate: '',      // last day the 7-day attendance reward was claimed (game-ui.js)
     season: null,             // { id, startStars, startStations, claimed[], heroClaimed[] } — طريق البطل (game-ui.js)
     scoreSeasonId: '',        // score season this player's points belong to (gameContent/season, see ensureScoreSeason)
+    progressResetId: '',      // last lesson-progress reset this player went through (see ensureProgressReset)
     playerLevel: 0,           // 1 | 2 — set by admin; 0 = derived from lesson progress (playerLevelOf)
     createdAt: '',            // account creation (read-only here; written at registration)
     questionHistory: {},       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
@@ -279,10 +280,11 @@ function submitLogin() {
                 var saved = localStorage.getItem('minElBatal_gameState');
                 if (saved) localBackup = JSON.parse(saved);
             } catch(e) {}
-            // Merge score objects keeping max values
+            // Merge score objects keeping max values — but never revive lessons from before a progress reset
+            var sameProgressA = (localBackup.progressResetId || '') === (GameState.progressResetId || '');
             ['stationScores', 'miniGameScores'].forEach(function(scoreKey) {
                 var cloudObj = GameState[scoreKey] || {};
-                var localObj = localBackup[scoreKey] || {};
+                var localObj = sameProgressA ? (localBackup[scoreKey] || {}) : {};
                 var merged = {};
                 var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
                 allKeys.forEach(function(k) {
@@ -524,6 +526,8 @@ var _locksUnsub = null;
 // Each client also zeroes its own copy once per season, because login merges keep the max of
 // cloud and localStorage values and would otherwise bring the old points back.
 var SCORE_SEASON_FIELDS = ['stars', 'gems', 'xp', 'streak', 'bestStreak', 'totalCorrect', 'totalAnswered', 'gamesPlayed', 'perfectLevels', 'blitzWeeklyScore'];
+// A season with progressResetId also restarts every lesson (see ensureProgressReset).
+var SCORE_SEASON_PROGRESS_FIELDS = ['stationScores', 'miniGameScores', 'lessonSummaries', 'watchedVideos', 'questionHistory', 'level2Data', 'levelsData'];
 var _scoreSeason = null, _scoreSeasonUnsub = null;
 
 function _seasonMs(v) {
@@ -534,8 +538,12 @@ function _seasonMs(v) {
     return +v || 0;
 }
 
-// Moves the logged-in player into the current season; true when their points were zeroed.
+// Moves the logged-in player into the current season; true when their points (or lessons) were reset.
 function ensureScoreSeason() {
+    var progress = ensureProgressReset();
+    return _ensurePointsSeason() || progress;
+}
+function _ensurePointsSeason() {
     var s = _scoreSeason;
     if (!s || !s.id || !GameState.playerPhone || GameState.scoreSeasonId === s.id) return false;
     GameState.scoreSeasonId = s.id;
@@ -543,6 +551,26 @@ function ensureScoreSeason() {
     if (joined && joined >= _seasonMs(s.startedAt)) return false;   // joined during this season: nothing old to clear
     SCORE_SEASON_FIELDS.forEach(function(k) { GameState[k] = 0; });
     if (GameState.season) GameState.season.startStars = 0;          // طريق البطل counts stars from zero again
+    return true;
+}
+
+// Restarts every lesson once per progress reset (gameContent/season.progressResetId). The cleared
+// fields are also replaced in the cloud with update(): saveToCloud's merge:true write deep-merges
+// maps, so it could never remove lessons an older save had already uploaded.
+function ensureProgressReset() {
+    var s = _scoreSeason;
+    if (!s || !s.progressResetId || !GameState.playerPhone || GameState.progressResetId === s.progressResetId) return false;
+    GameState.progressResetId = s.progressResetId;
+    var joined = _seasonMs(GameState.createdAt);
+    if (joined && joined >= _seasonMs(s.startedAt)) return false;   // joined after the reset: nothing old to clear
+    var cleared = { currentLevel: 1, progressResetId: s.progressResetId };
+    SCORE_SEASON_PROGRESS_FIELDS.forEach(function(k) { GameState[k] = {}; cleared[k] = {}; });
+    GameState.currentLevel = 1;
+    if (GameState.season) GameState.season.startStations = 0;
+    if (firebaseDb) {
+        firebaseDb.collection('players').doc(GameState.playerPhone).update(cleared).catch(function(e) { console.warn('progress reset write', e); });
+        firebaseDb.collection('leaderboard').doc(GameState.playerPhone).update({ stationScores: {}, currentLevel: 1 }).catch(function() {});
+    }
     return true;
 }
 
@@ -1092,6 +1120,7 @@ function saveToCloud() {
         dailyRewardDate: GameState.dailyRewardDate || '',
         season: GameState.season || null,
         scoreSeasonId: GameState.scoreSeasonId || '',
+        progressResetId: GameState.progressResetId || '',
         consumableWeapons: GameState.consumableWeapons || {},
         weaponTimedEffects: GameState.weaponTimedEffects || {},
         dailyDealDate: GameState.dailyDealDate || '',
@@ -1158,12 +1187,15 @@ function loadFromCloud(phone) {
                     if (saved) localBackup = JSON.parse(saved);
                 } catch(e) {}
 
+                // Lesson progress saved locally before a progress reset must not come back
+                var sameProgress = (localBackup.progressResetId || '') === (data.progressResetId || '');
+                var PROGRESS_MAPS = ['lessonSummaries', 'watchedVideos', 'questionHistory'];
                 Object.keys(data).forEach(key => {
                     if (key in GameState && key !== 'lastUpdated') {
                         // For score objects, merge keeping max values
                         if (key === 'stationScores' || key === 'miniGameScores') {
                             var cloudObj = data[key] || {};
-                            var localObj = localBackup[key] || GameState[key] || {};
+                            var localObj = sameProgress ? (localBackup[key] || GameState[key] || {}) : {};
                             var merged = {};
                             // Merge all keys from both sources
                             var allKeys = Object.keys(cloudObj).concat(Object.keys(localObj));
@@ -1208,10 +1240,10 @@ function loadFromCloud(phone) {
                                     'paulJourneyData', 'highlightedVerses',
                                     'weeklyChallengeLog', 'questionHistory'].indexOf(key) >= 0) {
                             var cloudMap = data[key] || {};
-                            var localMap = localBackup[key] || GameState[key] || {};
+                            var localMap = (sameProgress || PROGRESS_MAPS.indexOf(key) < 0) ? (localBackup[key] || GameState[key] || {}) : {};
                             GameState[key] = Object.assign({}, localMap, cloudMap);
                         } else if (key === 'level2Data') {
-                            var cL2 = data[key] || {}, lL2 = (localBackup[key] || GameState[key] || {});
+                            var cL2 = data[key] || {}, lL2 = sameProgress ? (localBackup[key] || GameState[key] || {}) : {};
                             var mL2 = Object.assign({}, lL2);
                             Object.keys(cL2).forEach(function(sk) {
                                 mL2[sk] = Object.assign({}, lL2[sk] || {}, cL2[sk] || {});
@@ -5767,6 +5799,7 @@ function logout() {
     GameState.email = '';
     GameState.academicYear = '';
     GameState.scoreSeasonId = '';
+    GameState.progressResetId = '';
     GameState.playerLevel = 0;
     GameState.createdAt = '';
     GameState.character = 'david';

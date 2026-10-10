@@ -2222,6 +2222,8 @@ function applyNavPermissions(){
 // ════════════════════════════════
 const SEASON_FIELDS = ['stars','gems','xp','streak','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels','blitzWeeklyScore'];
 const SEASON_LB_FIELDS = ['stars','gems','xp','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels'];
+// Lesson progress cleared when the season also restarts lessons — same list as SCORE_SEASON_PROGRESS_FIELDS in game.js
+const SEASON_PROGRESS_FIELDS = ['stationScores','miniGameScores','lessonSummaries','watchedVideos','questionHistory','level2Data','levelsData'];
 async function loadSeasonInfo(){
   const el=document.getElementById('season-info'); if(!el) return;
   try{
@@ -2232,8 +2234,9 @@ async function loadSeasonInfo(){
 }
 async function startNewSeason(){
   if(me?.role!=='superadmin'){toast('للمسؤول الأعلى فقط','err');return;}
-  const typed=prompt('هيتم تصفير النجوم والجواهر وXP والسلاسل وإحصائيات الإجابات لكل اللاعبين ('+players.length+' لاعب).\nتقدّم الدروس والمشتريات والفرق مش هتتأثر، وهيتحفظ نسخة احتياطية الأول.\n\nاكتب: موسم جديد');
+  const typed=prompt('هيتم تصفير النجوم والجواهر وXP والسلاسل وإحصائيات الإجابات وترتيب البليتز الأسبوعي لكل اللاعبين ('+players.length+' لاعب).\nالمشتريات والفرق مش هتتأثر، وهيتحفظ نسخة احتياطية الأول.\n\nاكتب: موسم جديد');
   if((typed||'').trim()!=='موسم جديد'){ if(typed!==null) toast('التأكيد غلط — ماحصلش أي تغيير','err'); return; }
+  const withLessons=confirm('كمان تصفّر تقدّم الدروس؟ كل اللاعبين هيبدأوا كل الدروس من الأول.\n\nموافق = النقاط والدروس\nإلغاء = النقاط بس');
   const btn=document.getElementById('season-btn'); btn.disabled=true;
   const info=document.getElementById('season-info');
   const step=t=>{ info.textContent=t; };
@@ -2241,32 +2244,47 @@ async function startNewSeason(){
     const prev=(await db.collection('gameContent').doc('season').get()).data()||{};
     const oldId=prev.id||'', newId='s'+Date.now();
     const archiveId='upto-'+newId;   // one archive per run, so a retried run never overwrites the first backup
-    const [pSnap,lbSnap]=await Promise.all([db.collection('players').get(),db.collection('leaderboard').get()]);
-    let batch=db.batch(), n=0;
-    const add=async(fn)=>{ fn(batch); if(++n>=400){ await batch.commit(); batch=db.batch(); n=0; } };
-    const flush=async()=>{ if(n){ await batch.commit(); batch=db.batch(); n=0; } };
+    const [pSnap,lbSnap,blitzSnap]=await Promise.all([db.collection('players').get(),db.collection('leaderboard').get(),db.collection('blitzLeaderboard').get()]);
+    // batches stay under Firestore's 500 writes / 10 MB per commit (lesson backups carry summary images)
+    let batch=db.batch(), n=0, bytes=0;
+    const commit=async()=>{ if(n){ await batch.commit(); batch=db.batch(); n=0; bytes=0; } };
+    const add=async(fn,size)=>{ fn(batch); n++; bytes+=size||0; if(n>=400||bytes>4e6) await commit(); };
+    const flush=commit;
     // 1) backup
     step('جاري حفظ النسخة الاحتياطية...');
     const archive=db.collection('seasonArchives').doc(archiveId);
+    const level={};
     for(const d of pSnap.docs){
       const x=d.data(), a={playerName:x.playerName||'',academicYear:x.academicYear||'',team:x.team||'',playerLevel:levelOf(x)};
+      level[d.id]=a.playerLevel;
       SEASON_FIELDS.forEach(f=>a[f]=x[f]||0);
-      await add(b=>b.set(archive.collection('players').doc(d.id),a));
+      if(withLessons){ SEASON_PROGRESS_FIELDS.forEach(f=>a[f]=x[f]||{}); a.currentLevel=x.currentLevel||1; }
+      await add(b=>b.set(archive.collection('players').doc(d.id),a), withLessons?JSON.stringify(a).length:0);
     }
+    for(const d of blitzSnap.docs) await add(b=>b.set(archive.collection('blitz').doc(d.id),d.data()));
     await flush();
-    await archive.set({seasonId:oldId,endedAt:Date.now(),players:pSnap.size,nextSeasonId:newId,endedBy:me.phone||me.email||''},{merge:true});
-    // 2) zero players + leaderboard
-    step('جاري تصفير النقاط...');
+    await archive.set({seasonId:oldId,endedAt:Date.now(),players:pSnap.size,blitz:blitzSnap.size,withLessons:withLessons,nextSeasonId:newId,endedBy:me.phone||me.email||''},{merge:true});
+    // 2) zero players + leaderboard (update() replaces whole maps, so cleared lessons really go away)
+    step(withLessons?'جاري تصفير النقاط والدروس...':'جاري تصفير النقاط...');
     const zero={}; SEASON_FIELDS.forEach(f=>zero[f]=0);
     const lbZero={}; SEASON_LB_FIELDS.forEach(f=>lbZero[f]=0);
-    for(const d of pSnap.docs) await add(b=>b.update(d.ref,zero));
-    for(const d of lbSnap.docs) await add(b=>b.update(d.ref,lbZero));
+    if(withLessons){
+      SEASON_PROGRESS_FIELDS.forEach(f=>zero[f]={}); zero.currentLevel=1;
+      lbZero.stationScores={}; lbZero.currentLevel=1;
+    }
+    // Lesson progress decides المستوى الثاني when no level was set by hand: pin it before the lessons go
+    const pin=(id,x)=>withLessons&&level[id]===2&&x.playerLevel!==1&&x.playerLevel!==2?{playerLevel:2}:{};
+    for(const d of pSnap.docs) await add(b=>b.update(d.ref,Object.assign({},zero,pin(d.id,d.data()))));
+    for(const d of lbSnap.docs) await add(b=>b.update(d.ref,Object.assign({},lbZero,pin(d.id,d.data()))));
+    for(const d of blitzSnap.docs) await add(b=>b.delete(d.ref));
     await flush();
-    // 3) announce — open games zero their own copy when this lands
-    await db.collection('gameContent').doc('season').set({id:newId,startedAt:Date.now(),previousId:oldId,archiveId:archiveId,startedBy:me.phone||me.email||''});
-    players.forEach(p=>Object.assign(p,zero));
+    // 3) announce — open games zero their own copy when this lands (progressResetId also restarts their lessons)
+    const season={id:newId,startedAt:Date.now(),previousId:oldId,archiveId:archiveId,startedBy:me.phone||me.email||''};
+    if(withLessons) season.progressResetId=newId;
+    await db.collection('gameContent').doc('season').set(season);
+    players.forEach(p=>Object.assign(p,zero,pin(p._id,p)));
     applyF(); renderInsights(); loadSeasonInfo();
-    toast('🏁 بدأ موسم جديد — '+pSnap.size+' لاعب','ok');
+    toast('🏁 بدأ موسم جديد'+(withLessons?' (نقاط ودروس)':'')+' — '+pSnap.size+' لاعب','ok');
   }catch(e){
     console.error(e); step('حصل خطأ: '+(e.message||e)+' — النسخة الاحتياطية محفوظة، وممكن تعيد المحاولة بأمان.');
     toast('حصل خطأ أثناء بدء الموسم','err');

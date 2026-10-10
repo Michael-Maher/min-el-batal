@@ -577,6 +577,7 @@ var GameUI = (function () {
         if (id === 'home-hub-screen') renderHub();
         if (id === 'settings-screen') markLook();
         renderHero(id);
+        startReveal();
         scheduleScan();
     }
 
@@ -603,11 +604,15 @@ var GameUI = (function () {
     var REVEAL = '.gx-ribbon, .hub-card, .gx-season, .gx-continue, .spiritual-card, .l2-subject-card, .shop-item-card, .reward-card, ' +
         '.compete-mode-card, .lb-item-modern, .achievement-card, .l1-game-card, .l1-subject-card, .settings-section, .museum-card, ' +
         '.pd-stat-card, .exercise-item, .lamp-mission-card, .qa-thread-row, .social-post, .info-way-card, .bible-ch-item, .category-card';
+    // Cards pop in only while a screen is opening. Animating on scroll (or when a list is
+    // rebuilt mid-visit) made long lists look like they re-render the whole time.
+    var REVEAL_WINDOW_MS = 800, revealUntil = 0;
     var io = ('IntersectionObserver' in window) ? new IntersectionObserver(function (entries) {
         entries.forEach(function (en) {
             if (!en.isIntersecting) return;
             var el = en.target;
             io.unobserve(el);
+            if (Date.now() > revealUntil) return;
             // stagger siblings that enter together
             var idx = Array.prototype.indexOf.call(el.parentNode ? el.parentNode.children : [], el);
             el.style.setProperty('--gx-d', (Math.min(Math.max(idx, 0), 8) * 0.06) + 's');
@@ -619,8 +624,13 @@ var GameUI = (function () {
             });
         });
     }, { threshold: 0.12 }) : null;
+    function startReveal() {
+        if (!io) return;
+        io.disconnect();
+        revealUntil = Date.now() + REVEAL_WINDOW_MS;
+    }
     function scanReveal() {
-        if (!io || reduceMotion) return;
+        if (!io || reduceMotion || Date.now() > revealUntil) return;
         document.querySelectorAll('.screen.active ' + REVEAL.split(', ').join(', .screen.active ')).forEach(function (el) {
             if (el._gxSeen) return;
             el._gxSeen = true;

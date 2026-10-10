@@ -63,6 +63,13 @@ service cloud.firestore {
     match /gameContent/{docId} {
       allow read, write: if true;
     }
+    // Score-season backups written by the admin «بدء موسم جديد» (players/ and blitz/ subcollections)
+    match /seasonArchives/{archiveId}/{document=**} {
+      allow read, write: if true;
+    }
+    match /seasonArchives/{archiveId} {
+      allow read, write: if true;
+    }
     // Player audit/event log (writes from game, reads from admin)
     match /playerEvents/{eventId} {
       allow read, write: if true;

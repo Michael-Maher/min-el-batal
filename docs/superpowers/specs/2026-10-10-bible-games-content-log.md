@@ -57,7 +57,7 @@ before release. Format per station: game id → source card titles / existing ga
 ### Station 0 — بانوراما الأسفار القانونية الثانية
 - `s0_treasure`: cards «قانونية… وثانية؟» (and its check)، image «الأسفار القانونية الثانية»، diagram «الاعتراضات والردود»، check عيد التجديد، diagram «إزاي نعرف إنها قانونية؟»، diagram «نبذة عن كل سفر»، image «مكانها في الكتاب المقدس»، check باروخ، «في كنيستنا»؛ `s0_scrolls` facts / books / objections (السبعينية حوالي ٢٨٥ ق.م، يوسيفوس)، `s0_clues`.
   Verses quoted: يو ١٠: ٢٢، ١ مك ٤: ٥٩ (card check)، طو ١٢: ١٥ (`s0_scrolls` explain)، با ٣: ٣٨ (card check)، عب ١١: ٣٥ (diagram). No new verses.
-- `s0_order`: ٢ تي ٣: ١٦ (station verse)، يو ١٠: ٢٢ (card check explain)، طو ١٢: ١٥ (`s0_scrolls` explain)، با ٣: ٣٨ (card check explain)، عب ١١: ٣٥ (fragment quoted on diagram «إزاي نعرف إنها قانونية؟»). No new verses.
+- `s0_order`: ٢ تي ٣: ١٦ (station verse)، يو ١٠: ٢٢ (card check explain)، طو ١٢: ١٥ (`s0_scrolls` explain)، با ٣: ٣٨ (card check explain)، عب ١١: ٣٥ «وآخرون عذبوا ولم يقبلوا النجاة لكي ينالوا قيامة أفضل» (the diagram «إزاي نعرف إنها قانونية؟» quotes the clause from «لم يقبلوا»; «وآخرون عذبوا» added from Van Dyke).
 
 ### Station 1 — طرق دراسة الكتاب المقدس والتأمل فيه
 - `s1_treasure`: cards «أهداف المحطة»، «ليه أدرس الكتاب؟»، diagrams «الطرق من ١ لـ ٥» و«الطرق من ٦ لـ ١٠»، check (أع ٩)، «أمثلة: «لماذا؟» و«التربيطات»»، image «ماذا لو؟»، «مثال: وصية، وعد، حقيقة، تشبيه»، image «تاريخ وجغرافيا + قراءات كنسية»، «تطبيق عملي»؛ `s1_lamp` methods (شعار «خليك محقق»، مثال إشباع الجموع)، `s1_connect`.
@@ -77,7 +77,7 @@ before release. Format per station: game id → source card titles / existing ga
 ### Station 4 — الإصحاح الثاني (يع ٢)
 - `s4_treasure`: cards «تحذير من المحاباة» (and its check)، «أغنياء في الإيمان»، diagram «أسماء شريعة العهد الجديد» (and its check)، «إيمان بلا أعمال ميت»، check الشياطين، image «الإيمان العامل»، «في كنيستنا: إيمان وأعمال مع بعض»؛ `s4_seats`، `s4_decode` (يع ٢: ١٣، ٢٣).
   Verses quoted: يع ٢: ٣، ٤، ٥، ٨، ٩، ١٥-١٧، ١٩، ٢٠، ٢١، ٢٤، ٢٥، غل ٥: ٦، يع ١: ٢٥ (cards / `s4_decode`).
-  New wording (Van Dyke, not in the station): يع ٢: ١٣ first half «لأن الحكم هو بلا رحمة لمن لم يعمل رحمة» (explain)، يع ٢: ٢٣ ending «ودعي خليل الله» (hint + explain)، يع ٢: ١٦ «امضوا بسلام، استدفئوا واشبعوا» (stem; `s4_seats` has the singular paraphrase «امضِ بسلام»).
+  New wording (Van Dyke, not in the station): يع ٢: ١٣ first half «لأن الحكم هو بلا رحمة لمن لم يعمل رحمة» (explain)، يع ٢: ٢٣ ending «ودعي خليل الله» (hint + explain). The يع ٢: ١٥-١٦ question uses the station's singular paraphrase from `s4_seats` without quote marks or tashkeel (امض بسلام، استدفئ واشبع); it is not a Van Dyke quote.
 - `s4_words`: محاباة، فقير (image «تحذير من المحاباة»)، إبراهيم، إسحاق، راحاب (image «الإيمان العامل»)، ناموس (diagram)، إيمان، أعمال (station verse يع ٢: ٢٦، يع ٢: ٢٢ in `s4_decode`).
 
 ### Station 5 — الإصحاح الثالث (يع ٣)
@@ -102,8 +102,8 @@ before release. Format per station: game id → source card titles / existing ga
   in the same treasure. Card/picture titles quoted in hints had their emojis dropped where the emoji pointed at the answer
   (e.g. «قانونية… وثانية؟» without 📏، «تأنّوا» without 🌱، «اللسان عضو صغير» without 🐎⛵🔥).
 - Hint and explain details beyond the station cards (all accurate, please confirm):
-  - Station 0: يهوديت دخلت معسكر القائد لوحدها بعد حصار مدينتها (يهوديت ٧، ١٠-١٣)؛ يوسيفوس «مؤرخ يهودي كتب تاريخ شعبه».
-  - Station 1: يسوع راح بيت عنيا (يو ١١: ١، ١٨)؛ إرميا قال «إني ولد» (إر ١: ٦)؛ مت ٦: ٢٦ عن طيور السماء «وأبوكم السماوي يقوتها».
+  - Station 0: يهوديت دخلت معسكر القائد بشجاعة بعد حصار مدينتها (يهوديت ٧، ١٠-١٣؛ خرجت ومعاها جاريتها، يهوديت ١٠: ١٠)؛ يوسيفوس «مؤرخ يهودي كتب تاريخ شعبه».
+  - Station 1: يسوع راح بيت عنيا (يو ١١: ١، ١٨)؛ إرميا قال إنه ما يعرفش يتكلم «لأني ولد» (إر ١: ٦)؛ مت ٦: ٢٦ عن طيور السماء «وأبوكم السماوي يقوتها».
   - Station 2: لوط كان ساكن في سدوم (تك ١٣: ١٢؛ ١٩: ١)؛ distractor «اتصلب منكس» (تقليد استشهاد بطرس) is used only as a wrong option for يعقوب.
   - Station 4: «ودعي خليل الله» (يع ٢: ٢٣).
   - Station 7: أيوب خسر ولاده وفلوسه وصحته وما جدّفش (من `s7_clues`)؛ لوط ابن أخو إبراهيم كان ساكن في سدوم (تك ١٢: ٥؛ ١٤: ١٢).

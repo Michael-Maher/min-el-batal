@@ -13,7 +13,7 @@ before release. Format per station: game id → source card titles / existing ga
 
 ### Station 1 — عصر الخليقة
 - `s1_treasure`: cards «عصر الخليقة»، diagram «أيام الخليقة»، «السقوط... والوعد»، «قايين وهابيل»، diagram «نسل شيث»، «فُلك نوح»، «الطوفان وقوس قزح»، tree «أولاد نوح والأمم»، «برج بابل».
-- `s1_order`: تك ١: ١ (card)، تك ١: ٢٧ (new, Van Dyke)، تك ٣: ١٥ (card)، تك ٥: ٢٤ (check explain)، تك ٩: ١٣ (new, Van Dyke).
+- `s1_order`: تك ١: ١ (card)، تك ١: ٢٧ (new, Van Dyke)، تك ٣: ١٥ (card)، تك ٥: ٢٤ (check explain)، تك ٩: ١٣ (`s1_ark` outro and quiz explain).
 
 ### Station 2 — عصر الآباء البطاركة
 - `s2_treasure`: cards «اخرج من أرضك»، «هاجر وإسماعيل»، check «وعود ربنا لإبراهيم»، tree «عيلة تارح»، «إحنا إخوات»، «سدوم: ربنا عادل ورحيم»، «تقديم إسحاق»، «إسحاق المسالم ويعقوب»، tree «زوجات يعقوب والأسباط»، «من البير للقصر»، «يوسف الأمين الطاهر»؛ `s2_joseph` stages / outro، `s2_clues` (سارة، إسماعيل).
@@ -36,6 +36,11 @@ before release. Format per station: game id → source card titles / existing ga
 - `s5_order`: ١ صم ١٢: ١٢ (station verse)، ١ صم ١٢: ١٣ (station verse)، ١ صم ١٧: ٤٥ (`s5_sling` outro)، ١ مل ١٨: ٢١ (card «إيليا النبي»). No new verses.
 
 ### Notes for reviewers
+- Hints (fix round 1): each hint is a story or reference nudge that still needs the child to know the fact; no letter hints,
+  no hints that eliminate every distractor, no hints that repeat a word or idea found only in the correct option. A few hints
+  use accurate Bible details beyond the station cards: عد ١٦: ١، ٣٢ (قورح لاوي والأرض بلعته)، قض ١٦: ٥ (فضة دليلة)، شعر شمشون،
+  قض ٤: ٣ (٩٠٠ مركبة حديد)، تك ١٣: ٩، تك ١: ٣، تك ٨: ٤، ١ صم ١٥ (غنائم عماليق)، عد ١٤ (الجاسوسين الأمناء)، يو ٣ (نيقوديموس)،
+  طو ٥ (رافائيل في شكل إنسان)، ١ مل ١٧: ٣ (إيليا مستخبي عند كريث).
 - Verses copied from station data had their tanween / shadda removed so the verse tiles carry no tashkeel
   (e.g. «رجلا ناجحا»، «شرا ... خيرا»، «كلاما»، «أحكاما»، «ملكا»، «إلي»). Words are otherwise unchanged.
 - Station verse texts (مز ٧٨: ٥٢-٥٣، ١ صم ١٢: ١٢-١٣) are copied as they appear in the station data; please confirm they match

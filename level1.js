@@ -1812,7 +1812,9 @@ function l1WsBuild(words, size, rnd) {
     rnd = rnd || Math.random;
     var grid = [], placed = [], r, c;
     for (r = 0; r < size; r++) { grid.push([]); for (c = 0; c < size; c++) grid[r].push(''); }
-    words.forEach(function(item) {
+    // Longest words first: they have the fewest legal spots, so place them while the grid is empty.
+    var ordered = words.slice().sort(function(a, b) { return l1WsCells(b.w).length - l1WsCells(a.w).length; });
+    ordered.forEach(function(item) {
         var cells = l1WsCells(item.w);
         if (!cells.length || cells.length > size) return;
         for (var tries = 0; tries < 200; tries++) {

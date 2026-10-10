@@ -323,6 +323,17 @@ function checkBibleSubject(key) {
 }
 checkBibleSubject('l1_bible');
 
+/* -------- wordSearch: longest words first -------- */
+test('l1WsBuild places an 8-letter word plus 5 others in 8x8 for 300 seeds', function () {
+    var words = [{ w: 'عبرية' }, { w: 'يونانية' }, { w: 'آرامية' }, { w: 'هوجو' }, { w: 'أسفار' }, { w: 'إسكندرية' }];
+    var before = JSON.stringify(words);
+    for (var s = 1; s <= 300; s++) {
+        var b = ctx.l1WsBuild(words, 8, rng(s));
+        assert.strictEqual(b.placed.length, 6, 'seed ' + s);
+    }
+    assert.strictEqual(JSON.stringify(words), before, 'input not mutated');
+});
+
 /* ---------------- report ---------------- */
 // (later tasks insert more test blocks above this line)
 console.log(passed + ' passed, ' + failed + ' failed');

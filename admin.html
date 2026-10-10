@@ -2293,7 +2293,7 @@ function levelOf(p){
 }
 function lvlBadge(p){ const l=levelOf(p); return `<span class="badge" style="background:${l===2?'rgba(139,92,246,.18);color:#7c3aed':'rgba(20,184,166,.18);color:#0f766e'}">${LVL[l]}</span>`; }
 const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
-const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},l2_bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',level:2,newEngine:true,lessons:['بانوراما الأسفار القانونية الثانية','طرق دراسة الكتاب المقدس','مقدمة رسائل الجامعة','يعقوب — الإصحاح الأول','يعقوب — الإصحاح الثاني','يعقوب — الإصحاح الثالث','يعقوب — الإصحاح الرابع','يعقوب — الإصحاح الخامس']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
+const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},l2_bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',level:2,newEngine:true,scoring:{games:250,max:310},lessons:['بانوراما الأسفار القانونية الثانية','طرق دراسة الكتاب المقدس','مقدمة رسائل الجامعة','يعقوب — الإصحاح الأول','يعقوب — الإصحاح الثاني','يعقوب — الإصحاح الثالث','يعقوب — الإصحاح الرابع','يعقوب — الإصحاح الخامس']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,scoring:{games:250,max:310},lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
 
 // ════════════════════════════════
 //  PASSWORD HASH
@@ -3228,7 +3228,7 @@ function renderLessonsTab(p) {
     html+='<div class="subj-block">';
     html+='<div class="subj-hdr" style="background:'+sub.color+'1a;border:1px solid '+sub.color+'33"><span style="font-size:16px">'+sub.icon+'</span><span style="color:'+sub.color+'">'+sub.name+'</span><span style="margin-right:auto;font-size:10px;color:var(--muted)">'+done+'/'+sub.lessons.length+' درس</span></div>';
     sub.lessons.forEach(function(lname,i){
-      const isL1=!!sub.newEngine, stMax=isL1?200:150;
+      const isL1=!!sub.newEngine, stMax=isL1?((sub.scoring&&sub.scoring.max)||200):150;
       const key=sk+'_'+i, sc=ss[key]||{}, total=sc.total||0, pct=Math.round(total/stMax*100);
       const vw=wv[sk+'_lesson_'+i+'_video']?'🎬':'⬜';
       const svw=wv[sk+'_lesson_'+i+'_short_video']?'📹':'';
@@ -3242,7 +3242,7 @@ function renderLessonsTab(p) {
         html+='<div class="st-cell"><span class="st-cell-lbl">قراءة</span><span class="st-cell-val" style="color:#fb923c">'+(sc.learnRead||0)+'/20</span></div>';
         html+='<div class="st-cell"><span class="st-cell-lbl">أسئلة</span><span class="st-cell-val" style="color:#f472b6">'+(sc.learnChecks||0)+'/20</span></div>';
         html+='<div class="st-cell"><span class="st-cell-lbl">ملخص</span><span class="st-cell-val" style="color:#60a5fa">'+(sc.summary||0)+'/20</span></div>';
-        html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/140</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/'+((sub.scoring&&sub.scoring.games)||140)+'</span></div>';
         html+='</div>';
         const l1Badges=Object.keys(mgs).filter(function(t){return t.indexOf(key+'_mg_')===0&&mgs[t]>0;}).map(function(t){return'<span class="mg-badge">'+esc(t.slice((key+'_mg_').length))+': '+mgs[t]+'</span>';});
         if(l1Badges.length) html+='<div class="mg-row">'+l1Badges.join('')+'</div>';

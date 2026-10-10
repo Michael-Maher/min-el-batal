@@ -21,8 +21,8 @@ and `2026-10-02-level2-bible-design.md`. Service and life-skills subjects are no
 | 3 | 8 new arcade games for الترم التاني |
 
 Phase 1 alone raises the Bible games cap to 250 while each station only offers 140 + 60 = 200 game points.
-The extra 50 per station becomes reachable when phases 2 and 3 land. Stars use the subject max, so 3 stars
-are out of reach on a station until its new arcade ships. Phase 1 is still releasable; this is the accepted
+The extra 50 per station becomes reachable when phases 2 and 3 land. Stars use the station's reachable max
+(what its current games can add up to), so a 200 player keeps 2 stars and 3 stars need the new games. Phase 1 is still releasable; this is the accepted
 in-between state.
 
 ## 1. Scoring (per-subject caps)
@@ -40,7 +40,7 @@ in-between state.
 - New game ids are appended after the existing games of each station, so existing `miniGameScores` keys keep working.
 
 Known effects (accepted):
-- A player who had 3 stars (200) on a Bible station shows 2 stars until they play the new games.
+- Stars use the station's reachable max: a player who had 200 keeps 2 stars on a Bible station, and 3 stars need the new games.
 - Station totals can now reach 310, so Bible lessons are worth more on the leaderboard. A new score season was just started,
   so this does not distort an old season.
 - `game.js` `_countCompletedLessons()` uses its own threshold (60), not the max, so it is unaffected. No other hard-coded

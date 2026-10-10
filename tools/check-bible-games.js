@@ -52,6 +52,30 @@ test('service keeps the old caps', function () {
         assert.strictEqual(ctx.l1Stars(139), 0);
     });
 });
+test('stars use the station reachable max', function () {
+    withSubject('l1_service', function () {
+        assert.strictEqual(ctx.l1StationMax(0), 200);
+        assert.strictEqual(ctx.l1Stars(200, 0), 3);
+        assert.strictEqual(ctx.l1Stars(170, 0), 2);
+    });
+    withSubject('l1_bible', function () {
+        assert.strictEqual(ctx.l1StationMax(1), 260);
+        assert.strictEqual(ctx.l1Stars(200, 1), 2);
+        assert.strictEqual(ctx.l1Stars(260, 1), 3);
+        assert.strictEqual(ctx.l1Stars(199, 1), 1);
+        assert.strictEqual(ctx.l1Stars(310), 3);
+        assert.strictEqual(ctx.l1Stars(225), 2);
+    });
+});
+test('word search accepts a duplicate copy of an unfound word', function () {
+    var grid = [['س', 'ل', 'ا', 'م'], ['ن', 'ب', 'ك', 'ا'], ['س', 'ل', 'ا', 'م']];
+    var placed = [{ w: 'سلام', cells: [[0, 0], [0, 1], [0, 2], [0, 3]] }];
+    var copy = [[2, 0], [2, 1], [2, 2], [2, 3]], rev = [[2, 3], [2, 2], [2, 1], [2, 0]];
+    assert.strictEqual(ctx.l1WsSpellMatch(grid, placed, copy, {}), 0);
+    assert.strictEqual(ctx.l1WsSpellMatch(grid, placed, rev, {}), 0);
+    assert.strictEqual(ctx.l1WsSpellMatch(grid, placed, copy, { 0: true }), -1);
+    assert.strictEqual(ctx.l1WsSpellMatch(grid, placed, [[1, 0], [1, 1], [1, 2], [1, 3]], {}), -1);
+});
 test('life keeps the old caps', function () {
     withSubject('l2_life', function () {
         assert.strictEqual(ctx.l1BucketMax('games'), 140);

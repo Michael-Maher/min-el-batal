@@ -2806,7 +2806,7 @@ function showScreen(id) {
     if (id === 'level2-subjects-screen') renderLevel2Subjects();
     if (id === 'level2-map-screen') renderLevel2Map();
     // An arcade game layer lives on <body>; never leave it over another screen
-    if (id !== 'l1-lesson-screen' && document.getElementById('l1-arcade-layer') && typeof l1StopGame === 'function') l1StopGame();
+    if (id !== 'l1-lesson-screen' && typeof l1StopGame === 'function' && (document.getElementById('l1-arcade-layer') || (typeof l1State !== 'undefined' && l1State.gameInst))) l1StopGame();
     if (id === 'l1-subjects-screen' && typeof renderL1Subjects === 'function') renderL1Subjects();
     if (id === 'l1-map-screen' && typeof renderL1Map === 'function') renderL1Map();
     if (id === 'l1-lesson-screen' && typeof renderL1Lesson === 'function') renderL1Lesson();

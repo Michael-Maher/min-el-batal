@@ -213,8 +213,14 @@ function l1SetBucket(n, field, value, localOnly) {
 }
 
 function l1IsOpen(n) { return n === 0 || l1GetScore(n - 1).total >= L1_PASS; }
-function l1Stars(total) {
-    var max = l1MaxTotal();
+// Highest total this station can reach with the games it has today (Bible caps exceed today's games).
+function l1StationMax(n) {
+    var st = l1Station(n), sum = 0;
+    (st && st.games || []).forEach(function(g) { sum += g.max || 0; });
+    return Math.min(l1MaxTotal(), l1BucketMax('learnRead') + l1BucketMax('learnChecks') + l1BucketMax('summary') + Math.min(sum, l1BucketMax('games')));
+}
+function l1Stars(total, n) {
+    var max = (typeof n === 'number') ? l1StationMax(n) : l1MaxTotal();
     return total >= max ? 3 : total >= L1_PASS + (max - L1_PASS) / 2 ? 2 : total >= L1_PASS ? 1 : 0;
 }
 function l1StarsHtml(k, of) {
@@ -412,7 +418,7 @@ function renderL1Map() {
         if (i === 0 && sub.zeroBadge) h += '<span class="l1-node-zero">0</span>';
         h += '<span class="l1-node-fog"><i class="fas fa-lock"></i></span>';
         h += '<span class="l1-node-ring"></span>';
-        if (sc.total >= L1_PASS) h += '<span class="l1-node-badge">' + l1StarsHtml(l1Stars(sc.total)) + '</span>';
+        if (sc.total >= L1_PASS) h += '<span class="l1-node-badge">' + l1StarsHtml(l1Stars(sc.total, i)) + '</span>';
         h += '</button>';
     }
     var ch = (typeof CHARACTERS !== 'undefined') ? CHARACTERS[GameState.character] : null;
@@ -560,7 +566,7 @@ function l1OpenSheet(n) {
     var h = '<div class="l1-sheet-grip"></div>';
     h += '<div class="l1-sheet-head"><span class="l1-sheet-num">' + l1Num(n) + '</span><div><h3>' + l1Esc(st.title) + '</h3>';
     h += '<p>' + l1Esc(st.subtitle || '') + (st.refs ? ' · <b>' + l1Esc(st.refs) + '</b>' : '') + '</p></div>';
-    h += l1StarsHtml(l1Stars(sc.total)) + '</div>';
+    h += l1StarsHtml(l1Stars(sc.total, n)) + '</div>';
     h += '<div class="l1-chips">' + (st.topics || []).map(function(t) { return '<span>' + l1Esc(t) + '</span>'; }).join('') + '</div>';
     if (st.verse) h += '<blockquote class="l1-sheet-verse">' + l1Esc(st.verse.text) + ' <cite>' + l1Esc(st.verse.ref) + '</cite></blockquote>';
     h += '<div class="l1-sheet-parts">';
@@ -1854,6 +1860,19 @@ function l1WsMatch(placed, a, b) {
     }
     return -1;
 }
+// Filler letters come from the placed words, so a word can appear twice. Spell the selection and accept
+// any unfound word it reads (either direction). Returns the word index or -1.
+function l1WsSpellMatch(grid, placed, cells, found) {
+    var s = '';
+    for (var k = 0; k < cells.length; k++) s += grid[cells[k][0]][cells[k][1]];
+    var rev = s.split('').reverse().join('');
+    for (var i = 0; i < placed.length; i++) {
+        if (found && found[i]) continue;
+        var w = l1WsCells(placed[i].w).join('');
+        if (w && (s === w || rev === w)) return i;
+    }
+    return -1;
+}
 L1_GAME_TYPES.wordSearch = function(host, data, api) {
     var size = data.size || 8;
     var build = l1WsBuild(l1Pick(data.words, data.pick || 6), size);
@@ -1903,6 +1922,7 @@ L1_GAME_TYPES.wordSearch = function(host, data, api) {
         reset();
         if (finished || s.length < 2) return;           // a tap is not a guess
         var i = l1WsMatch(placed, s[0], s[s.length - 1]);
+        if (i < 0) i = l1WsSpellMatch(build.grid, placed, s, found);
         if (i < 0) { tr.miss(); l1Shake(grid); return; }
         if (found[i]) return;
         found[i] = true;
@@ -1974,7 +1994,7 @@ L1_GAME_TYPES.treasure = function(host, data, api) {
         st.left = per;
         st.locked = false;
         var h = '<div class="l1-tr">' + ladder() + '<div class="l1-tr-main">';
-        h += '<div class="l1-tr-top"><span>' + heartsHtml() + '</span><span id="l1-tr-time"></span></div>';
+        h += '<div class="l1-tr-top"><span id="l1-tr-hearts">' + heartsHtml() + '</span><span id="l1-tr-time"></span></div>';
         h += '<div class="l1-swipe-timer"><i id="l1-tr-bar"></i></div>';
         h += '<h3 class="l1-tr-q">' + l1Esc(q.q) + '</h3><div class="l1-check-opts">';
         q.options.forEach(function(o, k) { h += '<button class="l1-opt" data-k="' + k + '">' + l1Esc(o) + '</button>'; });
@@ -2018,7 +2038,11 @@ L1_GAME_TYPES.treasure = function(host, data, api) {
             b.classList.add(bi === q.correct ? 'right' : (bi === k ? 'wrong' : 'dim'));
         });
         if (ok) { raw += (q.level || 1); tr.hit(); l1FxAt(api, host.querySelector('.l1-opt.right'), host); }
-        else { hearts--; tr.miss(); }
+        else {
+            hearts--; tr.miss();
+            var hs = document.getElementById('l1-tr-hearts');
+            if (hs) hs.innerHTML = heartsHtml();
+        }
         var ex = document.getElementById('l1-tr-explain');
         if (ex) ex.textContent = (ok ? '👏 ' : (k < 0 ? '⏰ الوقت خلص! ' : '💡 ')) + (q.explain || '');
         wait = setTimeout(function() {

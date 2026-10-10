@@ -1517,7 +1517,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       <div class="kpi-grid" id="kpi-grid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
       <div class="g2" style="margin-bottom:14px" id="charts1"></div>
       <div class="g2" style="margin-bottom:14px" id="charts2"></div>
-      <div class="card" id="top10card"><div class="ch"><h3><i class="fas fa-trophy" style="color:var(--gold)"></i> أعلى ١٠ لاعبين</h3></div><div class="cb"><div class="ranklist" id="top10list"></div></div></div>
+      <div class="card" id="top10card"><div class="ch"><h3><i class="fas fa-trophy" style="color:var(--gold)"></i> أعلى ١٠ لاعبين</h3><select class="flt" id="top10-level" onchange="renderTop10()" style="margin-inline-start:auto"><option value="">كل المستويات</option><option value="1">المستوى الأول</option><option value="2">المستوى الثاني</option></select></div><div class="cb"><div class="ranklist" id="top10list"></div></div></div>
       <div class="g2" style="margin-bottom:14px" id="charts3"></div>
       <div class="g2" style="margin-bottom:14px" id="charts4"></div>
     </div>
@@ -1525,10 +1525,15 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
     <!-- PLAYERS -->
     <div class="page" id="page-players">
       <div class="ph"><h2><i class="fas fa-users" style="color:var(--teal)"></i> اللاعبين</h2><p>إدارة وتعديل وتصدير بيانات جميع اللاعبين</p></div>
+      <div class="card" id="season-card" style="display:none;margin-bottom:14px">
+        <div class="ch"><h3><i class="fas fa-flag-checkered" style="color:var(--gold)"></i> الموسم</h3><button class="btn bd bsm" id="season-btn" onclick="startNewSeason()"><i class="fas fa-rotate-left"></i> بدء موسم جديد</button></div>
+        <div class="cb" id="season-info" style="font-size:13px;color:var(--muted)">—</div>
+      </div>
       <div class="fbar">
         <input type="text" class="flt" id="f-name" placeholder="🔍 الاسم أو المستخدم" oninput="applyF()">
         <input type="tel"  class="flt" id="f-phone" placeholder="رقم التليفون" oninput="applyF()" dir="ltr">
         <select class="flt" id="f-gender" onchange="applyF()"><option value="">النوع (الكل)</option><option value="male">👦 ولد</option><option value="female">👧 بنت</option></select>
+        <select class="flt" id="f-level"  onchange="applyF()"><option value="">المستوى (الكل)</option><option value="1">المستوى الأول</option><option value="2">المستوى الثاني</option></select>
         <select class="flt" id="f-year"   onchange="applyF()"><option value="">السنة (الكل)</option><option value="prep1">أولى إعدادي</option><option value="prep2">تانية إعدادي</option><option value="prep3">تالتة إعدادي</option></select>
         <select class="flt" id="f-team"   onchange="applyF()"><option value="">الفريق (الكل)</option><option value="__none__">بدون فريق</option></select>
         <select class="flt" id="f-status" onchange="applyF()"><option value="">الحالة (الكل)</option><option value="active">✅ نشط</option><option value="suspended">⏸️ موقوف</option><option value="blocked">⛔ محظور</option></select>
@@ -2205,6 +2210,67 @@ function applyNavPermissions(){
   // Hide superadmin-only group
   var sup=document.getElementById('nav-grp-super');
   if(sup) sup.style.display = me.role==='superadmin' ? 'block' : 'none';
+  var sc=document.getElementById('season-card');
+  if(sc){ sc.style.display = me.role==='superadmin' ? '' : 'none'; if(me.role==='superadmin') loadSeasonInfo(); }
+}
+
+// ════════════════════════════════
+//  SCORE SEASONS
+//  Archives every player's points + gems to seasonArchives/{oldId}/players/{phone},
+//  zeroes them in players/ and leaderboard/, then writes gameContent/season so each
+//  game client zeroes its own cached copy too (see ensureScoreSeason in game.js).
+// ════════════════════════════════
+const SEASON_FIELDS = ['stars','gems','xp','streak','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels','blitzWeeklyScore'];
+const SEASON_LB_FIELDS = ['stars','gems','xp','bestStreak','totalCorrect','totalAnswered','gamesPlayed','perfectLevels'];
+async function loadSeasonInfo(){
+  const el=document.getElementById('season-info'); if(!el) return;
+  try{
+    const d=(await db.collection('gameContent').doc('season').get()).data();
+    el.innerHTML=d&&d.id?`الموسم الحالي بدأ <b>${new Date(d.startedAt).toLocaleString('ar-EG')}</b>. النسخة الاحتياطية للموسم اللي قبله محفوظة في <code dir="ltr">seasonArchives/${esc(d.archiveId||'')}</code>.`
+      :'لسه مفيش مواسم. «بدء موسم جديد» بيحفظ نسخة احتياطية من نقاط وجواهر كل اللاعبين وبعدين يصفّرها.';
+  }catch(e){ el.textContent='تعذّر تحميل بيانات الموسم'; }
+}
+async function startNewSeason(){
+  if(me?.role!=='superadmin'){toast('للمسؤول الأعلى فقط','err');return;}
+  const typed=prompt('هيتم تصفير النجوم والجواهر وXP والسلاسل وإحصائيات الإجابات لكل اللاعبين ('+players.length+' لاعب).\nتقدّم الدروس والمشتريات والفرق مش هتتأثر، وهيتحفظ نسخة احتياطية الأول.\n\nاكتب: موسم جديد');
+  if((typed||'').trim()!=='موسم جديد'){ if(typed!==null) toast('التأكيد غلط — ماحصلش أي تغيير','err'); return; }
+  const btn=document.getElementById('season-btn'); btn.disabled=true;
+  const info=document.getElementById('season-info');
+  const step=t=>{ info.textContent=t; };
+  try{
+    const prev=(await db.collection('gameContent').doc('season').get()).data()||{};
+    const oldId=prev.id||'', newId='s'+Date.now();
+    const archiveId='upto-'+newId;   // one archive per run, so a retried run never overwrites the first backup
+    const [pSnap,lbSnap]=await Promise.all([db.collection('players').get(),db.collection('leaderboard').get()]);
+    let batch=db.batch(), n=0;
+    const add=async(fn)=>{ fn(batch); if(++n>=400){ await batch.commit(); batch=db.batch(); n=0; } };
+    const flush=async()=>{ if(n){ await batch.commit(); batch=db.batch(); n=0; } };
+    // 1) backup
+    step('جاري حفظ النسخة الاحتياطية...');
+    const archive=db.collection('seasonArchives').doc(archiveId);
+    for(const d of pSnap.docs){
+      const x=d.data(), a={playerName:x.playerName||'',academicYear:x.academicYear||'',team:x.team||'',playerLevel:levelOf(x)};
+      SEASON_FIELDS.forEach(f=>a[f]=x[f]||0);
+      await add(b=>b.set(archive.collection('players').doc(d.id),a));
+    }
+    await flush();
+    await archive.set({seasonId:oldId,endedAt:Date.now(),players:pSnap.size,nextSeasonId:newId,endedBy:me.phone||me.email||''},{merge:true});
+    // 2) zero players + leaderboard
+    step('جاري تصفير النقاط...');
+    const zero={}; SEASON_FIELDS.forEach(f=>zero[f]=0);
+    const lbZero={}; SEASON_LB_FIELDS.forEach(f=>lbZero[f]=0);
+    for(const d of pSnap.docs) await add(b=>b.update(d.ref,zero));
+    for(const d of lbSnap.docs) await add(b=>b.update(d.ref,lbZero));
+    await flush();
+    // 3) announce — open games zero their own copy when this lands
+    await db.collection('gameContent').doc('season').set({id:newId,startedAt:Date.now(),previousId:oldId,archiveId:archiveId,startedBy:me.phone||me.email||''});
+    players.forEach(p=>Object.assign(p,zero));
+    applyF(); renderInsights(); loadSeasonInfo();
+    toast('🏁 بدأ موسم جديد — '+pSnap.size+' لاعب','ok');
+  }catch(e){
+    console.error(e); step('حصل خطأ: '+(e.message||e)+' — النسخة الاحتياطية محفوظة، وممكن تعيد المحاولة بأمان.');
+    toast('حصل خطأ أثناء بدء الموسم','err');
+  }finally{ btn.disabled=false; }
 }
 
 // ════════════════════════════════
@@ -2217,8 +2283,17 @@ let contentLocks = {}; // { card_level1:{locked,message}, level_1:{...}, subject
 let playerEvents = [], playerReports = [];
 let tournaments = [], tqBank = [];
 const YR = {prep1:'أولى إعدادي',prep2:'تانية إعدادي',prep3:'تالتة إعدادي'};
+// المستوى الأول / الثاني — same rule as playerLevelOf() in game.js: admin's choice, else any Level 2 lesson progress
+const LVL = {1:'المستوى الأول',2:'المستوى الثاني'};
+const L2_PROGRESS_PREFIXES = ['faith_','ritual_','l2_bible_','l2_life_'];
+function levelOf(p){
+  if(p&&(p.playerLevel===1||p.playerLevel===2)) return p.playerLevel;
+  const ss=(p&&p.stationScores)||{};
+  return Object.keys(ss).some(k=>ss[k]&&ss[k].total>0&&L2_PROGRESS_PREFIXES.some(pre=>k.indexOf(pre)===0))?2:1;
+}
+function lvlBadge(p){ const l=levelOf(p); return `<span class="badge" style="background:${l===2?'rgba(139,92,246,.18);color:#7c3aed':'rgba(20,184,166,.18);color:#0f766e'}">${LVL[l]}</span>`; }
 const RICO = {trip_discount:'✈️',surprise_box:'🎁',conf_discount:'🏕️',cash_prize:'💵',phone_case:'📱'};
-const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},l2_bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',level:2,newEngine:true,lessons:['بانوراما الأسفار القانونية الثانية','طرق دراسة الكتاب المقدس','مقدمة رسائل الجامعة','يعقوب — الإصحاح الأول','يعقوب — الإصحاح الثاني','يعقوب — الإصحاح الثالث','يعقوب — الإصحاح الرابع','يعقوب — الإصحاح الخامس']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
+const SUBJECTS={faith:{name:'عقيدة ولاهوت',icon:'✝️',color:'#e74c3c',lessons:['التثليث والتوحيد','التجسد الإلهي','الفداء والصليب','القيامة والمجيء الثاني','المعمودية والميرون','التوبة والاعتراف']},l2_bible:{name:'كتاب مقدس',icon:'📖',color:'#3b82f6',level:2,newEngine:true,scoring:{games:250,max:310},lessons:['بانوراما الأسفار القانونية الثانية','طرق دراسة الكتاب المقدس','مقدمة رسائل الجامعة','يعقوب — الإصحاح الأول','يعقوب — الإصحاح الثاني','يعقوب — الإصحاح الثالث','يعقوب — الإصحاح الرابع','يعقوب — الإصحاح الخامس']},l2_life:{name:'مهارات الحياة والقيادة',icon:'🌟',color:'#f39c12',level:2,newEngine:true,lessons:['أنواع الشخصيات','اقبل نفسك وشخصيتك','التخطيط والرؤية والأهداف','تنظيم الوقت','تحمل المسؤولية','حل المشكلات واتخاذ القرارات']},ritual:{name:'طقس',icon:'⛪',color:'#8b5cf6',lessons:['القداس الإلهي','المعمودية والميرون','الصوم والصلاة','الأعياد السيدية','التسبحة والألحان','الكنيسة من الداخل']},l1_bible:{name:'كتاب مقدس — م١',icon:'📜',color:'#d4a24c',level:1,newEngine:true,scoring:{games:250,max:310},lessons:['مقدمة: الكتاب المقدس','عصر الخليقة','عصر الآباء البطاركة','عصر الخروج','عصر القضاة','عصر المملكة']},l1_service:{name:'الخدمة — م١',icon:'🤲',color:'#2f9e8f',level:1,newEngine:true,lessons:['يعني إيه خدمة؟','الخدمة محبة لربنا وللناس','الخدمة اتضاع ووداعة','الخدمة بذل وعطاء','الخدمة ملهاش مكان ولا وقت محدد','بركات الخدمة الحقيقية']}};
 
 // ════════════════════════════════
 //  PASSWORD HASH
@@ -2784,6 +2859,16 @@ function updateBadges() {
 // ════════════════════════════════
 //  INSIGHTS
 // ════════════════════════════════
+function renderTop10() {
+  const el=document.getElementById('top10list'); if(!el) return;
+  const lv=+(document.getElementById('top10-level')||{}).value||0;
+  const medals=['🥇','🥈','🥉'];
+  const list=players.filter(p=>!lv||levelOf(p)===lv).sort((a,b)=>(b.stars||0)-(a.stars||0)).slice(0,10);
+  el.innerHTML=list.length?list.map((p,i)=>`
+    <div class="rankrow"><span class="ranknum">${medals[i]||(i+1)}</span>
+    <div class="rankinfo"><div class="rankname">${esc(p.playerName||'—')}</div><div class="ranksub">${LVL[levelOf(p)]} · ${YR[p.academicYear]||''} · ${esc(p.team||'بدون فريق')}</div></div>
+    <span class="rankscore">⭐ ${(p.stars||0).toLocaleString()}</span></div>`).join(''):'<div class="empty" style="padding:16px"><p>لا يوجد لاعبين</p></div>';
+}
 function renderInsights() {
   const T=players.length, M=players.filter(p=>p.gender==='male').length, F=players.filter(p=>p.gender==='female').length;
   const iT=players.filter(p=>p.team&&p.team.trim()).length;
@@ -2835,11 +2920,7 @@ function renderInsights() {
       ${tsBars.length?tsBars.map(t=>`<div class="barrow"><span class="barlbl">${t.logo||'⚔️'} ${t.name.substring(0,8)}</span><div class="bartrack"><div class="barfill" style="width:${((t.totalStars||0)/maxTS*100).toFixed(1)}%;background:var(--gold)"></div></div><span class="barnum">${t.totalStars||0}</span></div>`).join(''):'<div class="empty" style="padding:16px"><p>لا توجد فرق</p></div>'}
     </div></div></div>`;
 
-  const medals=['🥇','🥈','🥉'];
-  document.getElementById('top10list').innerHTML=[...players].sort((a,b)=>(b.stars||0)-(a.stars||0)).slice(0,10).map((p,i)=>`
-    <div class="rankrow"><span class="ranknum">${medals[i]||(i+1)}</span>
-    <div class="rankinfo"><div class="rankname">${esc(p.playerName||'—')}</div><div class="ranksub">${YR[p.academicYear]||''} · ${esc(p.team||'بدون فريق')}</div></div>
-    <span class="rankscore">⭐ ${(p.stars||0).toLocaleString()}</span></div>`).join('');
+  renderTop10();
 
   // ── charts3: Lesson completion per subject + spiritual activity ──
   const subKeys=['faith','l2_bible','l2_life','ritual'];
@@ -2945,6 +3026,7 @@ function applyF() {
         ph=document.getElementById('f-phone').value.trim(),
         g=document.getElementById('f-gender').value,
         y=document.getElementById('f-year').value,
+        lv=+document.getElementById('f-level').value||0,
         t=document.getElementById('f-team').value,
         s=(document.getElementById('f-status')||{}).value||'';
   filtered=players.filter(p=>{
@@ -2952,6 +3034,7 @@ function applyF() {
     if(ph&&!(p.playerPhone||'').includes(ph)) return false;
     if(g&&p.gender!==g) return false;
     if(y&&p.academicYear!==y) return false;
+    if(lv&&levelOf(p)!==lv) return false;
     if(t==='__none__'&&p.team&&p.team.trim()) return false;
     if(t&&t!=='__none__'&&p.team!==t) return false;
     if(s){
@@ -2962,7 +3045,7 @@ function applyF() {
   });
   doSort(); document.getElementById('fcnt').textContent=filtered.length+' لاعب'; renderPT();
 }
-function clearF(){['f-name','f-phone'].forEach(id=>document.getElementById(id).value='');['f-gender','f-year','f-team','f-status'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});applyF();}
+function clearF(){['f-name','f-phone'].forEach(id=>document.getElementById(id).value='');['f-gender','f-year','f-level','f-team','f-status'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});applyF();}
 function sortBy(f){if(sortField===f)sortDir=sortDir==='asc'?'desc':'asc';else{sortField=f;sortDir='desc';}
   document.querySelectorAll('thead th').forEach(th=>th.classList.remove('sorted'));
   const el=document.getElementById('si-'+f);if(el){el.closest('th').classList.add('sorted');el.className='fas fa-sort-'+(sortDir==='asc'?'up':'down');}
@@ -2978,7 +3061,7 @@ function renderPT() {
   }
   tbody.innerHTML=filtered.map(p=>{
     const gb=p.gender==='male'?'<span class="badge b-male">👦 ولد</span>':p.gender==='female'?'<span class="badge b-female">👧 بنت</span>':'<span style="color:var(--muted);font-size:11px">—</span>';
-    const yb=p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'—';
+    const yb=(p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'—')+' '+lvlBadge(p);
     const tb=p.team&&p.team.trim()?`<span class="badge b-team">${p.teamLogo||'⚔️'} ${esc(p.team)}</span>`:'<span class="badge b-noteam">بدون فريق</span>';
     const ab=p.team&&p.team.trim()?`<button class="btn bd bxs" onclick="removeFromTeam('${p.playerPhone}','${esc(p.team)}')"><i class="fas fa-user-minus"></i> إزالة</button>`
                                   :`<button class="btn bg bxs" onclick="openAssign('${p.playerPhone}')"><i class="fas fa-user-plus"></i> فريق</button>`;
@@ -3006,7 +3089,7 @@ function renderPT() {
     cards.innerHTML=filtered.map(p=>{
       const gIcon=p.gender==='male'?'👦':p.gender==='female'?'👧':'👤';
       const initial=(p.playerName||'?').trim().charAt(0)||'?';
-      const yb=p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'';
+      const yb=(p.academicYear?`<span class="badge b-${p.academicYear}">${YR[p.academicYear]||p.academicYear}</span>`:'')+' '+lvlBadge(p);
       const tb=p.team&&p.team.trim()?`<span class="badge b-team">${p.teamLogo||'⚔️'} ${esc(p.team)}</span>`:'<span class="badge b-noteam">بدون فريق</span>';
       const gb=p.gender==='male'?'<span class="badge b-male">👦 ولد</span>':p.gender==='female'?'<span class="badge b-female">👧 بنت</span>':'';
       const ab=p.team&&p.team.trim()?`<button class="btn bd bsm" onclick="removeFromTeam('${p.playerPhone}','${esc(p.team)}')"><i class="fas fa-user-minus"></i> إزالة</button>`
@@ -3100,7 +3183,10 @@ function renderEditTab(p) {
     <div class="erow"><span class="elbl">📚 السنة</span>
       <select class="einp" id="e-year"><option value="prep1" ${p.academicYear==='prep1'?'selected':''}>أولى إعدادي</option><option value="prep2" ${p.academicYear==='prep2'?'selected':''}>تانية إعدادي</option><option value="prep3" ${p.academicYear==='prep3'?'selected':''}>تالتة إعدادي</option></select>
     </div>
-    <div class="erow"><span class="elbl">🚀 المستوى</span><input type="number" class="einp" id="e-level" value="${p.currentLevel||1}" min="1"></div>
+    <div class="erow"><span class="elbl">🎓 المستوى</span>
+      <select class="einp" id="e-plevel"><option value="0" ${!(p.playerLevel===1||p.playerLevel===2)?'selected':''}>تلقائي (${LVL[levelOf({stationScores:p.stationScores})]})</option><option value="1" ${p.playerLevel===1?'selected':''}>المستوى الأول</option><option value="2" ${p.playerLevel===2?'selected':''}>المستوى الثاني</option></select>
+    </div>
+    <div class="erow"><span class="elbl">🗺️ مرحلة الخريطة</span><input type="number" class="einp" id="e-level" value="${p.currentLevel||1}" min="1"></div>
     <div class="slbl" style="margin-top:14px">⚡ المساعدات</div>
     <div class="pugrid">
       <div class="pubox"><div class="puico">🎯</div><div class="punm">50/50</div><input type="number" class="puinp" id="pu-ff" value="${PU.fiftyFifty??2}" min="0"></div>
@@ -3142,7 +3228,7 @@ function renderLessonsTab(p) {
     html+='<div class="subj-block">';
     html+='<div class="subj-hdr" style="background:'+sub.color+'1a;border:1px solid '+sub.color+'33"><span style="font-size:16px">'+sub.icon+'</span><span style="color:'+sub.color+'">'+sub.name+'</span><span style="margin-right:auto;font-size:10px;color:var(--muted)">'+done+'/'+sub.lessons.length+' درس</span></div>';
     sub.lessons.forEach(function(lname,i){
-      const isL1=!!sub.newEngine, stMax=isL1?200:150;
+      const isL1=!!sub.newEngine, stMax=isL1?((sub.scoring&&sub.scoring.max)||200):150;
       const key=sk+'_'+i, sc=ss[key]||{}, total=sc.total||0, pct=Math.round(total/stMax*100);
       const vw=wv[sk+'_lesson_'+i+'_video']?'🎬':'⬜';
       const svw=wv[sk+'_lesson_'+i+'_short_video']?'📹':'';
@@ -3156,7 +3242,7 @@ function renderLessonsTab(p) {
         html+='<div class="st-cell"><span class="st-cell-lbl">قراءة</span><span class="st-cell-val" style="color:#fb923c">'+(sc.learnRead||0)+'/20</span></div>';
         html+='<div class="st-cell"><span class="st-cell-lbl">أسئلة</span><span class="st-cell-val" style="color:#f472b6">'+(sc.learnChecks||0)+'/20</span></div>';
         html+='<div class="st-cell"><span class="st-cell-lbl">ملخص</span><span class="st-cell-val" style="color:#60a5fa">'+(sc.summary||0)+'/20</span></div>';
-        html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/140</span></div>';
+        html+='<div class="st-cell"><span class="st-cell-lbl">ألعاب</span><span class="st-cell-val" style="color:#34d399">'+(sc.games||0)+'/'+((sub.scoring&&sub.scoring.games)||140)+'</span></div>';
         html+='</div>';
         const l1Badges=Object.keys(mgs).filter(function(t){return t.indexOf(key+'_mg_')===0&&mgs[t]>0;}).map(function(t){return'<span class="mg-badge">'+esc(t.slice((key+'_mg_').length))+': '+mgs[t]+'</span>';});
         if(l1Badges.length) html+='<div class="mg-row">'+l1Badges.join('')+'</div>';
@@ -3274,10 +3360,10 @@ function renderSpiritualTab(p) {
 
 async function savePM(phone) {
   const p=players.find(x=>x.playerPhone===phone||x._id===phone); if(!p) return;
-  const upd={stars:+document.getElementById('e-stars').value||0,gems:+document.getElementById('e-gems').value||0,xp:+document.getElementById('e-xp').value||0,bestStreak:+document.getElementById('e-streak').value||0,academicYear:document.getElementById('e-year').value,currentLevel:+document.getElementById('e-level').value||1,powerUps:{fiftyFifty:+document.getElementById('pu-ff').value||0,skip:+document.getElementById('pu-sk').value||0,doublePoints:+document.getElementById('pu-dp').value||0,freeze:+document.getElementById('pu-fz').value||0,hint:+document.getElementById('pu-ht').value||0},lastUpdated:new Date().toISOString()};
+  const upd={stars:+document.getElementById('e-stars').value||0,gems:+document.getElementById('e-gems').value||0,xp:+document.getElementById('e-xp').value||0,bestStreak:+document.getElementById('e-streak').value||0,academicYear:document.getElementById('e-year').value,currentLevel:+document.getElementById('e-level').value||1,playerLevel:+document.getElementById('e-plevel').value||0,powerUps:{fiftyFifty:+document.getElementById('pu-ff').value||0,skip:+document.getElementById('pu-sk').value||0,doublePoints:+document.getElementById('pu-dp').value||0,freeze:+document.getElementById('pu-fz').value||0,hint:+document.getElementById('pu-ht').value||0},lastUpdated:new Date().toISOString()};
   try {
     await db.collection('players').doc(p._id).update(upd);
-    await db.collection('leaderboard').doc(phone).update({stars:upd.stars,gems:upd.gems,xp:upd.xp}).catch(()=>{});
+    await db.collection('leaderboard').doc(phone).update({stars:upd.stars,gems:upd.gems,xp:upd.xp,playerLevel:upd.playerLevel}).catch(()=>{});
     Object.assign(p,upd); closeM('modal-player'); applyF(); renderInsights(); toast('✅ تم الحفظ','ok');
   } catch(e){console.error(e);toast('خطأ في الحفظ','err');}
 }

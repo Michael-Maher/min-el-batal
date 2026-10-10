@@ -322,6 +322,7 @@ function checkBibleSubject(key) {
     });
 }
 checkBibleSubject('l1_bible');
+checkBibleSubject('l2_bible');
 
 /* -------- wordSearch: longest words first -------- */
 test('l1WsBuild places an 8-letter word plus 5 others in 8x8 for 300 seeds', function () {

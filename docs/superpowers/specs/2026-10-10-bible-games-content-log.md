@@ -36,11 +36,17 @@ before release. Format per station: game id → source card titles / existing ga
 - `s5_order`: ١ صم ١٢: ١٢ (station verse)، ١ صم ١٢: ١٣ (station verse)، ١ صم ١٧: ٤٥ (`s5_sling` outro)، ١ مل ١٨: ٢١ (card «إيليا النبي»). No new verses.
 
 ### Notes for reviewers
-- Hints (fix round 1): each hint is a story or reference nudge that still needs the child to know the fact; no letter hints,
-  no hints that eliminate every distractor, no hints that repeat a word or idea found only in the correct option. A few hints
-  use accurate Bible details beyond the station cards: عد ١٦: ١، ٣٢ (قورح لاوي والأرض بلعته)، قض ١٦: ٥ (فضة دليلة)، شعر شمشون،
-  قض ٤: ٣ (٩٠٠ مركبة حديد)، تك ١٣: ٩، تك ١: ٣، تك ٨: ٤، ١ صم ١٥ (غنائم عماليق)، عد ١٤ (الجاسوسين الأمناء)، يو ٣ (نيقوديموس)،
-  طو ٥ (رافائيل في شكل إنسان)، ١ مل ١٧: ٣ (إيليا مستخبي عند كريث).
+- Hints (fix rounds 1-2): each hint is a story, context or card/diagram reference nudge that still needs the child to know
+  the fact. Self-check used: with the question covered, the hint must not pick one of the 4 options or rule out the other
+  three, and no hint may answer another question in the same treasure. Hint details beyond the station cards (all accurate):
+  - Station 0: ١ كو ١٦: ٢٢ is near the end of the letter (hint «في آخر رسالته الأولى لأهل كورنثوس»).
+  - Station 1: «بعد ١٥٠ يوم» (تك ٨: ٣) and the ark resting (تك ٨: ٤)؛ «هيفتكر عهده» (تك ٩: ١٥-١٦).
+  - Station 3: «يخلع حذاءه لأن المكان مقدس» (خر ٣: ٥)؛ «كانوا بياكلوا لحم في مصر» (خر ١٦: ٣)؛
+    «بيرقصوا حوالين العجل» (خر ٣٢: ١٩)؛ قورح من سبط لاوي والأرض بلعته (عد ١٦: ١، ٣٢).
+  - Station 4: فضة دليلة (قض ١٦: ٥)؛ سر شعر شمشون (قض ١٦: ١٧)؛ ٩٠٠ مركبة حديد جمعها سيسرا (قض ٤: ١٣)؛
+    الجاسوسين الأمناء (عد ١٤: ٦-٩).
+  - Station 5: إيليا مستخبي عند نهر كريث (١ مل ١٧: ٣)؛ رافائيل رافق ابن طوبيا في شكل إنسان (طو ٥)؛
+    غنائم عماليق (١ صم ١٥).
 - Verses copied from station data had their tanween / shadda removed so the verse tiles carry no tashkeel
   (e.g. «رجلا ناجحا»، «شرا ... خيرا»، «كلاما»، «أحكاما»، «ملكا»، «إلي»). Words are otherwise unchanged.
 - Station verse texts (مز ٧٨: ٥٢-٥٣، ١ صم ١٢: ١٢-١٣) are copied as they appear in the station data; please confirm they match

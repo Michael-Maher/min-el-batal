@@ -245,6 +245,84 @@ test('treasure type is registered', function () {
     assert.strictEqual(typeof ctx.L1_GAME_TYPES.treasure, 'function');
 });
 
+/* ---------------- Bible data ---------------- */
+var TASHKEEL = /[ً-ْٰـ]/;
+function checkBibleSubject(key) {
+    var sub = ctx.LEVEL1_SUBJECTS[key];
+    var ids = {};
+    sub.stations.forEach(function (st, n) {
+        var where = key + ' station ' + n;
+        test(where + ': unique ids, caps', function () {
+            st.games.forEach(function (g) {
+                assert.ok(!ids[g.id], 'duplicate id ' + g.id);
+                ids[g.id] = true;
+                assert.ok(g.id.indexOf('s' + n + '_') === 0, 'id prefix ' + g.id);
+            });
+            var sum = st.games.reduce(function (a, g) { return a + g.max; }, 0);
+            assert.ok(sum <= sub.scoring.games, 'max sum ' + sum + ' > ' + sub.scoring.games);
+            assert.ok(st.games.length === 6 || st.games.length === 7, 'game count ' + st.games.length);
+        });
+        test(where + ': treasure', function () {
+            var g = st.games.filter(function (x) { return x.id === 's' + n + '_treasure'; })[0];
+            assert.ok(g, 'missing s' + n + '_treasure');
+            assert.strictEqual(g.type, 'treasure');
+            assert.strictEqual(g.max, 30);
+            assert.ok(g.title && g.desc && g.icon && g.data.prompt, 'title/desc/icon/prompt');
+            var qs = g.data.questions;
+            assert.ok(qs.length >= 12 && qs.length <= 15, 'questions ' + qs.length);
+            var per = { 1: 0, 2: 0, 3: 0 };
+            qs.forEach(function (q, i) {
+                assert.ok(q.q && q.explain && q.hint, 'q/explain/hint #' + i);
+                assert.strictEqual(q.options.length, 4, 'options #' + i);
+                assert.ok(q.correct >= 0 && q.correct <= 3, 'correct #' + i);
+                assert.ok(per.hasOwnProperty(q.level), 'level #' + i);
+                per[q.level]++;
+                assert.strictEqual(new Set(q.options).size, 4, 'duplicate options #' + i);
+            });
+            assert.ok(per[1] >= 4 && per[2] >= 4 && per[3] >= 4, 'levels ' + JSON.stringify(per));
+        });
+        var hasVerseGame = st.games.some(function (x) { return x.type === 'fillVerse' || x.type === 'decode'; });
+        if (hasVerseGame) {
+            test(where + ': wordSearch', function () {
+                var g = st.games.filter(function (x) { return x.id === 's' + n + '_words'; })[0];
+                assert.ok(g, 'missing s' + n + '_words');
+                assert.strictEqual(g.type, 'wordSearch');
+                assert.strictEqual(g.max, 30);
+                assert.ok(g.title && g.desc && g.icon && g.data.prompt, 'title/desc/icon/prompt');
+                var size = g.data.size || 8, pick = g.data.pick || 6;
+                assert.ok(g.data.words.length >= 8, 'words ' + g.data.words.length);
+                g.data.words.forEach(function (w) {
+                    assert.ok(!TASHKEEL.test(w.w) && !/\s/.test(w.w), 'clean word ' + w.w);
+                    var len = ctx.l1WsCells(w.w).length;
+                    assert.ok(len >= 3 && len <= size, 'length ' + w.w);
+                    assert.ok(w.clue, 'clue ' + w.w);
+                });
+                for (var s = 1; s <= 100; s++) {
+                    var sub = [];
+                    for (var k = 0; k < pick; k++) sub.push(g.data.words[(s + k) % g.data.words.length]);
+                    var b = ctx.l1WsBuild(sub, size, rng(s));
+                    assert.strictEqual(b.placed.length, pick, 'placement seed ' + s);
+                }
+            });
+        } else {
+            test(where + ': verseOrder', function () {
+                var g = st.games.filter(function (x) { return x.id === 's' + n + '_order'; })[0];
+                assert.ok(g, 'missing s' + n + '_order');
+                assert.strictEqual(g.type, 'verseOrder');
+                assert.strictEqual(g.max, 30);
+                assert.ok(g.title && g.desc && g.icon && g.data.prompt, 'title/desc/icon/prompt');
+                assert.ok(g.data.verses.length >= 4, 'verses ' + g.data.verses.length);
+                g.data.verses.forEach(function (v) {
+                    assert.ok(v.ref, 'ref ' + v.text);
+                    assert.ok(v.text.trim().split(/\s+/).length >= 6, 'verse too short: ' + v.text);
+                    assert.ok(!TASHKEEL.test(v.text), 'tashkeel in ' + v.ref);
+                });
+            });
+        }
+    });
+}
+checkBibleSubject('l1_bible');
+
 /* ---------------- report ---------------- */
 // (later tasks insert more test blocks above this line)
 console.log(passed + ' passed, ' + failed + ' failed');

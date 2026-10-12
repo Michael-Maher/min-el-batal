@@ -2225,6 +2225,7 @@ function defaultPerms(){ var p={}; PAGES.forEach(function(x){ p[x.key]=true; });
 function hasPerm(key){
   if(!me) return false;
   if(me.role==='superadmin') return true;
+  if(key==='attendance') return true;   // every admin can run meeting attendance
   return !!(me.perms && me.perms[key]);
 }
 function applyNavPermissions(){
@@ -2447,6 +2448,7 @@ function printAttPoster(sid){
   const url=ATT_URL+s._id+'.'+s.code;
   const w=window.open('','_blank'); if(!w){toast('اسمح بفتح نافذة جديدة علشان الطباعة','err');return;}
   const logo=(location.origin||'')+'/images/ui/logo-min-el-batal.webp';
+  const school=(location.origin||'')+'/images/ui/logo-atba3ny.webp';
   w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>QR ${esc(s.title||'')} — ${s.date}</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&family=Lalezar&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"><\/script>
@@ -2460,6 +2462,10 @@ function printAttPoster(sid){
 .date{position:relative;margin:2mm 0 5mm;background:linear-gradient(#FFE766,#FFB300);color:#6B3A00;border:1mm solid #A85E00;border-radius:8mm;padding:2mm 9mm;font-weight:900;font-size:19pt;box-shadow:0 1.5mm 0 #A85E00}
 .qrbox{position:relative;background:#fff;border-radius:10mm;padding:7mm;box-shadow:0 2mm 0 #0B2A63,0 6mm 14mm rgba(0,0,0,.35);border:1.5mm solid #FFE766}
 .qrbox svg{display:block;width:118mm;height:118mm}
+.qrin{position:relative}
+.qrlogo{position:absolute;left:50%;top:50%;width:30mm;height:30mm;transform:translate(-50%,-50%);border-radius:50%;background:#fff;padding:1.6mm;box-shadow:0 0 0 1.4mm #fff,0 1mm 3mm rgba(0,0,0,.25)}
+.qrlogo img{width:100%;height:100%;object-fit:contain;display:block}
+.org{position:relative;margin-top:1.5mm;font-weight:800;font-size:12.5pt;background:rgba(11,42,99,.35);border:.5mm solid rgba(255,255,255,.3);border-radius:6mm;padding:1mm 6mm;text-align:center}
 .badge{position:absolute;top:-9mm;left:-9mm;width:30mm;height:30mm;border-radius:50%;background:linear-gradient(#8CF25A,#2FB31A);border:1.2mm solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:18pt;line-height:1;box-shadow:0 1.5mm 0 #1C7A0C;transform:rotate(-12deg)}
 .badge small{font-size:9pt;margin-top:1mm}
 .code{position:relative;margin-top:5mm;font-size:12pt;font-weight:800;opacity:.95}
@@ -2467,19 +2473,18 @@ function printAttPoster(sid){
 .steps{position:relative;display:flex;gap:5mm;margin-top:7mm}
 .st{width:52mm;background:rgba(255,255,255,.13);border:.6mm solid rgba(255,255,255,.35);border-radius:6mm;padding:3.5mm;text-align:center;font-weight:800;font-size:11.5pt}
 .st span{display:block;font-size:22pt;margin-bottom:1mm}
-.foot{position:absolute;bottom:9mm;left:0;right:0;text-align:center;font-weight:800;font-size:11pt;opacity:.9}
 .once{position:relative;margin-top:4mm;font-size:10pt;opacity:.85}
 @media screen{body{background:#555;display:flex;justify-content:center;padding:8mm}}
 </style></head><body><div class="p"><div class="rays"></div>
 <span class="star" style="top:20mm;right:22mm;font-size:22pt">✦</span><span class="star" style="top:46mm;left:20mm;font-size:16pt">✦</span><span class="star" style="top:150mm;right:14mm;font-size:14pt">✝</span><span class="star" style="top:200mm;left:16mm;font-size:20pt">✦</span>
 <img class="logo" src="${logo}" alt="مين البطل" onerror="this.style.display='none'">
+<div class="org">كنيسة الشهيدة رفقة وأولادها الخمسة بالعمرانية · مدرسة اتبعني للتلمذة</div>
 <div class="t1">سجّل حضورك ⛪</div>
-<div class="date">${esc(s.title||'اجتماع')} · ${attFullDate(s.date)}</div>
-<div class="qrbox"><div class="badge">+${s.points||0}<small>⭐ نجمة</small></div><div id="qr"></div></div>
+<div class="date">${esc(s.title||'اجتماع')} · ${(s.title||'').indexOf(attDayName(s.date).replace('الاثنين','الإثنين'))>=0||(s.title||'').indexOf(attDayName(s.date))>=0?new Date(s.date+'T12:00:00').toLocaleDateString('ar-EG',{day:'numeric',month:'long',year:'numeric'}):attFullDate(s.date)}</div>
+<div class="qrbox"><div class="badge"><span dir="ltr">+${s.points||0}</span><small>⭐ نجمة</small></div><div class="qrin"><div id="qr"></div><div class="qrlogo"><img src="${school}" alt="مدرسة اتبعني للتلمذة"></div></div></div>
 <div class="code">مش عارف تمسح؟ اكتب الكود ده في تاب «حضوري»: <b>${esc(s.code)}</b></div>
 <div class="steps"><div class="st"><span>📱</span>افتح الكاميرا أو لعبة مين البطل</div><div class="st"><span>⛪</span>من تاب «حضوري» دوس «امسح الـ QR»</div><div class="st"><span>🎉</span>حضورك يتسجّل وتاخد النجوم فوراً</div></div>
 <div class="once">✔ كل واحد بيتسجّل مرة واحدة · الكود ده شغال يوم الاجتماع بس</div>
-<div class="foot">كنيسة الشهيدة رفقة وأولادها الخمسة بالعمرانية · مدرسة اتبعني للتلمذة</div>
 </div>
 <script>
 (function(){var q=qrcode(0,'H');q.addData(${JSON.stringify(url)});q.make();document.getElementById('qr').innerHTML=q.createSvgTag({cellSize:8,margin:0,scalable:true});

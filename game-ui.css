@@ -1887,3 +1887,68 @@ html[data-look] .social-fab-compose .gx-i { width: 36px; height: 36px; }
 html[data-look] .social-fab-compose.gx-compose:not(#gx) { position: static !important; width: auto !important; height: auto !important; padding: 7px 14px !important; border-radius: 14px !important; font-size: 13px; font-weight: 800; gap: 6px; animation: none; box-shadow: 0 3px 0 var(--gx-green-edge) !important; }
 html[data-look] .social-fab-compose.gx-compose .gx-i { width: 22px; height: 22px; }
 html[data-look] .qa-notice-pin .gx-i { width: 30px; height: 30px; }
+
+/* ============================================================
+   Attendance tab (attendance.js)
+   ============================================================ */
+.att-wrap { display: flex; flex-direction: column; gap: 12px; padding-bottom: 90px; font-family: var(--gx-font); }
+.att-hero { position: relative; overflow: hidden; text-align: center; padding: 20px 16px 18px; border-radius: 24px; color: #fff;
+  background: linear-gradient(160deg, var(--gx-purple-1), var(--gx-purple-2)); border: 3px solid var(--gx-purple-edge); box-shadow: 0 6px 0 var(--gx-purple-edge), 0 14px 30px rgba(0,0,0,.25); }
+.att-hero.done { background: linear-gradient(160deg, var(--gx-green-1), var(--gx-green-2)); border-color: var(--gx-green-edge); box-shadow: 0 6px 0 var(--gx-green-edge), 0 14px 30px rgba(0,0,0,.25); }
+.att-hero::before { content: ''; position: absolute; inset: -40%; background: repeating-conic-gradient(rgba(255,255,255,.08) 0 10deg, transparent 10deg 20deg); animation: attSpin 40s linear infinite; }
+.att-hero > * { position: relative; }
+.att-hero-ic { font-size: 54px; line-height: 1; animation: attBob 2.4s ease-in-out infinite; filter: drop-shadow(0 4px 0 rgba(0,0,0,.2)); }
+.att-hero h2 { margin: 8px 0 4px; font-family: var(--gx-display); font-size: 24px; text-shadow: 0 3px 0 rgba(0,0,0,.2); }
+.att-hero p { margin: 0 0 14px; font-size: 14px; opacity: .95; }
+.att-scan-btn { display: inline-flex; align-items: center; gap: 10px; padding: 14px 30px; border-radius: 20px; border: 3px solid var(--gx-gold-edge); cursor: pointer;
+  background: linear-gradient(var(--gx-gold-1), var(--gx-gold-2)); color: var(--gx-gold-ink); font: 900 20px var(--gx-font); box-shadow: 0 6px 0 var(--gx-gold-edge); animation: attPulse 1.6s ease-in-out infinite; }
+.att-scan-btn:active { transform: translateY(4px); box-shadow: 0 2px 0 var(--gx-gold-edge); }
+.att-scan-ic { font-size: 26px; }
+.att-code { display: flex; gap: 8px; margin: 14px auto 0; max-width: 300px; }
+.att-code input { flex: 1; min-width: 0; border-radius: 14px; border: 2px solid rgba(255,255,255,.5); background: rgba(255,255,255,.18); color: #fff; padding: 9px 12px; font: 800 16px var(--gx-font); text-align: center; letter-spacing: 3px; }
+.att-code input::placeholder { color: rgba(255,255,255,.75); letter-spacing: 0; font-size: 13px; }
+.att-code button { border-radius: 14px; border: 0; padding: 0 16px; background: #fff; color: var(--gx-purple-ink); font: 900 14px var(--gx-font); cursor: pointer; }
+.att-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.att-stats > div { text-align: center; padding: 12px 8px; border-radius: 18px; background: rgba(255,255,255,.95); color: var(--gx-blue-ink); box-shadow: 0 4px 0 rgba(0,0,0,.15); }
+.att-stats b { display: block; font-family: var(--gx-display); font-size: 26px; line-height: 1.1; }
+.att-stats small { font-size: 12px; font-weight: 700; opacity: .8; }
+.att-list-card { border-radius: 22px; background: rgba(255,255,255,.96); color: #1d2b4f; padding: 14px 12px; box-shadow: 0 5px 0 rgba(0,0,0,.15); }
+.att-list-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.att-list-head h3 { margin: 0; font-family: var(--gx-display); font-size: 20px; color: var(--gx-blue-ink); }
+.att-count { font-size: 12px; font-weight: 800; background: #e8f5e9; color: var(--gx-green-ink); padding: 3px 10px; border-radius: 12px; }
+.att-count:empty { display: none; }
+.att-filters { display: grid; gap: 8px; margin-bottom: 10px; }
+.att-filters select, .att-filters input { width: 100%; border-radius: 12px; border: 2px solid #d5dcef; background: #f6f8ff; color: #1d2b4f; padding: 9px 10px; font: 700 14px var(--gx-font); }
+.att-chips { display: flex; gap: 6px; }
+.att-chips button { flex: 1; border-radius: 12px; border: 2px solid #d5dcef; background: #f6f8ff; color: #44507a; padding: 7px 4px; font: 800 12px var(--gx-font); cursor: pointer; }
+.att-chips button.on { background: var(--gx-blue-2); border-color: var(--gx-blue-edge); color: #fff; }
+.att-list { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.att-row { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 14px; background: #f3f6ff; animation: attIn .3s ease both; }
+.att-row.me { background: #fff6d6; outline: 2px solid var(--gx-gold-2); }
+.att-n { width: 28px; text-align: center; font-weight: 900; color: #7a86ad; flex: 0 0 28px; }
+.att-av { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; background: #dfe6fa; display: flex; align-items: center; justify-content: center; flex: 0 0 38px; border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,.12); }
+.att-who { flex: 1; min-width: 0; }
+.att-who b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.att-who small { font-size: 11px; color: #6b7699; }
+.att-t { font-size: 12px; font-weight: 800; color: #6b7699; white-space: nowrap; }
+.att-empty { text-align: center; padding: 22px 8px; color: #6b7699; font-weight: 700; }
+/* scanner overlay */
+.att-scan { position: fixed; inset: 0; z-index: 100000; background: #050b1f; display: flex; flex-direction: column; font-family: var(--gx-font); color: #fff; }
+.att-scan-top { display: flex; align-items: center; justify-content: space-between; padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 12px; font-size: 17px; }
+.att-scan-x { width: 40px; height: 40px; border-radius: 50%; border: 0; background: rgba(255,255,255,.15); color: #fff; font-size: 18px; cursor: pointer; }
+.att-scan-view { position: relative; flex: 1; overflow: hidden; }
+.att-scan-view video { width: 100%; height: 100%; object-fit: cover; }
+.att-scan-frame { position: absolute; top: 50%; left: 50%; width: min(70vw, 300px); aspect-ratio: 1; transform: translate(-50%, -50%); box-shadow: 0 0 0 100vmax rgba(0,0,0,.45); border-radius: 22px; }
+.att-scan-frame i { position: absolute; width: 38px; height: 38px; border: 5px solid var(--gx-gold-1); }
+.att-scan-frame i:nth-child(1) { top: -3px; right: -3px; border-width: 5px 5px 0 0; border-radius: 0 20px 0 0; }
+.att-scan-frame i:nth-child(2) { top: -3px; left: -3px; border-width: 5px 0 0 5px; border-radius: 20px 0 0 0; }
+.att-scan-frame i:nth-child(3) { bottom: -3px; right: -3px; border-width: 0 5px 5px 0; border-radius: 0 0 20px 0; }
+.att-scan-frame i:nth-child(4) { bottom: -3px; left: -3px; border-width: 0 0 5px 5px; border-radius: 0 0 0 20px; }
+.att-scan-line { position: absolute; left: 8%; right: 8%; height: 3px; border-radius: 3px; background: var(--gx-gold-1); box-shadow: 0 0 12px var(--gx-gold-2); animation: attLine 2s ease-in-out infinite alternate; }
+.att-scan-hint { text-align: center; padding: 14px 16px calc(18px + env(safe-area-inset-bottom, 0px)); margin: 0; font-size: 15px; }
+@keyframes attSpin { to { transform: rotate(360deg); } }
+@keyframes attBob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+@keyframes attPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+@keyframes attLine { from { top: 6%; } to { top: 92%; } }
+@keyframes attIn { from { opacity: 0; transform: translateY(6px); } }
+@media (prefers-reduced-motion: reduce) { .att-hero::before, .att-hero-ic, .att-scan-btn, .att-scan-line { animation: none; } }

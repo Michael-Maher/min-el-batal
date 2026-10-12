@@ -1473,6 +1473,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
         <button class="nav-btn" onclick="goPage('announce')"><i class="fas fa-bullhorn"></i> الإعلانات</button>
         <button class="nav-btn" onclick="goPage('posts')"><i class="fas fa-newspaper"></i> المنشورات</button>
         <button class="nav-btn" onclick="goPage('selfie')"><i class="fas fa-camera-retro"></i> تحدي السيلفي</button>
+        <button class="nav-btn" onclick="goPage('attendance')"><i class="fas fa-qrcode"></i> الحضور</button>
         <button class="nav-btn" onclick="goPage('learncfg')"><i class="fas fa-book-open"></i> محتوى الدروس</button>
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
         <button class="nav-btn" onclick="goPage('locks')" id="nav-locks"><i class="fas fa-lock"></i> الإقفال والإتاحة</button>
@@ -1596,6 +1597,21 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
     </div>
 
     <!-- SELFIE CHALLENGE -->
+    <!-- ATTENDANCE (meeting QR) -->
+    <div class="page" id="page-attendance">
+      <div class="ph"><h2><i class="fas fa-qrcode" style="color:var(--accent2)"></i> الحضور</h2><p>اعمل QR للاجتماع، اطبعه، واللاعبين يمسحوه أول ما يوصلوا الكنيسة. كل QR جديد بيلغي القديم.</p></div>
+      <div class="card" style="padding:16px;margin-bottom:14px">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1;min-width:150px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">تاريخ الاجتماع</label><input type="date" class="einp" id="att-date"></div>
+          <div style="flex:2;min-width:180px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">اسم الاجتماع</label><input type="text" class="einp" id="att-title" maxlength="40" placeholder="اجتماع الإثنين"></div>
+          <div style="width:110px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:4px">نقط الحضور ⭐</label><input type="number" class="einp" id="att-points" min="0" value="50"></div>
+          <button class="btn bp" id="att-create-btn" onclick="createAttSession()"><i class="fas fa-qrcode"></i> اعمل QR جديد</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px">الـ QR بيشتغل في يوم الاجتماع بس، وأول ما تعمل QR جديد كل الأكواد القديمة بتبطّل. كل لاعب بيتسجّل مرة واحدة في الاجتماع.</div>
+      </div>
+      <div id="att-admin-list"><div class="loading"><i class="fas fa-spinner fa-spin"></i></div></div>
+    </div>
+
     <div class="page" id="page-selfie">
       <div class="ph">
         <div><h2><i class="fas fa-camera-retro" style="color:var(--pink)"></i> تحدي السيلفي</h2><p>تحدي واحد كل أسبوع للفرق (من الإثنين ٦ مساءً للإثنين اللي بعده). تحكّم في المحتوى والجوايز.</p></div>
@@ -2202,7 +2218,8 @@ const PAGES = [
   { key:'tournaments', label:'البطولات',      icon:'fa-trophy' },
   { key:'tqbank',   label:'بنك أسئلة البطولة', icon:'fa-database' },
   { key:'posts',    label:'المنشورات',        icon:'fa-bullhorn' },
-  { key:'selfie',   label:'تحدي السيلفي',     icon:'fa-camera-retro' }
+  { key:'selfie',   label:'تحدي السيلفي',     icon:'fa-camera-retro' },
+  { key:'attendance', label:'الحضور',           icon:'fa-qrcode' }
 ];
 function defaultPerms(){ var p={}; PAGES.forEach(function(x){ p[x.key]=true; }); return p; }
 function hasPerm(key){
@@ -2334,6 +2351,142 @@ async function resetAllTeams(){
     toast('✅ تم تصفير الفرق ('+tSnap.size+' فريق) — النسخة الاحتياطية: seasonArchives/teams-'+resetId,'ok');
   }catch(e){ console.error(e); toast('حصل خطأ: '+(e.message||e)+' — النسخة الاحتياطية محفوظة وممكن تعيد المحاولة','err'); }
   finally{ if(btn) btn.disabled=false; }
+}
+
+// ════════════════════════════════
+//  ATTENDANCE — meeting QR sessions (attendanceSessions) + records (attendance/{sid}__{phone})
+// ════════════════════════════════
+let attSessions=[], attRecs={}, attOpen='';
+const ATT_URL=(location.origin||'https://min-el-batal.web.app')+'/?att=';
+function attTodayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function attDayName(d){ try{return new Date(d+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long'});}catch(e){return '';} }
+function attFullDate(d){ try{return new Date(d+'T12:00:00').toLocaleDateString('ar-EG',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}catch(e){return d;} }
+async function renderAttAdmin(){
+  const dIn=document.getElementById('att-date'); if(dIn&&!dIn.value) dIn.value=attTodayKey();
+  const tIn=document.getElementById('att-title'); if(tIn&&!tIn.value) tIn.placeholder='اجتماع '+attDayName(dIn.value);
+  const box=document.getElementById('att-admin-list');
+  try{
+    const snap=await db.collection('attendanceSessions').orderBy('date','desc').limit(40).get();
+    attSessions=snap.docs.map(d=>Object.assign({_id:d.id},d.data()));
+    attRecs={};
+    if(attSessions.length){
+      const oldest=attSessions[attSessions.length-1].date;
+      const rs=await db.collection('attendance').where('sessionDate','>=',oldest).get();
+      rs.forEach(d=>{const r=d.data(); r._id=d.id; (attRecs[r.sessionId]=attRecs[r.sessionId]||[]).push(r);});
+    }
+    renderAttAdminList();
+  }catch(e){ console.error(e); box.innerHTML='<div class="empty"><p>تعذّر التحميل</p></div>'; }
+}
+function renderAttAdminList(){
+  const box=document.getElementById('att-admin-list');
+  if(!attSessions.length){ box.innerHTML='<div class="empty"><i class="fas fa-qrcode"></i><p>لسه مفيش اجتماعات — اعمل أول QR من فوق</p></div>'; return; }
+  box.innerHTML=attSessions.map(s=>{
+    const recs=attRecs[s._id]||[], open=attOpen===s._id, today=s.date===attTodayKey();
+    const status=s.active?(today?'<span class="badge" style="background:rgba(16,185,129,.18);color:#047857">🟢 شغال النهارده</span>':'<span class="badge" style="background:rgba(245,158,11,.18);color:#b45309">⏳ شغال يوم '+attDayName(s.date)+'</span>'):'<span class="badge" style="background:rgba(148,163,184,.2);color:#475569">⛔ متوقف</span>';
+    let h='<div class="card" style="padding:14px;margin-bottom:10px">';
+    h+='<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><div style="flex:1;min-width:180px"><div style="font-weight:800;font-size:15px">'+esc(s.title||'اجتماع')+'</div><div style="font-size:12px;color:var(--muted)">'+attFullDate(s.date)+' · كود <b style="letter-spacing:2px">'+esc(s.code)+'</b> · '+(s.points||0)+' ⭐</div></div>';
+    h+=status+'<span class="badge" style="background:rgba(124,106,247,.15);color:var(--accent2)">👥 '+recs.length+' حضروا</span>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn bp bsm" onclick="printAttPoster(\''+s._id+'\')"><i class="fas fa-print"></i> اطبع الـ QR</button>';
+    h+='<button class="btn bg bsm" onclick="attOpen=attOpen===\''+s._id+'\'?\'\':\''+s._id+'\';renderAttAdminList()"><i class="fas fa-list"></i> الكشف</button>';
+    if(s.active) h+='<button class="btn bd bsm" onclick="stopAttSession(\''+s._id+'\')"><i class="fas fa-ban"></i> إيقاف</button>';
+    h+='</div></div>';
+    if(open){
+      h+='<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><input class="einp" style="flex:1;min-width:160px" placeholder="🔍 دوّر باسم" oninput="attAdminFilter(\''+s._id+'\',this.value)"><button class="btn bg bsm" onclick="exportAttCsv(\''+s._id+'\')"><i class="fas fa-file-csv"></i> CSV</button></div>';
+      h+='<div id="att-rows-'+s._id+'" style="margin-top:8px">'+attRowsHtml(s._id,'')+'</div>';
+    }
+    return h+'</div>';
+  }).join('');
+}
+function attRowsHtml(sid,q){
+  const recs=(attRecs[sid]||[]).slice().sort((a,b)=>(a.atMs||0)-(b.atMs||0)).filter(r=>!q||String(r.name||'').indexOf(q)>=0);
+  if(!recs.length) return '<div style="color:var(--muted);font-size:12px;text-align:center;padding:10px">'+(q?'مفيش نتايج':'لسه محدش سجّل')+'</div>';
+  return '<table style="width:100%;font-size:13px;border-collapse:collapse"><tr style="color:var(--muted);font-size:11px"><td>#</td><td>الاسم</td><td>الفريق</td><td>المستوى</td><td>الوقت</td><td></td></tr>'+recs.map((r,i)=>'<tr style="border-top:1px solid var(--border)"><td>'+(i+1)+'</td><td><b>'+esc(r.name||'')+'</b><div style="font-size:10px;color:var(--muted)">'+esc(r.phone||'')+'</div></td><td>'+esc(r.team||'—')+'</td><td>'+(LVL[r.teamLevel||r.playerLevel]||'—')+'</td><td>'+(r.atMs?new Date(r.atMs).toLocaleTimeString('ar-EG',{hour:'numeric',minute:'2-digit'}):'')+'</td><td><button class="btn bd bxs" title="مسح التسجيل" onclick="deleteAttRec(\''+sid+'\',\''+r._id+'\')"><i class="fas fa-trash"></i></button></td></tr>').join('')+'</table>';
+}
+function attAdminFilter(sid,q){ const el=document.getElementById('att-rows-'+sid); if(el) el.innerHTML=attRowsHtml(sid,q.trim()); }
+async function createAttSession(){
+  const date=document.getElementById('att-date').value;
+  if(!date){toast('اختار تاريخ الاجتماع','err');return;}
+  const title=(document.getElementById('att-title').value.trim())||('اجتماع '+attDayName(date));
+  const points=Math.max(0,parseInt(document.getElementById('att-points').value)||0);
+  const active=attSessions.filter(s=>s.active);
+  if(active.length&&!confirm('فيه QR شغال حالياً ('+active.map(s=>s.title).join('، ')+').\nالـ QR الجديد هيلغيه، وأي ورقة مطبوعة منه هتبطّل. تكمّل؟')) return;
+  const btn=document.getElementById('att-create-btn'); btn.disabled=true;
+  try{
+    const code=String(Math.floor(100000+Math.random()*900000));
+    const id='att_'+date.replace(/-/g,'')+'_'+Math.random().toString(36).slice(2,7);
+    const batch=db.batch();
+    // Only one valid QR at a time: every older session stops working
+    const act=await db.collection('attendanceSessions').where('active','==',true).get();
+    act.forEach(d=>batch.update(d.ref,{active:false,closedAt:Date.now()}));
+    batch.set(db.collection('attendanceSessions').doc(id),{date,title,code,points,active:true,createdAt:Date.now(),createdBy:me.phone||me.email||''});
+    await batch.commit();
+    document.getElementById('att-title').value='';
+    toast('✅ اتعمل QR جديد — اطبعه وعلّقه','ok');
+    await renderAttAdmin();
+    printAttPoster(id);
+  }catch(e){console.error(e);toast('خطأ في الإنشاء','err');}
+  finally{btn.disabled=false;}
+}
+async function stopAttSession(sid){
+  if(!confirm('إيقاف الـ QR ده؟ محدش هيقدر يسجّل بيه تاني.')) return;
+  try{ await db.collection('attendanceSessions').doc(sid).update({active:false,closedAt:Date.now()}); toast('⛔ اتوقف','ok'); renderAttAdmin(); }catch(e){toast('خطأ','err');}
+}
+async function deleteAttRec(sid,rid){
+  if(!confirm('مسح تسجيل الحضور ده؟ (النجوم اللي اللاعب خدها مش هتتشال)')) return;
+  try{ await db.collection('attendance').doc(rid).delete(); attRecs[sid]=(attRecs[sid]||[]).filter(r=>r._id!==rid); renderAttAdminList(); toast('🗑️ اتمسح','ok'); }catch(e){toast('خطأ','err');}
+}
+function exportAttCsv(sid){
+  const s=attSessions.find(x=>x._id===sid)||{};
+  const rows=[['#','الاسم','الموبايل','الفريق','المستوى','الوقت']].concat((attRecs[sid]||[]).slice().sort((a,b)=>(a.atMs||0)-(b.atMs||0)).map((r,i)=>[i+1,r.name||'',r.phone||'',r.team||'',LVL[r.teamLevel||r.playerLevel]||'',r.atMs?new Date(r.atMs).toLocaleString('ar-EG'):'']));
+  const csv='\ufeff'+rows.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})); a.download='حضور-'+(s.date||sid)+'.csv'; a.click();
+}
+// Printable A4 poster with the meeting QR (QR drawn in the print window with qrcode-generator)
+function printAttPoster(sid){
+  const s=attSessions.find(x=>x._id===sid); if(!s){toast('مش لاقي الاجتماع','err');return;}
+  const url=ATT_URL+s._id+'.'+s.code;
+  const w=window.open('','_blank'); if(!w){toast('اسمح بفتح نافذة جديدة علشان الطباعة','err');return;}
+  const logo=(location.origin||'')+'/images/ui/logo-min-el-batal.webp';
+  w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>QR ${esc(s.title||'')} — ${s.date}</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;800;900&family=Lalezar&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"><\/script>
+<style>
+@page{size:A4;margin:0} *{box-sizing:border-box} body{margin:0;font-family:Cairo,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.p{width:210mm;height:297mm;position:relative;overflow:hidden;background:radial-gradient(120% 70% at 50% 0%,#5AC8FF 0%,#1E88E5 38%,#123F8A 75%,#0B2A63 100%);color:#fff;display:flex;flex-direction:column;align-items:center;padding:12mm 14mm}
+.rays{position:absolute;left:50%;top:44%;width:300mm;height:300mm;transform:translate(-50%,-50%);background:repeating-conic-gradient(rgba(255,255,255,.07) 0 8deg,transparent 8deg 16deg);border-radius:50%}
+.star{position:absolute;color:#FFE766;opacity:.8}
+.logo{position:relative;height:30mm;filter:drop-shadow(0 3mm 3mm rgba(0,0,0,.3))}
+.t1{position:relative;font-family:Lalezar,Cairo;font-size:40pt;margin:2mm 0 0;text-shadow:0 1.2mm 0 #0B2A63;letter-spacing:.5pt}
+.date{position:relative;margin:2mm 0 5mm;background:linear-gradient(#FFE766,#FFB300);color:#6B3A00;border:1mm solid #A85E00;border-radius:8mm;padding:2mm 9mm;font-weight:900;font-size:19pt;box-shadow:0 1.5mm 0 #A85E00}
+.qrbox{position:relative;background:#fff;border-radius:10mm;padding:7mm;box-shadow:0 2mm 0 #0B2A63,0 6mm 14mm rgba(0,0,0,.35);border:1.5mm solid #FFE766}
+.qrbox svg{display:block;width:118mm;height:118mm}
+.badge{position:absolute;top:-9mm;left:-9mm;width:30mm;height:30mm;border-radius:50%;background:linear-gradient(#8CF25A,#2FB31A);border:1.2mm solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:18pt;line-height:1;box-shadow:0 1.5mm 0 #1C7A0C;transform:rotate(-12deg)}
+.badge small{font-size:9pt;margin-top:1mm}
+.code{position:relative;margin-top:5mm;font-size:12pt;font-weight:800;opacity:.95}
+.code b{display:inline-block;margin-right:2mm;background:rgba(255,255,255,.18);border:.5mm solid rgba(255,255,255,.5);border-radius:3mm;padding:.5mm 4mm;letter-spacing:3mm;font-size:20pt}
+.steps{position:relative;display:flex;gap:5mm;margin-top:7mm}
+.st{width:52mm;background:rgba(255,255,255,.13);border:.6mm solid rgba(255,255,255,.35);border-radius:6mm;padding:3.5mm;text-align:center;font-weight:800;font-size:11.5pt}
+.st span{display:block;font-size:22pt;margin-bottom:1mm}
+.foot{position:absolute;bottom:9mm;left:0;right:0;text-align:center;font-weight:800;font-size:11pt;opacity:.9}
+.once{position:relative;margin-top:4mm;font-size:10pt;opacity:.85}
+@media screen{body{background:#555;display:flex;justify-content:center;padding:8mm}}
+</style></head><body><div class="p"><div class="rays"></div>
+<span class="star" style="top:20mm;right:22mm;font-size:22pt">✦</span><span class="star" style="top:46mm;left:20mm;font-size:16pt">✦</span><span class="star" style="top:150mm;right:14mm;font-size:14pt">✝</span><span class="star" style="top:200mm;left:16mm;font-size:20pt">✦</span>
+<img class="logo" src="${logo}" alt="مين البطل" onerror="this.style.display='none'">
+<div class="t1">سجّل حضورك ⛪</div>
+<div class="date">${esc(s.title||'اجتماع')} · ${attFullDate(s.date)}</div>
+<div class="qrbox"><div class="badge">+${s.points||0}<small>⭐ نجمة</small></div><div id="qr"></div></div>
+<div class="code">مش عارف تمسح؟ اكتب الكود ده في تاب «حضوري»: <b>${esc(s.code)}</b></div>
+<div class="steps"><div class="st"><span>📱</span>افتح الكاميرا أو لعبة مين البطل</div><div class="st"><span>⛪</span>من تاب «حضوري» دوس «امسح الـ QR»</div><div class="st"><span>🎉</span>حضورك يتسجّل وتاخد النجوم فوراً</div></div>
+<div class="once">✔ كل واحد بيتسجّل مرة واحدة · الكود ده شغال يوم الاجتماع بس</div>
+<div class="foot">كنيسة الشهيدة رفقة وأولادها الخمسة بالعمرانية · مدرسة اتبعني للتلمذة</div>
+</div>
+<script>
+(function(){var q=qrcode(0,'H');q.addData(${JSON.stringify(url)});q.make();document.getElementById('qr').innerHTML=q.createSvgTag({cellSize:8,margin:0,scalable:true});
+var done=false;function go(){if(done)return;done=true;setTimeout(function(){window.print();},500);}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);setTimeout(go,2500);})();
+<\/script></body></html>`);
+  w.document.close();
 }
 
 // ════════════════════════════════
@@ -2865,8 +3018,8 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات',selfie:'تحدي السيلفي',learncfg:'محتوى الدروس'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين',selfie:'تحديات أحلى سيلفي للفرق',learncfg:'تحرير فيديوهات ونصوص الدروس'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات',selfie:'تحدي السيلفي',learncfg:'محتوى الدروس',attendance:'الحضور'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين',selfie:'تحديات أحلى سيلفي للفرق',learncfg:'تحرير فيديوهات ونصوص الدروس',attendance:'QR الاجتماعات وكشف الحضور'};
 function goPage(name) {
   // Permission gate (admins-page is gated separately by being hidden from non-supers)
   // tour-console inherits tournaments perm
@@ -2892,6 +3045,7 @@ function goPage(name) {
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebar-overlay').style.display='none';
   if(name==='selfie') renderSelfieAdmin();
+  if(name==='attendance') renderAttAdmin();
   if(name==='learncfg') lcfgLoad();
 }
 

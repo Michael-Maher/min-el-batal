@@ -102,6 +102,16 @@ service cloud.firestore {
       allow read, write: if true;
     }
     // Selfie challenge submissions — one per team per challenge
+    // Attendance: admin-printed meeting QR sessions + one record per player per meeting.
+    // Records are create-only (no update), so a player can't be recorded (or rewarded) twice
+    // for the same meeting; admins may delete a wrong record.
+    match /attendanceSessions/{sessionId} {
+      allow read, write: if true;
+    }
+    match /attendance/{recordId} {
+      allow read, create, delete: if true;
+      allow update: if false;
+    }
     match /selfieSubmissions/{submissionId} {
       allow read, write: if true;
     }

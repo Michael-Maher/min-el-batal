@@ -102,6 +102,7 @@ const GameState = {
     playerLevel: 0,           // 1 | 2 — set by admin; 0 = derived from lesson progress (playerLevelOf)
     teamLevel: 0,             // 1 | 2 — level of the player's team (teams.level); 0 = no team / old team
     teamsResetId: '',         // last admin teams reset this player went through (see ensureTeamsReset)
+    attendanceLog: {},        // { sessionId: { date, points, at } } — meetings this player scanned (attendance.js)
     createdAt: '',            // account creation (read-only here; written at registration)
     questionHistory: {},       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
     consumableWeapons: {},     // { 'sling': 2, 'scroll': 1 }
@@ -323,7 +324,7 @@ function submitLogin() {
             // Merge all object maps — cloud wins for same keys, local-only entries preserved
             ['watchedVideos', 'lessonSummaries', 'dailyVerseLog', 'bibleReadingLog',
              'devotionLog', 'exerciseLog', 'paulJourneyData', 'highlightedVerses',
-             'weeklyChallengeLog', 'questionHistory'].forEach(function(k) {
+             'weeklyChallengeLog', 'questionHistory', 'attendanceLog'].forEach(function(k) {
                 var cloudMap = GameState[k] || {};
                 var localMap = localBackup[k] || {};
                 if (typeof cloudMap === 'object' && !Array.isArray(cloudMap))
@@ -385,7 +386,7 @@ function submitLogin() {
             checkAdminAnnouncements();
             if (typeof subscribeQuestionsBadge === 'function') subscribeQuestionsBadge();
             if (typeof loadSharedQuestions === 'function') loadSharedQuestions();
-            checkPendingRoomJoin();
+            checkPendingRoomJoin(); if (typeof attCheckPending === 'function') attCheckPending();
             try { subscribeContentLocks(); } catch(e){}
             // Reconcile team from the canonical teams collection so a doc whose `team`
             // field was wiped (e.g. approved into a team mid-session) self-heals on login.
@@ -1125,6 +1126,7 @@ function saveToCloud() {
         teamLastAction: GameState.teamLastAction || 0,
         teamLevel: GameState.teamLevel || 0,
         teamsResetId: GameState.teamsResetId || '',
+        attendanceLog: GameState.attendanceLog || {},
         pendingTeamDocId: GameState.pendingTeamDocId || '',
         pendingTeamName: GameState.pendingTeamName || '',
         dailySpinDate: GameState.dailySpinDate || '',
@@ -1263,7 +1265,7 @@ function loadFromCloud(phone) {
                         } else if (['lessonSummaries', 'watchedVideos', 'dailyVerseLog',
                                     'bibleReadingLog', 'devotionLog', 'exerciseLog',
                                     'paulJourneyData', 'highlightedVerses',
-                                    'weeklyChallengeLog', 'questionHistory'].indexOf(key) >= 0) {
+                                    'weeklyChallengeLog', 'questionHistory', 'attendanceLog'].indexOf(key) >= 0) {
                             var cloudMap = data[key] || {};
                             var localMap = (sameProgress || PROGRESS_MAPS.indexOf(key) < 0) ? (localBackup[key] || GameState[key] || {}) : {};
                             GameState[key] = Object.assign({}, localMap, cloudMap);
@@ -2874,6 +2876,8 @@ function showScreen(id) {
     if (id === 'selfie-screen') { openSelfieChallenge(); }
     if (id === 'rewards-shop-screen') { renderRewardsShop(); }
     if (id === 'teams-screen') { renderTeamsScreen(); }
+    if (id === 'attendance-screen' && typeof renderAttendanceScreen === 'function') renderAttendanceScreen();
+    if (id !== 'attendance-screen' && typeof attCloseScanner === 'function') attCloseScanner();
 }
 
 function createParticles() {
@@ -2991,7 +2995,7 @@ function confirmCharacter() {
         GameState.character = selectedCharKey;
         saveGame();
         showScreen('home-hub-screen');
-        checkPendingRoomJoin();
+        checkPendingRoomJoin(); if (typeof attCheckPending === 'function') attCheckPending();
     }
 }
 

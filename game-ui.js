@@ -557,7 +557,7 @@ var GameUI = (function () {
     function scrollHubTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
 
     // Screens that show the bottom tab bar (lobby-style screens)
-    var NAV_SCREENS = { 'home-hub-screen': 1, 'shop-screen': 1, 'compete-screen': 1, 'leaderboard-screen': 1, 'teams-screen': 1, 'rewards-shop-screen': 1, 'progress-dashboard-screen': 1, 'museum-screen': 1 };
+    var NAV_SCREENS = { 'home-hub-screen': 1, 'shop-screen': 1, 'compete-screen': 1, 'leaderboard-screen': 1, 'teams-screen': 1, 'rewards-shop-screen': 1, 'progress-dashboard-screen': 1, 'museum-screen': 1, 'attendance-screen': 1 };
     function nav(id) {
         var cur = document.querySelector('.screen.active');
         if (cur && cur.id === id) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }

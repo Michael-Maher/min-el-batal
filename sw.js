@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v38';
+var CACHE_NAME = 'min-el-batal-v39';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -21,6 +21,7 @@ var STATIC_ASSETS = [
     '/level2-life-data.js',
     '/level2-arcade-life.js',
     '/compete-bank.js',
+    '/attendance.js',
     '/game-ui.css',
     '/game-ui.js',
     '/images/chars/david.png',

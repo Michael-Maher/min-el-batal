@@ -1628,6 +1628,17 @@
     </div>
 
     <!-- ============ TEAMS SCREEN ============ -->
+    <!-- ============ ATTENDANCE (attendance.js) ============ -->
+    <div id="attendance-screen" class="screen">
+        <div class="screen-inner">
+            <div class="top-bar">
+                <button class="back-btn" onclick="showScreen('home-hub-screen')"><i class="fas fa-arrow-right"></i></button>
+                <h2>⛪ حضوري</h2>
+            </div>
+            <div id="attendance-body"></div>
+        </div>
+    </div>
+
     <div id="teams-screen" class="screen">
         <div class="screen-inner">
             <div class="top-bar">
@@ -1691,6 +1702,7 @@
             <button data-nav="home-hub-screen" onclick="GameUI.nav('home-hub-screen')"><span><img class="gx-i" src="images/ui/ic-church.webp" alt=""></span><b>الرئيسية</b></button>
             <button data-nav="leaderboard-screen" onclick="GameUI.nav('leaderboard-screen')"><span><img class="gx-i" src="images/ui/ic-crown.webp" alt=""></span><b>الأبطال</b></button>
             <button data-nav="teams-screen" onclick="GameUI.nav('teams-screen')"><span><img class="gx-i" src="images/ui/ic-shield.webp" alt=""></span><b>فريقي</b></button>
+            <button data-nav="attendance-screen" onclick="GameUI.nav('attendance-screen')"><span><img class="gx-i" src="images/ui/ic-check.webp" alt=""></span><b>حضوري</b></button>
         </div>
     </nav>
 
@@ -1771,5 +1783,6 @@
     <script src="level1.js"></script>
     <script src="compete-bank.js"></script>
     <script src="game-ui.js"></script>
+    <script src="attendance.js"></script>
 </body>
 </html>

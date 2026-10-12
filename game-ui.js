@@ -706,10 +706,11 @@ var GameUI = (function () {
         if (typeof LEVEL1_SUBJECTS !== 'undefined' && typeof l1SubjectProgress === 'function') {
             Object.keys(LEVEL1_SUBJECTS).forEach(function (k) {
                 var p = l1SubjectProgress(k), sub = LEVEL1_SUBJECTS[k];
+                if (!sub || (typeof playerCanEnterLevel === 'function' && !playerCanEnterLevel(sub.level || 1))) return;
                 journeys.push({ key: k, name: sub.name, level: sub.level === 2 ? 'المستوى الثاني' : 'المستوى الأول', done: p.passed, total: p.total, open: "l1OpenSubject('" + k + "')" });
             });
         }
-        if (typeof LEVEL2_SUBJECTS !== 'undefined' && typeof getLessonMasteryTier === 'function') {
+        if (typeof LEVEL2_SUBJECTS !== 'undefined' && typeof getLessonMasteryTier === 'function' && (typeof playerCanEnterLevel !== 'function' || playerCanEnterLevel(2))) {
             ['faith', 'ritual'].forEach(function (k) {
                 var sd = LEVEL2_SUBJECTS[k];
                 if (!sd) return;

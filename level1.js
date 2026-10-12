@@ -271,6 +271,7 @@ function l1OpenSubject(key) {
     var sub = LEVEL1_SUBJECTS[key];
     if (!sub) { showToast('المادة دي بتتجهز... قريباً 🙏', 'warning'); return; }
     // The map/lesson screens are shared by levels, so the level card lock is checked here
+    if (!playerCanEnterLevel(sub.level || 1)) { showLevelLockedPopup(sub.level); return; }
     var card = sub.level === 2 ? ['card_level2', 'المستوى الثاني'] : ['card_level1', 'المستوى الأول'];
     if (typeof isContentLocked === 'function' && isContentLocked(card[0])) { showLockedPopup(card[1], lockedMessage(card[0])); return; }
     if (checkLockOrPopup('subject_' + key, sub.name)) return;

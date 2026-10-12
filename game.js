@@ -698,7 +698,8 @@ function applyDashboardLockUI() {
     map.forEach(function(m) {
         var card = hub.querySelector(m.sel);
         if (!card) return;
-        var locked = isContentLocked(m.key);
+        // Level 2 card also shows locked for players who haven't reached level 2
+        var locked = isContentLocked(m.key) || (m.key === 'card_level2' && !playerCanEnterLevel(2));
 
         // ── Visual: opacity + lock badge ──
         card.style.opacity = locked ? '0.62' : '';
@@ -848,6 +849,7 @@ function submitRegister() {
         GameState.gender = gender;
         GameState.username = username;
         GameState.email = email;
+        GameState.playerLevel = 1;   // every new registration starts in المستوى الأول
 
         // Save with password hash
         var saveData = {};
@@ -1331,6 +1333,7 @@ function syncLeaderboard() {
         gamesPlayed: GameState.gamesPlayed,
         xp: GameState.xp || 0,
         team: GameState.team || '',
+        playerLevel: playerLevelOf(GameState),
         stationScores: GameState.stationScores || {},
         lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -2793,7 +2796,22 @@ function showToast(msg, durOrType, type) {
     setTimeout(function() { t.className = 'toast'; }, dur);
 }
 
+// Each level opens only for players at that level or higher (players.playerLevel, set by admin;
+// new registrations start at 1). Level 1 is open to everyone.
+var LEVEL_SCREEN_GATE = { 'level2-subjects-screen': 2, 'level2-map-screen': 2, 'level2-lesson-screen': 2 };
+function playerCanEnterLevel(n) { return !n || n <= 1 || playerLevelOf(GameState) >= n; }
+function showLevelLockedPopup(n) {
+    var names = { 2: 'المستوى الثاني', 3: 'المستوى الثالث' };
+    showLockedPopup((names[n] || ('المستوى ' + n)) + ' 🎓',
+        'المستوى ده لسه مقفول ليك — كمّل المستوى اللي إنت فيه، والخدام هيفتحولك المستوى الجاي أول ما تكون جاهز 💪');
+}
+
 function showScreen(id) {
+    // Level gate — a level's screens open only for players who reached that level
+    if (LEVEL_SCREEN_GATE[id] && !playerCanEnterLevel(LEVEL_SCREEN_GATE[id])) {
+        showLevelLockedPopup(LEVEL_SCREEN_GATE[id]);
+        return;
+    }
     // Admin content lock gate — block navigation to locked screens from any path
     if (typeof isContentLocked === 'function') {
         var _LOCK_GATE = {

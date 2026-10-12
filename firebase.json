@@ -18,6 +18,11 @@
       "firestore.rules",
       "storage.rules",
       "**/node_modules/**",
+      ".superpowers/**",
+      "images/ui/raw/**",
+      "tools/**",
+      ".agents/**",
+      "skills-lock.json",
       ".git/**",
       ".claude/**",
       ".firebase/**",
@@ -39,25 +44,37 @@
       {
         "source": "/sw.js",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
         ]
       },
       {
         "source": "/manifest.json",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
         ]
       },
       {
         "source": "**/*.@(jpg|jpeg|png|gif|webp)",
         "headers": [
-          { "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=31536000, immutable"
+          }
         ]
       },
       {
         "source": "**/*.@(html|js|css)",
         "headers": [
-          { "key": "Cache-Control", "value": "no-cache" }
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
         ]
       }
     ],

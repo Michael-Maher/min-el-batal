@@ -100,6 +100,8 @@ const GameState = {
     scoreSeasonId: '',        // score season this player's points belong to (gameContent/season, see ensureScoreSeason)
     progressResetId: '',      // last lesson-progress reset this player went through (see ensureProgressReset)
     playerLevel: 0,           // 1 | 2 — set by admin; 0 = derived from lesson progress (playerLevelOf)
+    teamLevel: 0,             // 1 | 2 — level of the player's team (teams.level); 0 = no team / old team
+    teamsResetId: '',         // last admin teams reset this player went through (see ensureTeamsReset)
     createdAt: '',            // account creation (read-only here; written at registration)
     questionHistory: {},       // { 'faith_1': ['q text...', ...] } — last 30 seen per lesson
     consumableWeapons: {},     // { 'sling': 2, 'scroll': 1 }
@@ -358,6 +360,7 @@ function submitLogin() {
                 GameState.team = localBackup.team || '';
                 GameState.teamLogo = localBackup.teamLogo || '';
                 GameState.teamColor = localBackup.teamColor || '';
+                GameState.teamLevel = localBackup.teamLevel || 0;
             }
             // Pending join request: prefer local, then cloud
             if (!GameState.pendingTeamDocId) {
@@ -540,8 +543,28 @@ function _seasonMs(v) {
 
 // Moves the logged-in player into the current season; true when their points (or lessons) were reset.
 function ensureScoreSeason() {
+    ensureTeamsReset();
     var progress = ensureProgressReset();
     return _ensurePointsSeason() || progress;
+}
+
+// Leaves the player's team once per admin teams reset (gameContent/season.teamsResetId).
+// Teams joined or created after the reset (teamLastAction newer than teamsResetAt) are kept.
+function ensureTeamsReset() {
+    var s = _scoreSeason;
+    if (!s || !s.teamsResetId || !GameState.playerPhone || GameState.teamsResetId === s.teamsResetId) return;
+    GameState.teamsResetId = s.teamsResetId;
+    var hadTeam = !!(GameState.team || GameState.pendingTeamDocId);
+    if (!hadTeam || (GameState.teamLastAction || 0) > (s.teamsResetAt || 0)) { saveToLocalStorage(true); return; }
+    GameState.team = ''; GameState.teamLogo = ''; GameState.teamColor = ''; GameState.teamLevel = 0;
+    GameState.pendingTeamDocId = ''; GameState.pendingTeamName = '';
+    GameState.teamLastAction = Date.now();
+    saveToLocalStorage();   // also saves to the cloud
+    setTimeout(function() {
+        try { syncLeaderboard(); } catch(e) {}
+        try { updateHubTeamBadge(); } catch(e) {}
+        showToast('👥 الفرق اتعملت من جديد! اختار فريق من مستواك أو كوّن فريقك', 5000, 'info');
+    }, 600);
 }
 function _ensurePointsSeason() {
     var s = _scoreSeason;
@@ -1100,6 +1123,8 @@ function saveToCloud() {
         miniGameScores: GameState.miniGameScores || {},
         stationScores: GameState.stationScores || {},
         teamLastAction: GameState.teamLastAction || 0,
+        teamLevel: GameState.teamLevel || 0,
+        teamsResetId: GameState.teamsResetId || '',
         pendingTeamDocId: GameState.pendingTeamDocId || '',
         pendingTeamName: GameState.pendingTeamName || '',
         dailySpinDate: GameState.dailySpinDate || '',
@@ -5508,12 +5533,16 @@ var leaderboardData = [];
 var currentLBTab = 'stars';
 var currentLBLevel = 0;   // 0 = all, 1 / 2 = المستوى الأول / الثاني (playerLevelOf)
 
-function setLBLevel(lvl) {
+function setLBLevelSilently(lvl) {
     currentLBLevel = lvl;
     document.querySelectorAll('#lb-level-filter .lb-level-btn').forEach(function(b) {
         b.classList.toggle('active', +b.getAttribute('data-lvl') === lvl);
     });
-    renderLeaderboardList();
+}
+function setLBLevel(lvl) {
+    if (currentLBTab === 'teams' && !lvl) lvl = GameState.teamLevel || myTeamLevelChoice();   // no mixed team ranking
+    setLBLevelSilently(lvl);
+    if (currentLBTab === 'teams') renderTeamLeaderboard(); else renderLeaderboardList();
 }
 
 function renderLeaderboard() {
@@ -5654,8 +5683,10 @@ function switchLBTab(tab) {
     currentLBTab = tab;
     updateLBTabIndicator();
     var lf = document.getElementById('lb-level-filter');
-    if (lf) lf.style.display = tab === 'teams' ? 'none' : '';
+    if (lf) lf.style.display = '';
     if (tab === 'teams') {
+        // Team ranking is always per level: default to the player's team level
+        if (!currentLBLevel) setLBLevelSilently(GameState.teamLevel || myTeamLevelChoice());
         renderTeamLeaderboard();
     } else {
         renderLeaderboardList();
@@ -5824,6 +5855,7 @@ function logout() {
     GameState.lampData = { points: 0, streakDays: 0, lastActiveDate: '', dailyLog: {} };
     GameState.xp = 0;
     GameState.team = '';
+    GameState.teamLevel = 0;
     GameState.redeemedRewards = [];
     GameState.dailyLoginDate = '';
     // Clear remember me
@@ -6061,6 +6093,10 @@ function cleanupDuplicateTeamMemberships() {
         snap.forEach(function(doc) { foundTeams.push({ id: doc.id, data: doc.data() }); });
         // If we know the player's current team, keep that one; otherwise keep most recent
         var keepTeam = foundTeams.find(function(t) { return t.data.name === GameState.team; }) || foundTeams[0];
+        if (keepTeam && keepTeam.data.name === GameState.team && GameState.teamLevel !== teamLevelOf(keepTeam.data)) {
+            GameState.teamLevel = teamLevelOf(keepTeam.data);
+            saveToLocalStorage();
+        }
         var toLeave = foundTeams.filter(function(t) { return t.id !== keepTeam.id; });
         toLeave.forEach(function(t) {
             var members = (t.data.members || []).filter(function(m) { return m !== GameState.playerPhone; });
@@ -6078,6 +6114,7 @@ function cleanupDuplicateTeamMemberships() {
             GameState.team = keepTeam.data.name;
             GameState.teamLogo = keepTeam.data.logo || '⚔️';
             GameState.teamColor = keepTeam.data.color || '#6C5CE7';
+            GameState.teamLevel = teamLevelOf(keepTeam.data);
             GameState.teamLastAction = Date.now();
             GameState.pendingTeamDocId = '';
             GameState.pendingTeamName = '';
@@ -6102,7 +6139,7 @@ function renderTeamsScreen() {
         html += '<div class="my-team-card" style="border-top:3px solid ' + (GameState.teamColor || '#6C5CE7') + '">';
         html += '<div class="my-team-header">';
         html += '<div class="my-team-logo" style="background:' + (GameState.teamColor || '#6C5CE7') + '">' + (GameState.teamLogo || '⚔️') + '</div>';
-        html += '<div class="my-team-info"><h3>' + GameState.team + '</h3><p>فريقك الحالي</p></div>';
+        html += '<div class="my-team-info"><h3>' + GameState.team + '</h3><p>فريقك الحالي ' + teamLevelBadge(GameState.teamLevel) + '</p></div>';
         html += '</div>';
         html += '<div id="my-team-members" class="my-team-members"><p style="text-align:center;color:var(--text-muted)">جاري التحميل...</p></div>';
         html += '<div class="my-team-actions">';
@@ -6117,6 +6154,13 @@ function renderTeamsScreen() {
         html += '<h3><i class="fas fa-plus-circle"></i> أنشئ فريق جديد</h3>';
         html += '<p style="color:var(--text-muted);font-size:13px;margin-bottom:12px">أقصى عدد 6 أعضاء في الفريق</p>';
         html += '<input type="text" id="create-team-name" class="input-field" placeholder="اسم الفريق" maxlength="20" style="margin-bottom:10px">';
+        // Level picker: the team only plays in this level's competitions
+        _selectedTeamLevel = myTeamLevelChoice();
+        html += '<div class="team-level-picker"><p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">الفريق ده لأنهي مستوى؟</p><div class="team-level-options">';
+        [1, 2].forEach(function(l) {
+            html += '<div class="team-level-option' + (l === _selectedTeamLevel ? ' selected' : '') + '" onclick="selectTeamLevel(this,' + l + ')"><b>' + (l === 1 ? '①' : '②') + '</b>' + TEAM_LEVEL_NAMES[l] + '</div>';
+        });
+        html += '</div><p style="font-size:11px;color:var(--text-muted);margin:6px 0 10px">فرق كل مستوى ليها مسابقاتها وترتيبها لوحدها</p></div>';
         // Logo picker
         html += '<div class="team-logo-picker">';
         html += '<p style="font-size:12px;color:var(--text-muted);margin-bottom:8px">اختار شعار:</p>';
@@ -6146,12 +6190,27 @@ function renderTeamsScreen() {
 
     // Browse open teams
     html += '<div class="teams-browse-section">';
-    html += '<h3 class="teams-browse-title"><i class="fas fa-search"></i> فرق متاحة للانضمام</h3>';
+    html += '<h3 class="teams-browse-title"><i class="fas fa-search"></i> فرق ' + TEAM_LEVEL_NAMES[myTeamLevelChoice()] + ' المتاحة</h3>';
     html += '<div id="open-teams-list" class="open-teams-list"><p style="text-align:center;color:var(--text-muted);padding:20px">جاري التحميل...</p></div>';
     html += '</div>';
 
     container.innerHTML = html;
     loadOpenTeams();
+}
+
+// ---- Team levels: every team belongs to المستوى الأول or الثاني and competes only in that level ----
+var TEAM_LEVEL_NAMES = { 1: 'المستوى الأول', 2: 'المستوى الثاني' };
+function teamLevelOf(t) { return t && (t.level === 1 || t.level === 2) ? t.level : 0; }
+function myTeamLevelChoice() { return playerLevelOf(GameState); }
+function teamLevelBadge(lvl) {
+    if (!lvl) return '';
+    return '<span class="team-level-badge lvl' + lvl + '">' + (lvl === 1 ? '①' : '②') + ' ' + TEAM_LEVEL_NAMES[lvl] + '</span>';
+}
+var _selectedTeamLevel = 0;
+function selectTeamLevel(el, lvl) {
+    _selectedTeamLevel = lvl;
+    document.querySelectorAll('.team-level-option').forEach(function(o) { o.classList.remove('selected'); });
+    el.classList.add('selected');
 }
 
 var _selectedTeamLogo = '⚔️';
@@ -6224,15 +6283,19 @@ function compressImage(dataUrl, maxSize, quality, callback) {
 
 function loadOpenTeams() {
     if (!firebaseDb) return;
-    firebaseDb.collection('teams').orderBy('createdAt', 'desc').limit(20).get().then(function(snapshot) {
+    var myLvl = myTeamLevelChoice();
+    firebaseDb.collection('teams').orderBy('createdAt', 'desc').limit(60).get().then(function(snapshot) {
         var list = document.getElementById('open-teams-list');
         if (!list) return;
-        if (snapshot.empty) {
-            list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px">مفيش فرق لسه - كون أول فريق!</p>';
+        // Only teams of the player's level (teams without a level predate levels and can't be joined)
+        var docs = [];
+        snapshot.forEach(function(doc) { if (teamLevelOf(doc.data()) === myLvl) docs.push(doc); });
+        if (!docs.length) {
+            list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px">مفيش فرق في ' + TEAM_LEVEL_NAMES[myLvl] + ' لسه - كوّن أول فريق!</p>';
             return;
         }
         var html = '';
-        snapshot.forEach(function(doc) {
+        docs.slice(0, 20).forEach(function(doc) {
             var t = doc.data();
             var members = t.members || [];
             var memberNames = t.memberNames || [];
@@ -6249,7 +6312,7 @@ function loadOpenTeams() {
             }
             html += '<div class="open-team-info">';
             html += '<h4>' + t.name + '</h4>';
-            html += '<p><i class="fas fa-users" style="margin-left:4px"></i> ' + members.length + '/6 أعضاء</p>';
+            html += '<p><i class="fas fa-users" style="margin-left:4px"></i> ' + members.length + '/6 أعضاء ' + teamLevelBadge(teamLevelOf(t)) + '</p>';
             // Show ALL member names
             if (memberNames.length > 0) {
                 html += '<div class="open-team-members-detail">';
@@ -6388,6 +6451,7 @@ function doApproveJoinRequest(docId, phone, name) {
                 team: t.name,
                 teamLogo: t.logo || '⚔️',
                 teamColor: t.color || '#6C5CE7',
+                teamLevel: teamLevelOf(t),
                 teamLastAction: Date.now(),
                 pendingTeamDocId: '',
                 pendingTeamName: ''
@@ -6594,6 +6658,10 @@ function joinTeamByDocId(docId) {
         var members = teamData.members || [];
         if (members.length >= 6) { showToast('الفريق ممتلئ!', 'error'); return; }
         if (members.indexOf(GameState.playerPhone) >= 0) { showToast('أنت موجود بالفعل!', 'error'); return; }
+        if (teamLevelOf(teamData) !== myTeamLevelChoice()) {
+            showToast('الفريق ده تبع ' + (TEAM_LEVEL_NAMES[teamLevelOf(teamData)] || 'مستوى تاني') + ' — اختار فريق من ' + TEAM_LEVEL_NAMES[myTeamLevelChoice()], 'warning');
+            return;
+        }
         var joinRequests = teamData.joinRequests || [];
         if (joinRequests.some(function(r) { return r.phone === GameState.playerPhone; })) {
             showToast('طلبك مسجل بالفعل - استنى موافقة الأدمن', 'info');
@@ -6652,6 +6720,10 @@ function joinTeamByName(teamName) {
             showToast('أنت موجود في الفريق ده بالفعل!', 'error');
             return;
         }
+        if (teamLevelOf(teamData) !== myTeamLevelChoice()) {
+            showToast('الفريق ده تبع ' + (TEAM_LEVEL_NAMES[teamLevelOf(teamData)] || 'مستوى تاني') + ' — اختار فريق من ' + TEAM_LEVEL_NAMES[myTeamLevelChoice()], 'warning');
+            return;
+        }
         var joinRequests = teamData.joinRequests || [];
         if (joinRequests.some(function(r) { return r.phone === GameState.playerPhone; })) {
             showToast('طلبك مسجل بالفعل - استنى موافقة الأدمن', 'info');
@@ -6699,6 +6771,7 @@ function createTeam() {
 
     var logo = _selectedTeamLogo || '⚔️';
     var color = _selectedTeamColor || '#6C5CE7';
+    var teamLevel = _selectedTeamLevel === 2 ? 2 : 1;
     // Use a safe document ID (replace problematic chars)
     var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
 
@@ -6735,12 +6808,14 @@ function createTeam() {
             memberNames: [GameState.playerName],
             admins: [GameState.playerPhone],
             joinRequests: [],
+            level: teamLevel,
             createdBy: GameState.playerPhone,
             createdAt: new Date().toISOString()
         }).then(function() {
             GameState.team = teamName;
             GameState.teamLogo = logo;
             GameState.teamColor = color;
+            GameState.teamLevel = teamLevel;
             GameState.teamLastAction = Date.now();
             GameState.pendingTeamDocId = '';
             GameState.pendingTeamName = '';
@@ -6765,6 +6840,7 @@ function leaveTeam() {
     GameState.team = '';
     GameState.teamLogo = '';
     GameState.teamColor = '';
+    GameState.teamLevel = 0;
     GameState.teamLastAction = Date.now();
     saveToLocalStorage(true); // Save locally immediately so it survives reload
     var docId = teamName.replace(/[\/\\\.#\[\]\*]/g, '_');
@@ -6832,6 +6908,7 @@ function loadTeamLeaderboard() {
             var teamData = doc.data();
             teams.push({
                 name: teamData.name || doc.id,
+                level: teamLevelOf(teamData),
                 members: teamData.members || [],
                 memberNames: teamData.memberNames || [],
                 totalStars: 0,
@@ -6850,6 +6927,9 @@ function loadTeamLeaderboard() {
                 }
             });
         });
+        // Teams compete only within their level (old teams without a level are hidden)
+        var lvl = currentLBLevel || GameState.teamLevel || myTeamLevelChoice();
+        teams = teams.filter(function(t) { return t.level === lvl; });
         teams.sort(function(a, b) { return b.totalStars - a.totalStars; });
         return teams;
     }).catch(function(e) {
@@ -14579,6 +14659,16 @@ function competeBuildQuestions(mode, filter, questionMultiplier) {
     return competePickQuestions(mode, filter, numQs);
 }
 
+// Level a player competes in: their team's level, else their own level
+function competeMyLevel() { return GameState.teamLevel || playerLevelOf(GameState); }
+// Team rooms only accept players of the room's level
+function competeLevelBlocked(room) {
+    if (!room || room.playStyle !== 'team' || !room.level) return false;
+    if (competeMyLevel() === room.level) return false;
+    showToast('الغرفة دي لفرق ' + (TEAM_LEVEL_NAMES[room.level] || '') + ' — إنت في ' + TEAM_LEVEL_NAMES[competeMyLevel()], 'warning');
+    return true;
+}
+
 // Player entry written to compete_rooms.players.{phone}
 function competeNewPlayer(room) {
     var p = {
@@ -14638,6 +14728,8 @@ function createCompeteRoom(mode, filter, questionMultiplier, opts) {
         filterLabel: filterLabel,
         playStyle: opts.playStyle || (mode === 'team' ? 'team' : 'solo'),
         teamSource: opts.teamSource || 'church',
+        // Team rooms belong to one level: level-1 teams and level-2 teams have separate competitions
+        level: competeMyLevel(),
         createdAt: firebase.firestore.FieldValue.serverTimestamp()
     };
 
@@ -14693,6 +14785,7 @@ function joinCompeteRoom() {
                 showToast('المسابقة بدأت بالفعل!', 'error');
                 return;
             }
+            if (competeLevelBlocked(room)) return;
 
             // Add player
             var update = {};
@@ -15016,7 +15109,7 @@ function renderCompeteLobby(room) {
     html += '<button class="btn btn-secondary lobby-copy-btn" onclick="copyRoomCode(\'' + room.code + '\')"><span><i class="fas fa-copy"></i> انسخ الكود</span></button>';
     html += '</div>';
     html += '</div>';
-    html += '<div class="lobby-mode-badge">' + (modeNames[room.mode] || room.mode) + (room.playStyle === 'team' ? ' · ' + (room.teamSource === 'quick' ? '🔴🔵 فريقين' : '⛪ فرق الكنيسة') : '') + '</div>';
+    html += '<div class="lobby-mode-badge">' + (modeNames[room.mode] || room.mode) + (room.playStyle === 'team' ? ' · ' + (room.teamSource === 'quick' ? '🔴🔵 فريقين' : '⛪ فرق الكنيسة') + (room.level ? ' · ' + TEAM_LEVEL_NAMES[room.level] : '') : '') + '</div>';
     html += '<div class="lobby-filter-badge"><i class="fas fa-book-open"></i> ' + (room.filterLabel || '🎲 عشوائي من كل المواد') + '</div>';
     html += '</div>';
 
@@ -15147,6 +15240,7 @@ function autoJoinRoom(code) {
         if (!doc.exists) { showToast('الغرفة مش موجودة أو اتقفلت', 'error'); return; }
         var room = doc.data();
         if (room.status !== 'lobby') { showToast('المسابقة بدأت بالفعل!', 'error'); return; }
+        if (competeLevelBlocked(room)) return;
         // Add player
         var update = {};
         update['players.' + GameState.playerPhone] = competeNewPlayer(room);
@@ -22827,17 +22921,19 @@ function renderLearnContentBlocks(text) {
 
 // Each challenge has its own duration: startAt / endAt (ms epoch).
 // Active = enabled AND now within [startAt, endAt]; if several overlap, latest start wins.
+// A challenge targets level 1, level 2 or both (level 0 / missing)
+function selfieForMyLevel(c) { return !c.level || c.level === competeMyLevel(); }
 function getActiveSelfieChallenge() {
     var now = Date.now();
     var cands = (selfieState.challenges || []).filter(function(c) {
-        return c.enabled !== false && c.startAt && c.endAt && now >= c.startAt && now <= c.endAt;
+        return c.enabled !== false && c.startAt && c.endAt && now >= c.startAt && now <= c.endAt && selfieForMyLevel(c);
     });
     cands.sort(function(a, b) { return b.startAt - a.startAt; });
     return cands[0] || null;
 }
 function getNextSelfieChallenge() {
     var now = Date.now();
-    var up = (selfieState.challenges || []).filter(function(c) { return c.enabled !== false && c.startAt && c.startAt > now; });
+    var up = (selfieState.challenges || []).filter(function(c) { return c.enabled !== false && c.startAt && c.startAt > now && selfieForMyLevel(c); });
     up.sort(function(a, b) { return a.startAt - b.startAt; });
     return up[0] || null;
 }
@@ -22888,7 +22984,9 @@ function ensureSelfieSubSub() {
                 var subs = [];
                 snap.forEach(function(d) { var v = d.data(); v._id = d.id; subs.push(v); });
                 // Filter to only submissions from the current activation (by startAt version)
-                subs = subs.filter(function(s) { return s.challengeVersion === ver; });
+                // Each level sees (and competes with) only its own teams' submissions
+                var myLvl = competeMyLevel();
+                subs = subs.filter(function(s) { return s.challengeVersion === ver && (!s.teamLevel || s.teamLevel === myLvl); });
                 subs.sort(function(a, b) {
                     var ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
                     var tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
@@ -23251,6 +23349,7 @@ function submitSelfie() {
             teamName: GameState.team,
             teamColor: GameState.teamColor || '#6C5CE7',
             teamLogo: GameState.teamLogo || '⚔️',
+            teamLevel: GameState.teamLevel || competeMyLevel(),
             description: desc.slice(0, 600),
             photos: photoURLs.slice(0, 2),
             rewardStars: rStars, rewardGems: rGems, rewardXp: rXp,

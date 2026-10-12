@@ -15492,3 +15492,12 @@ body {
 .ctr-row em { grid-area: e; font-style: normal; font-weight: 900; font-size: 20px; color: var(--tc); }
 .ctr-note { font-size: 11px; color: var(--text-muted); margin-top: 6px; }
 .cstyle-selector .qcount-num { font-size: 11px; }
+
+/* ===== Team levels (teams.level = 1 | 2) ===== */
+.team-level-options { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.team-level-option { padding: 10px 8px; border-radius: 14px; text-align: center; font-weight: 800; font-size: 14px; cursor: pointer; border: 2px solid var(--border); background: var(--bg-card); color: var(--text-secondary); transition: transform .15s, border-color .15s; }
+.team-level-option b { display: block; font-size: 22px; line-height: 1.1; }
+.team-level-option.selected { border-color: var(--gold); color: var(--text-primary); background: color-mix(in srgb, var(--gold) 14%, var(--bg-card)); transform: translateY(-2px); }
+.team-level-badge { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; font-weight: 800; vertical-align: middle; }
+.team-level-badge.lvl1 { background: rgba(20, 184, 166, .18); color: #2dd4bf; }
+.team-level-badge.lvl2 { background: rgba(139, 92, 246, .2); color: #a78bfa; }

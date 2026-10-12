@@ -245,7 +245,7 @@ var COMPETE_QUICK_TEAMS = [
 function competeTeamFor(room) {
     if (!room || room.playStyle !== 'team') return null;
     if (room.teamSource === 'church') {
-        return { id: 'c_' + (GameState.team || 'guests'), name: GameState.team || 'فريق الضيوف', color: GameState.teamColor || '#8e8e8e', icon: GameState.teamLogo || '⚔️' };
+        return { id: 'c_' + (GameState.team || 'guests'), name: GameState.team || 'فريق الضيوف', color: GameState.teamColor || '#8e8e8e', icon: GameState.teamLogo || '⚔️', level: GameState.teamLevel || 0 };
     }
     var counts = { red: 0, blue: 0 };
     Object.keys(room.players || {}).forEach(function(ph) { var t = room.players[ph].team; if (t && counts.hasOwnProperty(t.id)) counts[t.id]++; });

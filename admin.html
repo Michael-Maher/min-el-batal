@@ -753,6 +753,7 @@ tbody td{padding:10px 13px;vertical-align:middle}
 /* Picker on-state for team logo/color and lock state */
 .logo-pick.on{border-color:var(--accent2)!important;background:rgba(200,161,74,.18)!important;transform:scale(1.08)}
 .color-pick.on{outline:3px solid var(--accent2);outline-offset:2px;transform:scale(1.12)}
+.lvl-pick.on,#team-lvl-filter .btn.on{background:var(--accent2)!important;color:#fff!important;border-color:var(--accent2)!important}
 
 /* Lock rows */
 .lock-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:7px;background:rgba(255,255,255,.6)}
@@ -1562,8 +1563,16 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
     <!-- TEAMS -->
     <div class="page" id="page-teams">
       <div class="ph" style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:10px">
-        <div><h2><i class="fas fa-shield-halved" style="color:var(--accent2)"></i> الفرق</h2><p>إدارة الفرق وأعضائها</p></div>
-        <button class="btn bp" onclick="openCreateTeamModal()"><i class="fas fa-plus"></i> فريق جديد</button>
+        <div><h2><i class="fas fa-shield-halved" style="color:var(--accent2)"></i> الفرق</h2><p>كل فريق تبع مستوى واحد، وليه مسابقاته وترتيبه</p></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <div class="seg" id="team-lvl-filter" style="display:flex;gap:4px">
+            <button class="btn bg bsm on" data-l="0" onclick="setTeamLvlFilter(0)">الكل</button>
+            <button class="btn bg bsm" data-l="1" onclick="setTeamLvlFilter(1)">المستوى الأول</button>
+            <button class="btn bg bsm" data-l="2" onclick="setTeamLvlFilter(2)">المستوى الثاني</button>
+          </div>
+          <button class="btn bp" onclick="openCreateTeamModal()"><i class="fas fa-plus"></i> فريق جديد</button>
+          <button class="btn bd" id="teams-reset-btn" onclick="resetAllTeams()"><i class="fas fa-rotate-left"></i> تصفير الفرق</button>
+        </div>
       </div>
       <div class="tgrid" id="tgrid"><div class="loading"><i class="fas fa-spinner"></i></div></div>
     </div>
@@ -2281,6 +2290,7 @@ async function startNewSeason(){
     // 3) announce — open games zero their own copy when this lands (progressResetId also restarts their lessons)
     const season={id:newId,startedAt:Date.now(),previousId:oldId,archiveId:archiveId,startedBy:me.phone||me.email||''};
     if(withLessons) season.progressResetId=newId;
+    if(prev.teamsResetId){ season.teamsResetId=prev.teamsResetId; season.teamsResetAt=prev.teamsResetAt||0; }   // keep the teams reset marker
     await db.collection('gameContent').doc('season').set(season);
     players.forEach(p=>Object.assign(p,zero,pin(p._id,p)));
     applyF(); renderInsights(); loadSeasonInfo();
@@ -2289,6 +2299,41 @@ async function startNewSeason(){
     console.error(e); step('حصل خطأ: '+(e.message||e)+' — النسخة الاحتياطية محفوظة، وممكن تعيد المحاولة بأمان.');
     toast('حصل خطأ أثناء بدء الموسم','err');
   }finally{ btn.disabled=false; }
+}
+
+// Teams reset: backup → delete every team → clear players' team fields → tell open games (teamsResetId)
+async function resetAllTeams(){
+  if(me?.role!=='superadmin'){toast('للمسؤول الأعلى فقط','err');return;}
+  const typed=prompt('هيتم حذف كل الفرق ('+teams.length+' فريق) وإخراج كل اللاعبين من فرقهم.\nالنقاط والدروس مش هتتأثر، وهيتحفظ نسخة احتياطية الأول.\nبعد كده كل فريق جديد هيختار مستواه.\n\nاكتب: تصفير الفرق');
+  if((typed||'').trim()!=='تصفير الفرق'){ if(typed!==null) toast('التأكيد غلط — ماحصلش أي تغيير','err'); return; }
+  const btn=document.getElementById('teams-reset-btn'); if(btn) btn.disabled=true;
+  try{
+    const resetId='t'+Date.now(), resetAt=Date.now();
+    const [tSnap,pSnap,lbSnap]=await Promise.all([db.collection('teams').get(),db.collection('players').get(),db.collection('leaderboard').get()]);
+    let batch=db.batch(), n=0;
+    const add=async fn=>{ fn(batch); n++; if(n>=400){ await batch.commit(); batch=db.batch(); n=0; } };
+    const flush=async()=>{ if(n){ await batch.commit(); batch=db.batch(); n=0; } };
+    // 1) backup (seasonArchives/teams-<id>/{teams,players})
+    toast('جاري حفظ النسخة الاحتياطية...','ok');
+    const arch=db.collection('seasonArchives').doc('teams-'+resetId);
+    for(const d of tSnap.docs) await add(b=>b.set(arch.collection('teams').doc(d.id),d.data()));
+    const TF=['team','teamLogo','teamColor','teamLevel','teamLastAction','pendingTeamDocId','pendingTeamName'];
+    for(const d of pSnap.docs){ const x=d.data(); if(!TF.some(f=>x[f])) continue; const a={playerName:x.playerName||''}; TF.forEach(f=>a[f]=x[f]||''); await add(b=>b.set(arch.collection('players').doc(d.id),a)); }
+    await flush();
+    await arch.set({type:'teams',resetId,resetAt,teams:tSnap.size,by:me.phone||me.email||''});
+    // 2) clear players + leaderboard, then delete teams
+    const clear={team:'',teamLogo:'',teamColor:'',teamLevel:0,pendingTeamDocId:'',pendingTeamName:'',teamLastAction:resetAt,teamsResetId:resetId};
+    for(const d of pSnap.docs){ const x=d.data(); if(TF.some(f=>x[f]&&f!=='teamLastAction')) await add(b=>b.update(d.ref,clear)); }
+    for(const d of lbSnap.docs){ if(d.data().team) await add(b=>b.update(d.ref,{team:''})); }
+    for(const d of tSnap.docs) await add(b=>b.delete(d.ref));
+    await flush();
+    // 3) open games leave their (local) team when this lands
+    await db.collection('gameContent').doc('season').set({teamsResetId:resetId,teamsResetAt:resetAt},{merge:true});
+    teams=[]; players.forEach(p=>{ if(p.team) Object.assign(p,clear); });
+    fillTeamFilter(); renderTeams(); applyF(); renderInsights();
+    toast('✅ تم تصفير الفرق ('+tSnap.size+' فريق) — النسخة الاحتياطية: seasonArchives/teams-'+resetId,'ok');
+  }catch(e){ console.error(e); toast('حصل خطأ: '+(e.message||e)+' — النسخة الاحتياطية محفوظة وممكن تعيد المحاولة','err'); }
+  finally{ if(btn) btn.disabled=false; }
 }
 
 // ════════════════════════════════
@@ -5204,12 +5249,13 @@ async function unsuspendPlayer(phone){
 // ════════════════════════════════
 function openAssign(phone) {
   pendingAssignPhone=phone;
-  document.getElementById('taopt').innerHTML=teams.length?teams.map(t=>{const c=(t.members||[]).length,full=c>=6;return`<div class="tarow${full?' full':''}" onclick="${full?'':` doAssign('${t._id}')`}"><div class="tal"><span class="tlogo">${t.logo||'⚔️'}</span><div><div class="tnam">${esc(t.name)}</div><div class="tcnt">${c}/6 أعضاء</div></div></div>${full?'<span style="color:var(--muted);font-size:11px">ممتلئ</span>':`<button class="btn bs bsm" onclick="event.stopPropagation();doAssign('${t._id}')">إضافة</button>`}</div>`;}).join(''):'<div class="empty"><p>لا توجد فرق</p></div>';
+  document.getElementById('taopt').innerHTML=teams.length?teams.map(t=>{const c=(t.members||[]).length,full=c>=6;return`<div class="tarow${full?' full':''}" onclick="${full?'':` doAssign('${t._id}')`}"><div class="tal"><span class="tlogo">${t.logo||'⚔️'}</span><div><div class="tnam">${esc(t.name)}</div><div class="tcnt">${c}/6 أعضاء · ${teamLvlBadge(t)}</div></div></div>${full?'<span style="color:var(--muted);font-size:11px">ممتلئ</span>':`<button class="btn bs bsm" onclick="event.stopPropagation();doAssign('${t._id}')">إضافة</button>`}</div>`;}).join(''):'<div class="empty"><p>لا توجد فرق</p></div>';
   document.getElementById('modal-assign').style.display='flex';
 }
 async function doAssign(tid) {
   const p=players.find(x=>x.playerPhone===pendingAssignPhone||x._id===pendingAssignPhone),t=teams.find(x=>x._id===tid);
   if(!p||!t) return;
+  if(teamLevelOf(t)&&levelOf(p)!==teamLevelOf(t)&&!confirm('اللاعب في '+LVL[levelOf(p)]+' والفريق تبع '+LVL[teamLevelOf(t)]+'.\nتضيفه برضه؟')) return;
   try {
     // Enforce one-team-only: pull the player out of every OTHER team first
     // (handles already-corrupted data where they're in more than one).
@@ -5226,8 +5272,8 @@ async function doAssign(tid) {
       await db.collection('teams').doc(tid).update({members:nm,memberNames:nn});
       t.members=nm;t.memberNames=nn;
     }
-    await db.collection('players').doc(p._id).update({team:t.name,teamLogo:t.logo||'',teamColor:t.color||''});
-    p.team=t.name;p.teamLogo=t.logo||'';p.teamColor=t.color||'';
+    await db.collection('players').doc(p._id).update({team:t.name,teamLogo:t.logo||'',teamColor:t.color||'',teamLevel:teamLevelOf(t),teamLastAction:Date.now()});
+    p.team=t.name;p.teamLogo=t.logo||'';p.teamColor=t.color||'';p.teamLevel=teamLevelOf(t);
     closeM('modal-assign');applyF();renderInsights();renderTeams();toast(`✅ تم إضافة ${p.playerName.split(' ')[0]} لفريق ${t.name}`,'ok');
   } catch(e){console.error(e);toast('خطأ','err');}
 }
@@ -5236,22 +5282,33 @@ async function removeFromTeam(phone,tname) {
   if(!p) return;
   try {
     if(t){const nm=(t.members||[]).filter(m=>m!==p.playerPhone),nn=(t.memberNames||[]).filter((_,i)=>(t.members||[])[i]!==p.playerPhone);await db.collection('teams').doc(t._id).update({members:nm,memberNames:nn,admins:(t.admins||[]).filter(m=>m!==p.playerPhone)});t.members=nm;t.memberNames=nn;}
-    await db.collection('players').doc(p._id).update({team:'',teamLogo:'',teamColor:''});
-    p.team='';p.teamLogo='';p.teamColor='';
+    await db.collection('players').doc(p._id).update({team:'',teamLogo:'',teamColor:'',teamLevel:0,teamLastAction:Date.now()});
+    p.team='';p.teamLogo='';p.teamColor='';p.teamLevel=0;
     applyF();renderInsights();renderTeams();toast(`✅ تم إزالة ${p.playerName.split(' ')[0]} من الفريق`,'ok');
   } catch(e){toast('خطأ','err');}
 }
 
 // ════════════════════════════════
-//  TEAMS
+//  TEAMS (each team belongs to one level: teams.level = 1 | 2)
 // ════════════════════════════════
+function teamLevelOf(t){ return t&&(t.level===1||t.level===2)?t.level:0; }
+function teamLvlBadge(t){ const l=teamLevelOf(t); return l?`<span class="badge" style="background:${l===2?'rgba(139,92,246,.18);color:#7c3aed':'rgba(20,184,166,.18);color:#0f766e'}">${LVL[l]}</span>`:'<span class="badge" style="background:rgba(239,68,68,.15);color:#b91c1c">بدون مستوى</span>'; }
+function teamDocIdFor(name){ return name.replace(/[\/\\\.#\[\]\*]/g,'_'); }   // same doc id rule as game.js
+let teamLvlFilter=0;
+function setTeamLvlFilter(l){ teamLvlFilter=l; document.querySelectorAll('#team-lvl-filter button').forEach(b=>b.classList.toggle('on',+b.dataset.l===l)); renderTeams(); }
+function teamStars(t){ return (t.members||[]).reduce((s,ph)=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);return s+(pl?(pl.stars||0):0);},0); }
+function teamLvlPicker(cur){ return `<div class="slbl" style="margin-top:12px">المستوى</div><div style="display:flex;gap:8px">${[1,2].map(l=>`<button type="button" class="lvl-pick btn bg${l===cur?' on':''}" data-l="${l}" onclick="document.querySelectorAll('.lvl-pick').forEach(b=>b.classList.remove('on'));this.classList.add('on')">${LVL[l]}</button>`).join('')}</div>`; }
+function pickedTeamLvl(){ const b=document.querySelector('.lvl-pick.on'); return b?+b.dataset.l:0; }
+
 function renderTeams() {
   if(!teams.length){document.getElementById('tgrid').innerHTML='<div class="empty"><i class="fas fa-users-slash"></i><p>لا توجد فرق</p><button class="btn bp bsm" style="margin-top:10px" onclick="openCreateTeamModal()"><i class="fas fa-plus"></i> أضف أول فريق</button></div>';return;}
   const medals=['🥇','🥈','🥉'];
-  document.getElementById('tgrid').innerHTML=[...teams].sort((a,b)=>(b.totalStars||0)-(a.totalStars||0)).map((t,i)=>{
+  const shown=teams.filter(t=>!teamLvlFilter||teamLevelOf(t)===teamLvlFilter);
+  if(!shown.length){document.getElementById('tgrid').innerHTML='<div class="empty"><i class="fas fa-users-slash"></i><p>لا توجد فرق في '+(LVL[teamLvlFilter]||'')+'</p></div>';return;}
+  document.getElementById('tgrid').innerHTML=[...shown].map(t=>Object.assign(t,{totalStars:teamStars(t)})).sort((a,b)=>(b.totalStars||0)-(a.totalStars||0)).map((t,i)=>{
     const ads=t.admins||[],mbs=(t.members||[]).map(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);return{ph,name:pl?pl.playerName:ph,adm:ads.includes(ph)};});
     return`<div class="tcard"><div class="tband" style="background:${t.color||'var(--accent)'}"></div><div class="tinner">
-      <div class="ttop"><div class="tlogobd" style="filter:drop-shadow(0 2px 10px ${t.color||'#7c6af7'}88)">${t.logo||'⚔️'}</div><div style="flex:1"><div class="tiname">${esc(t.name)}</div><div class="tisub">${mbs.length}/6 أعضاء · ${medals[i]||'#'+(i+1)}</div></div>
+      <div class="ttop"><div class="tlogobd" style="filter:drop-shadow(0 2px 10px ${t.color||'#7c6af7'}88)">${t.logo||'⚔️'}</div><div style="flex:1"><div class="tiname">${esc(t.name)}</div><div class="tisub">${mbs.length}/6 أعضاء · ${medals[i]||'#'+(i+1)} · ${teamLvlBadge(t)}</div></div>
         <div style="display:flex;gap:5px"><button class="btn bg bxs" onclick="openEditTeamModal('${t._id}')" title="تعديل"><i class="fas fa-pen"></i></button><button class="btn bd bxs" onclick="deleteTeam('${t._id}')" title="حذف الفريق"><i class="fas fa-trash"></i></button></div>
       </div>
       <div class="tscores"><div class="tsb"><div class="tsv" style="color:var(--gold)">⭐${(t.totalStars||0).toLocaleString()}</div><div class="tsl">نجوم</div></div><div class="tsb"><div class="tsv" style="color:#60a5fa">💎${(t.totalGems||0).toLocaleString()}</div><div class="tsl">جواهر</div></div><div class="tsb"><div class="tsv" style="color:var(--accent2)">✨${(t.totalXp||0).toLocaleString()}</div><div class="tsl">XP</div></div></div>
@@ -5273,6 +5330,7 @@ function openCreateTeamModal(){
     <div class="mhead"><h2><i class="fas fa-plus" style="color:var(--green)"></i> فريق جديد</h2><button class="btnx" onclick="closeM('modal-team')"><i class="fas fa-times"></i></button></div>
     <div class="mbody">
       <div class="erow"><span class="elbl">اسم الفريق</span><input type="text" class="einp" id="tm-name" placeholder="مثال: فريق البطل" maxlength="30"></div>
+      ${teamLvlPicker(teamLvlFilter||0)}
       <div class="slbl" style="margin-top:12px">شعار الفريق</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${lg}</div>
       <div class="slbl" style="margin-top:12px">لون الفريق</div>
@@ -5295,6 +5353,7 @@ function openEditTeamModal(tid){
     <div class="mhead"><h2><i class="fas fa-pen" style="color:var(--gold)"></i> تعديل فريق</h2><button class="btnx" onclick="closeM('modal-team')"><i class="fas fa-times"></i></button></div>
     <div class="mbody">
       <div class="erow"><span class="elbl">اسم الفريق</span><input type="text" class="einp" id="tm-name" value="${esc(t.name||'')}" maxlength="30"></div>
+      ${teamLvlPicker(teamLevelOf(t))}
       <div class="slbl" style="margin-top:12px">شعار الفريق</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${lg}</div>
       <div class="slbl" style="margin-top:12px">لون الفريق</div>
@@ -5314,9 +5373,14 @@ async function saveNewTeam(){
   if(teams.some(t=>t.name===name)){toast('في فريق بنفس الاسم','err');return;}
   const lg=document.querySelector('.logo-pick.on'), cl=document.querySelector('.color-pick.on');
   const logo=lg?lg.dataset.logo:'⚔️', color=cl?cl.dataset.color:'#7c6af7';
+  const level=pickedTeamLvl();
+  if(!level){toast('اختار المستوى بتاع الفريق','err');return;}
   try{
-    const ref=await db.collection('teams').add({name,logo,color,members:[],memberNames:[],admins:[],totalStars:0,totalGems:0,totalXp:0,createdAt:firebase.firestore.FieldValue.serverTimestamp(),createdBy:me.phone||''});
-    teams.push({_id:ref.id,name,logo,color,members:[],memberNames:[],admins:[],totalStars:0,totalGems:0,totalXp:0});
+    // Same doc id rule as teams created in the game, so players can leave / load members normally
+    const id=teamDocIdFor(name), ref=db.collection('teams').doc(id);
+    if((await ref.get()).exists){toast('في فريق بنفس الاسم','err');return;}
+    await ref.set({name,logo,color,level,members:[],memberNames:[],admins:[],joinRequests:[],createdAt:new Date().toISOString(),createdBy:me.phone||''});
+    teams.push({_id:id,name,logo,color,level,members:[],memberNames:[],admins:[]});
     closeM('modal-team');fillTeamFilter();renderTeams();renderInsights();toast('✅ تم إنشاء الفريق','ok');
   }catch(e){console.error(e);toast('خطأ في الإنشاء','err');}
 }
@@ -5328,22 +5392,24 @@ async function saveEditTeam(tid){
   if(teams.some(x=>x._id!==tid&&x.name===name)){toast('في فريق تاني بنفس الاسم','err');return;}
   const lg=document.querySelector('.logo-pick.on'), cl=document.querySelector('.color-pick.on');
   const logo=lg?lg.dataset.logo:t.logo||'⚔️', color=cl?cl.dataset.color:t.color||'#7c6af7';
+  const level=pickedTeamLvl()||teamLevelOf(t);
+  if(!level){toast('اختار المستوى بتاع الفريق','err');return;}
   const oldName=t.name;
   try{
-    await db.collection('teams').doc(tid).update({name,logo,color});
-    t.name=name; t.logo=logo; t.color=color;
+    await db.collection('teams').doc(tid).update({name,logo,color,level});
+    t.name=name; t.logo=logo; t.color=color; t.level=level;
     // If renamed, update members' player docs
     if(name!==oldName){
       const batch=db.batch();
       (t.members||[]).forEach(ph=>{
         const pl=players.find(x=>x.playerPhone===ph||x._id===ph);
-        if(pl){batch.update(db.collection('players').doc(pl._id),{team:name,teamLogo:logo,teamColor:color});pl.team=name;pl.teamLogo=logo;pl.teamColor=color;}
+        if(pl){batch.update(db.collection('players').doc(pl._id),{team:name,teamLogo:logo,teamColor:color,teamLevel:level});pl.team=name;pl.teamLogo=logo;pl.teamColor=color;pl.teamLevel=level;}
       });
       await batch.commit();
     }else{
       // Just update logo/color on members
       const batch=db.batch();
-      (t.members||[]).forEach(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);if(pl){batch.update(db.collection('players').doc(pl._id),{teamLogo:logo,teamColor:color});pl.teamLogo=logo;pl.teamColor=color;}});
+      (t.members||[]).forEach(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);if(pl){batch.update(db.collection('players').doc(pl._id),{teamLogo:logo,teamColor:color,teamLevel:level});pl.teamLogo=logo;pl.teamColor=color;pl.teamLevel=level;}});
       await batch.commit();
     }
     closeM('modal-team');fillTeamFilter();renderTeams();applyF();renderInsights();toast('✅ تم الحفظ','ok');
@@ -5360,7 +5426,7 @@ async function deleteTeam(tid){
   try{
     // Clear team field from all members
     const batch=db.batch();
-    (t.members||[]).forEach(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);if(pl){batch.update(db.collection('players').doc(pl._id),{team:'',teamLogo:'',teamColor:''});pl.team='';pl.teamLogo='';pl.teamColor='';}});
+    (t.members||[]).forEach(ph=>{const pl=players.find(x=>x.playerPhone===ph||x._id===ph);if(pl){batch.update(db.collection('players').doc(pl._id),{team:'',teamLogo:'',teamColor:'',teamLevel:0,teamLastAction:Date.now()});pl.team='';pl.teamLogo='';pl.teamColor='';pl.teamLevel=0;}});
     await batch.commit();
     await db.collection('teams').doc(tid).delete();
     teams=teams.filter(x=>x._id!==tid);
@@ -6009,6 +6075,8 @@ function openSelfieChModal(id){
       <div class="erow"><span class="elbl">عنوان التحدي</span><input type="text" class="einp" id="sf-title" value="${c?esc(c.title||''):''}" placeholder="مثال: نحضر قداس ونتناول مع بعض" maxlength="80"></div>
       <div class="slbl" style="margin-top:12px">الوصف / التعليمات</div>
       <textarea class="einp" id="sf-desc" rows="3" maxlength="400" placeholder="اشرح للفرق يعملوا إيه...">${c?esc(c.desc||''):''}</textarea>
+      <div class="slbl" style="margin-top:12px">لفرق أنهي مستوى؟</div>
+      <select class="einp" id="sf-level"><option value="0" ${!(c&&c.level)?'selected':''}>المستويين (كل مستوى ليه ترتيبه)</option><option value="1" ${c&&c.level===1?'selected':''}>المستوى الأول بس</option><option value="2" ${c&&c.level===2?'selected':''}>المستوى الثاني بس</option></select>
       <div class="slbl" style="margin-top:12px">الأيقونة</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${iconBtns}</div>
       <div class="slbl" style="margin-top:12px">اللون</div>
@@ -6051,6 +6119,7 @@ async function saveSelfieCh(id){
     rewardGems: Math.max(0, parseInt(document.getElementById('sf-gems').value)||0),
     rewardXp: Math.max(0, parseInt(document.getElementById('sf-xp').value)||0),
     startAt, endAt,
+    level: parseInt(document.getElementById('sf-level').value)||0,
     enabled: document.getElementById('sf-enabled').checked
   };
   try {
@@ -6873,6 +6942,7 @@ function blankTournamentDraft(){
   return {
     name: '',
     status: 'draft',
+    level: 1,
     rounds: [],
     helpers,
     timerByType,
@@ -6893,6 +6963,7 @@ function openEditTournamentModal(id){
   _tourDraft = JSON.parse(JSON.stringify({
     name: t.name||'',
     status: t.status||'draft',
+    level: t.level||0,
     rounds: t.rounds||[],
     helpers: t.helpers || (function(){ const h={}; HELPER_DEFS.forEach(x=>h[x.id]=x.defaultCount); return h; })(),
     timerByType: t.timerByType || (function(){ const m={}; TQ_TYPES.forEach(x=>m[x.id]=x.timer); return m; })(),
@@ -6920,7 +6991,8 @@ function removeRoundFromDraft(i){
 
 function renderTournamentBuilder(id){
   const isEdit = !!id;
-  const teamOpts = teams.map(t=>({id:t._id, name:t.name, logo:t.logo||'⚔️', color:t.color||'#7c6af7'}));
+  // A tournament is for one level: only that level's teams can be picked
+  const teamOpts = teams.filter(t=>!_tourDraft.level||teamLevelOf(t)===_tourDraft.level).map(t=>({id:t._id, name:t.name, logo:t.logo||'⚔️', color:t.color||'#7c6af7'}));
   const roundsHtml = _tourDraft.rounds.map((r,i)=>{
     const selectedTeams = (r.teams||[]).map(tid=>{
       const t = teamOpts.find(x=>x.id===tid);
@@ -6974,6 +7046,7 @@ function renderTournamentBuilder(id){
     <div class="mhead"><h2><i class="fas fa-trophy" style="color:var(--gold)"></i> ${isEdit?'تعديل بطولة':'بطولة جديدة'}</h2><button class="btnx" onclick="closeM('modal-tournament')"><i class="fas fa-times"></i></button></div>
     <div class="mbody">
       <div class="erow"><span class="elbl">اسم البطولة</span><input type="text" class="einp" id="tour-name" value="${esc(_tourDraft.name||'')}" placeholder="مثال: كاس البطل الموسم الأول"></div>
+      <div class="erow"><span class="elbl">المستوى</span><select class="einp" onchange="_tourDraft.level=+this.value;_tourDraft.rounds.forEach(r=>r.teams=[]);renderTournamentBuilder(${isEdit?("'"+id+"'"):'null'})"><option value="1" ${_tourDraft.level===1?'selected':''}>فرق المستوى الأول</option><option value="2" ${_tourDraft.level===2?'selected':''}>فرق المستوى الثاني</option>${_tourDraft.level?'':'<option value="0" selected>كل الفرق (بطولة قديمة)</option>'}</select></div>
       <div class="erow"><span class="elbl">منع تكرار السؤال</span>
         <label style="display:inline-flex;align-items:center;gap:5px;cursor:pointer"><input type="checkbox" ${_tourDraft.dedupeQuestions?'checked':''} onchange="_tourDraft.dedupeQuestions=this.checked" style="accent-color:var(--accent2)"> لا يظهر السؤال مرتين في نفس البطولة</label>
       </div>
@@ -7030,6 +7103,7 @@ async function saveTournament(id){
   const payload = {
     name: _tourDraft.name.trim(),
     status: _tourDraft.status || 'draft',
+    level: _tourDraft.level || 0,
     rounds: _tourDraft.rounds,
     helpers: _tourDraft.helpers,
     timerByType: _tourDraft.timerByType,

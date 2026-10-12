@@ -2454,27 +2454,28 @@ function printAttPoster(sid){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"><\/script>
 <style>
 @page{size:A4;margin:0} *{box-sizing:border-box} body{margin:0;font-family:Cairo,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-.p{width:210mm;height:297mm;position:relative;overflow:hidden;background:radial-gradient(120% 70% at 50% 0%,#5AC8FF 0%,#1E88E5 38%,#123F8A 75%,#0B2A63 100%);color:#fff;display:flex;flex-direction:column;align-items:center;padding:12mm 14mm}
+.p{width:210mm;height:297mm;position:relative;overflow:hidden;background:radial-gradient(120% 70% at 50% 0%,#5AC8FF 0%,#1E88E5 38%,#123F8A 75%,#0B2A63 100%);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:10mm 14mm 9mm}
 .rays{position:absolute;left:50%;top:44%;width:300mm;height:300mm;transform:translate(-50%,-50%);background:repeating-conic-gradient(rgba(255,255,255,.07) 0 8deg,transparent 8deg 16deg);border-radius:50%}
 .star{position:absolute;color:#FFE766;opacity:.8}
-.logo{position:relative;height:30mm;filter:drop-shadow(0 3mm 3mm rgba(0,0,0,.3))}
-.t1{position:relative;font-family:Lalezar,Cairo;font-size:40pt;margin:2mm 0 0;text-shadow:0 1.2mm 0 #0B2A63;letter-spacing:.5pt}
-.date{position:relative;margin:2mm 0 5mm;background:linear-gradient(#FFE766,#FFB300);color:#6B3A00;border:1mm solid #A85E00;border-radius:8mm;padding:2mm 9mm;font-weight:900;font-size:19pt;box-shadow:0 1.5mm 0 #A85E00}
-.qrbox{position:relative;background:#fff;border-radius:10mm;padding:7mm;box-shadow:0 2mm 0 #0B2A63,0 6mm 14mm rgba(0,0,0,.35);border:1.5mm solid #FFE766}
-.qrbox svg{display:block;width:118mm;height:118mm}
+.logo{position:relative;height:24mm;filter:drop-shadow(0 3mm 3mm rgba(0,0,0,.3))}
+.t1{position:relative;font-family:Lalezar,Cairo;font-size:34pt;line-height:1.15;margin:0;text-shadow:0 1.2mm 0 #0B2A63;letter-spacing:.5pt}
+.date{position:relative;margin:0;background:linear-gradient(#FFE766,#FFB300);color:#6B3A00;border:1mm solid #A85E00;border-radius:8mm;padding:2mm 9mm;font-weight:900;font-size:19pt;box-shadow:0 1.5mm 0 #A85E00}
+.qrbox{position:relative;background:#fff;border-radius:10mm;padding:6mm;box-shadow:0 2mm 0 #0B2A63,0 6mm 14mm rgba(0,0,0,.35);border:1.5mm solid #FFE766}
+.qrbox svg{display:block;width:104mm;height:104mm}
 .qrin{position:relative}
-.qrlogo{position:absolute;left:50%;top:50%;width:30mm;height:30mm;transform:translate(-50%,-50%);border-radius:50%;background:#fff;padding:1.6mm;box-shadow:0 0 0 1.4mm #fff,0 1mm 3mm rgba(0,0,0,.25)}
+.qrlogo{position:absolute;left:50%;top:50%;width:26mm;height:26mm;transform:translate(-50%,-50%);border-radius:50%;background:#fff;padding:1.6mm;box-shadow:0 0 0 1.4mm #fff,0 1mm 3mm rgba(0,0,0,.25)}
 .qrlogo img{width:100%;height:100%;object-fit:contain;display:block}
-.org{position:relative;margin-top:1.5mm;font-weight:800;font-size:12.5pt;background:rgba(11,42,99,.35);border:.5mm solid rgba(255,255,255,.3);border-radius:6mm;padding:1mm 6mm;text-align:center}
-.badge{position:absolute;top:-9mm;left:-9mm;width:30mm;height:30mm;border-radius:50%;background:linear-gradient(#8CF25A,#2FB31A);border:1.2mm solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:18pt;line-height:1;box-shadow:0 1.5mm 0 #1C7A0C;transform:rotate(-12deg)}
-.badge small{font-size:9pt;margin-top:1mm}
-.code{position:relative;margin-top:5mm;font-size:12pt;font-weight:800;opacity:.95}
+.org{position:relative;margin:0;font-weight:800;font-size:12pt;background:rgba(11,42,99,.35);border:.5mm solid rgba(255,255,255,.3);border-radius:6mm;padding:1mm 6mm;text-align:center}
+.badge{position:absolute;z-index:3;top:-15mm;left:-25mm;width:28mm;height:28mm;border-radius:50%;background:linear-gradient(#8CF25A,#2FB31A);border:1.2mm solid #fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:900;color:#fff;font-size:18pt;line-height:1;box-shadow:0 1.5mm 0 #1C7A0C;transform:rotate(-12deg)}
+.badge small{font-size:9.5pt;margin-top:1mm;white-space:nowrap}
+.code{position:relative;margin:0;font-size:12pt;font-weight:800;opacity:.95}
 .code b{display:inline-block;margin-right:2mm;background:rgba(255,255,255,.18);border:.5mm solid rgba(255,255,255,.5);border-radius:3mm;padding:.5mm 4mm;letter-spacing:3mm;font-size:20pt}
-.steps{position:relative;display:flex;gap:5mm;margin-top:7mm}
-.st{width:52mm;background:rgba(255,255,255,.13);border:.6mm solid rgba(255,255,255,.35);border-radius:6mm;padding:3.5mm;text-align:center;font-weight:800;font-size:11.5pt}
-.st span{display:block;font-size:22pt;margin-bottom:1mm}
-.once{position:relative;margin-top:4mm;font-size:10pt;opacity:.85}
-@media screen{body{background:#555;display:flex;justify-content:center;padding:8mm}}
+.steps{position:relative;display:flex;gap:5mm;margin:0}
+.st{width:52mm;background:rgba(255,255,255,.13);border:.6mm solid rgba(255,255,255,.35);border-radius:6mm;padding:3mm;text-align:center;font-weight:800;font-size:11pt;line-height:1.45}
+.st span{display:block;font-size:20pt;margin-bottom:.5mm}
+.once{position:relative;margin:0;font-size:10pt;opacity:.85}
+@media print{.qrbox{box-shadow:0 2mm 0 #0B2A63}.badge,.date{box-shadow:none}}
+@media screen{html,body{height:100%;overflow:hidden}body{background:#555}.p{position:absolute;left:50%;top:50%;transform-origin:center center;transform:translate(-50%,-50%) scale(var(--fit,1));box-shadow:0 4mm 14mm rgba(0,0,0,.5)}}
 </style></head><body><div class="p"><div class="rays"></div>
 <span class="star" style="top:20mm;right:22mm;font-size:22pt">✦</span><span class="star" style="top:46mm;left:20mm;font-size:16pt">✦</span><span class="star" style="top:150mm;right:14mm;font-size:14pt">✝</span><span class="star" style="top:200mm;left:16mm;font-size:20pt">✦</span>
 <img class="logo" src="${logo}" alt="مين البطل" onerror="this.style.display='none'">
@@ -2489,6 +2490,8 @@ function printAttPoster(sid){
 <script>
 (function(){var q=qrcode(0,'H');q.addData(${JSON.stringify(url)});q.make();document.getElementById('qr').innerHTML=q.createSvgTag({cellSize:8,margin:0,scalable:true});
 var done=false;function go(){if(done)return;done=true;setTimeout(function(){window.print();},500);}
+function fit(){var p=document.querySelector('.p');var k=Math.min((innerWidth-24)/p.offsetWidth,(innerHeight-24)/p.offsetHeight,1);p.style.setProperty('--fit',k);}
+fit();addEventListener('resize',fit);
 if(document.fonts&&document.fonts.ready)document.fonts.ready.then(go);setTimeout(go,2500);})();
 <\/script></body></html>`);
   w.document.close();

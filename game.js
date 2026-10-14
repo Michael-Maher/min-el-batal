@@ -6309,23 +6309,29 @@ function loadOpenTeams() {
     firebaseDb.collection('teams').orderBy('createdAt', 'desc').limit(60).get().then(function(snapshot) {
         var list = document.getElementById('open-teams-list');
         if (!list) return;
-        // Only teams of the player's level (teams without a level predate levels and can't be joined)
-        var docs = [];
-        snapshot.forEach(function(doc) { if (teamLevelOf(doc.data()) === myLvl) docs.push(doc); });
+        // All teams are listed with their level badge; only teams of the player's level can be joined.
+        // The player's own level comes first (query order is kept within each group).
+        var mine = [], others = [];
+        snapshot.forEach(function(doc) { (teamLevelOf(doc.data()) === myLvl ? mine : others).push(doc); });
+        var docs = mine.concat(others);
         if (!docs.length) {
-            list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px">مفيش فرق في ' + TEAM_LEVEL_NAMES[myLvl] + ' لسه - كوّن أول فريق!</p>';
+            list.innerHTML = '<p style="text-align:center;color:var(--text-muted);padding:20px">مفيش فرق لسه - كوّن أول فريق!</p>';
             return;
         }
         var html = '';
-        docs.slice(0, 20).forEach(function(doc) {
+        if (!mine.length) {
+            html += '<p style="text-align:center;color:var(--text-muted);padding:8px 12px 14px">مفيش فرق في ' + TEAM_LEVEL_NAMES[myLvl] + ' لسه - كوّن أول فريق!</p>';
+        }
+        docs.slice(0, 30).forEach(function(doc) {
             var t = doc.data();
+            var otherLevel = teamLevelOf(t) !== myLvl;
             var members = t.members || [];
             var memberNames = t.memberNames || [];
             var isFull = members.length >= 6;
             var isMyTeam = GameState.team === t.name;
             var isMember = members.indexOf(GameState.playerPhone) >= 0;
             var teamColor = t.color || '#6C5CE7';
-            html += '<div class="open-team-card ' + (isFull ? 'full' : '') + '" style="border-right: 4px solid ' + teamColor + '">';
+            html += '<div class="open-team-card ' + (isFull ? 'full' : '') + (otherLevel ? ' other-level' : '') + '" style="border-right: 4px solid ' + teamColor + '">';
             // Team logo/image
             if (t.image) {
                 html += '<div class="open-team-logo"><img src="' + t.image + '" style="width:100%;height:100%;border-radius:50%;object-fit:cover"></div>';
@@ -6348,6 +6354,8 @@ function loadOpenTeams() {
             html += '<div class="open-team-action">';
             if (isMyTeam || isMember) {
                 html += '<span class="open-team-status">✅ فريقك</span>';
+            } else if (otherLevel) {
+                html += '<span class="open-team-status other">' + (TEAM_LEVEL_NAMES[teamLevelOf(t)] || 'مستوى تاني') + '</span>';
             } else if (hasPendingRequest) {
                 html += '<div style="text-align:center">';
                 html += '<span class="open-team-status" style="color:var(--gold);display:block;margin-bottom:6px">⏳ في الانتظار</span>';

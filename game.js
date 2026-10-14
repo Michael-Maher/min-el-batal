@@ -10097,18 +10097,18 @@ function openLevel2Subject(subjectKey) {
 function enterMapLandscape() {
     document.body.classList.add('landscape-map-mode');
     // Try to lock orientation to landscape
-    try {
-        if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(function(){});
-        }
-    } catch(e) {}
-    // Auto-enter fullscreen
+    // Android only allows the orientation lock once the page is fullscreen, so lock after entering it
+    var lockLandscape = function() {
+        try {
+            if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function(){});
+        } catch(e) {}
+    };
     try {
         var el = document.documentElement;
-        if (el.requestFullscreen) el.requestFullscreen().catch(function(){});
-        else if (el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+        if (el.requestFullscreen) el.requestFullscreen().then(lockLandscape, lockLandscape);
+        else { if (el.webkitRequestFullscreen) el.webkitRequestFullscreen(); lockLandscape(); }
         level2State.isFullscreen = true;
-    } catch(e) {}
+    } catch(e) { lockLandscape(); }
 }
 
 function exitMapLandscape() {

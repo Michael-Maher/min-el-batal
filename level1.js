@@ -427,6 +427,11 @@ function renderL1Map() {
     h += ch && ch.image ? '<img src="' + ch.image + '" alt="">' : '<span>🧒</span>';
     h += '<i class="l1-avatar-here">هنا</i></div>';
     h += '</div></div>';
+    // Pan controls for phones where the map is wider than the screen (portrait)
+    h += '<button class="l1-map-arrow l1-map-arrow-l" id="l1-map-arrow-l" onclick="l1MapPan(-1)" aria-label="حرّك الخريطة شمال"><i class="fas fa-chevron-left"></i></button>';
+    h += '<button class="l1-map-arrow l1-map-arrow-r" id="l1-map-arrow-r" onclick="l1MapPan(1)" aria-label="حرّك الخريطة يمين"><i class="fas fa-chevron-right"></i></button>';
+    h += '<div class="l1-map-hint" id="l1-map-hint" onclick="l1HideMapHint()"><span class="l1-map-hint-hand">👆</span>' +
+        '<b>اسحب الخريطة يمين وشمال</b><small>أو لفّ الموبايل بالعرض عشان تشوفها كلها 📱</small></div>';
 
     h += '<div class="l1-sheet-backdrop" id="l1-sheet-backdrop" onclick="l1CloseSheet()"></div>';
     h += '<div class="l1-sheet" id="l1-sheet"></div>';
@@ -438,6 +443,7 @@ function renderL1Map() {
     var afterLoad = function() {
         world.classList.remove('l1-loading');
         l1CenterOn(avatarAt, false);
+        l1MapNavInit();
         if (walkTo > 0) setTimeout(function() { l1PlayWalk(walkTo - 1, walkTo); }, 500);
         else if (l1PassedCount() === sub.stations.length && !data.seenUnlock.finale) setTimeout(l1ShowFinale, 600);
     };
@@ -457,8 +463,43 @@ window.addEventListener('resize', function() {
     var scr = document.getElementById('l1-map-screen');
     if (!scr || !scr.classList.contains('active') || l1State.walking || !l1Subject()) return;
     clearTimeout(l1State._rz);
-    l1State._rz = setTimeout(function() { l1CenterOn(l1CurrentStation(), false); }, 150);
+    l1State._rz = setTimeout(function() { l1CenterOn(l1CurrentStation(), false); l1MapNavUpdate(); }, 150);
 });
+
+// ---------- map panning (arrows + first-time swipe hint) ----------
+// The scroll box is direction:ltr so scrollLeft grows to the right like the % station positions.
+function l1MapNavInit() {
+    var scroll = document.getElementById('l1-map-scroll');
+    if (!scroll) return;
+    scroll.addEventListener('scroll', l1MapNavUpdate, { passive: true });
+    // Hide the hint on the player's own touch (programmatic centering also fires scroll events)
+    ['touchstart', 'pointerdown', 'wheel'].forEach(function(ev) { scroll.addEventListener(ev, l1HideMapHint, { passive: true }); });
+    l1MapNavUpdate();
+    var hint = document.getElementById('l1-map-hint');
+    if (hint && scroll.scrollWidth > scroll.clientWidth + 8) {
+        hint.classList.add('show');
+        setTimeout(l1HideMapHint, 6000);
+    }
+}
+function l1MapNavUpdate() {
+    var scroll = document.getElementById('l1-map-scroll');
+    var l = document.getElementById('l1-map-arrow-l'), r = document.getElementById('l1-map-arrow-r');
+    if (!scroll || !l || !r) return;
+    var max = scroll.scrollWidth - scroll.clientWidth;
+    l.classList.toggle('show', max > 8 && scroll.scrollLeft > 4);
+    r.classList.toggle('show', max > 8 && scroll.scrollLeft < max - 4);
+}
+function l1MapPan(dir) {
+    var scroll = document.getElementById('l1-map-scroll');
+    if (!scroll) return;
+    var x = scroll.scrollLeft + dir * scroll.clientWidth * 0.7;
+    try { scroll.scrollTo({ left: x, behavior: 'smooth' }); } catch (e) { scroll.scrollLeft = x; }
+    l1HideMapHint();
+}
+function l1HideMapHint() {
+    var hint = document.getElementById('l1-map-hint');
+    if (hint) hint.classList.remove('show');
+}
 
 function l1RenderMapFallbackList() {
     var world = document.getElementById('l1-map-world');

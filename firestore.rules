@@ -63,6 +63,10 @@ service cloud.firestore {
     match /gameContent/{docId} {
       allow read, write: if true;
     }
+    // Per-lesson learn-tab videos/content edited in admin, read by the game
+    match /learnTabConfig/{docId} {
+      allow read, write: if true;
+    }
     // Score-season backups written by the admin «بدء موسم جديد» (players/ and blitz/ subcollections)
     match /seasonArchives/{archiveId}/{document=**} {
       allow read, write: if true;

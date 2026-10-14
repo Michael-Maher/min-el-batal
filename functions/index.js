@@ -142,8 +142,8 @@ async function safeSend(token, notification, data, playerId) {
             webpush: {
                 headers: { Urgency: 'normal', TTL: '86400' },
                 notification: {
-                    icon: '/images/Logo-192.png',
-                    badge: '/images/Logo-192.png',
+                    icon: '/images/icon/app-192.png',
+                    badge: '/images/Logo-192.png',   // monochrome silhouette on Android; keep the simple mark
                     dir: 'rtl',
                     lang: 'ar',
                     vibrate: [100, 50, 100],

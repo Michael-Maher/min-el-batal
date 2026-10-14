@@ -19065,7 +19065,7 @@ function showInstallModal() {
     overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
 
     overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:20px;padding:28px 24px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">' +
-        '<img src="images/Logo-192.png" style="width:64px;height:64px;border-radius:16px;margin-bottom:12px">' +
+        '<img src="images/icon/app-192.png" style="width:64px;height:64px;border-radius:16px;margin-bottom:12px">' +
         '<h3 style="color:var(--text-primary);margin:0 0 6px;font-size:18px">حمّل مين البطل؟</h3>' +
         '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 20px;line-height:1.6">حمّل التطبيق على موبايلك وشغّله زي الأبلكيشن بدون ما تحتاج متجر!</p>' +
         '<button onclick="installApp()" style="width:100%;background:linear-gradient(135deg,var(--primary),#a29bfe);color:#fff;border:none;border-radius:14px;padding:14px;font-family:Cairo;font-weight:700;font-size:15px;cursor:pointer;margin-bottom:10px">' +
@@ -19149,7 +19149,7 @@ function settingsInstallClick() {
         overlay.onclick = function(e) { if (e.target === overlay) overlay.remove(); };
         overlay.innerHTML = '<div style="background:var(--bg-card);border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:500px;text-align:center;box-shadow:0 -10px 40px rgba(0,0,0,0.4)">' +
             '<div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 20px"></div>' +
-            '<img src="images/Logo-192.png" style="width:56px;height:56px;border-radius:14px;margin-bottom:12px">' +
+            '<img src="images/icon/app-192.png" style="width:56px;height:56px;border-radius:14px;margin-bottom:12px">' +
             '<h3 style="color:var(--text-primary);margin:0 0 6px;font-size:18px">حمّل مين البطل على iPhone</h3>' +
             '<p style="color:var(--text-secondary);font-size:13px;margin:0 0 20px;line-height:1.8">اتبع الخطوات دي:</p>' +
             '<div style="text-align:right;background:var(--bg-dark);border-radius:14px;padding:16px;margin-bottom:20px">' +

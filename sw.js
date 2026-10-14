@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v40';
+var CACHE_NAME = 'min-el-batal-v41';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -59,6 +59,12 @@ var STATIC_ASSETS = [
     '/images/map1.jpg',
     '/images/map2-opt.jpg',
     '/images/Logo-favicon.png',
+    '/images/icon/app-192.png',
+    '/images/icon/app-512.png',
+    '/images/icon/app-maskable-192.png',
+    '/images/icon/app-maskable-512.png',
+    '/images/icon/app-180.png',
+    '/images/icon/favicon-32.png',
     '/images/athanasius.png',
     '/images/ester-queen.png',
     '/images/verina.png'
@@ -85,7 +91,7 @@ var messaging = firebase.messaging();
 messaging.onBackgroundMessage(function(payload) {
     var title = payload.notification ? payload.notification.title : 'مين البطل؟';
     var body = payload.notification ? payload.notification.body : 'عندك إشعار جديد!';
-    var icon = '/images/Logo-192.png';
+    var icon = '/images/icon/app-192.png';
 
     return self.registration.showNotification(title, {
         body: body,

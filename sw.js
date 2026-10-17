@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v44';
+var CACHE_NAME = 'min-el-batal-v45';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -87,39 +87,42 @@ firebase.initializeApp({
 
 var messaging = firebase.messaging();
 
-// --- Background Push Handler ---
+// --- Background Push Handler: messages are data-only, so this is the only display ---
 messaging.onBackgroundMessage(function(payload) {
-    var title = payload.notification ? payload.notification.title : 'مين البطل؟';
-    var body = payload.notification ? payload.notification.body : 'عندك إشعار جديد!';
-    var icon = '/images/icon/app-192.png';
-
-    return self.registration.showNotification(title, {
-        body: body,
-        icon: icon,
+    if (payload.notification) return;   // FCM already displayed it
+    var d = payload.data || {};
+    return self.registration.showNotification(d.title || 'مين البطل؟', {
+        body: d.body || 'عندك إشعار جديد!',
+        icon: '/images/icon/app-192.png',
         badge: '/images/Logo-192.png',
         dir: 'rtl',
         lang: 'ar',
+        tag: d.tag || undefined,
         vibrate: [200, 100, 200],
-        data: payload.data || {},
-        actions: [
-            { action: 'open', title: 'افتح اللعبة' }
-        ]
+        data: { link: d.link || '' }
     });
 });
 
-// --- Notification Click ---
+// --- Notification Click: open the place the notification is about ---
 self.addEventListener('notificationclick', function(event) {
     event.notification.close();
+    var raw = (event.notification.data && event.notification.data.link) || '';
+    var link = null;
+    try { link = raw ? JSON.parse(raw) : null; } catch (e) {}
+    if (link && link.screen === 'tournament') {
+        event.waitUntil(clients.openWindow('/tournament-live.html?id=' + encodeURIComponent(link.id || '')));
+        return;
+    }
     event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(clientList) {
-            // Focus existing window if open
-            for (var i = 0; i < clientList.length; i++) {
-                if (clientList[i].url.includes('min-el-batal') && 'focus' in clientList[i]) {
-                    return clientList[i].focus();
+        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function(list) {
+            for (var i = 0; i < list.length; i++) {
+                var c = list[i], u = new URL(c.url);
+                if (u.origin === self.location.origin && u.pathname.indexOf('admin') < 0 && u.pathname.indexOf('tournament') < 0 && 'focus' in c) {
+                    if (raw) c.postMessage({ type: 'notif-open', link: raw });
+                    return c.focus();
                 }
             }
-            // Otherwise open new window
-            return clients.openWindow('/');
+            return clients.openWindow(raw ? '/?n=' + encodeURIComponent(raw) : '/');
         })
     );
 });

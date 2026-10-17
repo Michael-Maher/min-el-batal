@@ -5893,6 +5893,8 @@ function confetti() {
 
 // --- Logout ---
 function logout() {
+    unregisterPushToken();
+    if (typeof unsubscribeNotifInbox === 'function') unsubscribeNotifInbox();
     try { stopGlobalPresence(); } catch(e){}
     GameState.playerName = '';
     GameState.playerPhone = '';
@@ -17521,9 +17523,14 @@ function createDuel() {
 }
 
 function joinDuel() {
+    var code = (document.getElementById('duel-code-input').value || '').trim().toUpperCase();
+    joinDuelByCode(code);
+}
+
+function joinDuelByCode(code) {
     if (!GameState.playerPhone) { showToast('لازم تسجل دخول الأول', 'error'); return; }
     if (!firebaseDb) { showToast('تحتاج إنترنت للمبارزة', 'error'); return; }
-    var code = (document.getElementById('duel-code-input').value || '').trim().toUpperCase();
+    code = String(code || '').trim().toUpperCase();
     if (!code || code.length !== 6) { showToast('أدخل كود صحيح من 6 خانات', 'error'); return; }
     firebaseDb.collection('duels').doc(code).get().then(function(doc) {
         if (!doc.exists) { showToast('المبارزة مش موجودة', 'error'); return; }
@@ -18000,6 +18007,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Force team badge update after cloud data is loaded
                 updateHubTeamBadge();
                 syncLeaderboard();
+                requestNotificationsAfterLogin();
             } else {
                 // No cloud data found for this phone — account was deleted
                 // Clear all local data to prevent stale re-login
@@ -18135,106 +18143,86 @@ function initPushNotifications() {
     }).then(function(token) {
         if (!token) return;
         fcmToken = token;
-        console.log('[FCM] Token obtained:', token.substring(0, 20) + '...');
-        if (firebaseDb && GameState.playerPhone) {
-            var todayStr = new Date().toISOString().split('T')[0];
-            firebaseDb.collection('players').doc(GameState.playerPhone).get().then(function(doc) {
-                var existingPrefs = (doc.exists && doc.data().notifPrefs) || {};
-                return firebaseDb.collection('players').doc(GameState.playerPhone).update({
-                    fcmToken: token,
-                    lastTokenUpdate: new Date().toISOString(),
-                    lastActiveDate: todayStr,
-                    notifPrefs: {
-                        competitions: existingPrefs.competitions !== false,
-                        lessons:      existingPrefs.lessons      !== false,
-                        reminders:    existingPrefs.reminders     !== false,
-                        streakReminder: existingPrefs.streakReminder !== false
-                    }
-                });
-            }).catch(function(err) {
-                console.warn('[FCM] Failed to save token:', err);
-            });
-        }
+        registerPushToken(token);
     }).catch(function(err) {
         console.warn('[FCM] Token error:', err);
     });
 
-    // Handle foreground messages with smart display
+    // Handle foreground messages: one in-app toast (the OS shows nothing while the app is open)
     messaging.onMessage(function(payload) {
-        console.log('[FCM] Foreground message:', payload);
-        var title = payload.notification ? payload.notification.title : 'مين البطل؟';
-        var body = payload.notification ? payload.notification.body : '';
-        var dataType = (payload.data && payload.data.type) ? payload.data.type : '';
-
-        // Competition invite → show special modal
-        if (dataType === 'compete_invite') {
-            showCompeteInvite(payload.data);
-            return;
-        }
-
-        // Exercise/streak reminder → show achievement-style popup
-        if (dataType === 'exercise_reminder' || dataType === 'streak_recovery' || dataType === 'weekly_reminder') {
-            showAchievement(
-                dataType === 'streak_recovery' ? '🔥' : dataType === 'weekly_reminder' ? '⛪' : '📖',
-                title,
-                body
-            );
-            return;
-        }
-
-        // New lesson → show with action
-        if (dataType === 'new_lesson') {
-            showAchievement('📚', title, body);
-            return;
-        }
-
-        // Admin replied to a question
-        if (dataType === 'question_reply') {
-            showAchievement('💬', title || 'رد جديد على سؤالك', body);
-            // Refresh the questions badge if user is on home hub
-            if (typeof loadMyQuestions === 'function' && GameState.playerPhone) {
-                // passive refresh — the onSnapshot listener handles it if the screen is open
-            }
-            return;
-        }
-
-        // Default → toast
-        showToast(title + (body ? ': ' + body : ''), 'info');
+        var d = payload.data || {};
+        var title = d.title || (payload.notification && payload.notification.title) || 'مين البطل؟';
+        var body = d.body || (payload.notification && payload.notification.body) || '';
+        showToast(title + (body ? ' — ' + body : ''), 'info');
+        if (typeof refreshNotifBadgeSoon === 'function') refreshNotifBadgeSoon();
     });
 }
 
-function showCompeteInvite(data) {
-    var overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.innerHTML = '<div class="modal-card" style="text-align:center;max-width:320px">' +
-        '<div style="font-size:48px;margin-bottom:12px">⚡</div>' +
-        '<h3 style="color:var(--text-primary);margin:0 0 8px">دعوة مسابقة!</h3>' +
-        '<p style="color:var(--text-secondary);font-size:14px;margin:0 0 16px">' +
-        (data.hostName || 'صاحبك') + ' بيتحداك تلعب معاه</p>' +
-        '<p style="color:var(--gold);font-size:24px;font-weight:900;letter-spacing:6px">' +
-        (data.roomCode || '') + '</p>' +
-        '<div style="display:flex;gap:10px;margin-top:16px">' +
-        '<button class="btn btn-primary" style="flex:1" onclick="this.closest(\'.modal-overlay\').remove();' +
-        'showScreen(\'compete-screen\');"><span>ادخل!</span></button>' +
-        '<button class="btn btn-secondary" style="flex:1" onclick="this.closest(\'.modal-overlay\').remove()"><span>مش دلوقتي</span></button>' +
-        '</div></div>';
-    document.body.appendChild(overlay);
-    setTimeout(function() { overlay.classList.add('active'); }, 10);
+// ---- Push tokens: one doc per device in pushTokens (owner = phone); removed on logout ----
+var _myPushToken = null;
+function registerPushToken(token) {
+    if (!firebaseDb || !GameState.playerPhone || !token) return;
+    _myPushToken = token;
+    firebaseDb.collection('pushTokens').doc(token).set({ owner: GameState.playerPhone, role: 'player', updatedAt: Date.now() })
+        .catch(function(e) { console.warn('[FCM] token save failed', e); });
+    // the old single-token field would keep pushing to this device after logout
+    firebaseDb.collection('players').doc(GameState.playerPhone).update({
+        fcmToken: firebase.firestore.FieldValue.delete(), lastTokenUpdate: new Date().toISOString()
+    }).catch(function() {});
+}
+function unregisterPushToken() {
+    if (!firebaseDb || !_myPushToken) return Promise.resolve();
+    var t = _myPushToken; _myPushToken = null;
+    return firebaseDb.collection('pushTokens').doc(t).delete().catch(function() {});
+}
+
+// Cairo calendar date (server reminders compare against the same calendar)
+function cairoDateKey() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
+}
+
+// ---- Notification taps: link = {screen, id?, code?} ----
+function openNotifLink(link) {
+    if (typeof link === 'string') { try { link = JSON.parse(link); } catch (e) { link = null; } }
+    if (link && !GameState.playerPhone) {
+        try { sessionStorage.setItem('minElBatal_pendingNotif', JSON.stringify(link)); } catch (e) {}
+        return;
+    }
+    var s = link && link.screen;
+    if (s === 'question') { openQuestionsScreen(); if (link.id) setTimeout(function() { openQuestionThread(link.id); }, 400); }
+    else if (s === 'subject') { if (typeof LEVEL1_SUBJECTS !== 'undefined' && LEVEL1_SUBJECTS[link.id]) l1OpenSubject(link.id); else openLevel2Subject(link.id); }
+    else if (s === 'selfie') openSelfieChallenge();
+    else if (s === 'duel') joinDuelByCode(link.code);
+    else if (s === 'room') autoJoinRoom(link.code);
+    else if (s === 'bible') showScreen('bible-reading-screen');
+    else if (s === 'post') openSocialPost(link.id);
+    else if (s === 'rewards') showScreen('rewards-shop-screen');
+    else if (s === 'tournament') window.open('tournament-live.html?id=' + encodeURIComponent(link.id || ''), '_blank');
+    else showScreen('home-hub-screen');
+}
+function checkPendingNotif() {
+    var raw = null;
+    try { raw = sessionStorage.getItem('minElBatal_pendingNotif'); sessionStorage.removeItem('minElBatal_pendingNotif'); } catch (e) {}
+    if (raw) setTimeout(function() { openNotifLink(raw); }, 800);
+}
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function(e) {
+        if (e.data && e.data.type === 'notif-open') openNotifLink(e.data.link);
+    });
 }
 
 // Auto-init notifications after login (delayed to not annoy users immediately)
 function requestNotificationsAfterLogin() {
+    checkPendingNotif();
+    if (typeof subscribeNotifInbox === 'function') subscribeNotifInbox();
     setTimeout(function() {
-        if (GameState.playerPhone && 'Notification' in window) {
-            // Only ask if not already decided
-            if (Notification.permission === 'default') {
-                // Show a friendly in-app prompt first
-                showNotificationPrompt();
-            } else if (Notification.permission === 'granted') {
-                initPushNotifications();
-            }
-        }
-    }, 5000); // Wait 5 seconds after login
+        if (!GameState.playerPhone || !('Notification' in window)) return;
+        if (Notification.permission === 'granted') { initPushNotifications(); return; }
+        if (Notification.permission !== 'default') return;
+        var dismissed = 0;
+        try { dismissed = +localStorage.getItem('minElBatal_notifDismissed') || 0; } catch (e) {}
+        if (Date.now() - dismissed > 7 * 86400000) showNotificationPrompt();
+    }, 5000);
 }
 
 // --- Admin Announcements ---
@@ -19279,6 +19267,12 @@ window.addEventListener('load', function() {
         // Clean URL
         window.history.replaceState({}, '', window.location.pathname);
     }
+    var notifParam = urlParams.get('n');
+    if (notifParam) {
+        try { sessionStorage.setItem('minElBatal_pendingNotif', notifParam); } catch (e) {}
+        window.history.replaceState({}, '', window.location.pathname);
+        if (GameState.playerPhone) checkPendingNotif();
+    }
 });
 
 // ============================================================
@@ -19329,6 +19323,10 @@ function renderNotifSettings(prefs) {
 
     var html = '<div class="modal-card" style="max-width:380px;direction:rtl">';
     html += '<h3 style="color:var(--text-primary);text-align:center;margin:0 0 16px"><i class="fas fa-bell" style="color:var(--gold);margin-left:8px"></i>إعدادات الإشعارات</h3>';
+    if (!('Notification' in window)) {
+        html += '<p style="background:rgba(255,196,0,.12);border-radius:10px;padding:10px;font-size:12.5px;color:var(--text-primary);margin:0 0 12px;line-height:1.6">' +
+            '📲 ثبّت التطبيق على الشاشة الرئيسية عشان توصلك الإشعارات (من زرار المشاركة ← «إضافة إلى الشاشة الرئيسية»)</p>';
+    }
 
     var items = [
         { key: 'competitions', icon: '⚡', label: 'مسابقات جديدة', desc: 'لما حد يعمل مسابقة' },

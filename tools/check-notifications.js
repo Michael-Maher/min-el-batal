@@ -14,9 +14,14 @@ function grab(name) {
     throw new Error('unbalanced ' + name);
 }
 var FNS = ['registerPushToken', 'unregisterPushToken', 'openNotifLink', 'checkPendingNotif', 'cairoDateKey'];
-var code = 'var _myPushToken = null;\n' + FNS.map(grab).join('\n');
+function grabVar(name) {
+    var m = src.match(new RegExp('var ' + name + ' = [^;]+;'));
+    if (!m) throw new Error('missing var ' + name);
+    return m[0];
+}
+var code = 'var _myPushToken = null;\n' + grabVar('FCM_VAPID_KEY') + '\n' + FNS.map(grab).join('\n');
 
-function makeCtx(gs) {
+function makeCtx(gs, perm, fetched) {
     var calls = [], docs = {}, session = {};
     function ref(col, id) { return {
         set: function(d) { docs[col + '/' + id] = d; calls.push(['set', col, id]); return Promise.resolve(); },
@@ -28,9 +33,12 @@ function makeCtx(gs) {
         firebaseDb: { collection: function(c) { return { doc: function(id) { return ref(c, id); } }; } },
         firebase: { firestore: { FieldValue: { delete: function() { return 'DEL'; } } } },
         sessionStorage: { getItem: function(k) { return session[k] || null; }, setItem: function(k, v) { session[k] = v; }, removeItem: function(k) { delete session[k]; } },
-        window: { open: function(u) { calls.push(['open', u]); } },
-        setTimeout: function(fn) { fn(); }
+        window: { open: function(u) { calls.push(['open', u]); }, Notification: {} },
+        setTimeout: function(fn) { fn(); },
+        Notification: { permission: perm || 'default' },
+        navigator: { serviceWorker: { ready: Promise.resolve({}) } }
     };
+    ctx.firebase.messaging = function() { return { getToken: function(o) { calls.push(['getToken', o.vapidKey]); return Promise.resolve(fetched); } }; };
     ['showScreen', 'openQuestionsScreen', 'openQuestionThread', 'l1OpenSubject', 'openLevel2Subject', 'openSelfieChallenge',
      'joinDuelByCode', 'autoJoinRoom', 'openSocialPost'].forEach(function(f) {
         ctx[f] = function(a) { calls.push([f, a]); };
@@ -55,6 +63,17 @@ test('register writes owner and drops legacy field; unregister deletes', functio
         assert.strictEqual(u[3].fcmToken, 'DEL');
         return ctx.unregisterPushToken();
     }).then(function() { assert.deepStrictEqual(Object.keys(ctx.docs), []); });
+});
+
+test('unregister without a known token looks it up when permission is granted', function() {
+    var ctx = makeCtx({ playerPhone: '0101' }, 'granted', 'tokZ');
+    ctx.docs['pushTokens/tokZ'] = { owner: '0101' };
+    return ctx.unregisterPushToken().then(function() {
+        assert.deepStrictEqual(Object.keys(ctx.docs), []);
+        assert.ok(last(ctx, 'getToken')[1].length > 20);
+        var c2 = makeCtx({ playerPhone: '0101' }, 'default', 'tokZ');
+        return c2.unregisterPushToken().then(function() { assert.strictEqual(last(c2, 'getToken'), undefined); });
+    });
 });
 
 test('shared phone: next owner takes the same token doc', function() {

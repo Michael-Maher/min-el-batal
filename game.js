@@ -18116,6 +18116,8 @@ if ('serviceWorker' in navigator) {
 
 // --- Push Notifications (Firebase Cloud Messaging) ---
 var fcmToken = null;
+var FCM_VAPID_KEY = 'BCK-Gml28B9WpWb_umCHAwmVqNP6FFptoLLLxWpfQwGkNc7zC_ixVRNYQL5t2Ls4lG3v_pa42WCZ9jQeCNtN3tk';
+var _fcmOnMessageBound = false;
 
 function initPushNotifications() {
     if (typeof firebase === 'undefined' || !firebase.messaging) {
@@ -18136,7 +18138,7 @@ function initPushNotifications() {
         return navigator.serviceWorker.ready.then(function(registration) {
             console.log('[FCM] SW ready, scope:', registration.scope);
             return messaging.getToken({
-                vapidKey: 'BCK-Gml28B9WpWb_umCHAwmVqNP6FFptoLLLxWpfQwGkNc7zC_ixVRNYQL5t2Ls4lG3v_pa42WCZ9jQeCNtN3tk',
+                vapidKey: FCM_VAPID_KEY,
                 serviceWorkerRegistration: registration
             });
         });
@@ -18149,6 +18151,8 @@ function initPushNotifications() {
     });
 
     // Handle foreground messages: one in-app toast (the OS shows nothing while the app is open)
+    if (_fcmOnMessageBound) return;
+    _fcmOnMessageBound = true;
     messaging.onMessage(function(payload) {
         var d = payload.data || {};
         var title = d.title || (payload.notification && payload.notification.title) || 'مين البطل؟';
@@ -18171,9 +18175,17 @@ function registerPushToken(token) {
     }).catch(function() {});
 }
 function unregisterPushToken() {
-    if (!firebaseDb || !_myPushToken) return Promise.resolve();
-    var t = _myPushToken; _myPushToken = null;
-    return firebaseDb.collection('pushTokens').doc(t).delete().catch(function() {});
+    if (!firebaseDb) return Promise.resolve();
+    function del(t) { return firebaseDb.collection('pushTokens').doc(t).delete().catch(function() {}); }
+    if (_myPushToken) { var t = _myPushToken; _myPushToken = null; return del(t); }
+    // token not fetched yet this session (quick logout): look it up so the device stops getting this player's pushes
+    if (typeof firebase !== 'undefined' && firebase.messaging && 'Notification' in window &&
+        Notification.permission === 'granted' && 'serviceWorker' in navigator) {
+        return navigator.serviceWorker.ready.then(function(reg) {
+            return firebase.messaging().getToken({ vapidKey: FCM_VAPID_KEY, serviceWorkerRegistration: reg });
+        }).then(function(tok) { if (tok) return del(tok); }).catch(function() {});
+    }
+    return Promise.resolve();
 }
 
 // Cairo calendar date (server reminders compare against the same calendar)
@@ -18215,9 +18227,9 @@ if ('serviceWorker' in navigator) {
 function requestNotificationsAfterLogin() {
     checkPendingNotif();
     if (typeof subscribeNotifInbox === 'function') subscribeNotifInbox();
+    if (GameState.playerPhone && 'Notification' in window && Notification.permission === 'granted') initPushNotifications();
     setTimeout(function() {
         if (!GameState.playerPhone || !('Notification' in window)) return;
-        if (Notification.permission === 'granted') { initPushNotifications(); return; }
         if (Notification.permission !== 'default') return;
         var dismissed = 0;
         try { dismissed = +localStorage.getItem('minElBatal_notifDismissed') || 0; } catch (e) {}

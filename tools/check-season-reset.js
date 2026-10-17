@@ -24,7 +24,7 @@ function grabVar(name) {
 }
 
 var code = [grabVar('SCORE_SEASON_FIELDS'), grabVar('SCORE_SEASON_PROGRESS_FIELDS'),
-    grab('_seasonMs'), grab('ensureScoreSeason'), grab('_ensurePointsSeason'), grab('ensureProgressReset')].join('\n');
+    grab('_seasonMs'), grab('ensureTeamsReset'), grab('ensureScoreSeason'), grab('_ensurePointsSeason'), grab('ensureProgressReset')].join('\n');
 
 function makeCtx(gs, season) {
     var writes = [];

@@ -1076,10 +1076,54 @@ function handleRememberMe(rememberMe, phone) {
     }
 }
 
+// A device left in the background for days (old tab, second phone, in-app browser) still holds
+// its old stars and logs, and set(merge) writes stars as a plain number and an empty map as {},
+// so a blind save from it wipes newer progress made elsewhere. Every save therefore re-reads the
+// doc first; if someone else saved since this device last did (syncId changed), the cloud copy is
+// merged in (max scores, union logs) before writing. Saves run one at a time.
+var _cloudSync = { phone: '', id: null };   // syncId this device last wrote or merged, per phone
+var _cloudSaveRunning = null, _cloudSaveQueued = null;
+
 function saveToCloud() {
     if (!firebaseDb || !GameState.playerPhone) return Promise.resolve();
-    if (ensureScoreSeason()) onScoreSeasonReset();
-    const docRef = firebaseDb.collection('players').doc(GameState.playerPhone);
+    if (_cloudSaveQueued) return _cloudSaveQueued;
+    if (_cloudSaveRunning) {
+        _cloudSaveQueued = _cloudSaveRunning.then(function() { _cloudSaveQueued = null; return saveToCloud(); });
+        return _cloudSaveQueued;
+    }
+    _cloudSaveRunning = _writeToCloud().then(function() { _cloudSaveRunning = null; });
+    return _cloudSaveRunning;
+}
+
+function _writeToCloud() {
+    var phone = GameState.playerPhone;
+    if (!firebaseDb || !phone) return Promise.resolve();
+    var docRef = firebaseDb.collection('players').doc(phone);
+    var atCall = _cloudSaveData();   // still written if the player logs out while the doc is being read
+    return docRef.get().then(function(snap) {
+        var known = _cloudSync.phone === phone ? _cloudSync.id : null;
+        var cloudMoved = snap.exists && (known === null || (snap.data().syncId || '') !== known);
+        var data;
+        if (phone !== GameState.playerPhone) {
+            if (cloudMoved) return;   // nothing left to merge into; the local backup keeps this progress
+            data = atCall;
+        } else {
+            if (cloudMoved) {
+                saveToLocalStorage(true);   // the merge reads the local backup — make it current first
+                mergeCloudIntoGameState(snap.data());
+                saveToLocalStorage(true);
+                try { if (typeof GameUI !== 'undefined') GameUI.refreshCounters(); } catch(e) {}
+            }
+            if (ensureScoreSeason()) onScoreSeasonReset();
+            data = _cloudSaveData();
+        }
+        data.syncId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        _cloudSync = { phone: phone, id: data.syncId };
+        return docRef.set(data, { merge: true }).then(function() { console.log('Game saved to cloud'); });
+    }).catch(function(err) { console.error('Cloud save error:', err); });
+}
+
+function _cloudSaveData() {
     const data = {
         playerName: GameState.playerName,
         playerPhone: GameState.playerPhone,
@@ -1196,19 +1240,12 @@ function saveToCloud() {
             }
         }
     } catch(e) { console.warn('Size check error:', e); }
-
-    return docRef.set(data, { merge: true })
-        .then(() => console.log('Game saved to cloud'))
-        .catch(err => console.error('Cloud save error:', err));
+    return data;
 }
 
-function loadFromCloud(phone) {
-    if (!firebaseDb || !phone) return Promise.resolve(null);
-    const docRef = firebaseDb.collection('players').doc(phone);
-    return docRef.get()
-        .then(doc => {
-            if (doc.exists) {
-                const data = doc.data();
+// Merges a cloud player doc into GameState together with the localStorage backup:
+// scores keep the max, logs keep the union, profile fields prefer the local value.
+function mergeCloudIntoGameState(data) {
                 // Load localStorage first to get any unsaved local data
                 var localBackup = {};
                 try {
@@ -1298,6 +1335,17 @@ function loadFromCloud(phone) {
                         }
                     }
                 });
+}
+
+function loadFromCloud(phone) {
+    if (!firebaseDb || !phone) return Promise.resolve(null);
+    const docRef = firebaseDb.collection('players').doc(phone);
+    return docRef.get()
+        .then(doc => {
+            if (doc.exists) {
+                const data = doc.data();
+                mergeCloudIntoGameState(data);
+                _cloudSync = { phone: phone, id: data.syncId || '' };   // just merged: the next save needn't re-read it
                 console.log('Game loaded from cloud for', phone);
                 // Save merged state to localStorage AND back to cloud to keep all devices in sync
                 saveToLocalStorage(true);

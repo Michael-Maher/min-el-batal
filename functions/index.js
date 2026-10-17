@@ -14,15 +14,13 @@ admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
+const L = require('./notify-logic');
+const { makeNotifier } = require('./notify');
+const notifier = makeNotifier({ db, messaging, FieldValue: admin.firestore.FieldValue });
 
 // ============================================================
 // Message Pools (warm, encouraging Arabic messages)
 // ============================================================
-
-var COMPETITION_MSG = {
-    title: 'مسابقة جديدة! ⚡',
-    // body is dynamic (includes host name)
-};
 
 var INACTIVITY_MESSAGES = [
     { title: 'وحشتنا يا بطل! 🌟', body: 'تعال كمل مغامرتك في مدرسة أتبعني' },
@@ -46,55 +44,11 @@ var WEEKLY_MESSAGES = [
     { title: 'القداس والاجتماع! ⛪', body: 'الأسبوع قرّب يخلص، خلّصت تداريبك الأسبوعية؟' },
 ];
 
-var NEW_LESSON_MESSAGES = [
-    { title: 'درس جديد نزل! 📚', body: 'في محتوى جديد مستنيك في مدرسة أتبعني' },
-    { title: 'حاجة جديدة! 🎓', body: 'ادخل شوف الدرس الجديد واكسب نجوم' },
-];
-
-// ============================================================
-// Helper: strip HTML tags for push notification body
-// ============================================================
-function stripHtml(html) {
-    if (!html) return '';
-    var text = html.replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
-    return text.length > 120 ? text.slice(0, 120) + '…' : text;
-}
-
 // ============================================================
 // Helper: pick random message from pool
 // ============================================================
 function pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
-}
-
-// ============================================================
-// Helper: segment filter (matches admin.html playerMatchesSegments)
-// ============================================================
-function daysSinceStr(dateStr) {
-    if (!dateStr) return 99999;
-    var d = new Date(dateStr);
-    if (isNaN(d.getTime())) return 99999;
-    return Math.floor((Date.now() - d.getTime()) / 86400000);
-}
-function playerMatchesSegments(p, seg) {
-    if (!seg) return true;
-    if (seg.gender && seg.gender !== 'all' && p.gender !== seg.gender) return false;
-    var hasTeam = !!(p.team && String(p.team).trim());
-    if (seg.team === 'has' && !hasTeam) return false;
-    if (seg.team === 'none' && hasTeam) return false;
-    if (seg.year && seg.year !== 'all' && p.academicYear !== seg.year) return false;
-    var last = (p.lampData && p.lampData.lastActiveDate) || p.lastActiveDate || '';
-    var days = daysSinceStr(last);
-    if (seg.activity === 'inactive3' && !(days >= 3)) return false;
-    if (seg.activity === 'inactive7' && !(days >= 7)) return false;
-    if (seg.activity === 'inactive30' && !(days >= 30)) return false;
-    if (seg.activity === 'active' && !(days <= 3)) return false;
-    var st = +p.stars || 0;
-    if (seg.stars === 'lt100' && !(st < 100)) return false;
-    if (seg.stars === 'lt500' && !(st < 500)) return false;
-    if (seg.stars === 'lt1000' && !(st < 1000)) return false;
-    if (seg.stars === 'gte1000' && !(st >= 1000)) return false;
-    return true;
 }
 
 // ============================================================
@@ -168,50 +122,6 @@ async function safeSend(token, notification, data, playerId) {
 }
 
 // ============================================================
-// 1. COMPETITION CREATED → Notify subscribed users
-//    DISABLED: notifications now sent only from admin panel
-// ============================================================
-// exports.onCompetitionCreated = functions
-//     .region('europe-west1')
-//     .firestore.document('compete_rooms/{roomId}')
-//     .onCreate(async (snap, context) => { ... });
-
-// ============================================================
-// 2. NEW LESSON / CONTENT → Notify all users
-// ============================================================
-exports.onNewLesson = functions
-    .region('europe-west1')
-    .firestore.document('lessons/{lessonId}')
-    .onCreate(async (snap, context) => {
-        var lesson = snap.data();
-
-        var playersSnap = await db.collection('players').get();
-
-        var msg = pickRandom(NEW_LESSON_MESSAGES);
-        // Override body if lesson has a title
-        if (lesson.title) {
-            msg = { title: 'درس جديد: ' + lesson.title + ' 📚', body: 'ادخل مدرسة أتبعني وشوف الدرس الجديد' };
-        }
-
-        var sent = 0;
-        var promises = [];
-
-        playersSnap.forEach(function(doc) {
-            var player = doc.data();
-            if (!player.fcmToken) return;
-            if (player.notifPrefs && player.notifPrefs.lessons === false) return;
-
-            promises.push(
-                safeSend(player.fcmToken, msg, { type: 'new_lesson', lessonId: context.params.lessonId }, doc.id)
-                    .then(function(ok) { if (ok) sent++; })
-            );
-        });
-
-        await Promise.all(promises);
-        console.log('[Notif] New lesson - notified', sent, 'players');
-    });
-
-// ============================================================
 // 2b. ADMIN ANNOUNCEMENT → Fan-out push to all users
 //     Triggered when admin creates a doc in `announcements`.
 //     Respects announcement.sendPush (defaults to true).
@@ -236,64 +146,14 @@ exports.onAnnouncementCreated = functions
         }
 
         var title = ann.title || 'مين البطل؟';
-        var body = stripHtml(ann.body || '');
-        var icon = ann.icon || '📢';
+        var body = L.stripHtml(ann.body || '');
         var segments = ann.segments || null;
-
-        // Fetch all players and filter in code — Firestore `!=` excludes
-        // documents missing the field, which would drop legacy docs.
-        var playersSnap = await db.collection('players').get();
-
-        var totalPlayers = playersSnap.size;
-        var withToken = 0;
-        var sent = 0;
-        var attempted = 0;
-        var skippedBySegment = 0;
-        var promises = [];
-
-        playersSnap.forEach(function(doc) {
-            var player = doc.data();
-            if (!player.fcmToken) return;
-            withToken++;
-            // Respect preferences — treat announcements as "reminders" category
-            if (player.notifPrefs && player.notifPrefs.reminders === false) return;
-            // Segment filter
-            if (segments && !playerMatchesSegments(player, segments)) {
-                skippedBySegment++;
-                return;
-            }
-
-            attempted++;
-            promises.push(
-                safeSend(
-                    player.fcmToken,
-                    { title: title, body: body },
-                    {
-                        type: 'announcement',
-                        announcementId: context.params.announcementId,
-                        icon: icon,
-                    },
-                    doc.id
-                ).then(function(ok) { if (ok) sent++; })
-            );
-        });
-
-        await Promise.all(promises);
-        console.log('[Notif] Announcement', context.params.announcementId,
-            '- players:', totalPlayers, 'with-token:', withToken,
-            'sent:', sent, '/', attempted, '(segment-skipped', skippedBySegment + ')');
-
-        // Write delivery stats back to the announcement doc for admin visibility
+        var r = await notifier.notify('all', { type: 'announcement', title: title, body: body, link: { screen: 'home' } },
+            { id: context.eventId, store: !segments, segments: segments });
         await snap.ref.update({
-            pushStatus: 'sent',
-            pushSentCount: sent,
-            pushAttempted: attempted,
-            pushSkippedBySegment: skippedBySegment,
-            pushTotalPlayers: totalPlayers,
-            pushWithToken: withToken,
-            pushProcessedAt: admin.firestore.FieldValue.serverTimestamp(),
+            pushStatus: 'sent', pushSentCount: r.sent, pushAttempted: r.attempted,
+            pushProcessedAt: admin.firestore.FieldValue.serverTimestamp()
         }).catch(function() {});
-
         return null;
     });
 
@@ -307,35 +167,24 @@ exports.onQuestionMessageCreated = functions
     .firestore.document('questions/{qid}/messages/{mid}')
     .onCreate(async (snap, context) => {
         var msg = snap.data() || {};
-        if (msg.authorType !== 'admin') return null;
-
         var qid = context.params.qid;
         var threadSnap = await db.collection('questions').doc(qid).get();
         if (!threadSnap.exists) return null;
         var thread = threadSnap.data() || {};
-        var userId = thread.userId;
-        if (!userId) return null;
-
-        var playerSnap = await db.collection('players').doc(userId).get();
-        if (!playerSnap.exists) return null;
-        var player = playerSnap.data() || {};
-        if (!player.fcmToken) return null;
-
-        // Build a short body preview from HTML → text
-        var raw = msg.contentHtml || '';
-        var txt = raw.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        if (txt.length > 90) txt = txt.slice(0, 90) + '…';
-
-        var title = 'رد جديد على سؤالك 💬';
-        var body = txt || (thread.title ? 'رد على: ' + thread.title : 'في رد جديد عليك');
-
-        var ok = await safeSend(
-            player.fcmToken,
-            { title: title, body: body },
-            { type: 'question_reply', questionId: qid, threadTitle: thread.title || '' },
-            userId
-        );
-        console.log('[Notif] question_reply to', userId, ok ? 'sent' : 'failed');
+        var text = L.stripHtml(msg.contentHtml || '');
+        if (msg.authorType === 'admin') {
+            if (!thread.userId) return null;
+            var m = L.message('question_answer', { text: text });
+            await notifier.notify(thread.userId, { type: 'question_answer', title: m.title, body: m.body,
+                link: { screen: 'question', id: qid } }, { id: context.eventId });
+            return null;
+        }
+        // player follow-up: skip the thread's first message (onQuestionCreated already told the admins)
+        var firstTwo = await db.collection('questions').doc(qid).collection('messages').limit(2).get();
+        if (firstTwo.size < 2) return null;
+        var a = L.message('admin_reply', { name: thread.userName || msg.authorName, text: text });
+        await notifier.notify('admins', { type: 'admin_reply', title: a.title, body: a.body,
+            link: { page: 'questions', id: qid } }, { id: context.eventId });
         return null;
     });
 
@@ -438,22 +287,19 @@ exports.dailyEveningReminder = functions
 // ============================================================
 exports.weeklyReminder = functions
     .region('europe-west1')
-    .pubsub.schedule('0 20 * * 4')       // Thursday 8 PM
+    .pubsub.schedule('0 19 * * 4')       // Thursday 7 PM (an hour before the daily reminders)
     .timeZone('Africa/Cairo')
     .onRun(async (context) => {
         var weekKey = getWeekKey();
-        var todayStr = getCairoDateStr();
-
-        var playersSnap = await db.collection('players').get();
+        var today = L.cairoDate();
+        var tokens = await notifier.playerTokenMap();
+        var playersSnap = await db.collection('players').select('exerciseLog', 'notifPrefs', 'status', 'fcmToken', 'lastRemindDate').get();
         var sent = 0;
-        var promises = [];
-
-        playersSnap.forEach(function(doc) {
+        for (const doc of playersSnap.docs) {
             var player = doc.data();
-            if (!player.fcmToken) return;
-            if (player.notifPrefs && player.notifPrefs.reminders === false) return;
-            // Don't double-send if daily already sent
-            if (player.lastNotifDate === todayStr) return;
+            var list = (tokens[doc.id] || []).concat(player.fcmToken ? [player.fcmToken] : []);
+            if (!list.length || !L.prefAllows(player.notifPrefs, 'weekly_reminder')) continue;
+            if (player.status === 'blocked' || player.status === 'suspended') continue;
 
             var exerciseLog = player.exerciseLog || {};
             var weekLog = exerciseLog[weekKey] || {};
@@ -472,19 +318,10 @@ exports.weeklyReminder = functions
                 } else {
                     msg = { title: 'فاضلك ' + (totalWeekly - weeklyDone) + ' تداريب أسبوعية! 📊', body: 'كمّل تداريبك الأسبوعية وخد نجوم إضافية' };
                 }
-                promises.push(
-                    safeSend(player.fcmToken, msg, { type: 'weekly_reminder' }, doc.id)
-                        .then(function(ok) {
-                            if (ok) {
-                                sent++;
-                                return db.collection('players').doc(doc.id).update({ lastNotifDate: todayStr });
-                            }
-                        })
-                );
+                var r = await notifier.sendToTokens(list, { type: 'weekly_reminder', title: msg.title, body: msg.body, link: { screen: 'home' } });
+                if (r.sent) { sent++; await doc.ref.update({ lastRemindDate: today }); }
             }
-        });
-
-        await Promise.all(promises);
+        }
         console.log('[Notif] Weekly reminder: sent', sent, ', total', playersSnap.size);
     });
 
@@ -531,23 +368,6 @@ exports.streakRecovery = functions
     });
 
 // ============================================================
-// 6. UPDATE NOTIFICATION PREFERENCES (callable function)
-// ============================================================
-exports.updateNotifPrefs = functions
-    .region('europe-west1')
-    .https.onCall(async (data, context) => {
-        var phone = data.phone;
-        var prefs = data.prefs;
-        if (!phone || !prefs) {
-            throw new functions.https.HttpsError('invalid-argument', 'Missing phone or prefs');
-        }
-        await db.collection('players').doc(phone).update({
-            notifPrefs: prefs,
-        });
-        return { success: true };
-    });
-
-// ============================================================
 // 7. NEW COMMENT ON POST → Notify post author
 // ============================================================
 exports.onPostCommentCreated = functions
@@ -567,19 +387,10 @@ exports.onPostCommentCreated = functions
             // Only notify if the post author is a real player (not 'system' / 'admin' generic)
             if (!post.authorId || post.authorId === 'system' || post.authorId === 'admin') return;
 
-            var authorDoc = await db.collection('players').doc(post.authorId).get();
-            if (!authorDoc.exists) return;
-            var author = authorDoc.data();
-            if (!author.fcmToken) return;
-            if (author.notifPrefs && author.notifPrefs.social === false) return;
-
             var preview = (comment.text || '').substring(0, 80);
-            var notif = {
-                title: 'تعليق جديد على منشورك 💬',
-                body:  (comment.authorName || 'حد') + ': ' + preview,
-            };
-            await safeSend(author.fcmToken, notif, { type: 'post_comment', postId: postId }, post.authorId);
-            console.log('[Notif] post_comment sent to', post.authorId);
+            await notifier.notify(post.authorId, { type: 'post_comment', title: 'تعليق جديد على منشورك 💬',
+                body: (comment.authorName || 'حد') + ': ' + preview, link: { screen: 'post', id: postId } },
+                { id: context.eventId });
         } catch (err) {
             console.error('[onPostCommentCreated] error:', err);
         }
@@ -599,26 +410,10 @@ exports.onPostCreated = functions
         if (post.status && post.status !== 'approved') return;
 
         try {
-            var playersSnap = await db.collection('players').get();
             var preview = (post.text || '').substring(0, 100);
-            var msg = {
-                title: 'منشور جديد من الخدّام 📢',
-                body: preview || 'ادخل شوف المنشور الجديد',
-            };
-            var promises = [];
-            var sent = 0;
-            playersSnap.forEach(function(doc) {
-                var p = doc.data();
-                if (!p.fcmToken) return;
-                if (p.status === 'blocked' || p.status === 'suspended') return;
-                if (p.notifPrefs && p.notifPrefs.social === false) return;
-                promises.push(
-                    safeSend(p.fcmToken, msg, { type: 'new_post', postId: context.params.postId }, doc.id)
-                        .then(function(ok) { if (ok) sent++; })
-                );
-            });
-            await Promise.all(promises);
-            console.log('[Notif] new admin post sent to', sent);
+            await notifier.notify('all', { type: 'post', title: 'منشور جديد من الخدّام 📢',
+                body: preview || 'ادخل شوف المنشور الجديد', link: { screen: 'post', id: context.params.postId } },
+                { id: context.eventId });
         } catch (err) {
             console.error('[onPostCreated] error:', err);
         }

@@ -2762,6 +2762,7 @@ function enterApp() {
     if(first) goPage(first.key);
   }
   loadAll();
+  startLiveCounters();
   setNotifBtn(false);
   if('Notification' in window && Notification.permission==='granted') enableAdminPush(true);
   setTimeout(replayPendingAdminLink, 300);
@@ -2769,6 +2770,7 @@ function enterApp() {
 
 function doLogout() {
   disableAdminPush();
+  stopLiveCounters(); document.title=BASE_TITLE;
   clearSession();
   me=null;
   document.getElementById('app').style.display='none';
@@ -3074,6 +3076,38 @@ async function submitRequest() {
 }
 
 // ════════════════════════════════
+//  LIVE COUNTERS (badges + tab title + sound)
+// ════════════════════════════════
+const _liveCounts = {}; let _liveUnsubs = [], _reloadTimer = null;
+const BASE_TITLE = document.title;
+function startLiveCounters(){
+  stopLiveCounters();
+  [['rewards', db.collection('reward_requests').where('fulfilled','==',false)],
+   ['adminReqs', db.collection('admin_requests').where('status','==','pending')],
+   ['reports', db.collection('playerReports').where('status','==','pending')]].forEach(([k,q])=>{
+    _liveUnsubs.push(q.onSnapshot(s=>{
+      const prev=_liveCounts[k]; _liveCounts[k]=s.size;
+      if(prev!==undefined && s.size>prev){ adminPing(); clearTimeout(_reloadTimer); _reloadTimer=setTimeout(loadAll,3000); }
+      updateBadges(); updateTitleCount();
+    }, e=>console.warn('[live]',k,e)));
+  });
+}
+function stopLiveCounters(){ _liveUnsubs.forEach(u=>{try{u();}catch(e){}}); _liveUnsubs=[]; Object.keys(_liveCounts).forEach(k=>delete _liveCounts[k]); }
+function updateTitleCount(){
+  const q=(QA.threads||[]).filter(t=>t.unreadForAdmin).length;
+  const n=q+(_liveCounts.rewards||0)+(_liveCounts.adminReqs||0)+(_liveCounts.reports||0);
+  document.title = n ? '('+n+') '+BASE_TITLE : BASE_TITLE;
+}
+function adminPing(){
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [880,1175].forEach((f,i)=>{ const o=ctx.createOscillator(), g=ctx.createGain();
+      o.frequency.value=f; g.gain.setValueAtTime(.12,ctx.currentTime+i*.14); g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+i*.14+.18);
+      o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+i*.14); o.stop(ctx.currentTime+i*.14+.2); });
+  }catch(e){}
+}
+
+// ════════════════════════════════
 //  AUTO-LOGIN CHECK
 // ════════════════════════════════
 (function() {
@@ -3255,20 +3289,20 @@ function goPage(name) {
 //  BADGES
 // ════════════════════════════════
 function updateBadges() {
-  const pend = rewards.filter(r=>!r.fulfilled).length;
+  const pend = _liveCounts.rewards ?? rewards.filter(r=>!r.fulfilled).length;
   const nb=document.getElementById('nav-rewards');
   let b=nb.querySelector('.nbadge');
   if(pend>0){if(!b){b=document.createElement('span');b.className='nbadge';nb.appendChild(b);}b.textContent=pend;}
   else if(b) b.remove();
 
-  const arpend = adminReqs.filter(r=>r.status==='pending').length;
+  const arpend = _liveCounts.adminReqs ?? adminReqs.filter(r=>r.status==='pending').length;
   const na=document.getElementById('nav-admins');
   if(na){let ab=na.querySelector('.nbadge');
     if(arpend>0){if(!ab){ab=document.createElement('span');ab.className='nbadge';na.appendChild(ab);}ab.textContent=arpend;}
     else if(ab) ab.remove();}
 
   // Player reports badge
-  const rpend = (playerReports||[]).filter(r=>r.status==='pending'||!r.status).length;
+  const rpend = _liveCounts.reports ?? (playerReports||[]).filter(r=>r.status==='pending'||!r.status).length;
   const nr=document.getElementById('nav-reports');
   if(nr){let rb=nr.querySelector('.nbadge');
     if(rpend>0){if(!rb){rb=document.createElement('span');rb.className='nbadge';nr.appendChild(rb);}rb.textContent=rpend;}
@@ -6703,6 +6737,9 @@ function qaFilteredThreads(){
 
 function qaUpdateNavBadge(){
   const unread=QA.threads.filter(t=>t.unreadForAdmin).length;
+  if(QA._lastUnread!==undefined && unread>QA._lastUnread) adminPing();
+  QA._lastUnread=unread;
+  updateTitleCount();
   const badge=document.getElementById('nav-questions-badge');
   if(badge){
     if(unread>0){badge.textContent=unread>99?'99+':unread;badge.style.display='inline-flex';}

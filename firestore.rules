@@ -119,5 +119,48 @@ service cloud.firestore {
     match /selfieSubmissions/{submissionId} {
       allow read, write: if true;
     }
+
+    // ── Notifications ── no Firebase Auth: rules only bound the shape of what clients may write.
+    // Written by Cloud Functions only (Admin SDK bypasses rules).
+    match /notifications/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /notifySent/{id} {
+      allow read, write: if false;
+    }
+    match /inviteGuard/{id} {
+      allow read, write: if false;
+    }
+    match /pushTokens/{token} {
+      allow read: if false;
+      allow delete: if true;
+      allow create, update: if request.resource.data.keys().hasOnly(['owner', 'role', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['owner', 'role', 'updatedAt'])
+        && request.resource.data.owner is string && request.resource.data.owner.size() <= 64
+        && request.resource.data.role in ['player', 'admin']
+        && request.resource.data.updatedAt is int;
+    }
+    match /notifyQueue/{id} {
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['type', 'key', 'title', 'level', 'createdAt'])
+        && request.resource.data.keys().hasAll(['type', 'key', 'title', 'level', 'createdAt'])
+        && request.resource.data.type == 'lesson_unlock'
+        && request.resource.data.key is string
+        && request.resource.data.key.matches('^(lesson|subject|level)_[a-z0-9_]+$')
+        && request.resource.data.title is string && request.resource.data.title.size() <= 80
+        && request.resource.data.level in [0, 1, 2]
+        && get(/databases/$(database)/documents/gameContent/locks).data[request.resource.data.key].locked == false;
+    }
+    match /invites/{id} {
+      allow read, update, delete: if false;
+      allow create: if request.resource.data.keys().hasOnly(['kind', 'from', 'fromName', 'to', 'code', 'createdAt'])
+        && request.resource.data.keys().hasAll(['kind', 'from', 'fromName', 'to', 'code', 'createdAt'])
+        && request.resource.data.kind in ['duel', 'room']
+        && request.resource.data.from is string && request.resource.data.to is string
+        && request.resource.data.from != request.resource.data.to
+        && request.resource.data.fromName is string && request.resource.data.fromName.size() <= 60
+        && request.resource.data.code is string && request.resource.data.code.size() <= 12;
+    }
   }
 }

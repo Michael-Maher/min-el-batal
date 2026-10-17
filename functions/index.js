@@ -189,6 +189,37 @@ exports.onQuestionMessageCreated = functions
     });
 
 // ============================================================
+// ADMIN ALERTS — every admin device gets every alert
+// ============================================================
+function adminAlert(type, vars, link) {
+    var m = L.message(type, vars);
+    return { type: type, title: m.title, body: m.body, link: link, tag: type + '_' + (link.id || '') };
+}
+exports.onQuestionCreated = functions.region('europe-west1')
+    .firestore.document('questions/{qid}').onCreate(async (snap, context) => {
+        var q = snap.data() || {};
+        await notifier.notify('admins', adminAlert('admin_question', { name: q.userName, title: q.title },
+            { page: 'questions', id: context.params.qid }), { id: context.eventId });
+    });
+exports.onPlayerReportCreated = functions.region('europe-west1')
+    .firestore.document('playerReports/{rid}').onCreate(async (snap, context) => {
+        var r = snap.data() || {};
+        await notifier.notify('admins', adminAlert('admin_report',
+            { reporter: r.reporterName, reported: r.reportedName, reason: r.reason }, { page: 'reports' }), { id: context.eventId });
+    });
+exports.onRewardRequestCreated = functions.region('europe-west1')
+    .firestore.document('reward_requests/{rid}').onCreate(async (snap, context) => {
+        var r = snap.data() || {};
+        await notifier.notify('admins', adminAlert('admin_reward', { name: r.playerName, reward: r.rewardName },
+            { page: 'rewards' }), { id: context.eventId });
+    });
+exports.onAdminRequestCreated = functions.region('europe-west1')
+    .firestore.document('admin_requests/{rid}').onCreate(async (snap, context) => {
+        var r = snap.data() || {};
+        await notifier.notify('admins', adminAlert('admin_request', { name: r.name }, { page: 'admins' }), { id: context.eventId });
+    });
+
+// ============================================================
 // 3. DAILY EVENING REMINDER (8 PM Cairo)
 //    Priority: inactivity > incomplete exercises
 //    Only sends 1 notification per user (the highest priority one)

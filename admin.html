@@ -2764,7 +2764,7 @@ function enterApp() {
   loadAll();
   setNotifBtn(false);
   if('Notification' in window && Notification.permission==='granted') enableAdminPush(true);
-  setTimeout(openAdminHash, 1200);
+  setTimeout(replayPendingAdminLink, 300);
 }
 
 function doLogout() {
@@ -2786,7 +2786,7 @@ let _adminPushToken = null;
 function adminPushSupported(){ return 'serviceWorker' in navigator && 'Notification' in window && firebase.messaging && firebase.messaging.isSupported && firebase.messaging.isSupported(); }
 function setNotifBtn(on){
   const b=document.getElementById('btn-notif'); if(!b) return;
-  b.style.display = adminPushSupported() ? '' : 'none';
+  b.style.display = '';
   b.querySelector('span').textContent = on ? 'الإشعارات مفعّلة ✓' : 'فعّل الإشعارات';
   b.disabled = !!on;
 }
@@ -2797,7 +2797,7 @@ async function enableAdminPush(silent){
     if(perm!=='granted'){ if(!silent) toast('لازم تسمح بالإشعارات من إعدادات المتصفح','err'); setNotifBtn(false); return; }
     const reg = await navigator.serviceWorker.register('/admin-sw.js', { scope: '/admin.html' });
     const token = await firebase.messaging().getToken({ vapidKey: ADMIN_VAPID, serviceWorkerRegistration: reg });
-    if(!token) return;
+    if(!token || !me) return;
     _adminPushToken = token;
     await db.collection('pushTokens').doc(token).set({ owner: 'admin:'+(me._id||'super'), role: 'admin', updatedAt: Date.now() });
     setNotifBtn(true);
@@ -2809,10 +2809,19 @@ function disableAdminPush(){
   db.collection('pushTokens').doc(_adminPushToken).delete().catch(()=>{});
   _adminPushToken=null;
 }
+let _pendingAdminLink = null;
 function openAdminLink(link){
   if(!link || !link.page) return;
+  if(!me){ _pendingAdminLink = link; return; }
   goPage(link.page);
-  if(link.page==='questions' && link.id) setTimeout(()=>qaOpenThread(link.id), 800);
+  if(link.page==='questions' && link.id){
+    let tries = 0;
+    const t = setInterval(()=>{
+      tries++;
+      if(typeof QA!=='undefined' && QA.threads && QA.threads.some(x=>x._id===link.id)){ clearInterval(t); qaOpenThread(link.id); }
+      else if(tries>=20) clearInterval(t);
+    }, 500);
+  }
   if(link.page==='reports' && typeof rptTab==='function') rptTab('reports');
 }
 function openAdminHash(){
@@ -2821,6 +2830,10 @@ function openAdminHash(){
   const parts = h.split('/');
   history.replaceState(null,'',location.pathname);
   openAdminLink({ page: parts[0], id: parts[1] });
+}
+function replayPendingAdminLink(){
+  openAdminHash();
+  if(_pendingAdminLink){ const l=_pendingAdminLink; _pendingAdminLink=null; openAdminLink(l); }
 }
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', e=>{ if(e.data && e.data.type==='admin-notif-open') openAdminLink(e.data.link); });

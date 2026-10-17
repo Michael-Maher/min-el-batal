@@ -34,12 +34,12 @@ function fakeDb(data) {
         collection: (col) => Object.assign(query(col, []), { doc: (id) => ref(col, id || 'auto' + (++auto)) })
     };
 }
-function fakeMessaging(dead) {
+function fakeMessaging(dead, code = 'messaging/registration-token-not-registered') {
     const sent = [];
     return { sent, sendEach: async (msgs) => {
         sent.push(...msgs);
         return { responses: msgs.map((m) => dead.includes(m.token)
-            ? { success: false, error: { code: 'messaging/registration-token-not-registered' } }
+            ? { success: false, error: { code } }
             : { success: true }) };
     } };
 }
@@ -105,6 +105,13 @@ test('dead tokens are deleted (token doc and legacy field)', async () => {
     await makeNotifier({ db, messaging: m, FieldValue }).notify('level_1', MSG);
     assert.deepStrictEqual(db.deletes.filter((d) => d.col === 'pushTokens').map((d) => d.id), ['t1']);
     assert.ok(db.updates.some((u) => u.col === 'players' && u.id === '0105' && u.d.fcmToken === 'DEL'));
+});
+
+test('invalid-argument (payload error) deletes no token docs and no legacy fields', async () => {
+    const db = world(), m = fakeMessaging(['t1', 't1b', 'legacy5'], 'messaging/invalid-argument');
+    await makeNotifier({ db, messaging: m, FieldValue }).notify('level_1', MSG);
+    assert.deepStrictEqual(db.deletes, []);
+    assert.deepStrictEqual(db.updates, []);
 });
 
 test('store:false writes nothing; duplicates send once', async () => {

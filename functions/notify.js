@@ -3,7 +3,7 @@
 'use strict';
 var L = require('./notify-logic');
 
-var DEAD = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token', 'messaging/invalid-argument'];
+var DEAD = ['messaging/registration-token-not-registered', 'messaging/invalid-registration-token'];
 var PLAYER_FIELDS = ['playerLevel', 'teamLevel', 'stationScores', 'notifPrefs', 'status', 'fcmToken',
     'gender', 'team', 'academicYear', 'lastActiveDate', 'lampData', 'stars'];
 

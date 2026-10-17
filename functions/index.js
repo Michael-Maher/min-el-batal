@@ -287,6 +287,7 @@ exports.dailyEveningReminder = functions
 // ============================================================
 exports.weeklyReminder = functions
     .region('europe-west1')
+    .runWith({ timeoutSeconds: 300 })
     .pubsub.schedule('0 19 * * 4')       // Thursday 7 PM (an hour before the daily reminders)
     .timeZone('Africa/Cairo')
     .onRun(async (context) => {

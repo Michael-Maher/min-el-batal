@@ -13,7 +13,8 @@ function grab(name) {
     }
     throw new Error('unbalanced ' + name);
 }
-var FNS = ['registerPushToken', 'unregisterPushToken', 'openNotifLink', 'checkPendingNotif', 'cairoDateKey'];
+var FNS = ['registerPushToken', 'unregisterPushToken', 'openNotifLink', 'checkPendingNotif', 'cairoDateKey',
+    'notifMs', 'notifUnreadCount', 'notifVisibleForMe', 'notifAudiences'];
 function grabVar(name) {
     var m = src.match(new RegExp('var ' + name + ' = [^;]+;'));
     if (!m) throw new Error('missing var ' + name);
@@ -43,6 +44,8 @@ function makeCtx(gs, perm, fetched) {
      'joinDuelByCode', 'autoJoinRoom', 'openSocialPost'].forEach(function(f) {
         ctx[f] = function(a) { calls.push([f, a]); };
     });
+    ctx.playerLevelOf = function(g) { return g.playerLevel || 1; };
+    ctx.competeMyLevel = function() { return ctx.GameState.teamLevel || ctx.GameState.playerLevel || 1; };
     ctx.LEVEL1_SUBJECTS = { l1_bible: {}, l2_bible: {} };
     vm.createContext(ctx);
     vm.runInContext(code, ctx);
@@ -51,6 +54,20 @@ function makeCtx(gs, perm, fetched) {
 var tests = [];
 function test(n, f) { tests.push([n, f]); }
 function last(ctx, name) { return ctx.calls.filter(function(c) { return c[0] === name; }).pop(); }
+
+test('unread = newer than notifSeenAt', function() {
+    var ctx = makeCtx({ playerPhone: '0101' });
+    var ts = function(ms) { return { toMillis: function() { return ms; } }; };
+    assert.strictEqual(ctx.notifUnreadCount([{ createdAt: ts(5) }, { createdAt: ts(10) }, { createdAt: null }], 6), 1);
+});
+test('level items follow levelBy', function() {
+    var ctx = makeCtx({ playerPhone: '0101', playerLevel: 1, teamLevel: 2 });
+    assert.strictEqual(ctx.notifVisibleForMe({ audience: 'level_1', levelBy: 'content' }), true);
+    assert.strictEqual(ctx.notifVisibleForMe({ audience: 'level_2', levelBy: 'content' }), false);
+    assert.strictEqual(ctx.notifVisibleForMe({ audience: 'level_2', levelBy: 'compete' }), true);
+    assert.strictEqual(ctx.notifVisibleForMe({ audience: '0101' }), true);
+    assert.deepStrictEqual(Array.from(ctx.notifAudiences()).sort(), ['0101', 'all', 'level_1', 'level_2']);
+});
 
 test('register writes owner and drops legacy field; unregister deletes', function() {
     var ctx = makeCtx({ playerPhone: '0101' });

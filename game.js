@@ -67,6 +67,7 @@ const GameState = {
     exerciseLog: {},       // { '2026-03-26': { daily: [...], weekly: '...' } }
     bibleChapter: 1,        // Current chapter in Mark (1-16)
     highlightedVerses: {},   // { 'mark_1': [0, 5, 12], ... }
+    notifSeenAt: 0,
     lessonSummaries: {},      // { 'faith_0': { text: '...', image: '...', date: '...' } }
     watchedVideos: {},        // { 'faith_lesson_0_video': true, ... }
     xp: 0,
@@ -1345,6 +1346,7 @@ function loadFromCloud(phone) {
             if (doc.exists) {
                 const data = doc.data();
                 mergeCloudIntoGameState(data);
+                GameState.notifSeenAt = Math.max(GameState.notifSeenAt || 0, +data.notifSeenAt || 0);
                 _cloudSync = { phone: phone, id: data.syncId || '' };   // just merged: the next save needn't re-read it
                 console.log('Game loaded from cloud for', phone);
                 // Save merged state to localStorage AND back to cloud to keep all devices in sync
@@ -18221,6 +18223,85 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', function(e) {
         if (e.data && e.data.type === 'notif-open') openNotifLink(e.data.link);
     });
+}
+
+// ---- Bell inbox: notifications for me, my level(s) and everyone ----
+var _notifItems = [], _notifUnsub = null;
+function notifAudiences() {
+    var a = [GameState.playerPhone, 'all'];
+    ['level_' + playerLevelOf(GameState), 'level_' + competeMyLevel()].forEach(function(x) { if (a.indexOf(x) < 0) a.push(x); });
+    return a;
+}
+function notifVisibleForMe(n) {
+    if (!/^level_/.test(n.audience || '')) return true;
+    var lv = n.levelBy === 'compete' ? competeMyLevel() : playerLevelOf(GameState);
+    return n.audience === 'level_' + lv;
+}
+function notifMs(n) { return n && n.createdAt && n.createdAt.toMillis ? n.createdAt.toMillis() : 0; }
+function notifUnreadCount(items, seenAt) {
+    return items.filter(function(n) { return notifMs(n) > (seenAt || 0); }).length;
+}
+function subscribeNotifInbox() {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    unsubscribeNotifInbox();
+    _notifUnsub = firebaseDb.collection('notifications').where('audience', 'in', notifAudiences())
+        .orderBy('createdAt', 'desc').limit(30)
+        .onSnapshot(function(snap) {
+            _notifItems = [];
+            snap.forEach(function(d) { var n = d.data(); n.id = d.id; if (notifVisibleForMe(n)) _notifItems.push(n); });
+            updateNotifBadge();
+        }, function(err) { console.warn('[inbox]', err); });
+}
+function unsubscribeNotifInbox() {
+    if (_notifUnsub) { try { _notifUnsub(); } catch (e) {} _notifUnsub = null; }
+    _notifItems = [];
+    updateNotifBadge();
+}
+function refreshNotifBadgeSoon() { updateNotifBadge(); }   // the onSnapshot listener delivers the item itself
+function updateNotifBadge() {
+    var el = document.getElementById('gx-notif-badge');
+    if (!el) return;
+    var c = notifUnreadCount(_notifItems, GameState.notifSeenAt);
+    el.textContent = c > 9 ? '9+' : String(c);
+    el.style.display = c ? '' : 'none';
+}
+function notifAgo(ms) {
+    var m = Math.floor((Date.now() - ms) / 60000);
+    if (m < 1) return 'دلوقتي';
+    if (m < 60) return 'من ' + m + ' دقيقة';
+    var h = Math.floor(m / 60);
+    if (h < 24) return 'من ' + h + ' ساعة';
+    return 'من ' + Math.floor(h / 24) + ' يوم';
+}
+function openNotifInbox() {
+    var seen = GameState.notifSeenAt || 0;
+    var html = '<div class="modal-card notif-inbox" style="max-width:380px;direction:rtl">' +
+        '<h3 class="notif-inbox-h">🔔 الإشعارات</h3><div class="notif-inbox-list">';
+    if (!_notifItems.length) html += '<p class="notif-empty">مفيش إشعارات لسه… أول ما يحصل جديد هتلاقيه هنا ✨</p>';
+    _notifItems.forEach(function(n, i) {
+        html += '<div class="notif-item' + (notifMs(n) > seen ? ' notif-item--new' : '') + '" onclick="openNotifItem(' + i + ')">' +
+            '<b>' + escapeHtml(n.title || '') + '</b><span>' + escapeHtml(n.body || '') + '</span>' +
+            '<small>' + notifAgo(notifMs(n)) + '</small></div>';
+    });
+    html += '</div><button class="btn btn-secondary" style="width:100%;margin-top:12px" onclick="closeNotifInbox()"><span>إغلاق</span></button></div>';
+    var ov = document.createElement('div');
+    ov.className = 'modal-overlay'; ov.id = 'notif-inbox-overlay'; ov.innerHTML = html;
+    document.body.appendChild(ov);
+    setTimeout(function() { ov.classList.add('active'); }, 10);
+    GameState.notifSeenAt = Date.now();
+    updateNotifBadge();
+    if (firebaseDb && GameState.playerPhone) {
+        firebaseDb.collection('players').doc(GameState.playerPhone).update({ notifSeenAt: GameState.notifSeenAt }).catch(function() {});
+    }
+}
+function closeNotifInbox() {
+    var ov = document.getElementById('notif-inbox-overlay');
+    if (ov) { ov.classList.remove('active'); setTimeout(function() { ov.remove(); }, 300); }
+}
+function openNotifItem(i) {
+    var n = _notifItems[i];
+    closeNotifInbox();
+    if (n) openNotifLink(n.link);
 }
 
 // Auto-init notifications after login (delayed to not annoy users immediately)

@@ -33,7 +33,7 @@ function prefAllows(prefs, type) {
     return !c || !prefs || prefs[c] !== false;
 }
 
-function firstName(name) { return String(name || '').trim().split(/\s+/)[0] || 'يا بطل'; }
+function firstName(name) { return String(name || '').trim().split(/\s+/)[0] || 'بطل'; }
 function stripHtml(html) {
     if (!html) return '';
     var text = String(html).replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -49,7 +49,7 @@ var INACTIVE = [
 ];
 var VERSES = [
     '«سراج لرجلي كلامك ونور لسبيلي» — اقرا أصحاح النهارده',
-    '«كلامك حلو لحلقي أحلى من العسل» — خمس دقايق مع الإنجيل',
+    '«مَا أَحْلَى قَوْلَكَ لِحَنَكِي! أَحْلَى مِنَ الْعَسَلِ لِفَمِي» (مزمور 119: 103) — خمس دقايق مع الإنجيل',
     '«طوبى للذي يقرأ» — كمّل قراءتك وخد نجومك',
     '«كلمة الله حية وفعالة» — أصحاح النهارده مستنيك'
 ];
@@ -162,9 +162,26 @@ function tournamentTeamIds(t) {
     return out;
 }
 
-// One teammate invite push per sender/receiver pair per 10 minutes
+// One teammate invite push per sender/receiver/code per 10 minutes: a new duel or room code still goes out
 function inviteAllowed(lastAtMs, nowMs) { return !lastAtMs || nowMs - lastAtMs >= 10 * 60000; }
+function inviteGuardId(from, to, code) {
+    return [from, to, code].map(function(x) { return String(x || '').replace(/[^A-Za-z0-9_-]/g, ''); }).join('_');
+}
 
-module.exports = { inviteAllowed, cairoDate, daysBetween, playerLevelOf, matchesLevel, categoryOf, prefAllows, message,
+// A legacy players.fcmToken still gets pushes unless that token is now a pushTokens doc: pushTokens is
+// authoritative (the device belongs to that doc's owner, or was already counted for this player).
+function legacyTokenUsable(token, known) { return !!token && !(known && known[token]); }
+function tokenSet(map) {
+    var known = {};
+    Object.keys(map || {}).forEach(function(o) { (map[o] || []).forEach(function(t) { known[t] = 1; }); });
+    return known;
+}
+
+// Runs fn over items `size` at a time; fn handles its own errors.
+async function inChunks(items, size, fn) {
+    for (var i = 0; i < items.length; i += size) await Promise.all(items.slice(i, i + size).map(fn));
+}
+
+module.exports = { inviteAllowed, inviteGuardId, legacyTokenUsable, tokenSet, inChunks, cairoDate, daysBetween, playerLevelOf, matchesLevel, categoryOf, prefAllows, message,
     reminderFor, parseLockKey, unlockMessage, stripHtml, firstName, playerMatchesSegments,
     selfieDue, arabicDay, tournamentTeamIds };

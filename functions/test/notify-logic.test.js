@@ -87,7 +87,13 @@ test('parseLockKey', () => {
 test('stripHtml and firstName', () => {
     assert.strictEqual(L.stripHtml('<p>سلام&nbsp;<b>ليك</b></p>'), 'سلام ليك');
     assert.strictEqual(L.firstName('  ريتا هاني '), 'ريتا');
-    assert.strictEqual(L.firstName(''), 'يا بطل');
+    assert.strictEqual(L.firstName(''), 'بطل');
+    assert.strictEqual(L.message('remind_inactive', {}).title, 'وحشتنا يا بطل! 💛');
+});
+
+test('Psalm 119:103 is quoted in Van Dyck wording', () => {
+    const bodies = [0, 1, 2, 3].map((seed) => L.message('remind_bible', { seed }).body);
+    assert.ok(bodies.includes('«مَا أَحْلَى قَوْلَكَ لِحَنَكِي! أَحْلَى مِنَ الْعَسَلِ لِفَمِي» (مزمور 119: 103) — خمس دقايق مع الإنجيل'));
 });
 
 test('unlockMessage per key kind', () => {
@@ -143,9 +149,32 @@ test('selfieDue boundaries: startAt == now is due, endAt == now is not', () => {
     assert.strictEqual(L.selfieDue({ enabled: true, startAt: now, endAt: now + 1000 }, now), true);
     assert.strictEqual(L.selfieDue({ enabled: true, startAt: now - 1000, endAt: now }, now), false);
 });
-test('invite rate limit 10 minutes per pair', () => {
+test('invite rate limit 10 minutes per pair and code', () => {
     const now = 1_000_000_000;
     assert.strictEqual(L.inviteAllowed(0, now), true);
     assert.strictEqual(L.inviteAllowed(now - 9 * 60000, now), false);
     assert.strictEqual(L.inviteAllowed(now - 10 * 60000, now), true);
+    assert.strictEqual(L.inviteGuardId('0101', '0102', 'AB12CD'), '0101_0102_AB12CD');
+    assert.notStrictEqual(L.inviteGuardId('0101', '0102', 'AB12CD'), L.inviteGuardId('0101', '0102', 'ZZ99ZZ'));
+    assert.strictEqual(L.inviteGuardId('01/01', '0102', 'a b'), '0101_0102_ab');
+});
+
+test('legacy token is skipped when it is a pushTokens doc', () => {
+    const known = L.tokenSet({ '0101': ['t1', 't1b'], '0102': ['t2'] });
+    assert.deepStrictEqual(Object.keys(known).sort(), ['t1', 't1b', 't2']);
+    assert.strictEqual(L.legacyTokenUsable('t2', known), false);
+    assert.strictEqual(L.legacyTokenUsable('legacy5', known), true);
+    assert.strictEqual(L.legacyTokenUsable('', known), false);
+});
+
+test('inChunks runs every item, at most `size` at once', async () => {
+    let running = 0, peak = 0;
+    const done = [];
+    await L.inChunks([1, 2, 3, 4, 5, 6, 7], 3, async (x) => {
+        running++; peak = Math.max(peak, running);
+        await new Promise((r) => setTimeout(r, 1));
+        done.push(x); running--;
+    });
+    assert.deepStrictEqual(done.sort(), [1, 2, 3, 4, 5, 6, 7]);
+    assert.strictEqual(peak, 3);
 });

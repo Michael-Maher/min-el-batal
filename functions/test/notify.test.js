@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const { makeNotifier } = require('../notify');
 
 function fakeDb(data) {
-    const writes = [], deletes = [], updates = [];
+    const writes = [], deletes = [], updates = [], queries = [];
     function snap(col, id, d) { return { id, exists: !!d, data: () => d, ref: ref(col, id) }; }
     function ref(col, id) {
         return {
@@ -21,6 +21,7 @@ function fakeDb(data) {
             where: (f, op, v) => query(col, filters.concat([[f, op, v]])),
             select: () => query(col, filters),
             get: async () => {
+                queries.push({ col, filters });
                 const docs = Object.entries(data[col] || {}).filter(([, d]) =>
                     filters.every(([f, op, v]) => op === '==' ? d[f] === v : op === 'in' ? v.includes(d[f]) : true))
                     .map(([id, d]) => snap(col, id, d));
@@ -30,7 +31,7 @@ function fakeDb(data) {
     }
     let auto = 0;
     return {
-        writes, deletes, updates,
+        writes, deletes, updates, queries,
         collection: (col) => Object.assign(query(col, []), { doc: (id) => ref(col, id || 'auto' + (++auto)) })
     };
 }
@@ -121,4 +122,34 @@ test('store:false writes nothing; duplicates send once', async () => {
     assert.deepStrictEqual(m.sent.map((x) => x.token), ['a', 'b']);
     await n.notify('0101', MSG, { store: false });
     assert.strictEqual(db.writes.filter((w) => w.col === 'notifications').length, 0);
+});
+
+test('single player reads only that player\'s token docs', async () => {
+    const db = world(), m = fakeMessaging([]);
+    await makeNotifier({ db, messaging: m, FieldValue }).notify('0101', MSG);
+    assert.deepStrictEqual(m.sent.map((x) => x.token).sort(), ['t1', 't1b']);
+    const tokenQueries = db.queries.filter((q) => q.col === 'pushTokens');
+    assert.strictEqual(tokenQueries.length, 1);
+    assert.deepStrictEqual(tokenQueries[0].filters, [['owner', '==', '0101']]);
+});
+
+test('single player: legacy token kept, but not when it is now another account\'s token doc', async () => {
+    const db = world(), m = fakeMessaging([]);
+    const n = makeNotifier({ db, messaging: m, FieldValue });
+    await n.notify('0105', MSG);
+    assert.deepStrictEqual(m.sent.map((x) => x.token), ['legacy5']);
+    const db2 = fakeDb({ players: { '0105': { playerLevel: 1, fcmToken: 't2' } }, pushTokens: { t2: { owner: '0102', role: 'player' } } });
+    const m2 = fakeMessaging([]);
+    await makeNotifier({ db: db2, messaging: m2, FieldValue }).notify('0105', MSG);
+    assert.strictEqual(m2.sent.length, 0);
+});
+
+test('level audience: a legacy token that is another player\'s token doc is skipped', async () => {
+    const db = fakeDb({
+        players: { '0102': { playerLevel: 2 }, '0105': { playerLevel: 1, fcmToken: 't2' } },
+        pushTokens: { t2: { owner: '0102', role: 'player' } }
+    });
+    const m = fakeMessaging([]);
+    await makeNotifier({ db, messaging: m, FieldValue }).notify('level_1', MSG);
+    assert.strictEqual(m.sent.length, 0, 'the level-2 player\'s device gets no level-1 push');
 });

@@ -60,7 +60,7 @@ Live: https://min-el-batal.web.app
 | `notifyQueue` | Admin asks for a lesson/subject/level unlock push. Create-only from admin panel; functions send and delete it |
 | `invites` | Teammate duel/room invites. Create-only from game; deleted after 1 day |
 | `notifySent` | Dedupe markers for one-shot pushes. Functions only |
-| `inviteGuard` | 10-minute rate limit per from→to pair. Functions only |
+| `inviteGuard` | 10-minute rate limit per from→to→code (doc id `from_to_code`, cleaned daily after 1 day). Functions only |
 
 ## GameState (player-side global)
 Lives at the top of `game.js`. Loaded from Firestore on login (key = phone), saved back via `saveToCloud()`. Critical fields:

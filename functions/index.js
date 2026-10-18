@@ -28,6 +28,8 @@ var WEEKLY_MESSAGES = [
     { title: 'القداس والاجتماع! ⛪', body: 'الأسبوع قرّب يخلص، خلّصت تداريبك الأسبوعية؟' },
 ];
 
+var REMIND_CHUNK = 25;   // reminder players sent in parallel
+
 // ============================================================
 // Helper: pick random message from pool
 // ============================================================
@@ -108,7 +110,7 @@ exports.onQuestionMessageCreated = functions
         if (firstTwo.size < 2) return null;
         var a = L.message('admin_reply', { name: thread.userName || msg.authorName, text: text });
         await notifier.notify('admins', { type: 'admin_reply', title: a.title, body: a.body,
-            link: { page: 'questions', id: qid } }, { id: context.eventId });
+            link: { page: 'questions', id: qid }, tag: 'admin_reply_' + qid }, { id: context.eventId });
         return null;
     });
 
@@ -149,43 +151,46 @@ exports.onAdminRequestCreated = functions.region('europe-west1')
 // ============================================================
 exports.weeklyReminder = functions
     .region('europe-west1')
-    .runWith({ timeoutSeconds: 300 })
+    .runWith({ timeoutSeconds: 540 })
     .pubsub.schedule('0 19 * * 4')       // Thursday 7 PM (an hour before the daily reminders)
     .timeZone('Africa/Cairo')
     .onRun(async (context) => {
         var weekKey = getWeekKey();
         var today = L.cairoDate();
         var tokens = await notifier.playerTokenMap();
+        var known = L.tokenSet(tokens);
         var playersSnap = await db.collection('players').select('exerciseLog', 'notifPrefs', 'status', 'fcmToken', 'lastRemindDate').get();
         var sent = 0;
-        for (const doc of playersSnap.docs) {
-            var player = doc.data();
-            var list = (tokens[doc.id] || []).slice();
-            if (player.fcmToken && list.indexOf(player.fcmToken) === -1) list.push(player.fcmToken);
-            if (!list.length || !L.prefAllows(player.notifPrefs, 'weekly_reminder')) continue;
-            if (player.status === 'blocked' || player.status === 'suspended') continue;
+        await L.inChunks(playersSnap.docs, REMIND_CHUNK, async function(doc) {
+            try {
+                var player = doc.data() || {};
+                var list = (tokens[doc.id] || []).slice();
+                if (L.legacyTokenUsable(player.fcmToken, known)) list.push(player.fcmToken);
+                if (!list.length || !L.prefAllows(player.notifPrefs, 'weekly_reminder')) return;
+                if (player.status === 'blocked' || player.status === 'suspended') return;
 
-            var exerciseLog = player.exerciseLog || {};
-            var weekLog = exerciseLog[weekKey] || {};
-            var weeklyDone = 0;
-            if (typeof weekLog.weekly === 'string') {
-                weeklyDone = weekLog.weekly.split(',').filter(Boolean).length;
-            } else if (Array.isArray(weekLog.weekly)) {
-                weeklyDone = weekLog.weekly.length;
-            }
-
-            var totalWeekly = 5;
-            if (weeklyDone < totalWeekly) {
-                var msg = pickRandom(WEEKLY_MESSAGES);
-                if (weeklyDone === 0) {
-                    msg = { title: 'فاكر تداريبك الأسبوعية؟ ⛪', body: 'لسه متعملش أي تدريب أسبوعي، كمّل قبل ما الأسبوع يخلص' };
-                } else {
-                    msg = { title: 'فاضلك ' + (totalWeekly - weeklyDone) + ' تداريب أسبوعية! 📊', body: 'كمّل تداريبك الأسبوعية وخد نجوم إضافية' };
+                var exerciseLog = player.exerciseLog || {};
+                var weekLog = exerciseLog[weekKey] || {};
+                var weeklyDone = 0;
+                if (typeof weekLog.weekly === 'string') {
+                    weeklyDone = weekLog.weekly.split(',').filter(Boolean).length;
+                } else if (Array.isArray(weekLog.weekly)) {
+                    weeklyDone = weekLog.weekly.length;
                 }
-                var r = await notifier.sendToTokens(list, { type: 'weekly_reminder', title: msg.title, body: msg.body, link: { screen: 'home' } });
-                if (r.sent) { sent++; await doc.ref.update({ lastRemindDate: today }); }
-            }
-        }
+
+                var totalWeekly = 5;
+                if (weeklyDone < totalWeekly) {
+                    var msg = pickRandom(WEEKLY_MESSAGES);
+                    if (weeklyDone === 0) {
+                        msg = { title: 'فاكر تداريبك الأسبوعية؟ ⛪', body: 'لسه متعملش أي تدريب أسبوعي، كمّل قبل ما الأسبوع يخلص' };
+                    } else {
+                        msg = { title: 'فاضلك ' + (totalWeekly - weeklyDone) + ' تداريب أسبوعية! 📊', body: 'كمّل تداريبك الأسبوعية وخد نجوم إضافية' };
+                    }
+                    var r = await notifier.sendToTokens(list, { type: 'weekly_reminder', title: msg.title, body: msg.body, link: { screen: 'home' } });
+                    if (r.sent) { sent++; await doc.ref.update({ lastRemindDate: today }); }
+                }
+            } catch (e) { console.error('[weekly] player failed', doc.id, e && e.message); }
+        });
         console.log('[Notif] Weekly reminder: sent', sent, ', total', playersSnap.size);
     });
 
@@ -195,31 +200,9 @@ exports.weeklyReminder = functions
 // Also deletes notifications older than 30 days and invites older than a day.
 // ============================================================
 exports.dailyReminders = functions.region('europe-west1')
-    .runWith({ timeoutSeconds: 300 })
+    .runWith({ timeoutSeconds: 540 })
     .pubsub.schedule('0 20 * * *').timeZone('Africa/Cairo').onRun(async () => {
-        var today = L.cairoDate();
-        var dayNo = Math.floor(Date.now() / 86400000);
-        var tokens = await notifier.playerTokenMap();
-        var snap = await db.collection('players').select('playerName', 'createdAt', 'lastActiveDate', 'lastBibleDate',
-            'lastRemindDate', 'notifPrefs', 'status', 'fcmToken').get();
-        var sent = { remind_inactive: 0, remind_bible: 0 };
-        for (const d of snap.docs) {
-            try {
-                var p = d.data() || {};
-                var kind = L.reminderFor(p, today);
-                if (!kind) continue;
-                var list = (tokens[d.id] || []).slice();
-                if (p.fcmToken && list.indexOf(p.fcmToken) === -1) list.push(p.fcmToken);
-                if (!list.length) continue;
-                var seed = dayNo + d.id.split('').reduce(function(a, c) { return a + c.charCodeAt(0); }, 0);
-                var m = L.message(kind, { name: p.playerName, seed: seed });
-                var r = await notifier.sendToTokens(list, { type: kind, title: m.title, body: m.body,
-                    link: { screen: kind === 'remind_bible' ? 'bible' : 'home' } });
-                if (r.sent) { sent[kind]++; await d.ref.update({ lastRemindDate: today }); }
-            } catch (e) { console.error('[reminders] player failed', d.id, e && e.message); }
-        }
-        console.log('[reminders]', today, JSON.stringify(sent), 'players', snap.size);
-
+        // cleanup first, so a slow send loop can never starve it
         try {
             var cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 30 * 86400000);
             var old = await db.collection('notifications').where('createdAt', '<', cutoff).limit(450).get();
@@ -234,7 +217,37 @@ exports.dailyReminders = functions.region('europe-west1')
                 inv.forEach(function(x) { b2.delete(x.ref); });
                 await b2.commit();
             }
+            var guards = await db.collection('inviteGuard').where('lastAt', '<', Date.now() - 86400000).limit(450).get();
+            if (!guards.empty) {
+                var b3 = db.batch();
+                guards.forEach(function(x) { b3.delete(x.ref); });
+                await b3.commit();
+            }
         } catch (e) { console.error('[reminders] cleanup failed', e && e.message); }
+
+        var today = L.cairoDate();
+        var dayNo = Math.floor(Date.now() / 86400000);
+        var tokens = await notifier.playerTokenMap();
+        var known = L.tokenSet(tokens);
+        var snap = await db.collection('players').select('playerName', 'createdAt', 'lastActiveDate', 'lastBibleDate',
+            'lastRemindDate', 'notifPrefs', 'status', 'fcmToken').get();
+        var sent = { remind_inactive: 0, remind_bible: 0 };
+        await L.inChunks(snap.docs, REMIND_CHUNK, async function(d) {
+            try {
+                var p = d.data() || {};
+                var kind = L.reminderFor(p, today);
+                if (!kind) return;
+                var list = (tokens[d.id] || []).slice();
+                if (L.legacyTokenUsable(p.fcmToken, known)) list.push(p.fcmToken);
+                if (!list.length) return;
+                var seed = dayNo + d.id.split('').reduce(function(a, c) { return a + c.charCodeAt(0); }, 0);
+                var m = L.message(kind, { name: p.playerName, seed: seed });
+                var r = await notifier.sendToTokens(list, { type: kind, title: m.title, body: m.body,
+                    link: { screen: kind === 'remind_bible' ? 'bible' : 'home' } });
+                if (r.sent) { sent[kind]++; await d.ref.update({ lastRemindDate: today }); }
+            } catch (e) { console.error('[reminders] player failed', d.id, e && e.message); }
+        });
+        console.log('[reminders]', today, JSON.stringify(sent), 'players', snap.size);
         return null;
     });
 
@@ -403,7 +416,7 @@ exports.onTournamentStarted = functions.region('europe-west1')
     });
 
 // ============================================================
-// Teammate invites: sender and receiver must share a team; one push per pair per 10 minutes
+// Teammate invites: sender and receiver must share a team; one push per pair and code per 10 minutes
 // ============================================================
 exports.onInviteCreated = functions.region('europe-west1')
     .firestore.document('invites/{id}').onCreate(async (snap, context) => {
@@ -412,7 +425,7 @@ exports.onInviteCreated = functions.region('europe-west1')
         var teams = await db.collection('teams').where('members', 'array-contains', inv.from).get();
         var shared = teams.docs.some(function(t) { return ((t.data() || {}).members || []).indexOf(inv.to) >= 0; });
         if (!shared) { console.log('[invite] not teammates', inv.from, inv.to); return null; }
-        var guard = db.collection('inviteGuard').doc(inv.from + '_' + inv.to);
+        var guard = db.collection('inviteGuard').doc(L.inviteGuardId(inv.from, inv.to, inv.code));
         var ok = await db.runTransaction(async function(tx) {
             var g = await tx.get(guard), now = Date.now();
             if (!L.inviteAllowed(g.exists ? g.data().lastAt : 0, now)) return false;
@@ -423,6 +436,6 @@ exports.onInviteCreated = functions.region('europe-west1')
         var type = inv.kind === 'room' ? 'invite_room' : 'invite_duel';
         var m = L.message(type, { name: inv.fromName });
         await notifier.notify(inv.to, { type: type, title: m.title, body: m.body,
-            link: { screen: inv.kind === 'room' ? 'room' : 'duel', code: inv.code } }, { id: context.eventId });
+            link: { screen: inv.kind === 'room' ? 'room' : 'duel', code: inv.code } }, { store: false });   // codes go stale fast: no bell item
         return null;
     });

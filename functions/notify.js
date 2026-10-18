@@ -23,8 +23,8 @@ function makeNotifier(deps) {
             var a = await db.collection('pushTokens').where('role', '==', 'admin').get();
             return a.docs.map(function(d) { return { token: d.id }; });
         }
-        var players = [];
-        if (audience === 'all' || /^level_\d$/.test(audience)) {
+        var players = [], many = audience === 'all' || /^level_\d$/.test(audience);
+        if (many) {
             var ps = await db.collection('players').select(...PLAYER_FIELDS).get();
             players = ps.docs.map(function(d) { return { id: d.id, p: d.data() || {} }; });
         } else {
@@ -40,11 +40,22 @@ function makeNotifier(deps) {
             return true;
         });
         if (!players.length) return [];
-        var map = await playerTokenMap();
+        var map = {}, known = {};
+        if (many) {
+            map = await playerTokenMap();
+            Object.keys(map).forEach(function(o) { map[o].forEach(function(t) { known[t] = 1; }); });
+        } else {
+            // one player: only that player's token docs, not every token
+            var own = await db.collection('pushTokens').where('owner', '==', audience).get();
+            map[audience] = own.docs.filter(function(d) { return (d.data() || {}).role === 'player'; }).map(function(d) { return d.id; });
+            map[audience].forEach(function(t) { known[t] = 1; });
+            var legacy = players[0].p.fcmToken;
+            if (legacy && !known[legacy] && (await db.collection('pushTokens').doc(legacy).get()).exists) known[legacy] = 1;
+        }
         var out = [];
         players.forEach(function(x) {
             (map[x.id] || []).forEach(function(t) { out.push({ token: t }); });
-            if (x.p.fcmToken) out.push({ token: x.p.fcmToken, legacyOwner: x.id });
+            if (L.legacyTokenUsable(x.p.fcmToken, known)) out.push({ token: x.p.fcmToken, legacyOwner: x.id });
         });
         return out;
     }

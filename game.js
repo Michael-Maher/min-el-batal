@@ -58,6 +58,7 @@ const GameState = {
         lastActiveDate: '',
         dailyLog: {}
     },
+    lastBibleDate: '',
     level2Data: {},
     level1Data: {},           // { l1_bible: { seenUnlock: {1:true}, savedVerses: [...] } }
     profileAvatar: null,
@@ -16544,6 +16545,7 @@ function completeBibleReading() {
         done: true,
         date: todayKey
     };
+    markBibleRead();
     window._bibleImageData = null;
 
     // Award points
@@ -18235,6 +18237,23 @@ function cairoDateKey() {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 }
 
+// lastBibleDate / lastActiveDate drive the server's 2-day reminders (Cairo calendar days).
+// Written directly, not via saveToCloud, so an old device can't move them back.
+function markBibleRead() {
+    GameState.lastBibleDate = cairoDateKey();
+    if (firebaseDb && GameState.playerPhone) {
+        firebaseDb.collection('players').doc(GameState.playerPhone).update({ lastBibleDate: GameState.lastBibleDate }).catch(function() {});
+    }
+}
+// Existing players have no lastBibleDate yet: take the newest day from their reading log once.
+function backfillLastBibleDate() {
+    if (GameState.lastBibleDate || !GameState.playerPhone) return;
+    var keys = Object.keys(GameState.bibleReadingLog || {}).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }).sort();
+    if (!keys.length) return;
+    GameState.lastBibleDate = keys[keys.length - 1];
+    if (firebaseDb) firebaseDb.collection('players').doc(GameState.playerPhone).update({ lastBibleDate: GameState.lastBibleDate }).catch(function() {});
+}
+
 // ---- Notification taps: link = {screen, id?, code?} ----
 function openNotifLink(link) {
     if (typeof link === 'string') { try { link = JSON.parse(link); } catch (e) { link = null; } }
@@ -18346,6 +18365,7 @@ function openNotifItem(i) {
 
 // Auto-init notifications after login (delayed to not annoy users immediately)
 function requestNotificationsAfterLogin() {
+    backfillLastBibleDate();
     checkPendingNotif();
     if (typeof subscribeNotifInbox === 'function') subscribeNotifInbox();
     if (GameState.playerPhone && 'Notification' in window && Notification.permission === 'granted') initPushNotifications();
@@ -19413,7 +19433,7 @@ window.addEventListener('load', function() {
 // ============================================================
 function trackLastActiveDate() {
     if (!firebaseDb || !GameState.playerPhone) return;
-    var todayStr = new Date().toISOString().split('T')[0];
+    var todayStr = cairoDateKey();
     firebaseDb.collection('players').doc(GameState.playerPhone).update({
         lastActiveDate: todayStr
     }).catch(function() {});

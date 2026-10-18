@@ -14,7 +14,7 @@ function grab(name) {
     throw new Error('unbalanced ' + name);
 }
 var FNS = ['registerPushToken', 'unregisterPushToken', 'openNotifLink', 'checkPendingNotif', 'cairoDateKey',
-    'notifMs', 'notifUnreadCount', 'notifVisibleForMe', 'notifAudiences'];
+    'notifMs', 'notifUnreadCount', 'notifVisibleForMe', 'notifAudiences', 'backfillLastBibleDate'];
 function grabVar(name) {
     var m = src.match(new RegExp('var ' + name + ' = [^;]+;'));
     if (!m) throw new Error('missing var ' + name);
@@ -128,6 +128,13 @@ test('logged out: link waits for login and opens once', function() {
     assert.strictEqual(ctx.calls.length, n, 'consumed');
 });
 
+test('backfill picks the newest reading day once', function() {
+    var ctx = makeCtx({ playerPhone: '0101', lastBibleDate: '', bibleReadingLog: { '2026-10-10': {}, '2026-10-15': {}, '2026-09-01': {} } });
+    ctx.backfillLastBibleDate();
+    assert.strictEqual(ctx.GameState.lastBibleDate, '2026-10-15');
+    var u = last(ctx, 'update'); assert.strictEqual(u[3].lastBibleDate, '2026-10-15');
+    var n = ctx.calls.length; ctx.backfillLastBibleDate(); assert.strictEqual(ctx.calls.length, n);
+});
 test('cairoDateKey is a Cairo YYYY-MM-DD', function() {
     var ctx = makeCtx({});
     assert.match(ctx.cairoDateKey(), /^\d{4}-\d{2}-\d{2}$/);

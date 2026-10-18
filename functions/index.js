@@ -515,3 +515,44 @@ exports.onNotifyQueueCreated = functions.region('europe-west1')
         await snap.ref.delete().catch(function() {});
         return null;
     });
+
+// ============================================================
+// SELFIE CHALLENGE OPENS → push once (checked hourly, Cairo time)
+// ============================================================
+exports.selfieChallengeStarts = functions.region('europe-west1')
+    .pubsub.schedule('5 * * * *').timeZone('Africa/Cairo').onRun(async () => {
+        var now = Date.now();
+        var snap = await db.collection('selfieChallenges').where('enabled', '==', true).get();
+        for (const d of snap.docs) {
+            var c = d.data() || {};
+            if (!L.selfieDue(c, now)) continue;
+            await d.ref.update({ notifiedAt: now });
+            var m = L.message('selfie', { title: c.title, stars: c.rewardStars || 0, day: L.arabicDay(+c.endAt) });
+            await notifier.notify(c.level ? 'level_' + c.level : 'all',
+                { type: 'selfie', title: m.title, body: m.body, link: { screen: 'selfie' } },
+                { id: 'selfie_' + d.id, levelBy: 'compete' });
+        }
+        return null;
+    });
+
+// ============================================================
+// TOURNAMENT GOES ACTIVE → push each team's members (once)
+// ============================================================
+exports.onTournamentStarted = functions.region('europe-west1')
+    .firestore.document('tournaments/{tid}').onUpdate(async (change, context) => {
+        var before = change.before.data() || {}, after = change.after.data() || {};
+        if (before.status === 'active' || after.status !== 'active' || after.notifiedAt) return null;
+        await change.after.ref.update({ notifiedAt: Date.now() });
+        for (const teamId of L.tournamentTeamIds(after)) {
+            var t = await db.collection('teams').doc(teamId).get();
+            if (!t.exists) continue;
+            var team = t.data() || {};
+            var m = L.message('tournament', { title: after.name, team: team.name || teamId });
+            for (const phone of (team.members || [])) {
+                await notifier.notify(phone, { type: 'tournament', title: m.title, body: m.body,
+                    link: { screen: 'tournament', id: context.params.tid } },
+                    { id: context.eventId + '_' + phone });
+            }
+        }
+        return null;
+    });

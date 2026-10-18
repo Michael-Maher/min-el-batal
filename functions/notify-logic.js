@@ -139,5 +139,22 @@ function playerMatchesSegments(p, seg) {
     return true;
 }
 
+// Selfie challenge is due once: enabled, inside [startAt, endAt), and not yet notified
+function selfieDue(c, nowMs) {
+    return !!(c && c.enabled && !c.notifiedAt && (+c.startAt || 0) <= nowMs && nowMs < (+c.endAt || 0));
+}
+function arabicDay(ms) {
+    return new Intl.DateTimeFormat('ar-EG', { timeZone: 'Africa/Cairo', weekday: 'long' }).format(new Date(ms));
+}
+// Unique team doc ids across all rounds of a tournament
+function tournamentTeamIds(t) {
+    var out = [];
+    ((t && t.rounds) || []).forEach(function(r) {
+        ((r && r.teams) || []).forEach(function(id) { if (id && out.indexOf(id) < 0) out.push(id); });
+    });
+    return out;
+}
+
 module.exports = { cairoDate, daysBetween, playerLevelOf, matchesLevel, categoryOf, prefAllows, message,
-    reminderFor, parseLockKey, unlockMessage, stripHtml, firstName, playerMatchesSegments };
+    reminderFor, parseLockKey, unlockMessage, stripHtml, firstName, playerMatchesSegments,
+    selfieDue, arabicDay, tournamentTeamIds };

@@ -103,3 +103,20 @@ test('unlockMessage per key kind', () => {
     assert.deepStrictEqual(v.link, { screen: 'home' });
     assert.strictEqual(L.unlockMessage({ key: 'card_compete', title: 'x', level: 0 }), null);
 });
+
+test('selfieDue only inside the window and once', () => {
+    const now = Date.parse('2026-10-18T12:00:00Z');
+    const c = { enabled: true, startAt: now - 1000, endAt: now + 86400000 };
+    assert.strictEqual(L.selfieDue(c, now), true);
+    assert.strictEqual(L.selfieDue({ ...c, notifiedAt: now - 10 }, now), false);
+    assert.strictEqual(L.selfieDue({ ...c, enabled: false }, now), false);
+    assert.strictEqual(L.selfieDue({ ...c, startAt: now + 1000 }, now), false);
+    assert.strictEqual(L.selfieDue({ ...c, endAt: now - 1 }, now), false);
+});
+test('arabicDay names the Cairo weekday', () => {
+    assert.match(L.arabicDay(Date.parse('2026-10-23T10:00:00Z')), /الجمعة/);
+});
+test('tournamentTeamIds flattens unique team ids', () => {
+    assert.deepStrictEqual(L.tournamentTeamIds({ rounds: [{ teams: ['a', 'b'] }, { teams: ['b', 'c'] }, {}] }), ['a', 'b', 'c']);
+    assert.deepStrictEqual(L.tournamentTeamIds({}), []);
+});

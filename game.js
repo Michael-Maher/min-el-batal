@@ -1082,8 +1082,11 @@ function handleRememberMe(rememberMe, phone) {
 // its old stars and logs, and set(merge) writes stars as a plain number and an empty map as {},
 // so a blind save from it wipes newer progress made elsewhere. Every save therefore re-reads the
 // doc first; if someone else saved since this device last did (syncId changed), the cloud copy is
-// merged in (max scores, union logs) before writing. Saves run one at a time.
-var _cloudSync = { phone: '', id: null };   // syncId this device last wrote or merged, per phone
+// merged in before writing. Saves run one at a time.
+// base: the non-map fields as the cloud held them at this device's last load or write. With it the
+// merge is 3-way (counters keep both devices' changes, other fields keep whichever side changed);
+// without it (first save this session) the merge keeps the max / the cloud value.
+var _cloudSync = { phone: '', id: null, base: null, sig: '' };
 var _cloudSaveRunning = null, _cloudSaveQueued = null;
 
 function saveToCloud() {
@@ -1097,12 +1100,73 @@ function saveToCloud() {
     return _cloudSaveRunning;
 }
 
+// The 30 s timer save: skips the read + write when nothing changed since this device's last
+// successful write. A stale device that never writes is the safe direction; other saves always run.
+function saveToCloudIfChanged() {
+    if (!firebaseDb || !GameState.playerPhone) return Promise.resolve();
+    if (_cloudSync.phone === GameState.playerPhone && _cloudSync.sig && _cloudSync.sig === _cloudSig(_cloudSaveData())) return Promise.resolve();
+    return saveToCloud();
+}
+
+// The payload without its per-write fields, for comparing two saves.
+function _cloudSig(d) {
+    return JSON.stringify(d, function(k, v) { return (this === d && (k === 'lastUpdated' || k === 'syncId')) ? undefined : v; });
+}
+
+// A read that never settles would hold _cloudSaveRunning forever and stop every later cloud save.
+function _cloudGet(docRef) {
+    var timer;
+    return Promise.race([docRef.get(), new Promise(function(resolve, reject) {
+        timer = setTimeout(function() { reject(new Error('cloud read timed out')); }, 15000);
+    })]).then(function(snap) { clearTimeout(timer); return snap; }, function(err) { clearTimeout(timer); throw err; });
+}
+
+// How the save-time merge treats a payload field.
+function _syncFieldKind(key) {
+    if (key === 'lastUpdated' || key === 'syncId' || key === 'playerPhone') return 'skip';
+    if (['stars', 'gems', 'xp', 'totalCorrect', 'totalAnswered', 'gamesPlayed', 'perfectLevels', 'missionsCompleted'].indexOf(key) >= 0) return 'counter';
+    if (['stationScores', 'miniGameScores', 'powerUps', 'consumableWeapons', 'armor', 'claimedBundles', 'ownedFrames',
+         'ownedTitles', 'redeemedRewards', 'claimedStreakRewards', 'lessonSummaries', 'watchedVideos', 'dailyVerseLog',
+         'bibleReadingLog', 'devotionLog', 'exerciseLog', 'paulJourneyData', 'highlightedVerses', 'weeklyChallengeLog',
+         'questionHistory', 'attendanceLog', 'level2Data', 'level1Data', 'lampData', 'bestStreak'].indexOf(key) >= 0) return 'merged';   // union / max in mergeCloudIntoGameState
+    return 'value';
+}
+
+// Deep copy of the counter and value fields of src (the big maps stay out).
+function _syncBaseOf(src, keys) {
+    var base = {};
+    keys.forEach(function(k) {
+        var kind = _syncFieldKind(k);
+        if ((kind !== 'counter' && kind !== 'value') || src[k] === undefined) return;
+        base[k] = (src[k] === null || typeof src[k] !== 'object') ? src[k] : JSON.parse(JSON.stringify(src[k]));
+    });
+    return base;
+}
+
+// Runs after mergeCloudIntoGameState when the cloud moved and this device has a baseline:
+// counters = cloud + this device's change since the baseline (a spend stays spent, both devices'
+// gains add up); other fields keep this device's value if it changed since the baseline, else the cloud's.
+function _syncThreeWay(cloud, base, local, keys) {
+    keys.forEach(function(k) {
+        var kind = _syncFieldKind(k);
+        if ((kind !== 'counter' && kind !== 'value') || !(k in base) || !(k in local)) return;
+        if (kind === 'counter') {
+            GameState[k] = Math.max(0, (+cloud[k] || 0) + (+local[k] || 0) - (+base[k] || 0));
+        } else if (JSON.stringify(local[k]) !== JSON.stringify(base[k])) {
+            GameState[k] = local[k];
+        } else if (cloud[k] !== undefined) {
+            GameState[k] = cloud[k];
+        }
+    });
+}
+
 function _writeToCloud() {
     var phone = GameState.playerPhone;
     if (!firebaseDb || !phone) return Promise.resolve();
     var docRef = firebaseDb.collection('players').doc(phone);
     var atCall = _cloudSaveData();   // still written if the player logs out while the doc is being read
-    return docRef.get().then(function(snap) {
+    var keys = Object.keys(atCall);
+    return _cloudGet(docRef).then(function(snap) {
         var known = _cloudSync.phone === phone ? _cloudSync.id : null;
         var cloudMoved = snap.exists && (known === null || (snap.data().syncId || '') !== known);
         var data;
@@ -1111,8 +1175,16 @@ function _writeToCloud() {
             data = atCall;
         } else {
             if (cloudMoved) {
+                var cloud = snap.data();
+                var base = _cloudSync.phone === phone ? _cloudSync.base : null;
+                // a season or progress reset on either side since the baseline: the plain merge + ensureScoreSeason handle it
+                var threeWay = !!base && ['scoreSeasonId', 'progressResetId'].every(function(k) {
+                    return (cloud[k] || '') === (base[k] || '') && (GameState[k] || '') === (base[k] || '');
+                });
+                var local = threeWay ? _syncBaseOf(GameState, keys) : null;
                 saveToLocalStorage(true);   // the merge reads the local backup — make it current first
-                mergeCloudIntoGameState(snap.data());
+                mergeCloudIntoGameState(cloud);
+                if (threeWay) _syncThreeWay(cloud, base, local, keys);
                 saveToLocalStorage(true);
                 try { if (typeof GameUI !== 'undefined') GameUI.refreshCounters(); } catch(e) {}
             }
@@ -1120,8 +1192,12 @@ function _writeToCloud() {
             data = _cloudSaveData();
         }
         data.syncId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-        _cloudSync = { phone: phone, id: data.syncId };
-        return docRef.set(data, { merge: true }).then(function() { console.log('Game saved to cloud'); });
+        _cloudSync = { phone: phone, id: data.syncId, base: _cloudSync.phone === phone ? _cloudSync.base : null, sig: '' };
+        var written = _syncBaseOf(data, Object.keys(data)), sig = _cloudSig(data);   // taken now: GameState can change during the write
+        return docRef.set(data, { merge: true }).then(function() {
+            if (_cloudSync.id === data.syncId) { _cloudSync.base = written; _cloudSync.sig = sig; }
+            console.log('Game saved to cloud');
+        });
     }).catch(function(err) { console.error('Cloud save error:', err); });
 }
 
@@ -1346,9 +1422,11 @@ function loadFromCloud(phone) {
         .then(doc => {
             if (doc.exists) {
                 const data = doc.data();
+                var seenLocal = GameState.notifSeenAt || 0;   // the merge below takes the cloud value
                 mergeCloudIntoGameState(data);
-                GameState.notifSeenAt = Math.max(GameState.notifSeenAt || 0, +data.notifSeenAt || 0);
-                _cloudSync = { phone: phone, id: data.syncId || '' };   // just merged: the next save needn't re-read it
+                GameState.notifSeenAt = Math.max(seenLocal, +data.notifSeenAt || 0);
+                // just merged: the next save needn't re-read it; the cloud values are the 3-way baseline
+                _cloudSync = { phone: phone, id: data.syncId || '', base: _syncBaseOf(data, Object.keys(data).filter(function(k) { return k in GameState; })), sig: '' };
                 console.log('Game loaded from cloud for', phone);
                 // Save merged state to localStorage AND back to cloud to keep all devices in sync
                 saveToLocalStorage(true);
@@ -18072,7 +18150,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Auto-save to localStorage as backup every 30 seconds
     setInterval(function() {
-        saveToLocalStorage();
+        saveToLocalStorage(true);
+        if (GameState.playerPhone) saveToCloudIfChanged();
     }, 30000);
 
     // Save on page unload

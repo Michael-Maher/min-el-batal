@@ -20,8 +20,9 @@ function grab(name) {
 
 var code = [
     'var _cloudSync = { phone: \'\', id: null }; var _cloudSaveRunning = null, _cloudSaveQueued = null;',
-    grab('mergeStationScoreEntry'), grab('mergeLevel1Data'), grab('saveToCloud'), grab('_writeToCloud'),
-    grab('_cloudSaveData'), grab('mergeCloudIntoGameState'), grab('loadFromCloud')
+    grab('mergeStationScoreEntry'), grab('mergeLevel1Data'), grab('saveToCloud'), grab('saveToCloudIfChanged'),
+    grab('_cloudSig'), grab('_cloudGet'), grab('_syncFieldKind'), grab('_syncBaseOf'), grab('_syncThreeWay'),
+    grab('_writeToCloud'), grab('_cloudSaveData'), grab('mergeCloudIntoGameState'), grab('loadFromCloud')
 ].join('\n');
 
 function player(over) {
@@ -54,7 +55,8 @@ function makeCtx(gs, cloudDoc) {
         localStorage: { getItem: function (k) { return local[k] || null; }, setItem: function (k, v) { local[k] = v; } },
         saveToLocalStorage: function () { local.minElBatal_gameState = JSON.stringify(gs); },
         ensureScoreSeason: function () { return false; }, onScoreSeasonReset: function () {},
-        Blob: Blob, JSON: JSON, Math: Math, Date: Date, Promise: Promise, Object: Object
+        Blob: Blob, JSON: JSON, Math: Math, Date: Date, Promise: Promise, Object: Object,
+        setTimeout: setTimeout, clearTimeout: clearTimeout
     };
     vm.createContext(ctx);
     vm.runInContext(code, ctx);
@@ -165,6 +167,129 @@ test('read failure (offline) skips the cloud write instead of writing blind', fu
     var origErr = console.error; ctx.console.error = function () {};
     return ctx.saveToCloud().then(function () { console.error = origErr; assert.strictEqual(ctx._writes.length, 0); },
         function (e) { console.error = origErr; throw e; });
+});
+
+// --- 3-way merge: a device that already loaded or wrote this session has a baseline ---
+// Saves once (fresh doc: no merge) so the device has a baseline, then lets "device B" change the cloud.
+function synced(gs) {
+    var ctx = makeCtx(player(gs), null);
+    return ctx.saveToCloud().then(function () { return ctx; });
+}
+function otherDeviceSaves(ctx, changes) {
+    Object.assign(ctx._store.doc, changes, { syncId: 'phoneB-' + Math.random() });
+}
+function lastWrite(ctx) { return ctx._writes[ctx._writes.length - 1]; }
+
+test('3-way: a spend after another device saved stays spent (1000 -500, cloud 1010 -> 510)', function () {
+    return synced({ stars: 1000 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { stars: 1010 });
+        ctx.GameState.stars = 500;
+        return ctx.saveToCloud().then(function () {
+            assert.strictEqual(lastWrite(ctx).stars, 510);
+            assert.strictEqual(ctx.GameState.stars, 510);
+        });
+    });
+});
+
+test('3-way: this device\'s own change (bibleChapter 4 -> 5) survives a cloud that moved for other reasons', function () {
+    return synced({ bibleChapter: 4, stars: 100 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { stars: 120 });
+        ctx.GameState.bibleChapter = 5;
+        return ctx.saveToCloud().then(function () {
+            assert.strictEqual(lastWrite(ctx).bibleChapter, 5);
+            assert.strictEqual(ctx.GameState.bibleChapter, 5);
+            assert.strictEqual(lastWrite(ctx).stars, 120);
+        });
+    });
+});
+
+test('3-way: a field only the other device changed (character) is adopted', function () {
+    return synced({ character: 'david' }).then(function (ctx) {
+        otherDeviceSaves(ctx, { character: 'paul' });
+        return ctx.saveToCloud().then(function () {
+            assert.strictEqual(lastWrite(ctx).character, 'paul');
+            assert.strictEqual(ctx.GameState.character, 'paul');
+        });
+    });
+});
+
+test('3-way: both devices gained xp -> the gains add up', function () {
+    return synced({ xp: 100 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { xp: 130 });
+        ctx.GameState.xp = 150;
+        return ctx.saveToCloud().then(function () { assert.strictEqual(lastWrite(ctx).xp, 180); });
+    });
+});
+
+test('3-way: gems never go below zero', function () {
+    return synced({ gems: 50 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { gems: 10 });
+        ctx.GameState.gems = 0;
+        return ctx.saveToCloud().then(function () { assert.strictEqual(lastWrite(ctx).gems, 0); });
+    });
+});
+
+test('3-way: loadFromCloud sets the baseline from the cloud doc', function () {
+    var ctx = makeCtx(player({ stars: 0 }), player({ stars: 1000, syncId: 'phoneB' }));
+    return ctx.loadFromCloud('0155').then(function () { return new Promise(function (r) { setTimeout(r, 0); }); }).then(function () {
+        otherDeviceSaves(ctx, { stars: 1010 });
+        ctx.GameState.stars = 500;
+        return ctx.saveToCloud();
+    }).then(function () { assert.strictEqual(lastWrite(ctx).stars, 510); });
+});
+
+test('3-way falls back to the plain merge when the cloud moved to a new score season', function () {
+    return synced({ stars: 1000, scoreSeasonId: 's1' }).then(function (ctx) {
+        otherDeviceSaves(ctx, { stars: 30, scoreSeasonId: 's2' });   // new season: B earned 30 since the reset
+        ctx.GameState.stars = 1200;                                   // old-season points must not come back
+        return ctx.saveToCloud().then(function () {
+            assert.strictEqual(lastWrite(ctx).stars, 30);
+            assert.strictEqual(lastWrite(ctx).scoreSeasonId, 's2');
+        });
+    });
+});
+
+test('lastBibleDate is not in the save payload (written only by targeted updates)', function () {
+    var ctx = makeCtx(player({ lastBibleDate: '2026-10-17', lastActiveDate: '2026-10-17' }), null);
+    return ctx.saveToCloud().then(function () {
+        assert.ok(!('lastBibleDate' in ctx._writes[0]));
+        assert.ok(!('lastActiveDate' in ctx._writes[0]));
+    });
+});
+
+test('timer save skips an unchanged payload and still writes a real change', function () {
+    var ctx = makeCtx(player({ stars: 10 }), null);
+    return ctx.saveToCloud().then(function () { return ctx.saveToCloudIfChanged(); }).then(function () {
+        assert.strictEqual(ctx._writes.length, 1);
+        assert.strictEqual(ctx._reads(), 1);
+        ctx.GameState.stars = 11;
+        return ctx.saveToCloudIfChanged();
+    }).then(function () {
+        assert.strictEqual(ctx._writes.length, 2);
+        assert.strictEqual(ctx._writes[1].stars, 11);
+    });
+});
+
+test('timer save never skips before the first successful write', function () {
+    var ctx = makeCtx(player({ stars: 10 }), null);
+    return ctx.saveToCloudIfChanged().then(function () { assert.strictEqual(ctx._writes.length, 1); });
+});
+
+test('a read that never settles times out, writes nothing and does not block later saves', function () {
+    var ctx = makeCtx(player({ stars: 10 }), null);
+    vm.runInContext('var _realDb = firebaseDb; firebaseDb = { collection: function () { return { doc: function () { return { get: function () { return new Promise(function () {}); } }; } }; } };', ctx);
+    ctx.setTimeout = function (fn) { return setTimeout(fn, 0); };   // the 15 s timer fires at once
+    ctx.console.error = function () {};
+    return ctx.saveToCloud().then(function () {
+        assert.strictEqual(ctx._writes.length, 0);
+        vm.runInContext('firebaseDb = _realDb;', ctx);
+        return ctx.saveToCloud();
+    }).then(function () { assert.strictEqual(ctx._writes.length, 1); });
+});
+
+test('loadFromCloud keeps the newer local notifSeenAt', function () {
+    var ctx = makeCtx(player({ notifSeenAt: 5000 }), player({ notifSeenAt: 3000, syncId: 'phoneB' }));
+    return ctx.loadFromCloud('0155').then(function () { assert.strictEqual(ctx.GameState.notifSeenAt, 5000); });
 });
 
 (async function () {

@@ -14,13 +14,14 @@ function grab(name) {
     throw new Error('unbalanced ' + name);
 }
 var FNS = ['registerPushToken', 'unregisterPushToken', 'openNotifLink', 'checkPendingNotif', 'cairoDateKey',
-    'notifMs', 'notifUnreadCount', 'notifVisibleForMe', 'notifAudiences', 'backfillLastBibleDate'];
+    'notifMs', 'notifUnreadCount', 'notifVisibleForMe', 'notifAudiences', 'backfillLastBibleDate',
+    'requestNotificationsAfterLogin', 'trackLastActiveDate'];
 function grabVar(name) {
     var m = src.match(new RegExp('var ' + name + ' = [^;]+;'));
     if (!m) throw new Error('missing var ' + name);
     return m[0];
 }
-var code = 'var _myPushToken = null;\n' + grabVar('FCM_VAPID_KEY') + '\n' + FNS.map(grab).join('\n');
+var code = 'var _myPushToken = null;\n' + grabVar('FCM_VAPID_KEY') + '\n' + grabVar('_notifLoginReady') + '\n' + FNS.map(grab).join('\n');
 
 function makeCtx(gs, perm, fetched) {
     var calls = [], docs = {}, session = {};
@@ -41,7 +42,7 @@ function makeCtx(gs, perm, fetched) {
     };
     ctx.firebase.messaging = function() { return { getToken: function(o) { calls.push(['getToken', o.vapidKey]); return Promise.resolve(fetched); } }; };
     ['showScreen', 'openQuestionsScreen', 'openQuestionThread', 'l1OpenSubject', 'openLevel2Subject', 'openSelfieChallenge',
-     'joinDuelByCode', 'autoJoinRoom', 'openSocialPost'].forEach(function(f) {
+     'joinDuelByCode', 'autoJoinRoom', 'openSocialPost', 'subscribeNotifInbox', 'showNotificationPrompt', 'initPushNotifications'].forEach(function(f) {
         ctx[f] = function(a) { calls.push([f, a]); };
     });
     ctx.playerLevelOf = function(g) { return g.playerLevel || 1; };
@@ -103,6 +104,7 @@ test('shared phone: next owner takes the same token doc', function() {
 
 test('routing per screen', function() {
     var ctx = makeCtx({ playerPhone: '0101' });
+    vm.runInContext('_notifLoginReady = true;', ctx);
     ctx.openNotifLink({ screen: 'question', id: 'q1' });
     assert.ok(last(ctx, 'openQuestionsScreen')); assert.strictEqual(last(ctx, 'openQuestionThread')[1], 'q1');
     ctx.openNotifLink({ screen: 'subject', id: 'l1_bible' }); assert.strictEqual(last(ctx, 'l1OpenSubject')[1], 'l1_bible');
@@ -121,11 +123,36 @@ test('logged out: link waits for login and opens once', function() {
     ctx.openNotifLink({ screen: 'bible' });
     assert.strictEqual(last(ctx, 'showScreen'), undefined);
     ctx.GameState.playerPhone = '0101';
-    ctx.checkPendingNotif();
+    ctx.requestNotificationsAfterLogin();
     assert.strictEqual(last(ctx, 'showScreen')[1], 'bible-reading-screen');
     var n = ctx.calls.length;
     ctx.checkPendingNotif();
     assert.strictEqual(ctx.calls.length, n, 'consumed');
+});
+
+test('cold start: a tap waits for the login (phone already known from localStorage) and routes after it', function() {
+    var ctx = makeCtx({ playerPhone: '0101' });
+    ['duel', 'question', 'bible', 'post'].forEach(function(screen) {
+        var routed = function() { return ctx.calls.filter(function(c) { return /^(joinDuelByCode|openQuestionsScreen|openSocialPost)$/.test(c[0]) || (c[0] === 'showScreen' && c[1] !== 'home-hub-screen'); }).length; };
+        var before = routed();
+        ctx.openNotifLink({ screen: screen, code: 'AB12CD', id: 'q9' });
+        assert.strictEqual(routed(), before, screen + ': not before the login finished');
+        ctx.showScreen('home-hub-screen');   // the remember-me cloud load shows home
+        ctx.requestNotificationsAfterLogin();
+        assert.ok(routed() > before, screen + ': routed after the login');
+        if (screen === 'bible') assert.strictEqual(last(ctx, 'showScreen')[1], 'bible-reading-screen', 'home did not win');
+        vm.runInContext('_notifLoginReady = false;', ctx);
+    });
+    assert.strictEqual(last(ctx, 'joinDuelByCode')[1], 'AB12CD');
+    assert.strictEqual(last(ctx, 'openQuestionThread')[1], 'q9');
+});
+
+test('every login writes lastActiveDate', function() {
+    var ctx = makeCtx({ playerPhone: '0101' });
+    ctx.requestNotificationsAfterLogin();
+    var u = ctx.calls.filter(function(c) { return c[0] === 'update' && c[3].lastActiveDate; });
+    assert.strictEqual(u.length, 1);
+    assert.match(u[0][3].lastActiveDate, /^\d{4}-\d{2}-\d{2}$/);
 });
 
 test('backfill picks the newest reading day once', function() {

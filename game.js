@@ -852,6 +852,7 @@ function submitRegister() {
         GameState.username = username;
         GameState.email = email;
         GameState.playerLevel = 1;   // every new registration starts in المستوى الأول
+        GameState.notifSeenAt = Date.now();   // older broadcasts don't count as unread for a new account
 
         // Save with password hash
         var saveData = {};
@@ -5974,6 +5975,7 @@ function confetti() {
 
 // --- Logout ---
 function logout() {
+    _notifLoginReady = false;
     unregisterPushToken();
     if (typeof unsubscribeNotifInbox === 'function') unsubscribeNotifInbox();
     try { stopGlobalPresence(); } catch(e){}
@@ -6011,6 +6013,8 @@ function logout() {
     GameState.teamLevel = 0;
     GameState.redeemedRewards = [];
     GameState.dailyLoginDate = '';
+    GameState.lastBibleDate = '';   // the next account must not inherit these
+    GameState.notifSeenAt = 0;
     // Clear remember me
     try { localStorage.removeItem('minElBatal_remember'); } catch(e) {}
     _duplicateCheckDone = false;
@@ -18334,9 +18338,12 @@ function backfillLastBibleDate() {
 }
 
 // ---- Notification taps: link = {screen, id?, code?} ----
+// Set once a login (password, remember-me cloud load, registration) has finished and shown its first
+// screen; until then a tap waits in sessionStorage, or the login's showScreen('home-hub-screen') would override it.
+var _notifLoginReady = false;
 function openNotifLink(link) {
     if (typeof link === 'string') { try { link = JSON.parse(link); } catch (e) { link = null; } }
-    if (link && !GameState.playerPhone) {
+    if (link && (!GameState.playerPhone || !_notifLoginReady)) {
         try { sessionStorage.setItem('minElBatal_pendingNotif', JSON.stringify(link)); } catch (e) {}
         return;
     }
@@ -18444,6 +18451,8 @@ function openNotifItem(i) {
 
 // Auto-init notifications after login (delayed to not annoy users immediately)
 function requestNotificationsAfterLogin() {
+    _notifLoginReady = true;
+    trackLastActiveDate();
     backfillLastBibleDate();
     checkPendingNotif();
     if (typeof subscribeNotifInbox === 'function') subscribeNotifInbox();
@@ -19503,7 +19512,7 @@ window.addEventListener('load', function() {
     if (notifParam) {
         try { sessionStorage.setItem('minElBatal_pendingNotif', notifParam); } catch (e) {}
         window.history.replaceState({}, '', window.location.pathname);
-        if (GameState.playerPhone) checkPendingNotif();
+        if (_notifLoginReady) checkPendingNotif();   // otherwise the login picks it up
     }
 });
 

@@ -271,6 +271,7 @@ function submitLogin() {
             }
 
             // Login success — load all data
+            _cloudSync = { phone: '', id: null, base: null, sig: '' };   // GameState now comes from the cloud: no stale 3-way baseline
             Object.keys(existingData).forEach(function(key) {
                 if (key in GameState && key !== 'lastUpdated') {
                     GameState[key] = existingData[key];
@@ -914,6 +915,7 @@ function migrateOldAccount(docId, newData, btn) {
         return docRef.get();
     }).then(function(doc) {
         var data = doc.data();
+        _cloudSync = { phone: '', id: null, base: null, sig: '' };   // GameState now comes from the cloud: no stale 3-way baseline
         Object.keys(data).forEach(function(key) {
             if (key in GameState && key !== 'lastUpdated') GameState[key] = data[key];
         });
@@ -1043,6 +1045,7 @@ function submitOldAccountUpgrade(docId, phone) {
             return docRef.get();
         }).then(function(doc) {
             var data = doc.data();
+            _cloudSync = { phone: '', id: null, base: null, sig: '' };   // GameState now comes from the cloud: no stale 3-way baseline
             Object.keys(data).forEach(function(key) {
                 if (key in GameState && key !== 'lastUpdated') GameState[key] = data[key];
             });
@@ -5976,6 +5979,7 @@ function confetti() {
 // --- Logout ---
 function logout() {
     _notifLoginReady = false;
+    _cloudSync = { phone: '', id: null, base: null, sig: '' };   // the next login starts without a baseline
     unregisterPushToken();
     if (typeof unsubscribeNotifInbox === 'function') unsubscribeNotifInbox();
     try { stopGlobalPresence(); } catch(e){}

@@ -34,7 +34,7 @@ determined client can still push arbitrary text through announcements. Closing t
 
 ## Cloud Functions (`functions/notify.js`, required from `index.js`; v1 API like the rest, `europe-west1`)
 - `notify(audience, msg, opts)`: writes the `notifications` doc (id = trigger event id → retry-safe), resolves tokens,
-  sends with `messaging.sendEach` in batches of 500 (data + `webpush.notification`, `fcmOptions.link`), deletes tokens
+  sends with `messaging.sendEach` in batches of 500 (data-only; the service workers display them), deletes tokens
   answering `registration-token-not-registered` / `invalid-registration-token`. Never throws into the trigger; logs.
   - Token resolution: `pushTokens where owner == …` / `where role == 'admin'`; for player audiences also the legacy
     `players.fcmToken` (players who never reopen the app — exactly the ones reminders target — still have only that).

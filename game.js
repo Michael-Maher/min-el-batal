@@ -271,7 +271,7 @@ function submitLogin() {
             }
 
             // Login success — load all data
-            _cloudSync = { phone: '', id: null, base: null, sig: '' };   // GameState now comes from the cloud: no stale 3-way baseline
+            _resetCloudSync();   // GameState now comes from the cloud: no stale 3-way baseline
             Object.keys(existingData).forEach(function(key) {
                 if (key in GameState && key !== 'lastUpdated') {
                     GameState[key] = existingData[key];
@@ -915,7 +915,7 @@ function migrateOldAccount(docId, newData, btn) {
         return docRef.get();
     }).then(function(doc) {
         var data = doc.data();
-        _cloudSync = { phone: '', id: null, base: null, sig: '' };   // GameState now comes from the cloud: no stale 3-way baseline
+        _resetCloudSync();   // GameState now comes from the cloud: no stale 3-way baseline
         Object.keys(data).forEach(function(key) {
             if (key in GameState && key !== 'lastUpdated') GameState[key] = data[key];
         });
@@ -1045,7 +1045,7 @@ function submitOldAccountUpgrade(docId, phone) {
             return docRef.get();
         }).then(function(doc) {
             var data = doc.data();
-            _cloudSync = { phone: '', id: null, base: null, sig: '' };   // GameState now comes from the cloud: no stale 3-way baseline
+            _resetCloudSync();   // GameState now comes from the cloud: no stale 3-way baseline
             Object.keys(data).forEach(function(key) {
                 if (key in GameState && key !== 'lastUpdated') GameState[key] = data[key];
             });
@@ -1092,6 +1092,8 @@ function handleRememberMe(rememberMe, phone) {
 // without it (first save this session) the merge keeps the max / the cloud value.
 var _cloudSync = { phone: '', id: null, base: null, sig: '' };
 var _cloudSaveRunning = null, _cloudSaveQueued = null;
+// Login reloads and logout: GameState no longer matches any baseline.
+function _resetCloudSync() { _cloudSync = { phone: '', id: null, base: null, sig: '' }; }
 
 function saveToCloud() {
     if (!firebaseDb || !GameState.playerPhone) return Promise.resolve();
@@ -1121,7 +1123,7 @@ function _cloudSig(d) {
 function _cloudGet(docRef) {
     var timer;
     return Promise.race([docRef.get(), new Promise(function(resolve, reject) {
-        timer = setTimeout(function() { reject(new Error('cloud read timed out')); }, 15000);
+        timer = setTimeout(function() { reject(new Error('cloud read timed out')); }, 30000);
     })]).then(function(snap) { clearTimeout(timer); return snap; }, function(err) { clearTimeout(timer); throw err; });
 }
 
@@ -1149,14 +1151,26 @@ function _syncBaseOf(src, keys) {
 
 // Runs after mergeCloudIntoGameState when the cloud moved and this device has a baseline:
 // counters = cloud + this device's change since the baseline (a spend stays spent, both devices'
-// gains add up); other fields keep this device's value if it changed since the baseline, else the cloud's.
+// gains add up); other fields keep this device's value if it changed since the baseline, else the
+// cloud's — per key for plain objects (characterTiers, levelsData...), so both devices' keys survive.
 function _syncThreeWay(cloud, base, local, keys) {
+    function changed(a, b) { return JSON.stringify(a) !== JSON.stringify(b); }
+    function isMap(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
     keys.forEach(function(k) {
         var kind = _syncFieldKind(k);
         if ((kind !== 'counter' && kind !== 'value') || !(k in base) || !(k in local)) return;
         if (kind === 'counter') {
             GameState[k] = Math.max(0, (+cloud[k] || 0) + (+local[k] || 0) - (+base[k] || 0));
-        } else if (JSON.stringify(local[k]) !== JSON.stringify(base[k])) {
+        } else if (k === 'blitzWeeklyScore' && (local.blitzWeeklyKey || '') === (cloud.blitzWeeklyKey || '')) {
+            GameState[k] = Math.max(+cloud[k] || 0, +local[k] || 0);   // best of the same week
+        } else if (isMap(local[k]) && isMap(base[k]) && isMap(cloud[k])) {
+            var m = {}, l = local[k], b = base[k], c = cloud[k];
+            Object.keys(Object.assign({}, l, b, c)).forEach(function(kk) {
+                var v = changed(l[kk], b[kk]) ? l[kk] : c[kk];   // a key deleted on the changing side stays deleted
+                if (v !== undefined) m[kk] = v;
+            });
+            GameState[k] = m;
+        } else if (changed(local[k], base[k])) {
             GameState[k] = local[k];
         } else if (cloud[k] !== undefined) {
             GameState[k] = cloud[k];
@@ -1170,17 +1184,25 @@ function _writeToCloud() {
     var docRef = firebaseDb.collection('players').doc(phone);
     var atCall = _cloudSaveData();   // still written if the player logs out while the doc is being read
     var keys = Object.keys(atCall);
+    var syncAtCall = _cloudSync;
     return _cloudGet(docRef).then(function(snap) {
-        var known = _cloudSync.phone === phone ? _cloudSync.id : null;
+        var loggedOut = phone !== GameState.playerPhone;
+        // logged out during the read: judge by the sync state this save started with (logout resets
+        // _cloudSync). Still logged in: the current one, which a login reload may have replaced.
+        var sync = loggedOut ? syncAtCall : _cloudSync;
+        var known = sync.phone === phone ? sync.id : null;
         var cloudMoved = snap.exists && (known === null || (snap.data().syncId || '') !== known);
-        var data;
-        if (phone !== GameState.playerPhone) {
+        var data, nextBase = sync.phone === phone ? sync.base : null;
+        if (loggedOut) {
             if (cloudMoved) return;   // nothing left to merge into; the local backup keeps this progress
             data = atCall;
         } else {
             if (cloudMoved) {
                 var cloud = snap.data();
-                var base = _cloudSync.phone === phone ? _cloudSync.base : null;
+                var base = nextBase;
+                // the cloud as just read is the baseline from here on, even if the write below fails:
+                // the old one would add (cloud - old baseline) a second time on the next save
+                nextBase = _syncBaseOf(cloud, keys);
                 // a season or progress reset on either side since the baseline: the plain merge + ensureScoreSeason handle it
                 var threeWay = !!base && ['scoreSeasonId', 'progressResetId'].every(function(k) {
                     return (cloud[k] || '') === (base[k] || '') && (GameState[k] || '') === (base[k] || '');
@@ -1196,7 +1218,7 @@ function _writeToCloud() {
             data = _cloudSaveData();
         }
         data.syncId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-        _cloudSync = { phone: phone, id: data.syncId, base: _cloudSync.phone === phone ? _cloudSync.base : null, sig: '' };
+        if (!loggedOut) _cloudSync = { phone: phone, id: data.syncId, base: nextBase, sig: '' };
         var written = _syncBaseOf(data, Object.keys(data)), sig = _cloudSig(data);   // taken now: GameState can change during the write
         return docRef.set(data, { merge: true }).then(function() {
             if (_cloudSync.id === data.syncId) { _cloudSync.base = written; _cloudSync.sig = sig; }
@@ -5979,7 +6001,7 @@ function confetti() {
 // --- Logout ---
 function logout() {
     _notifLoginReady = false;
-    _cloudSync = { phone: '', id: null, base: null, sig: '' };   // the next login starts without a baseline
+    _resetCloudSync();   // the next login starts without a baseline
     unregisterPushToken();
     if (typeof unsubscribeNotifInbox === 'function') unsubscribeNotifInbox();
     try { stopGlobalPresence(); } catch(e){}

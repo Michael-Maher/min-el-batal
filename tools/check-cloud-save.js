@@ -20,7 +20,7 @@ function grab(name) {
 
 var code = [
     'var _cloudSync = { phone: \'\', id: null }; var _cloudSaveRunning = null, _cloudSaveQueued = null;',
-    grab('mergeStationScoreEntry'), grab('mergeLevel1Data'), grab('saveToCloud'), grab('saveToCloudIfChanged'),
+    grab('_resetCloudSync'), grab('mergeStationScoreEntry'), grab('mergeLevel1Data'), grab('saveToCloud'), grab('saveToCloudIfChanged'),
     grab('_cloudSig'), grab('_cloudGet'), grab('_syncFieldKind'), grab('_syncBaseOf'), grab('_syncThreeWay'),
     grab('_writeToCloud'), grab('_cloudSaveData'), grab('mergeCloudIntoGameState'), grab('loadFromCloud')
 ].join('\n');
@@ -144,7 +144,7 @@ test('logout while the doc is being read still saves the progress made before it
     return ctx.saveToCloud().then(function () {
         ctx.GameState.stars = 95;
         var p = ctx.saveToCloud();
-        ctx.GameState.playerPhone = ''; ctx.GameState.stars = 0;   // logout()
+        ctx._resetCloudSync(); ctx.GameState.playerPhone = ''; ctx.GameState.stars = 0;   // what logout() does
         return p;
     }).then(function () {
         assert.strictEqual(ctx._writes.length, 2);
@@ -157,7 +157,7 @@ test('logout during the read skips the write when another device saved since', f
     var ctx = makeCtx(player({ stars: 200 }), CLOUD_RITA);
     vm.runInContext('_cloudSync = { phone: "0155", id: "phoneA-old" };', ctx);
     var p = ctx.saveToCloud();
-    ctx.GameState.playerPhone = '';
+    ctx._resetCloudSync(); ctx.GameState.playerPhone = '';
     return p.then(function () { assert.strictEqual(ctx._writes.length, 0); });
 });
 
@@ -278,10 +278,12 @@ test('timer save never skips before the first successful write', function () {
 test('a read that never settles times out, writes nothing and does not block later saves', function () {
     var ctx = makeCtx(player({ stars: 10 }), null);
     vm.runInContext('var _realDb = firebaseDb; firebaseDb = { collection: function () { return { doc: function () { return { get: function () { return new Promise(function () {}); } }; } }; } };', ctx);
-    ctx.setTimeout = function (fn) { return setTimeout(fn, 0); };   // the 15 s timer fires at once
+    var asked = [];
+    ctx.setTimeout = function (fn, ms) { asked.push(ms); return setTimeout(fn, 0); };   // the read timer fires at once
     ctx.console.error = function () {};
     return ctx.saveToCloud().then(function () {
         assert.strictEqual(ctx._writes.length, 0);
+        assert.deepStrictEqual(asked, [30000]);
         vm.runInContext('firebaseDb = _realDb;', ctx);
         return ctx.saveToCloud();
     }).then(function () { assert.strictEqual(ctx._writes.length, 1); });
@@ -290,6 +292,90 @@ test('a read that never settles times out, writes nothing and does not block lat
 test('loadFromCloud keeps the newer local notifSeenAt', function () {
     var ctx = makeCtx(player({ notifSeenAt: 5000 }), player({ notifSeenAt: 3000, syncId: 'phoneB' }));
     return ctx.loadFromCloud('0155').then(function () { assert.strictEqual(ctx.GameState.notifSeenAt, 5000); });
+});
+
+// --- follow-up re-review cases ---
+test('N1: a merge-save whose write fails does not count the other device twice on the retry', function () {
+    return synced({ stars: 200 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { stars: 8000 });
+        ctx.GameState.stars = 250;   // +50 here since the baseline
+        var fails = 1;
+        var docRef0 = ctx.firebaseDb.collection().doc();
+        ctx.firebaseDb = { collection: function () { return { doc: function () { return {
+            get: docRef0.get,
+            set: function (d) { if (fails-- > 0) return Promise.reject(new Error('doc too big')); return docRef0.set(d); }
+        }; } }; } };
+        ctx.console.error = function () {};
+        return ctx.saveToCloud().then(function () {
+            assert.strictEqual(ctx._writes.length, 1, 'the failed write is not recorded');
+            assert.strictEqual(ctx.GameState.stars, 8050);
+            return ctx.saveToCloud();
+        }).then(function () {
+            assert.strictEqual(lastWrite(ctx).stars, 8050, 'cloud + local delta exactly once');
+            return ctx.saveToCloud();
+        }).then(function () { assert.strictEqual(lastWrite(ctx).stars, 8050); });
+    });
+});
+
+test('N2: the real logout reset during the read still writes the progress made before it', function () {
+    return synced({ stars: 70 }).then(function (ctx) {
+        ctx.GameState.stars = 95;
+        var p = ctx.saveToCloud();
+        ctx._resetCloudSync();   // logout()
+        ctx.GameState.playerPhone = ''; ctx.GameState.stars = 0;
+        return p.then(function () {
+            assert.strictEqual(lastWrite(ctx).stars, 95);
+            assert.strictEqual(lastWrite(ctx).playerPhone, '0155');
+            assert.strictEqual(vm.runInContext('_cloudSync.phone', ctx), '', 'logged-out save leaves the reset in place');
+        });
+    });
+});
+
+test('N2: a login reload during the read drops the old baseline (no double count)', function () {
+    return synced({ stars: 100 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { stars: 300 });
+        var p = ctx.saveToCloud();
+        ctx._resetCloudSync(); ctx.GameState.stars = 300;   // password login: GameState reloaded from the cloud
+        return p.then(function () { assert.strictEqual(lastWrite(ctx).stars, 300); });
+    });
+});
+
+test('N3: plain-object fields merge per key (the other device\'s paid paul:2 survives)', function () {
+    return synced({ characterTiers: { david: 1 }, levelsData: { 1: { stars: 3 } } }).then(function (ctx) {
+        otherDeviceSaves(ctx, { characterTiers: { david: 1, paul: 2 }, levelsData: { 1: { stars: 3 }, 2: { stars: 1 } } });
+        ctx.GameState.characterTiers = { david: 2 };
+        ctx.GameState.levelsData = { 1: { stars: 3 }, 3: { stars: 2 } };
+        return ctx.saveToCloud().then(function () {
+            assert.deepStrictEqual(JSON.parse(JSON.stringify(lastWrite(ctx).characterTiers)), { david: 2, paul: 2 });
+            assert.deepStrictEqual(Object.keys(lastWrite(ctx).levelsData).sort(), ['1', '2', '3']);
+        });
+    });
+});
+
+test('N3: a key removed on the changing side stays removed; a key only the cloud changed is adopted', function () {
+    return synced({ equippedArmor: { head: 'h1', body: 'b1' } }).then(function (ctx) {
+        otherDeviceSaves(ctx, { equippedArmor: { head: 'h1', body: 'b2' } });
+        ctx.GameState.equippedArmor = { body: 'b1' };   // took the helmet off here
+        return ctx.saveToCloud().then(function () {
+            assert.deepStrictEqual(JSON.parse(JSON.stringify(lastWrite(ctx).equippedArmor)), { body: 'b2' });
+        });
+    });
+});
+
+test('N6: blitzWeeklyScore keeps the best of the same week, the new week otherwise', function () {
+    return synced({ blitzWeeklyKey: 'w42', blitzWeeklyScore: 100 }).then(function (ctx) {
+        otherDeviceSaves(ctx, { blitzWeeklyScore: 180 });
+        ctx.GameState.blitzWeeklyScore = 150;
+        return ctx.saveToCloud().then(function () {
+            assert.strictEqual(lastWrite(ctx).blitzWeeklyScore, 180);
+            otherDeviceSaves(ctx, { blitzWeeklyScore: 200 });
+            ctx.GameState.blitzWeeklyKey = 'w43'; ctx.GameState.blitzWeeklyScore = 40;   // new week here
+            return ctx.saveToCloud();
+        }).then(function () {
+            assert.strictEqual(lastWrite(ctx).blitzWeeklyKey, 'w43');
+            assert.strictEqual(lastWrite(ctx).blitzWeeklyScore, 40);
+        });
+    });
 });
 
 (async function () {

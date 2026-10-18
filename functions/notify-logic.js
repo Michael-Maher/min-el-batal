@@ -67,7 +67,7 @@ function message(type, v) {
         case 'lesson_unlock':   return { title: 'درس جديد اتفتح! 📖', body: '«' + (v.title || 'درس جديد') + '» مستنيك… ادخل اكسب نجومك ⭐' };
         case 'subject_unlock':  return { title: 'مادة جديدة اتفتحت 🔓', body: '«' + (v.title || 'مادة جديدة') + '» جاهزة ليك، يلا نبدأ!' };
         case 'level_unlock':    return { title: 'المستوى ' + (v.n || '') + ' اتفتح 🚀', body: 'مغامرة جديدة جاهزة ليك، يلا نبدأ!' };
-        case 'selfie':          return { title: 'تحدي سيلفي جديد 📸', body: '«' + (v.title || 'التحدي') + '»: صوّر واكسب ' + (v.stars || 0) + ' نجمة قبل ' + (v.day || 'ما يخلص') };
+        case 'selfie':          return { title: 'تحدي سيلفي جديد 📸', body: '«' + (v.title || 'التحدي') + '»: صوّر واكسب ' + (v.stars || 0) + ' نجمة قبل ' + (v.day || 'نهاية التحدي') };
         case 'tournament':      return { title: 'فريقك في كاس مين البطل! 🏆', body: '«' + (v.title || 'البطولة') + '» بدأت دلوقتي، شجّع ' + (v.team || 'فريقك') + ' لايف' };
         case 'invite_duel':     return { title: firstName(name) + ' بيتحداك! ⚔️', body: 'مبارزة 1 ضد 1… تقبل التحدي؟' };
         case 'invite_room':     return { title: firstName(name) + ' بيناديك للمنافسة 🎮', body: 'الأوضة مستنياك، ادخل قبل ما تبدأ' };
@@ -139,9 +139,16 @@ function playerMatchesSegments(p, seg) {
     return true;
 }
 
-// Selfie challenge is due once: enabled, inside [startAt, endAt), and not yet notified
+// Selfie challenge is due when enabled, inside [startAt, endAt), and not yet announced for this startAt.
+// Dedupe keys on startAt so a re-activated challenge (new startAt) is announced again.
+// Legacy docs (notifiedAt but no notifiedStartAt) count as announced only if notifiedAt >= startAt.
 function selfieDue(c, nowMs) {
-    return !!(c && c.enabled && !c.notifiedAt && (+c.startAt || 0) <= nowMs && nowMs < (+c.endAt || 0));
+    if (!c || !c.enabled) return false;
+    var start = +c.startAt || 0, end = +c.endAt || 0;
+    if (!(start <= nowMs && nowMs < end)) return false;
+    if (c.notifiedStartAt != null) return +c.notifiedStartAt !== start;
+    if (c.notifiedAt && +c.notifiedAt >= start) return false;
+    return true;
 }
 function arabicDay(ms) {
     return new Intl.DateTimeFormat('ar-EG', { timeZone: 'Africa/Cairo', weekday: 'long' }).format(new Date(ms));

@@ -520,17 +520,22 @@ exports.onNotifyQueueCreated = functions.region('europe-west1')
 // SELFIE CHALLENGE OPENS → push once (checked hourly, Cairo time)
 // ============================================================
 exports.selfieChallengeStarts = functions.region('europe-west1')
+    .runWith({ timeoutSeconds: 300 })
     .pubsub.schedule('5 * * * *').timeZone('Africa/Cairo').onRun(async () => {
         var now = Date.now();
         var snap = await db.collection('selfieChallenges').where('enabled', '==', true).get();
         for (const d of snap.docs) {
-            var c = d.data() || {};
-            if (!L.selfieDue(c, now)) continue;
-            await d.ref.update({ notifiedAt: now });
-            var m = L.message('selfie', { title: c.title, stars: c.rewardStars || 0, day: L.arabicDay(+c.endAt) });
-            await notifier.notify(c.level ? 'level_' + c.level : 'all',
-                { type: 'selfie', title: m.title, body: m.body, link: { screen: 'selfie' } },
-                { id: 'selfie_' + d.id, levelBy: 'compete' });
+            try {
+                var c = d.data() || {};
+                if (!L.selfieDue(c, now)) continue;
+                await d.ref.update({ notifiedAt: now, notifiedStartAt: c.startAt });
+                var m = L.message('selfie', { title: c.title, stars: c.rewardStars || 0, day: L.arabicDay(+c.endAt) });
+                await notifier.notify(c.level ? 'level_' + c.level : 'all',
+                    { type: 'selfie', title: m.title, body: m.body, link: { screen: 'selfie' } },
+                    { id: 'selfie_' + d.id, levelBy: 'compete' });
+            } catch (err) {
+                console.error('[selfieChallengeStarts] doc ' + d.id + ' failed:', err);
+            }
         }
         return null;
     });
@@ -539,6 +544,7 @@ exports.selfieChallengeStarts = functions.region('europe-west1')
 // TOURNAMENT GOES ACTIVE → push each team's members (once)
 // ============================================================
 exports.onTournamentStarted = functions.region('europe-west1')
+    .runWith({ timeoutSeconds: 300 })
     .firestore.document('tournaments/{tid}').onUpdate(async (change, context) => {
         var before = change.before.data() || {}, after = change.after.data() || {};
         if (before.status === 'active' || after.status !== 'active' || after.notifiedAt) return null;

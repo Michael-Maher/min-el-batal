@@ -7,7 +7,7 @@ test('index.js loads and exports the expected functions', () => {
     const names = Object.keys(fns).sort();
     assert.ok(!names.includes('onNewLesson'));
     assert.ok(!names.includes('updateNotifPrefs'));
-    ['selfieChallengeStarts', 'onTournamentStarted', 'onAnnouncementCreated','onQuestionMessageCreated', 'onPostCommentCreated', 'onPostCreated',
+    ['selfieChallengeStarts', 'onTournamentStarted', 'onAnnouncementCreated', 'onQuestionMessageCreated', 'onPostCommentCreated', 'onPostCreated',
      'onPostDeleted', 'weeklyReminder', 'onQuestionCreated', 'onPlayerReportCreated',
      'onRewardRequestCreated', 'onAdminRequestCreated', 'onNotifyQueueCreated'].forEach((n) => assert.ok(names.includes(n), n));
 });

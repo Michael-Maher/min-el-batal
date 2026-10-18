@@ -120,3 +120,26 @@ test('tournamentTeamIds flattens unique team ids', () => {
     assert.deepStrictEqual(L.tournamentTeamIds({ rounds: [{ teams: ['a', 'b'] }, { teams: ['b', 'c'] }, {}] }), ['a', 'b', 'c']);
     assert.deepStrictEqual(L.tournamentTeamIds({}), []);
 });
+test('selfieDue: same startAt already announced is not due', () => {
+    const now = Date.parse('2026-10-18T12:00:00Z');
+    const c = { enabled: true, startAt: now - 1000, endAt: now + 86400000 };
+    assert.strictEqual(L.selfieDue({ ...c, notifiedStartAt: c.startAt, notifiedAt: now - 10 }, now), false);
+});
+test('selfieDue: re-activated challenge (new startAt) is due again', () => {
+    const now = Date.parse('2026-10-18T12:00:00Z');
+    const old = now - 5 * 86400000;
+    const c = { enabled: true, startAt: now - 1000, endAt: now + 86400000,
+        notifiedStartAt: old, notifiedAt: old + 10 };
+    assert.strictEqual(L.selfieDue(c, now), true);
+});
+test('selfieDue: legacy doc counts as announced only when notifiedAt >= startAt', () => {
+    const now = Date.parse('2026-10-18T12:00:00Z');
+    const c = { enabled: true, startAt: now - 1000, endAt: now + 86400000 };
+    assert.strictEqual(L.selfieDue({ ...c, notifiedAt: now - 500 }, now), false);
+    assert.strictEqual(L.selfieDue({ ...c, notifiedAt: now - 5000 }, now), true);
+});
+test('selfieDue boundaries: startAt == now is due, endAt == now is not', () => {
+    const now = Date.parse('2026-10-18T12:00:00Z');
+    assert.strictEqual(L.selfieDue({ enabled: true, startAt: now, endAt: now + 1000 }, now), true);
+    assert.strictEqual(L.selfieDue({ enabled: true, startAt: now - 1000, endAt: now }, now), false);
+});

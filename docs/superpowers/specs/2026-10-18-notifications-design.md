@@ -74,8 +74,8 @@ Reads use `players.select(...)` on the small fields only (docs hold base64 media
 ## Game (`game.js`, `index.html`, `sw.js`, `style.css`)
 - Tokens: `initPushNotifications` writes `pushTokens/{token}` (owner = phone) and deletes legacy `players.fcmToken`;
   `logout()` deletes the device's token doc. Fix: token save no longer rebuilds `notifPrefs` (it dropped `social`).
-- Single display: messages carry `webpush.notification`, so `sw.js` `onBackgroundMessage` stops calling
-  `showNotification` (no duplicates). `notificationclick` opens/focuses the app with `?n=<base64 link>`; the open app
+- Single display: messages are data-only (no `webpush.notification`); the service workers display them. `sw.js` and
+  `admin-sw.js` `onBackgroundMessage` are the only callers of `showNotification`, so each push shows once. `notificationclick` opens/focuses the app with `?n=<base64 link>`; the open app
   receives a `postMessage` instead. `openNotifLink(link)` routes `screen` → existing openers (`openQuestionThread`,
   `l1OpenSubject`/`l1StartStation`, `openLevel2Subject`/`startLevel2Lesson`, `openSelfieChallenge`, duel join by
   code, `autoJoinRoom`, Bible reading screen, `tournament-live.html`), respecting the `showScreen` lock gate.
@@ -97,7 +97,7 @@ Reads use `players.select(...)` on the small fields only (docs hold base64 media
   goes in `document.title` (`(3) لوحة التحكم`); a short sound plays when a count rises after the first snapshot.
 - Unlock flow (`saveLock` / `toggleLockQuick`): when a `lesson_*`, `subject_*` or `level_*` key goes to unlocked,
   a «📣 إشعار اللاعبين» checkbox (default **off**) appears; when ticked, writes `notifyQueue` with the title from
-  `SUBJECTS` and the subject's level (`l1_*` → 1; `l2_*`, `faith`, `ritual` → 2; `level_*` / `card_*` → 0 = all).
+  `SUBJECTS` and the subject's level (`l1_*` → 1; `l2_*`, `faith`, `ritual` → 2; `level_*` → 0 = all; `card_*` never pushes).
 
 ## Error handling
 - Functions: per-send failures logged; dead tokens deleted; a failing `notify` never fails the source write. Guard docs

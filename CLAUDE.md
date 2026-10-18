@@ -23,8 +23,12 @@ Live: https://min-el-batal.web.app
 | `admin.html` | Single-file admin panel — HTML + CSS + JS. ~7.4k lines. Separate auth from the game (admin accounts in `admins` collection) |
 | `tournament.html` / `tournament-live.html` | Tournament admin views ("كاس مين البطل") |
 | `firebase.json` | Hosting + Firestore + Functions config. Hosting `public: '.'`. Rewrites all routes to `index.html`, except `/admin.html` |
-| `firestore.rules` | All collections currently `allow read, write: if true` — there's no security yet, app trusts the client |
+| `firestore.rules` | Most collections `allow read, write: if true` (no Firebase Auth, app trusts the client). Notification collections have narrow rules, see Notifications |
+| `firestore.indexes.json` | Composite index: `notifications` (`audience` ASC, `createdAt` DESC) |
 | `functions/index.js` | Cloud Functions (notifications, leaderboard hooks) |
+| `functions/notify.js` | `makeNotifier()` — the `notify()` service: writes `notifications`, resolves tokens, sends FCM |
+| `functions/notify-logic.js` | Pure notification helpers: Arabic message texts, audience→level match, reminder decision, Cairo date |
+| `admin-sw.js` | Admin panel service worker (scope `/admin.html`): displays admin pushes, click opens the panel page |
 | `manifest.json` / `admin-manifest.json` | PWA manifests |
 | `seed_questions.js` / `new_questions.json` / `tournament_questions_seed.json` | One-shot seed scripts/data |
 
@@ -43,7 +47,7 @@ Live: https://min-el-batal.web.app
 | `bossBattle` | Shared world boss state |
 | `teams` | Team docs with members[], admins[], color, logo |
 | `tournaments` + `tournament_questions` | Admin-created tournaments |
-| `lessons` | New-lesson notifications (admin pushes) |
+| `lessons` | Unused. Nothing reads or writes it; lesson unlock pushes go through `notifyQueue` |
 | `announcements` | In-app + push announcements |
 | `admins` + `admin_requests` | Admin accounts and pending requests |
 | `questions` (+ `messages` subcollection) | Player-to-clergy Q&A |
@@ -51,6 +55,12 @@ Live: https://min-el-batal.web.app
 | `playerEvents` | Audit log (login, lesson_start, etc.) — write-from-game, read-from-admin |
 | `playerReports` | Player-on-player reports |
 | `reward_requests` | Gift redemption requests |
+| `notifications` | Inbox entries; `audience` = phone / `all` / `level_1` / `level_2` / `admins`. Functions only; deleted after 30 days |
+| `pushTokens/{token}` | `{owner, role, updatedAt}`; `owner` = phone or `admin:<id>`. Clients create/update/delete, never read |
+| `notifyQueue` | Admin asks for a lesson/subject/level unlock push. Create-only from admin panel; functions send and delete it |
+| `invites` | Teammate duel/room invites. Create-only from game; deleted after 1 day |
+| `notifySent` | Dedupe markers for one-shot pushes. Functions only |
+| `inviteGuard` | 10-minute rate limit per from→to pair. Functions only |
 
 ## GameState (player-side global)
 Lives at the top of `game.js`. Loaded from Firestore on login (key = phone), saved back via `saveToCloud()`. Critical fields:
@@ -62,13 +72,15 @@ Lives at the top of `game.js`. Loaded from Firestore on login (key = phone), sav
 - `powerUps`, `armor`, `ownedFrames`, `ownedTitles`
 - `status` ('active'|'suspended'|'blocked'), `statusMessage`, `statusReason`
 - `contentLocks` — pulled from `gameContent/locks` via real-time `onSnapshot` set up in `subscribeContentLocks()` (called from `initFirebase()`, NOT from login flows — see fix history)
+- Reminder/notification fields: `lastActiveDate` (Cairo `YYYY-MM-DD`, `trackLastActiveDate()`), `lastBibleDate` (set on Bible reading save, backfilled on load), `notifPrefs`, `notifSeenAt` (ms). `lastActiveDate` and `lastBibleDate` are written with direct `.update()`, not through `saveToCloud()`. `lastRemindDate` is written only by the reminder job.
+- Stale-device guard: every `_writeToCloud()` stamps a `syncId`. If the cloud `syncId` differs from the one this device last wrote or merged, the cloud copy is merged in before writing, so an old device cannot overwrite newer stars.
 
 ## Conventions
 
 - **Arabic + RTL.** All user-facing strings are Arabic. Match the existing tone (warm, encouraging, faith-themed).
 - **No emojis in code/commits** unless user asks.
 - **No build step.** Edit files in place, deploy with `firebase deploy --only hosting`.
-- **Firestore rules are open.** Don't rely on rules for anything; treat rules as low priority for now.
+- **Firestore rules are mostly open.** Don't rely on rules for anything except the notification collections, whose narrow shape checks bound what clients write (no Firebase Auth, so they cannot identify who writes).
 - **Mobile-first.** Most users on phones, RTL, often slow networks.
 - **One global object.** `GameState`, `level2State`, `competeState` etc. — patterns are global, no modules.
 - **Inline event handlers everywhere.** `<div onclick="...">` is normal. Don't refactor unless asked.
@@ -108,16 +120,25 @@ Each can be locked by admin via `gameContent/locks`. Lock visuals applied by `ap
 - **Suspend / block**: `status` field on player doc. Game shows blocking overlay via `showSuspendedScreen()`.
 - **Per-team-per-player rule** is enforced in `admin.html` team management.
 - **Tournaments** are a separate admin surface (`tournament.html`).
+- **Notifications** (`notify()` service, bell inbox, admin and player pushes, 2-day reminders). Spec: `docs/superpowers/specs/2026-10-18-notifications-design.md`.
 
 ## How to deploy
 
 ```bash
 firebase deploy --only hosting       # most common — game/admin updates
-firebase deploy --only firestore:rules
+firebase deploy --only firestore:rules,firestore:indexes
 firebase deploy --only functions
 ```
 
+Notification stages: rules and indexes first, wait for the `notifications` index to finish building (Firebase console), then functions, then hosting. Functions that query `notifications` need that index.
+
 The user generally runs deploys themselves. Don't deploy without being asked.
+
+## Checks
+
+- `cd functions && npm test` — notification logic (`node --test`)
+- `node tools/check-notifications.js`, `node tools/check-cloud-save.js` — vm-stub checks for game code
+- `firebase emulators:exec --only firestore "node tools/check-rules.js"` — rules; needs JDK 21
 
 ## How to find things fast
 
@@ -130,7 +151,7 @@ The user generally runs deploys themselves. Don't deploy without being asked.
 
 - Don't bulk-refactor anything in `game.js`. It's working production code.
 - Don't introduce a build step / framework / TypeScript / npm dependencies for the player app.
-- Don't change Firestore rules (they're intentionally open for now).
+- Don't change Firestore rules (most are intentionally open; the notification rules are narrow on purpose).
 - Don't delete or move `game.js.bak` etc. without asking.
 - Don't touch tournament files unless explicitly working on tournaments.
 

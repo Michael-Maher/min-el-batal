@@ -15188,6 +15188,7 @@ function renderCompeteLobby(room) {
     html += '<p class="lobby-code-hint">شارك الكود ده مع أصحابك عشان يدخلوا</p>';
     html += '<div class="lobby-share-btns">';
     html += '<button class="btn btn-primary lobby-share-btn" onclick="shareRoomLink(\'' + room.code + '\')"><span><i class="fas fa-share-nodes"></i> شارك اللينك</span></button>';
+    html += '<button class="btn btn-secondary lobby-share-btn" onclick="openTeamInvite(\'room\',\'' + room.code + '\')"><span>👥 ادعي حد من فريقك</span></button>';
     html += '<button class="btn btn-secondary lobby-copy-btn" onclick="copyRoomCode(\'' + room.code + '\')"><span><i class="fas fa-copy"></i> انسخ الكود</span></button>';
     html += '</div>';
     html += '</div>';
@@ -17556,6 +17557,44 @@ function joinDuelByCode(code) {
     }).catch(function(e) { showToast('حصل خطأ: ' + e.message, 'error'); });
 }
 
+// ---- Invite a teammate (duel or compete room) ----
+var _inviteTargets = [];
+function openTeamInvite(kind, code) {
+    if (!firebaseDb || !GameState.playerPhone) return;
+    if (!GameState.team) { showToast('انضم لفريق الأول عشان تدعي صحابك 👥', 'info'); return; }
+    kind = kind === 'room' ? 'room' : 'duel';
+    code = String(code || '').replace(/[^A-Za-z0-9_-]/g, '');
+    var docId = GameState.team.replace(/[\/\\\.#\[\]\*]/g, '_');
+    firebaseDb.collection('teams').doc(docId).get().then(function(doc) {
+        var t = doc.exists ? doc.data() : {};
+        var members = t.members || [], names = t.memberNames || [];
+        _inviteTargets = [];
+        var html = '<div class="modal-card" style="max-width:340px;direction:rtl"><h3 style="text-align:center;margin:0 0 12px">👥 ادعي حد من فريقك</h3>';
+        members.forEach(function(ph, i) {
+            if (!ph || ph === GameState.playerPhone) return;
+            _inviteTargets.push(ph);
+            html += '<button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="sendTeamInvite(\'' + kind + '\',\'' + code + '\',' + (_inviteTargets.length - 1) + ',this)"><span>' + escapeHtml(names[i] || 'عضو في الفريق') + '</span></button>';
+        });
+        if (!_inviteTargets.length) html += '<p style="text-align:center;color:var(--text-secondary)">فريقك لسه مفيهوش حد غيرك</p>';
+        html += '<button class="btn btn-primary" style="width:100%;margin-top:6px" onclick="this.closest(\'.modal-overlay\').remove()"><span>تمام</span></button></div>';
+        var ov = document.createElement('div');
+        ov.className = 'modal-overlay'; ov.innerHTML = html; document.body.appendChild(ov);
+    }).catch(function() { showToast('حصل مشكلة، حاول تاني', 'error'); });
+}
+function sendTeamInvite(kind, code, idx, btn) {
+    var to = _inviteTargets[idx];
+    if (!to || !firebaseDb) return;
+    if (btn) btn.disabled = true;
+    firebaseDb.collection('invites').add({
+        kind: kind, from: GameState.playerPhone, fromName: (GameState.playerName || '').slice(0, 60), to: to, code: code, createdAt: Date.now()
+    }).then(function() {
+        if (btn) btn.innerHTML = '<span>اتبعتت ✓</span>';
+    }).catch(function() {
+        if (btn) btn.disabled = false;
+        showToast('الدعوة ما اتبعتتش، حاول تاني', 'error');
+    });
+}
+
 function showDuelWaiting(code) {
     var overlay = document.getElementById('duel-overlay');
     if (!overlay) return;
@@ -17564,6 +17603,7 @@ function showDuelWaiting(code) {
         '<p style="color:var(--text-muted)">شارك الكود مع منافسك:</p>' +
         '<div class="duel-code-display">' + code + '</div>' +
         '<div class="duel-waiting-msg" id="duel-wait-msg"><i class="fas fa-spinner fa-spin"></i> بنستنى منافسك...</div>' +
+        '<button class="btn btn-primary" onclick="openTeamInvite(\'duel\',\'' + code + '\')" style="margin-top:12px;width:100%"><span>👥 ادعي حد من فريقك</span></button>' +
         '<button class="btn btn-secondary" onclick="cancelDuel()" style="margin-top:12px;width:100%"><span>إلغاء</span></button>';
 }
 

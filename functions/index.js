@@ -562,3 +562,28 @@ exports.onTournamentStarted = functions.region('europe-west1')
         }
         return null;
     });
+
+// ============================================================
+// Teammate invites: sender and receiver must share a team; one push per pair per 10 minutes
+// ============================================================
+exports.onInviteCreated = functions.region('europe-west1')
+    .firestore.document('invites/{id}').onCreate(async (snap, context) => {
+        var inv = snap.data() || {};
+        if (!inv.from || !inv.to || !inv.code) return null;
+        var teams = await db.collection('teams').where('members', 'array-contains', inv.from).get();
+        var shared = teams.docs.some(function(t) { return ((t.data() || {}).members || []).indexOf(inv.to) >= 0; });
+        if (!shared) { console.log('[invite] not teammates', inv.from, inv.to); return null; }
+        var guard = db.collection('inviteGuard').doc(inv.from + '_' + inv.to);
+        var ok = await db.runTransaction(async function(tx) {
+            var g = await tx.get(guard), now = Date.now();
+            if (!L.inviteAllowed(g.exists ? g.data().lastAt : 0, now)) return false;
+            tx.set(guard, { lastAt: now });
+            return true;
+        });
+        if (!ok) return null;
+        var type = inv.kind === 'room' ? 'invite_room' : 'invite_duel';
+        var m = L.message(type, { name: inv.fromName });
+        await notifier.notify(inv.to, { type: type, title: m.title, body: m.body,
+            link: { screen: inv.kind === 'room' ? 'room' : 'duel', code: inv.code } }, { id: context.eventId });
+        return null;
+    });

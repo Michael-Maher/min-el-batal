@@ -143,3 +143,9 @@ test('selfieDue boundaries: startAt == now is due, endAt == now is not', () => {
     assert.strictEqual(L.selfieDue({ enabled: true, startAt: now, endAt: now + 1000 }, now), true);
     assert.strictEqual(L.selfieDue({ enabled: true, startAt: now - 1000, endAt: now }, now), false);
 });
+test('invite rate limit 10 minutes per pair', () => {
+    const now = 1_000_000_000;
+    assert.strictEqual(L.inviteAllowed(0, now), true);
+    assert.strictEqual(L.inviteAllowed(now - 9 * 60000, now), false);
+    assert.strictEqual(L.inviteAllowed(now - 10 * 60000, now), true);
+});

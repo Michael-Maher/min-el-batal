@@ -162,6 +162,9 @@ function tournamentTeamIds(t) {
     return out;
 }
 
-module.exports = { cairoDate, daysBetween, playerLevelOf, matchesLevel, categoryOf, prefAllows, message,
+// One teammate invite push per sender/receiver pair per 10 minutes
+function inviteAllowed(lastAtMs, nowMs) { return !lastAtMs || nowMs - lastAtMs >= 10 * 60000; }
+
+module.exports = { inviteAllowed, cairoDate, daysBetween, playerLevelOf, matchesLevel, categoryOf, prefAllows, message,
     reminderFor, parseLockKey, unlockMessage, stripHtml, firstName, playerMatchesSegments,
     selfieDue, arabicDay, tournamentTeamIds };

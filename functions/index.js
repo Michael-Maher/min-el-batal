@@ -1,11 +1,11 @@
 // ============================================================
 // مين البطل؟ - Cloud Functions (Smart Notifications)
 // ============================================================
-// Notification philosophy: encouraging, warm, not annoying
-// - Max 1 push per day per user
-// - Evening time only (8 PM Cairo)
-// - Rotating messages so they don't feel repetitive
-// - Prioritized: competition > inactivity > exercises
+// Jobs:
+// - dailyReminders: 8 PM Cairo; 2+ days away, or 2+ days without Bible, repeats every 2 days
+// - weeklyReminder: Thursday 7 PM Cairo; incomplete weekly exercises
+// - event-driven pushes (announcements, questions, posts, invites, tournaments...) go through notify()
+// Tone: encouraging, warm, not annoying; at most one reminder per player per day.
 // ============================================================
 
 const functions = require('firebase-functions');
@@ -160,7 +160,8 @@ exports.weeklyReminder = functions
         var sent = 0;
         for (const doc of playersSnap.docs) {
             var player = doc.data();
-            var list = (tokens[doc.id] || []).concat(player.fcmToken ? [player.fcmToken] : []);
+            var list = (tokens[doc.id] || []).slice();
+            if (player.fcmToken && list.indexOf(player.fcmToken) === -1) list.push(player.fcmToken);
             if (!list.length || !L.prefAllows(player.notifPrefs, 'weekly_reminder')) continue;
             if (player.status === 'blocked' || player.status === 'suspended') continue;
 
@@ -203,29 +204,37 @@ exports.dailyReminders = functions.region('europe-west1')
             'lastRemindDate', 'notifPrefs', 'status', 'fcmToken').get();
         var sent = { remind_inactive: 0, remind_bible: 0 };
         for (const d of snap.docs) {
-            var p = d.data() || {};
-            var kind = L.reminderFor(p, today);
-            if (!kind) continue;
-            var list = (tokens[d.id] || []).slice();
-            if (p.fcmToken && list.indexOf(p.fcmToken) === -1) list.push(p.fcmToken);
-            if (!list.length) continue;
-            var seed = dayNo + d.id.split('').reduce(function(a, c) { return a + c.charCodeAt(0); }, 0);
-            var m = L.message(kind, { name: p.playerName, seed: seed });
-            var r = await notifier.sendToTokens(list, { type: kind, title: m.title, body: m.body,
-                link: { screen: kind === 'remind_bible' ? 'bible' : 'home' } });
-            if (r.sent) { sent[kind]++; await d.ref.update({ lastRemindDate: today }); }
+            try {
+                var p = d.data() || {};
+                var kind = L.reminderFor(p, today);
+                if (!kind) continue;
+                var list = (tokens[d.id] || []).slice();
+                if (p.fcmToken && list.indexOf(p.fcmToken) === -1) list.push(p.fcmToken);
+                if (!list.length) continue;
+                var seed = dayNo + d.id.split('').reduce(function(a, c) { return a + c.charCodeAt(0); }, 0);
+                var m = L.message(kind, { name: p.playerName, seed: seed });
+                var r = await notifier.sendToTokens(list, { type: kind, title: m.title, body: m.body,
+                    link: { screen: kind === 'remind_bible' ? 'bible' : 'home' } });
+                if (r.sent) { sent[kind]++; await d.ref.update({ lastRemindDate: today }); }
+            } catch (e) { console.error('[reminders] player failed', d.id, e && e.message); }
         }
         console.log('[reminders]', today, JSON.stringify(sent), 'players', snap.size);
 
-        var cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 30 * 86400000);
-        var old = await db.collection('notifications').where('createdAt', '<', cutoff).limit(450).get();
-        var inv = await db.collection('invites').where('createdAt', '<', Date.now() - 86400000).limit(450).get();
-        if (!old.empty || !inv.empty) {
-            var b = db.batch();
-            old.forEach(function(x) { b.delete(x.ref); });
-            inv.forEach(function(x) { b.delete(x.ref); });
-            await b.commit();
-        }
+        try {
+            var cutoff = admin.firestore.Timestamp.fromMillis(Date.now() - 30 * 86400000);
+            var old = await db.collection('notifications').where('createdAt', '<', cutoff).limit(450).get();
+            if (!old.empty) {
+                var b1 = db.batch();
+                old.forEach(function(x) { b1.delete(x.ref); });
+                await b1.commit();
+            }
+            var inv = await db.collection('invites').where('createdAt', '<', Date.now() - 86400000).limit(450).get();
+            if (!inv.empty) {
+                var b2 = db.batch();
+                inv.forEach(function(x) { b2.delete(x.ref); });
+                await b2.commit();
+            }
+        } catch (e) { console.error('[reminders] cleanup failed', e && e.message); }
         return null;
     });
 

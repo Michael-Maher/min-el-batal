@@ -3092,15 +3092,18 @@ function startLiveCounters(){
     }, e=>console.warn('[live]',k,e)));
   });
 }
-function stopLiveCounters(){ _liveUnsubs.forEach(u=>{try{u();}catch(e){}}); _liveUnsubs=[]; Object.keys(_liveCounts).forEach(k=>delete _liveCounts[k]); }
+function stopLiveCounters(){ clearTimeout(_reloadTimer); _reloadTimer=null; _liveUnsubs.forEach(u=>{try{u();}catch(e){}}); _liveUnsubs=[]; Object.keys(_liveCounts).forEach(k=>delete _liveCounts[k]); }
 function updateTitleCount(){
   const q=(QA.threads||[]).filter(t=>t.unreadForAdmin).length;
   const n=q+(_liveCounts.rewards||0)+(_liveCounts.adminReqs||0)+(_liveCounts.reports||0);
   document.title = n ? '('+n+') '+BASE_TITLE : BASE_TITLE;
 }
+let _pingCtx=null;   // one context for every ping: browsers cap how many can be open
 function adminPing(){
   try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    if(!_pingCtx) _pingCtx=new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=_pingCtx;
+    if(ctx.state==='suspended' && ctx.resume) ctx.resume().catch(()=>{});
     [880,1175].forEach((f,i)=>{ const o=ctx.createOscillator(), g=ctx.createGain();
       o.frequency.value=f; g.gain.setValueAtTime(.12,ctx.currentTime+i*.14); g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+i*.14+.18);
       o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime+i*.14); o.stop(ctx.currentTime+i*.14+.2); });

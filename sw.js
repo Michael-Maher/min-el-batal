@@ -6,7 +6,7 @@ importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
 // --- Cache Config ---
-var CACHE_NAME = 'min-el-batal-v47';
+var CACHE_NAME = 'min-el-batal-v48';
 var STATIC_ASSETS = [
     '/',
     '/index.html',
@@ -98,6 +98,7 @@ messaging.onBackgroundMessage(function(payload) {
         dir: 'rtl',
         lang: 'ar',
         tag: d.tag || undefined,
+        renotify: !!d.tag,   // a second invite/answer with the same tag still rings
         vibrate: [200, 100, 200],
         data: { link: d.link || '' }
     });

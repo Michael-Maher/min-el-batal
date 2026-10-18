@@ -18,7 +18,7 @@ messaging.onBackgroundMessage(function(payload) {
     var d = payload.data || {};
     return self.registration.showNotification(d.title || 'لوحة مين البطل', {
         body: d.body || '', icon: '/images/icon/app-192.png', badge: '/images/Logo-192.png',
-        dir: 'rtl', lang: 'ar', tag: d.tag || undefined, data: { link: d.link || '' }
+        dir: 'rtl', lang: 'ar', tag: d.tag || undefined, renotify: !!d.tag, data: { link: d.link || '' }
     });
 });
 

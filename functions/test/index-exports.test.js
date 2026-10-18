@@ -9,5 +9,5 @@ test('index.js loads and exports the expected functions', () => {
     assert.ok(!names.includes('updateNotifPrefs'));
     ['onAnnouncementCreated', 'onQuestionMessageCreated', 'onPostCommentCreated', 'onPostCreated',
      'onPostDeleted', 'weeklyReminder', 'onQuestionCreated', 'onPlayerReportCreated',
-     'onRewardRequestCreated', 'onAdminRequestCreated'].forEach((n) => assert.ok(names.includes(n), n));
+     'onRewardRequestCreated', 'onAdminRequestCreated', 'onNotifyQueueCreated'].forEach((n) => assert.ok(names.includes(n), n));
 });

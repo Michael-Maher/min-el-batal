@@ -99,6 +99,18 @@ function parseLockKey(key) {
     return null;
 }
 
+function unlockMessage(q) {
+    var k = parseLockKey(q && q.key);
+    if (!k) return null;
+    var type = k.kind === 'lesson' ? 'lesson_unlock' : k.kind === 'subject' ? 'subject_unlock' : 'level_unlock';
+    var m = message(type, { title: q.title, n: k.n });
+    return {
+        type: type, title: m.title, body: m.body,
+        link: k.subject ? { screen: 'subject', id: k.subject } : { screen: 'home' },
+        audience: q.level === 1 || q.level === 2 ? 'level_' + q.level : 'all'
+    };
+}
+
 function daysSinceStr(dateStr) {
     if (!dateStr) return 99999;
     var d = new Date(dateStr);
@@ -128,4 +140,4 @@ function playerMatchesSegments(p, seg) {
 }
 
 module.exports = { cairoDate, daysBetween, playerLevelOf, matchesLevel, categoryOf, prefAllows, message,
-    reminderFor, parseLockKey, stripHtml, firstName, playerMatchesSegments };
+    reminderFor, parseLockKey, unlockMessage, stripHtml, firstName, playerMatchesSegments };

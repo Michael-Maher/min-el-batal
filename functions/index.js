@@ -498,3 +498,20 @@ exports.onPostDeleted = functions
         await Promise.all(ops);
         console.log('[onPostDeleted] cleaned up', postId);
     });
+
+// Admin ticked «إشعار اللاعبين» when unlocking: one push per unlock (key + setAt)
+exports.onNotifyQueueCreated = functions.region('europe-west1')
+    .firestore.document('notifyQueue/{id}').onCreate(async (snap, context) => {
+        var q = snap.data() || {};
+        var msg = L.unlockMessage(q);
+        if (!msg) return null;
+        var locks = (await db.collection('gameContent').doc('locks').get()).data() || {};
+        var lock = locks[q.key];
+        if (!lock || lock.locked) return null;
+        try {
+            await db.collection('notifySent').doc(q.key + '_' + (lock.setAt || 0)).create({ at: Date.now() });
+        } catch (e) { console.log('[unlock] already sent', q.key); return null; }
+        await notifier.notify(msg.audience, msg, { id: context.eventId });
+        await snap.ref.delete().catch(function() {});
+        return null;
+    });

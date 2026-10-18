@@ -89,3 +89,17 @@ test('stripHtml and firstName', () => {
     assert.strictEqual(L.firstName('  ريتا هاني '), 'ريتا');
     assert.strictEqual(L.firstName(''), 'يا بطل');
 });
+
+test('unlockMessage per key kind', () => {
+    const a = L.unlockMessage({ key: 'lesson_l1_bible_2', title: 'عصر الآباء البطاركة', level: 1 });
+    assert.strictEqual(a.type, 'lesson_unlock');
+    assert.strictEqual(a.audience, 'level_1');
+    assert.deepStrictEqual(a.link, { screen: 'subject', id: 'l1_bible' });
+    assert.match(a.body, /عصر الآباء/);
+    const s = L.unlockMessage({ key: 'subject_faith', title: 'عقيدة ولاهوت', level: 2 });
+    assert.strictEqual(s.type, 'subject_unlock'); assert.strictEqual(s.audience, 'level_2');
+    const v = L.unlockMessage({ key: 'level_3', title: 'المستوى 3', level: 0 });
+    assert.strictEqual(v.type, 'level_unlock'); assert.strictEqual(v.audience, 'all');
+    assert.deepStrictEqual(v.link, { screen: 'home' });
+    assert.strictEqual(L.unlockMessage({ key: 'card_compete', title: 'x', level: 0 }), null);
+});

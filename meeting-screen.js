@@ -16,8 +16,12 @@ var _ms = {
     nOpts: 0, nClues: 0, count: 0, scores: {},
     lastTick: -1, timeoutFor: 0,
     muted: false, sfxAt: {},
-    fxGen: 0, fxTimers: [], fxActive: false
+    fxGen: 0, fxTimers: [], fxActive: false, fxFull: '', fxFullView: '',
+    boardKey: '', boardOn: false, lastAwardId: undefined
 };
+var MS_BOARD_HOLD_MS = 6000;   /* after an award the panel stays on the recipients this long */
+var MS_BOARD_PAUSE_MS = 3500;  /* auto-scroll pause at the top and at the bottom */
+var MS_BOARD_ROWS_PER_S = 0.7; /* auto-scroll speed */
 
 /* ---------- helpers ---------- */
 
@@ -65,6 +69,7 @@ function msBoot() {
     _msInitFullscreen();
     _msInitCursor();
     setInterval(_msTimerTick, 200);
+    setInterval(_msBoardScrollTick, 40);
     window.addEventListener('resize', _msFit);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(_msFit);
     if (typeof BroadcastChannel === 'undefined') {
@@ -106,12 +111,14 @@ function msRender(view) {
     var prev = { opts: _ms.nOpts, clues: _ms.nClues, count: _ms.count };
     if (isNew || !it) prev = { opts: 0, clues: 0, count: 0 };
 
-    /* The host moved to another item (or back to idle): drop whatever fx is still playing. */
-    if (_ms.fxActive && sig !== _ms.itemSig) _msFxClear();
+    /* The host moved to another item (or back to idle): drop whatever fx is still playing.
+       The full-screen board stays only until the next view that changes anything. */
+    if (_ms.fxActive && (sig !== _ms.itemSig || (_ms.fxFull === 'board' && JSON.stringify(view) !== _ms.fxFullView))) _msFxClear();
 
     _ms.view = view;
     _msRenderTags(view, it);
     _msRenderTeams(view);
+    var boardToggled = _msRenderBoard(view);
 
     var stageKey = JSON.stringify([it, it ? stage : view.stage, !!view.golden, it ? '' : (view.title || '')]);
     if (stageKey !== _ms.stageKey) {
@@ -125,6 +132,8 @@ function msRender(view) {
             if (isNew || justRevealed) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
         }
         _msFit();
+    } else if (boardToggled) {
+        _msFit(); /* the stage got narrower or wider */
     }
 
     var nOpts = it && it.options ? it.options.length : 0;
@@ -186,7 +195,7 @@ function _msRenderTeams(view) {
             (t.id === view.leaderId ? '<div class="crown">👑</div>' : '') +
             (d ? '<div class="delta' + (d < 0 ? ' neg' : '') + '">' + _msPts(d) + '</div>' : '') +
             '<div class="ico">' + _msEsc(t.icon || '🛡️') + '</div>' +
-            '<div class="tx"><div class="nm">' + _msEsc(t.name) + '</div>' +
+            '<div class="tx"><div class="nm">' + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</div>' +
             '<div class="sc' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</div></div></div>';
     });
     var el = _msEl('ms-teams');
@@ -334,14 +343,14 @@ function _msFit() {
     var cs = getComputedStyle(box);
     var avail = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
     var rev = _ms.view && _ms.view.stage === 'revealed';
-    var floor1 = rev ? { pk: 0.6, ok: 1 } : { pk: 0.79, ok: 0.72 };
+    var floor1 = rev ? { pk: 0.6, ok: 1 } : { pk: 0.79, ok: 0.6 };
     var pk = 1, ok = 1, guard = 0;
     box.classList.remove('tight');
     box.style.setProperty('--pk', pk);
     box.style.setProperty('--ok', ok);
     /* offsetHeight, not scrollHeight: entrance animations translate children and would inflate it */
     while (inner.offsetHeight > avail && guard++ < 80) {
-        if (pk > floor1.pk || ok > floor1.ok) { pk = Math.max(floor1.pk, pk - 0.03); ok = Math.max(floor1.ok, ok - 0.03); }
+        if (pk > floor1.pk || ok > floor1.ok) { pk = Math.max(floor1.pk, pk - 0.03); ok = Math.max(floor1.ok, ok - 0.04); }
         else if (pk > 0.45 || ok > 0.5) { pk = Math.max(0.45, pk - 0.03); ok = Math.max(0.5, ok - 0.03); }
         else { box.classList.add('tight'); break; } /* still too tall: keep the top visible */
         box.style.setProperty('--pk', pk.toFixed(3));
@@ -397,6 +406,8 @@ function _msFxClear() {
     _ms.fxTimers.forEach(clearTimeout);
     _ms.fxTimers = [];
     _ms.fxActive = false;
+    _ms.fxFull = '';
+    _msEl('ms-root').classList.remove('fxfull');
     var el = _msEl('ms-fx');
     el.className = '';
     el.innerHTML = '';
@@ -427,7 +438,12 @@ var _MS_FX = {
             '<div class="fx-pts' + (neg ? ' neg' : '') + '">⭐ ' + _msPts(fx.points) + '</div>' +
             (fx.teamName ? '<div class="fx-team-chip">' + _msEsc(fx.teamName) + '</div>' : '') + '</div>';
         if (neg) { _msSfx('wrong'); }
-        else { _msSfx('correct'); _msConfetti(110, 1600, [tc, '#FFD700', '#ffffff']); }
+        else {
+            _msSfx('correct');
+            /* from both sides, so the name and the points in the middle stay clear */
+            _msConfetti(60, 1600, [tc, '#FFD700', '#ffffff'], innerWidth * 0.1);
+            _msConfetti(60, 1600, [tc, '#FFD700', '#ffffff'], innerWidth * 0.9);
+        }
         _msFxEndAfter(2100);
     },
     teamAward: function (fx, el) {
@@ -516,7 +532,23 @@ var _MS_FX = {
         _msConfetti(150, 2000, ['#FFD700', '#FFE875', '#D4A017', '#ffffff']);
         _msFxEndAfter(3400);
     },
+    board: function (fx, el) {
+        _msFxFull('board');
+        var kids = (_ms.view && _ms.view.kids) || {};
+        var h = '<div class="fx-dim solid"></div><div class="fx-board"><div class="fxb-title"><span>🏅</span><span class="g">أوائل مسابقة النهارده</span></div><div class="fxb-levels">';
+        Object.keys(kids).forEach(function (lvl) {
+            h += '<div class="fxb-lvl"><div class="fxb-h">' + _msEsc(_msLevelLabel(+lvl)) + '</div>';
+            if (!kids[lvl].length) h += '<div class="fxb-empty">لسه مفيش ولاد</div>';
+            else h += '<div class="fxb-list">' + kids[lvl].map(function (k, i) { return _msBoardRowHtml(k, i, i * 25); }).join('') + '</div>';
+            h += '</div>';
+        });
+        el.innerHTML = h + '</div></div>';
+        _msBoardFxLayout(el);
+        _msSfx('reveal');
+        /* stays until the next view that changes something, or the next fx */
+    },
     podium: function (fx, el) {
+        _msFxFull('podium');
         var kids = (fx.kids || []).slice(0, 3);
         var order = [1, 0, 2]; /* RTL: 2nd on the right, 1st in the middle, 3rd on the left */
         var medals = ['🥇', '🥈', '🥉'];
@@ -543,6 +575,179 @@ var _MS_FX = {
         /* The podium stays until the next fx or a new item. */
     }
 };
+
+/* Podium and the full-screen board cover everything: the side panel hides behind them. */
+function _msFxFull(kind) {
+    _ms.fxFull = kind;
+    _ms.fxFullView = JSON.stringify(_ms.view);
+    _msEl('ms-root').classList.add('fxfull');
+}
+
+/* Lay the full-screen board out in columns: as many rows per column as fit the height, each level
+   as wide as its column count. Shrinks the rows (--bk) while a column would be too narrow for a name
+   (under 17vw), so fewer, wider columns hold the whole list. */
+function _msBoardFxLayout(el) {
+    var board = el.querySelector('.fx-board');
+    var lvls = el.querySelectorAll('.fxb-lvl');
+    for (var scale = 1; scale >= 0.5; scale -= 0.07) {
+        board.style.setProperty('--bk', scale.toFixed(2));
+        var ok = true;
+        for (var i = 0; i < lvls.length; i++) {
+            var list = lvls[i].querySelector('.fxb-list');
+            if (!list) { lvls[i].style.flexGrow = 1; continue; }
+            var rows = list.children, gap = parseFloat(getComputedStyle(list).rowGap) || 0;
+            var rowH = rows[0].offsetHeight;
+            var perCol = Math.max(1, Math.floor((list.clientHeight + gap) / (rowH + gap)));
+            var cols = Math.ceil(rows.length / perCol);
+            list.style.gridTemplateRows = 'repeat(' + perCol + ', ' + rowH + 'px)';
+            lvls[i].style.flexGrow = cols;
+        }
+        for (i = 0; i < lvls.length; i++) {
+            var l = lvls[i].querySelector('.fxb-list');
+            if (l && l.clientWidth / (parseFloat(lvls[i].style.flexGrow) || 1) < innerWidth * 0.17) ok = false;
+        }
+        if (ok) return;
+    }
+}
+
+/* ---------- individual board (side panel) ---------- */
+
+function _msRankHtml(k, i) {
+    if (k.stars > 0 && i < 3) return ['🥇', '🥈', '🥉'][i];
+    return _msNum(i + 1);
+}
+
+function _msBoardRowHtml(k, i, delay) {
+    var cls = 'mb-row' + (k.stars > 0 && i < 3 ? ' r' + (i + 1) : '') + (k.stars > 0 ? '' : ' zero');
+    return '<div class="' + cls + '"' + (delay !== undefined ? ' style="animation-delay:' + delay + 'ms"' : '') + '>' + _msRowInner(k, i) + '</div>';
+}
+
+function _msRowInner(k, i) {
+    return '<span class="mb-rk">' + _msRankHtml(k, i) + '</span>' +
+        '<span class="mb-dot"' + (k.teamColor ? ' style="--tc:' + _msEsc(k.teamColor) + '"' : '') + '></span>' +
+        '<span class="mb-nm">' + _msEsc(k.name) + '</span>' +
+        '<span class="mb-st">' + _msNum(k.stars) + ' ⭐</span>';
+}
+
+/* Returns true when the panel was shown or hidden (the stage width changed). */
+function _msRenderBoard(view) {
+    var kids = view.kids || {};
+    var levels = Object.keys(kids);
+    var total = 0;
+    levels.forEach(function (l) { total += kids[l].length; });
+    var on = total > 0;
+    var toggled = on !== _ms.boardOn;
+    _ms.boardOn = on;
+    _msEl('ms').classList.toggle('board', on);
+
+    var la = view.lastAward || null;
+    var newAward = !!la && _ms.lastAwardId !== undefined && la.id !== _ms.lastAwardId;
+    _ms.lastAwardId = la ? la.id : null;
+    var key = JSON.stringify(kids);
+    if (key === _ms.boardKey && !newAward) return toggled;
+    _ms.boardKey = key;
+
+    var secs = _msEl('mb-secs');
+    if (secs.getAttribute('data-l') !== levels.join(',')) {
+        secs.setAttribute('data-l', levels.join(','));
+        secs.innerHTML = levels.map(function (l) {
+            return '<section class="mb-sec" data-l="' + l + '"><div class="mb-h">' + _msEsc(_msLevelLabel(+l)) +
+                '</div><div class="mb-vp"><div class="mb-list"></div></div></section>';
+        }).join('');
+    }
+    var hits = {};
+    if (newAward) la.keys.forEach(function (k) { hits[k] = true; });
+    levels.forEach(function (l) {
+        _msBoardSection(secs.querySelector('.mb-sec[data-l="' + l + '"]'), kids[l], hits, newAward);
+    });
+    return toggled;
+}
+
+/* Update one level's rows in place, keyed by kid key, with a FLIP slide to the new order. */
+function _msBoardSection(sec, kids, hits, newAward) {
+    var vp = sec.querySelector('.mb-vp'), list = sec.querySelector('.mb-list');
+    var old = {}, firstTop = {};
+    Array.prototype.forEach.call(list.querySelectorAll('.mb-row[data-k]'), function (r) {
+        old[r.getAttribute('data-k')] = r;
+        firstTop[r.getAttribute('data-k')] = r.getBoundingClientRect().top;
+    });
+    var seen = {}, hitRows = [];
+    kids.forEach(function (k, i) {
+        var row = old[k.key];
+        var isNew = !row;
+        if (isNew) {
+            row = document.createElement('div');
+            row.setAttribute('data-k', k.key);
+        }
+        var prevStars = row.getAttribute('data-s');
+        row.className = 'mb-row' + (k.stars > 0 && i < 3 ? ' r' + (i + 1) : '') + (k.stars > 0 ? '' : ' zero') + (isNew && _ms.boardOn && list.children.length ? ' enter' : '');
+        row.innerHTML = _msRowInner(k, i);
+        if (prevStars !== null && +prevStars !== k.stars) row.querySelector('.mb-st').classList.add('bump');
+        row.setAttribute('data-s', k.stars);
+        list.appendChild(row); /* appending in order is the reorder */
+        seen[k.key] = true;
+        if (hits[k.key]) hitRows.push(row);
+    });
+    /* rows of kids no longer listed fade out where they were */
+    var listTop = list.getBoundingClientRect().top;
+    Object.keys(old).forEach(function (key) {
+        if (seen[key]) return;
+        var r = old[key];
+        r.removeAttribute('data-k');
+        r.className += ' gone';
+        r.style.top = (firstTop[key] - listTop) + 'px';
+        setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 600);
+    });
+    /* on an award, bring the highest recipient into view and hold there */
+    var st = vp._as || (vp._as = { mode: 'pauseTop', until: Date.now() + MS_BOARD_PAUSE_MS, pos: 0 });
+    if (newAward && hitRows.length) {
+        var target = hitRows[0].offsetTop - (vp.clientHeight - hitRows[0].offsetHeight) / 2;
+        st.pos = Math.max(0, Math.min(vp.scrollHeight - vp.clientHeight, target));
+        vp.scrollTop = st.pos;
+        st.mode = 'hold';
+        st.until = Date.now() + MS_BOARD_HOLD_MS;
+    }
+    /* FLIP: rows that moved start at their old place and slide to the new one */
+    Object.keys(firstTop).forEach(function (key) {
+        if (!seen[key]) return;
+        var r = old[key];
+        var dy = firstTop[key] - r.getBoundingClientRect().top;
+        if (!dy) return;
+        r.style.transition = 'none';
+        r.style.transform = 'translateY(' + dy + 'px)';
+        void r.offsetWidth;
+        r.style.transition = 'transform .8s cubic-bezier(.2,.8,.2,1)';
+        r.style.transform = '';
+    });
+    hitRows.forEach(function (r) { r.classList.remove('hit'); void r.offsetWidth; r.classList.add('hit'); });
+}
+
+/* Slow auto-scroll for levels with more kids than fit: pause at the top, glide down, pause, glide back. */
+function _msBoardScrollTick() {
+    if (!_ms.boardOn) return;
+    var now = Date.now();
+    Array.prototype.forEach.call(document.querySelectorAll('#mb-secs .mb-vp'), function (vp) {
+        var st = vp._as || (vp._as = { mode: 'pauseTop', until: now + MS_BOARD_PAUSE_MS, pos: 0 });
+        var max = vp.scrollHeight - vp.clientHeight;
+        if (max <= 1) { if (vp.scrollTop) vp.scrollTop = 0; st.pos = 0; return; }
+        var row = vp.querySelector('.mb-row');
+        var step = (row ? row.offsetHeight * 1.12 : 40) * MS_BOARD_ROWS_PER_S * 0.04;
+        if (st.mode === 'hold' || st.mode === 'pauseTop' || st.mode === 'pauseBottom') {
+            if (now < st.until) return;
+            st.mode = st.mode === 'pauseBottom' ? 'up' : (st.pos >= max - 1 ? 'pauseBottom' : 'down');
+            if (st.mode === 'pauseBottom') st.until = now + MS_BOARD_PAUSE_MS;
+            return;
+        }
+        if (st.mode === 'down') {
+            st.pos = Math.min(max, st.pos + step);
+            if (st.pos >= max) { st.mode = 'pauseBottom'; st.until = now + MS_BOARD_PAUSE_MS; }
+        } else {
+            st.pos = Math.max(0, st.pos - step * 4);
+            if (st.pos <= 0) { st.mode = 'pauseTop'; st.until = now + MS_BOARD_PAUSE_MS; }
+        }
+        vp.scrollTop = st.pos;
+    });
+}
 
 /* Gold gradient title; the emoji sits outside the gradient so it keeps its colors. */
 function _msTitle(emoji, text) {
@@ -623,7 +828,9 @@ function _msSfx(type) {
     var now = Date.now();
     if (now - (_ms.sfxAt[type] || 0) < 120) return; /* a view and an fx for the same moment play once */
     _ms.sfxAt[type] = now;
-    if (!_msCtx()) return;
+    var ctx = _msCtx();
+    /* Until a click unlocks audio the context is suspended; skip instead of queueing a burst for later. */
+    if (!ctx || ctx.state !== 'running') return;
     var T = _msTone;
     switch (type) {
         case 'appear': T(523.25, 0.1, 'triangle', 0.14); T(783.99, 0.12, 'triangle', 0.14, 0.07); T(1046.5, 0.18, 'triangle', 0.12, 0.14); break;

@@ -299,6 +299,101 @@ test('audience view header: teams, leader, timer', function () {
 });
 
 
+/* ---- Task 7b: per-level board of every kid + last award in the audience view ---- */
+
+function boardNight(c) {
+    var n = freshNight(c);
+    ['01011111111', '01022222222', '01033333333'].forEach(function (ph) { kid(c, n, ph, 'david'); });
+    kid(c, n, '01044444444', 'moses');
+    kid(c, n, '01055555555', null);
+    c.mtAddToRoster(n, { phone: '01266666666', name: 'بيشوي', level: 2, team: '' }, 'moses');
+    c.mtAddToRoster(n, { phone: '01277777777', name: 'أبانوب', level: 2, team: '' }, null);
+    return n;
+}
+function boardKeys(v, lvl) { return plain(v.kids[lvl].map(function (k) { return k.key; })); }
+
+test('audience kids: every kid per level, zero stars included, row shape', function () {
+    var c = load(), n = boardNight(c);
+    var v = c.mtAudienceView(n);
+    assert.deepStrictEqual(Object.keys(v.kids).sort(), ['1', '2']);
+    assert.strictEqual(v.kids[1].length, 5);
+    assert.strictEqual(v.kids[2].length, 2);
+    assert.ok(v.kids[1].every(function (k) { return k.stars === 0; }));
+    c.mtAward(n, { phone: '01044444444' }, 5, 'a');
+    c.mtAward(n, { phone: '01055555555' }, 15, 'b');
+    c.mtAward(n, { phone: '01044444444' }, 5, 'c');
+    c.mtAward(n, { phone: '01277777777' }, 5, 'd');
+    v = c.mtAudienceView(n);
+    assert.deepStrictEqual(plain(v.kids[1].slice(0, 2)), [
+        { key: c.mtHash('01055555555'), name: 'k01055555555', teamColor: null, stars: 15 },
+        { key: c.mtHash('01044444444'), name: 'k01044444444', teamColor: '#3498db', stars: 10 }
+    ]);
+    assert.strictEqual(v.kids[1].length, 5);
+    assert.deepStrictEqual(boardKeys(v, 2), [c.mtHash('01277777777'), c.mtHash('01266666666')]);
+});
+
+test('audience kids: only the night levels', function () {
+    var c = load(), n = boardNight(c);
+    n.levels = [2];
+    var v = c.mtAudienceView(n);
+    assert.deepStrictEqual(Object.keys(v.kids), ['2']);
+    assert.strictEqual(v.kids[2].length, 2);
+});
+
+test('audience kids: ties by earliest first award, then name', function () {
+    var c = load(), n = boardNight(c);
+    c.mtAward(n, { phone: '01033333333' }, 5, 'a');
+    c.mtAward(n, { phone: '01011111111' }, 5, 'b');
+    c.mtAward(n, { phone: '01022222222' }, 10, 'c');
+    c.mtAward(n, { phone: '01011111111' }, 5, 'd');
+    c.mtAward(n, { phone: '01033333333' }, 5, 'e');
+    var v = c.mtAudienceView(n);
+    /* 033, 011, 022 all have 10; first awards in that order. 044 and 055 have 0 and no award: by name */
+    assert.deepStrictEqual(boardKeys(v, 1), ['01033333333', '01011111111', '01022222222', '01044444444', '01055555555'].map(c.mtHash));
+    /* level 2: both 0, no awards: by name, أبانوب before بيشوي */
+    assert.deepStrictEqual(boardKeys(v, 2), [c.mtHash('01277777777'), c.mtHash('01266666666')]);
+});
+
+test('audience kids: an undo moves a kid back down', function () {
+    var c = load(), n = boardNight(c);
+    c.mtAward(n, { phone: '01011111111' }, 5, 'a');
+    c.mtAward(n, { phone: '01022222222' }, 10, 'b');
+    assert.strictEqual(c.mtAudienceView(n).kids[1][0].key, c.mtHash('01022222222'));
+    c.mtUndoLast(n);
+    var v = c.mtAudienceView(n);
+    assert.strictEqual(v.kids[1][0].key, c.mtHash('01011111111'));
+    /* the undone award no longer counts as a first award: 022 sorts with the other zero kids by name */
+    assert.deepStrictEqual(boardKeys(v, 1).slice(1), ['01022222222', '01033333333', '01044444444', '01055555555'].map(c.mtHash));
+    n.roster['01022222222'].name = 'zz';
+    assert.strictEqual(c.mtAudienceView(n).kids[1][4].key, c.mtHash('01022222222'));
+});
+
+test('audience view never carries a phone', function () {
+    var c = load(), n = boardNight(c);
+    c.mtAward(n, { teamId: 'david' }, 5, 'a');
+    c.mtAward(n, { phone: '01055555555' }, 5, 'b');
+    c.mtUndoLast(n);
+    Object.keys(n.roster).forEach(function (ph, i) { n.roster[ph].name = 'ولد ' + i; }); /* fixture names embed the phone */
+    var json = JSON.stringify(c.mtAudienceView(n));
+    Object.keys(n.roster).forEach(function (ph) {
+        assert.ok(json.indexOf(ph) < 0, 'phone ' + ph + ' leaked');
+        assert.ok(json.indexOf(ph.slice(1)) < 0, 'phone digits ' + ph + ' leaked');
+    });
+});
+
+test('audience lastAward: individual, team, undo', function () {
+    var c = load(), n = boardNight(c);
+    assert.strictEqual(c.mtAudienceView(n).lastAward, null);
+    var a = c.mtAward(n, { phone: '01044444444' }, 5, 'a');
+    assert.deepStrictEqual(plain(c.mtAudienceView(n).lastAward), { id: a.id, keys: [c.mtHash('01044444444')] });
+    var t = c.mtAward(n, { teamId: 'david' }, 5, 'b');
+    var team = [c.mtHash('01011111111'), c.mtHash('01022222222'), c.mtHash('01033333333')];
+    assert.deepStrictEqual(plain(c.mtAudienceView(n).lastAward), { id: t.id, keys: team });
+    var u = c.mtUndoLast(n);
+    assert.notStrictEqual(u.id, t.id);
+    assert.deepStrictEqual(plain(c.mtAudienceView(n).lastAward), { id: u.id, keys: team });
+});
+
 /* ---- Task 2: pool, picker, search ---- */
 function lcg(seed) { var s = seed >>> 0; return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
 function bankItem(id, o) {

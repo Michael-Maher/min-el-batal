@@ -231,6 +231,38 @@ function _mtItemView(item, cur) {
     return v;
 }
 
+/* Every roster kid of each night level, by stars desc, then earliest first award, then name.
+   Rows carry a hashed key, never the phone. */
+function _mtBoard(night) {
+    /* an award that was undone does not count as the kid's first award */
+    var undone = {}, firstAward = {};
+    night.awards.forEach(function (a) { if (a.kind === 'undo') undone[a.refId] = true; });
+    night.awards.forEach(function (a, i) {
+        if (a.kind === 'undo' || undone[a.id]) return;
+        a.phones.forEach(function (ph) { if (!(ph in firstAward)) firstAward[ph] = i; });
+    });
+    var out = {};
+    night.levels.forEach(function (lvl) {
+        out[lvl] = Object.keys(night.roster).map(function (ph) { return night.roster[ph]; })
+            .filter(function (k) { return (k.level === 2 ? 2 : 1) === lvl; })
+            .sort(function (a, b) {
+                var fa = a.phone in firstAward ? firstAward[a.phone] : Infinity;
+                var fb = b.phone in firstAward ? firstAward[b.phone] : Infinity;
+                return (b.stars - a.stars) || (fa - fb) || String(a.name).localeCompare(String(b.name), 'ar');
+            })
+            .map(function (k) {
+                var t = k.teamId ? _mtTeam(night, k.teamId) : null;
+                return { key: mtHash(k.phone), name: k.name, teamColor: t ? t.color : null, stars: k.stars };
+            });
+    });
+    return out;
+}
+
+function _mtLastAward(night) {
+    var a = night.awards[night.awards.length - 1];
+    return a ? { id: a.id, keys: a.phones.map(function (ph) { return mtHash(ph); }) } : null;
+}
+
 /* leaderId = the strictly top-scoring team with score > 0, else null. */
 function mtAudienceView(night) {
     var cur = night.current;
@@ -245,7 +277,9 @@ function mtAudienceView(night) {
         target: cur ? cur.target : null,
         timerEndsAt: cur ? cur.timerEndsAt : 0,
         timerSec: cur ? cur.timerSec : 0,
-        golden: cur ? !!cur.golden : false
+        golden: cur ? !!cur.golden : false,
+        kids: _mtBoard(night),
+        lastAward: _mtLastAward(night)
     };
 }
 

@@ -205,6 +205,7 @@ function _mtItemView(item, cur) {
             break;
         case 'anagram':
             v.scrambled = item.scrambled;
+            if (item.hint) v.hint = item.hint;
             break;
         case 'odd':
             v.items = item.items.slice();

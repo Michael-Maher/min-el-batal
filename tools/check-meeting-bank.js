@@ -25,7 +25,7 @@ var STATION_MIN = {
     2: { mcq: 3, tf: 2, clues: 2, verse: 2, scenario: 2, odd: 2, anagram: 2, deep: 4, sixty: 2, taboo: 2 }
 };
 var STATION_TOTAL_MIN = 23;
-var PROMPT_MAX = 120, SCENARIO_PROMPT_MAX = 220, ODD_ITEM_MAX = 25, ANAGRAM_MAX = 14;
+var PROMPT_MAX = 120, SCENARIO_PROMPT_MAX = 220, ODD_ITEM_MAX = 25, ANAGRAM_MAX = 14, HINT_MAX = 20;
 
 var errors = [];
 function err(id, msg) { errors.push((id || '(no id)') + ': ' + msg); }
@@ -81,6 +81,10 @@ function checkKind(it) {
             if (Object.keys(set).length < 2) err(it.id, 'answer needs 2+ distinct letters');
             if (letters.length > ANAGRAM_MAX) err(it.id, 'answer longer than ' + ANAGRAM_MAX + ' letters');
             if (it.answer.trim().split(/\s+/).length > 2) err(it.id, 'answer must be one or two words');
+            if (it.hint !== undefined) {
+                if (!str(it.hint)) err(it.id, 'hint must be a non-empty string when present');
+                else if (it.hint.length > HINT_MAX) err(it.id, 'hint longer than ' + HINT_MAX + ' chars');
+            }
             break;
         case 'odd':
             if (!strList(it.items, 4, 4)) { err(it.id, 'items must be exactly 4 non-empty strings'); break; }
@@ -121,8 +125,8 @@ function checkItem(it, ids) {
     if (ids[it.id]) err(it.id, 'duplicate id');
     ids[it.id] = true;
 
-    var lv = LEVELS[it.level];
-    if (!lv) err(it.id, 'level must be 1 or 2');
+    var lv = Number.isInteger(it.level) ? LEVELS[it.level] : null;
+    if (!lv) err(it.id, 'level must be the number 1 or 2');
     else {
         if (m[1] !== lv.code) err(it.id, 'id level code ' + m[1] + ' does not match level ' + it.level);
         if (it.subject !== lv.subject) err(it.id, 'subject must be ' + lv.subject);

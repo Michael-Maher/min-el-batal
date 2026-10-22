@@ -255,6 +255,22 @@ test('audience view shows kind payloads', function () {
     assert.deepStrictEqual(plain(v.item), { kind: 'taboo' });
 });
 
+test('audience view anagram hint', function () {
+    var c = load(), it = fixture('anagram');
+    it.hint = 'HINT_anagram';
+    var v = c.mtAudienceView(viewNight(c, it, 'shown'));
+    assert.strictEqual(v.item.hint, 'HINT_anagram');
+    assert.strictEqual(v.item.scrambled, 'SCR_anagram');
+    var s = JSON.stringify(v);
+    assert.ok(s.indexOf('ANS_anagram') < 0, 'anagram leaks answer');
+    assert.ok(s.indexOf('EXP_anagram') < 0, 'anagram leaks explain');
+    v = c.mtAudienceView(viewNight(c, it, 'revealed'));
+    assert.strictEqual(v.item.hint, 'HINT_anagram');
+    assert.strictEqual(v.item.answer, 'ANS_anagram');
+    v = c.mtAudienceView(viewNight(c, fixture('anagram'), 'shown'));
+    assert.ok(!('hint' in v.item), 'no hint key when the item has none');
+});
+
 test('audience view clues', function () {
     var c = load();
     var v = c.mtAudienceView(viewNight(c, fixture('clues'), 'shown', { clueIdx: 1 }));

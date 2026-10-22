@@ -280,5 +280,204 @@ test('audience view header: teams, leader, timer', function () {
     assert.deepStrictEqual(Object.keys(v.teams[0]).sort(), ['color', 'icon', 'id', 'name', 'score']);
 });
 
+
+/* ---- Task 2: pool, picker, search ---- */
+function lcg(seed) { var s = seed >>> 0; return function () { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; }; }
+function bankItem(id, o) {
+    var it = { id: id, level: 1, subject: 'l1_bible', station: 0, kind: 'mcq', difficulty: 1, explain: 'E', prompt: 'P ' + id,
+        options: ['a', 'b', 'c', 'd'], correct: 2 };
+    Object.keys(o || {}).forEach(function (k) { it[k] = o[k]; });
+    return it;
+}
+function loadPool(bank, cbItems) {
+    var ctx = { console: console, Math: Math, Date: Date, JSON: JSON };
+    vm.createContext(ctx);
+    vm.runInContext('var COMPETE_SUBJECTS=[{key:"l1_bible",level:1},{key:"l2_bible",level:2}];' +
+        'var __cb=' + JSON.stringify(cbItems || []) + ';function competeBankFor(f){return __cb.slice();}' +
+        'var MEETING_BANK=' + JSON.stringify(bank || []) + ';', ctx);
+    vm.runInContext(src, ctx);
+    return ctx;
+}
+function poolNight(c, o) {
+    o = o || {};
+    return c.mtNewNight({ date: 'd', title: 't', levels: o.levels || [1], filter: { subjects: [], lessons: {} }, kinds: o.kinds || ['mcq'] });
+}
+function ids(a) { return plain(a.map(function (x) { return x.id; })); }
+
+test('pool filters by level and station', function () {
+    var c = loadPool([
+        bankItem('s0', { station: 0 }), bankItem('s2', { station: 2 }), bankItem('gen', { station: null }),
+        bankItem('l2', { level: 2, subject: 'l2_bible', station: 0 })
+    ]);
+    var pool = c.mtBuildPool({ subjects: ['l1_bible'], lessons: { l1_bible: [0] } }, [1]);
+    assert.deepStrictEqual(ids(pool).sort(), ['gen', 's0']);
+    var all = c.mtBuildPool({ subjects: ['l1_bible'], lessons: { l1_bible: [] } }, [1]);
+    assert.deepStrictEqual(ids(all).sort(), ['gen', 's0', 's2']);
+});
+
+test('pool maps compete items', function () {
+    var c = loadPool([], [
+        { q: 'Q1', options: ['x', 'y'], correct: 1, explain: 'ex', kind: 'mcq', subject: 'l1_bible', lesson: 3 },
+        { q: 'first', clues: ['second', 'third'], options: ['n1', 'n2'], correct: 0, kind: 'clues', subject: 'l1_bible', lesson: 1 },
+        { q: 'Q2', options: ['x', 'y'], correct: 0, kind: 'mcq', subject: 'l2_bible', lesson: 0 }
+    ]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]);
+    assert.strictEqual(pool.length, 2);
+    assert.strictEqual(pool[0].id, 'cb_' + c.mtHash('l1_bible|3|Q1'));
+    assert.strictEqual(pool[0].answer, 'y'); assert.strictEqual(pool[0].station, 3); assert.strictEqual(pool[0].level, 1);
+    assert.deepStrictEqual(plain(pool[1].clues), ['first', 'second', 'third']);
+    assert.strictEqual(pool[1].answer, 'n1');
+});
+
+test('pool maps tf and secret kinds', function () {
+    var c = loadPool([
+        bankItem('t1', { kind: 'tf', answer: 'صح', options: undefined, correct: undefined }),
+        bankItem('t2', { kind: 'tf', answer: 'غلط', options: undefined, correct: undefined }),
+        bankItem('a1', { kind: 'act', secret: 'موسى', options: undefined, correct: undefined }),
+        bankItem('d1', { kind: 'draw', secret: 'سفينة', options: undefined, correct: undefined }),
+        bankItem('k1', { kind: 'taboo', secret: 'نوح', forbidden: ['1', '2', '3'], options: undefined, correct: undefined })
+    ]);
+    var by = {};
+    c.mtBuildPool({ subjects: [], lessons: {} }, [1]).forEach(function (it) { by[it.id] = it; });
+    assert.deepStrictEqual(plain(by.t1.options), ['صح', 'غلط']); assert.strictEqual(by.t1.correct, 0);
+    assert.strictEqual(by.t2.correct, 1);
+    assert.strictEqual(by.a1.answer, 'موسى'); assert.strictEqual(by.d1.answer, 'سفينة'); assert.strictEqual(by.k1.answer, 'نوح');
+});
+
+test('pick prefers lesson, then fallback, then oldest', function () {
+    var c = loadPool([bankItem('st', { station: 0 }), bankItem('fb', { station: null })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c), r = lcg(1);
+    assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, {}, r).id, 'st');
+    assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, { st: '2026-10-01' }, r).id, 'fb');
+    assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, { st: '2026-10-01', fb: '2026-09-01' }, r).id, 'fb');
+});
+
+test('pick skips usedTonight and skipped', function () {
+    var c = loadPool([bankItem('a'), bankItem('b'), bankItem('c')]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c), r = lcg(2);
+    n.usedTonight.push('a'); n.skipped.push('b');
+    for (var i = 0; i < 10; i++) assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, {}, r).id, 'c');
+    n.usedTonight.push('c');
+    assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, {}, r), null);
+});
+
+test("pick 'all' uses level 1 when night has level 1", function () {
+    var c = loadPool([bankItem('one'), bankItem('two', { level: 2, subject: 'l2_bible' })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1, 2]), r = lcg(3);
+    assert.strictEqual(c.mtPickNext(pool, poolNight(c, { levels: [1, 2] }), { level: 'all', kind: 'mcq' }, {}, r).id, 'one');
+    assert.strictEqual(c.mtPickNext(pool, poolNight(c, { levels: [2] }), { level: 'all', kind: 'mcq' }, {}, r).id, 'two');
+});
+
+test('kind null avoids lastKind', function () {
+    var c = loadPool([bankItem('m1'), bankItem('m2'), bankItem('e1', { kind: 'emoji', options: undefined, correct: undefined, answer: 'x' }),
+        bankItem('e2', { kind: 'emoji', options: undefined, correct: undefined, answer: 'y' })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c, { kinds: ['mcq', 'emoji'] }), r = lcg(4);
+    ['mcq', 'emoji'].forEach(function (lk) {
+        n.lastKind = lk;
+        for (var i = 0; i < 20; i++) assert.notStrictEqual(c.mtPickNext(pool, n, { level: 1, kind: null }, {}, r).kind, lk);
+    });
+});
+
+test('difficulty filter with fallback', function () {
+    var c = loadPool([bankItem('d1', { difficulty: 1 }), bankItem('d3', { difficulty: 3 })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c), r = lcg(5);
+    for (var i = 0; i < 10; i++) assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq', difficulty: 3 }, {}, r).id, 'd3');
+    n.usedTonight.push('d3');
+    assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq', difficulty: 3 }, {}, r).id, 'd1');
+});
+
+test('available kinds hides empty', function () {
+    var c = loadPool([bankItem('m1'), bankItem('h2', { kind: 'hymn', level: 2, subject: 'l2_bible', firstLine: 'f', answer: 'a', options: undefined, correct: undefined })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1, 2]);
+    assert.deepStrictEqual(plain(c.mtAvailableKinds(pool, poolNight(c, { levels: [1], kinds: ['mcq', 'hymn'] }))), ['mcq']);
+    assert.deepStrictEqual(plain(c.mtAvailableKinds(pool, poolNight(c, { levels: [1, 2], kinds: ['mcq', 'hymn'] }))), ['mcq', 'hymn']);
+});
+
+test('scramble differs', function () {
+    var c = loadPool([]), r = lcg(6);
+    for (var i = 0; i < 30; i++) {
+        var s = c.mtScramble('أثناسيوس', r);
+        assert.notStrictEqual(s, 'أثناسيوس');
+        assert.strictEqual(s.split('').sort().join(''), 'أثناسيوس'.split('').sort().join(''));
+    }
+    assert.strictEqual(c.mtScramble('بيت لحم', r).indexOf(' '), -1);
+    assert.strictEqual(c.mtScramble('ااا', r), 'ااا');
+});
+
+test('picked item is prepared copy: options shuffle keeps answer', function () {
+    var c = loadPool([bankItem('m1'), bankItem('o1', { kind: 'order', steps: ['s1', 's2', 's3', 's4'], options: undefined, correct: undefined, answer: 'x' }),
+        bankItem('g1', { kind: 'anagram', answer: 'أثناسيوس', options: undefined, correct: undefined })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c, { kinds: ['mcq', 'order', 'anagram'] });
+    var before = JSON.stringify(pool);
+    for (var i = 0; i < 20; i++) {
+        var r = lcg(10 + i);
+        var m = c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, {}, r);
+        assert.strictEqual(m.options[m.correct], 'c'); assert.strictEqual(m.answer, 'c');
+        var o = c.mtPickNext(pool, n, { level: 1, kind: 'order' }, {}, r);
+        assert.deepStrictEqual(plain(o.shuffled.slice().sort()), ['s1', 's2', 's3', 's4']);
+        assert.notDeepStrictEqual(plain(o.shuffled), ['s1', 's2', 's3', 's4']);
+        assert.deepStrictEqual(plain(o.steps), ['s1', 's2', 's3', 's4']);
+        var g = c.mtPickNext(pool, n, { level: 1, kind: 'anagram' }, {}, r);
+        assert.notStrictEqual(g.scrambled, 'أثناسيوس');
+    }
+    assert.strictEqual(JSON.stringify(pool), before);
+});
+
+test('normalize variants', function () {
+    var c = loadPool([]);
+    assert.strictEqual(c.mtNormalize('أحمد'), c.mtNormalize('احمد'));
+    assert.strictEqual(c.mtNormalize('مريمة'), c.mtNormalize('مريمه'));
+    assert.strictEqual(c.mtNormalize('مُنى'), c.mtNormalize('مني'));
+    assert.strictEqual(c.mtNormalize('  Mina   X '), 'mina x');
+});
+
+test('search finds same-name kids', function () {
+    var c = loadPool([]);
+    var ps = [{ name: 'أمير مينا', phone: '03' }, { name: 'مينا عادل', phone: '01' }, { name: 'مينا سمير', phone: '02' }];
+    assert.deepStrictEqual(plain(c.mtSearch(ps, 'مين').map(function (p) { return p.phone; })), ['01', '02', '03']);
+    assert.deepStrictEqual(plain(c.mtSearch(ps, 'م')), []);
+    assert.deepStrictEqual(plain(c.mtSearch(ps, '0')), []);
+    assert.deepStrictEqual(plain(c.mtSearch(ps, '02').map(function (p) { return p.phone; })), ['02']);
+    assert.strictEqual(c.mtSearch(ps, 'مين', 2).length, 2);
+});
+
+test('random pick uses roster first, then all, never excluded', function () {
+    var c = loadPool([]), n = poolNight(c, { levels: [1, 2] }), r = lcg(7);
+    var players = [];
+    for (var i = 1; i <= 7; i++) players.push({ phone: 'p' + i, name: 'n' + i, level: (i === 5 || i === 6) ? 2 : 1 });
+    for (i = 1; i <= 4; i++) c.mtAddToRoster(n, players[i - 1], null);
+    n.excluded.push('p1');
+    for (i = 0; i < 40; i++) { var k = c.mtRandomPick(n, players, 1, r); assert.ok(['p2', 'p3', 'p4'].indexOf(k.phone) >= 0, 'roster only: ' + k.phone); }
+    n.excluded.push('p2');
+    var seen = {};
+    for (i = 0; i < 80; i++) { var q = c.mtRandomPick(n, players, 1, r); assert.ok(['p3', 'p4', 'p7'].indexOf(q.phone) >= 0, 'fallback: ' + q.phone); seen[q.phone] = 1; }
+    assert.ok(seen.p7, 'falls back to all players');
+    assert.strictEqual(c.mtRandomPick(n, players, 'all', r) !== null, true);
+    n.excluded = players.map(function (p) { return p.phone; });
+    assert.strictEqual(c.mtRandomPick(n, players, 1, r), null);
+});
+
+test('timers and hash', function () {
+    var c = loadPool([]);
+    assert.strictEqual(c.mtTimerFor('mcq', 'individual'), 30);
+    assert.strictEqual(c.mtTimerFor('tf', 'speed'), 10);
+    assert.strictEqual(c.mtTimerFor('deep', 'speed'), 45);
+    assert.strictEqual(Object.keys(c.MT_KINDS).length, 15);
+    assert.ok(/^[0-9a-f]{8}$/.test(c.mtHash('abc')));
+    assert.strictEqual(c.mtHash('a'), 'e40c292c');
+});
+
+test('bank deps load standalone', function () {
+    var ctx = { console: console, Math: Math, Date: Date, JSON: JSON, setTimeout: setTimeout };
+    ctx.window = { addEventListener: function () {} };
+    ctx.document = { addEventListener: function () {}, getElementById: function () { return null; } };
+    vm.createContext(ctx);
+    ['level1-bible-data.js', 'level1-service-data.js', 'level2-life-data.js', 'level2-bible-data.js', 'level1.js', 'compete-bank.js', 'meeting-core.js'].forEach(function (f) {
+        vm.runInContext(fs.readFileSync(path.join(__dirname, '..', f), 'utf8'), ctx, { filename: f });
+    });
+    var pool = ctx.mtBuildPool({ subjects: ['l1_bible', 'l2_bible'], lessons: {} }, [1, 2]);
+    assert.ok(pool.length > 50, 'pool size ' + pool.length);
+});
+
 console.log(passed + ' passed, ' + failed + ' failed');
 process.exit(failed ? 1 : 0);

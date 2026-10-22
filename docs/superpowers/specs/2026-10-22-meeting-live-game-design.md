@@ -209,6 +209,10 @@ Mockup shown to and accepted by the host: `.superpowers/brainstorm/*/content/scr
 - Big item, segment tag (e.g. «مين أنا؟ · مستوى أول»), timer ring, team scores along the bottom with a
   crown on the leader.
 - Award pop: kid name (and avatar/character if available) + «⭐ +20», team flash for team awards.
+- **Individual leaderboard (host request, 2026-10-22):** a side panel «أوائل مسابقة النهارده» always on screen,
+  one section per level, listing every kid tonight (name, team color, stars tonight) ranked within the level.
+  When a kid gets points the row flashes and slides to its new rank with an animation; long lists auto-scroll
+  and jump to the awarded kid. The host can also show the whole ranking full-screen («اعرض الترتيب»).
 - Reveal animation for the answer.
 - Wheel spin, bet screen, golden-question intro, podium with confetti.
 - Sounds (Web Audio, like `tournament-live.html`), on by default with a mute toggle on control.

@@ -9,7 +9,8 @@ var MC_SESSION_KEY = 'minElBatal_adminSession';
 var MC_CACHE_KEY = 'meb_meeting_cache';
 var MC_RETRY_MS = 20000;
 var MC_LOAD_STUCK_MS = 30000;
-var MC_DOUBLE_TAP_MS = 1200;
+var MC_DOUBLE_TAP_MS = 1200;  /* same kid or team again: ignored this long */
+var MC_TAP_LOCK_MS = 400;     /* any award tap: the next one is ignored this long (layout may have shifted) */
 var MC_DEFAULT_TITLE = 'مسابقة الاجتماع';
 var MC_SCREEN_NOTE = 'دوس ‹ملء الشاشة› في شاشة الولاد عشان الصوت والشاشة الكاملة';
 var MC_BIBLE = { 1: 'l1_bible', 2: 'l2_bible' };
@@ -30,7 +31,7 @@ var _mc = {
     season: null, seasonOk: false, seasonErr: '', seasonAt: 0,
     night: null, saved: null, pool: [], phase: '', lessons: {},
     muted: false, sync: { busy: false, lastError: null },
-    lastGive: { key: '', at: 0 }, undoArmed: 0, wheelTimers: [],
+    lastGive: { key: '', at: 0 }, tapAt: 0, undoArmed: 0, wheelTimers: [],
     ui: null
 };
 
@@ -98,6 +99,12 @@ function _mcToast(msg, ms) {
     _mcToast.t = setTimeout(function () { el.className = ''; }, ms || 2600);
 }
 
+/* Stable order for name lists: never depends on stars, so a chip stays where the host saw it. */
+function _mcByName(a, b) {
+    var x = mtNormalize(a.name), y = mtNormalize(b.name);
+    return x < y ? -1 : x > y ? 1 : (String(a.phone) < String(b.phone) ? -1 : String(a.phone) > String(b.phone) ? 1 : 0);
+}
+
 function _mcKidTeamName(kid) {
     var t = kid && kid.teamId ? _mcTeam(kid.teamId) : null;
     return t ? t.name : '';
@@ -153,7 +160,7 @@ function _mcWire() {
     root.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && e.target.id === 'mc-sq') {
             var r = _mcAwardResults();
-            if (r.length === 1) { e.preventDefault(); _mcTapKid(r[0].phone); }
+            if (r.length === 1) { e.preventDefault(); if (_mcTapOk()) _mcTapKid(r[0].phone); }
         } else if (e.key === 'Escape' && _mc.ui && _mc.ui.editor) {
             _mc.ui.editor = false; _mcRefresh();
         }
@@ -561,7 +568,7 @@ function _mcTeamCardHtml(t) {
     var n = _mc.night, ui = _mc.ui, id = t ? t.id : 'none';
     var kids = Object.keys(n.roster).map(function (ph) { return n.roster[ph]; })
         .filter(function (k) { return (k.teamId || null) === (t ? t.id : null); })
-        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ar'); });
+        .sort(_mcByName);
     var awarded = t && n.awards.some(function (a) { return a.teamId === t.id; });
     var h = '<div class="mc-tcard" style="--tc:' + _mcEsc(t ? t.color : '#7f8c8d') + '"><div class="mc-tcard-h">' +
         '<span class="ico">' + _mcEsc(t ? t.icon : '🙋') + '</span><b>' + _mcEsc(t ? t.name : 'من غير فريق') + '</b>' +
@@ -593,7 +600,7 @@ function _mcGameChecklistHtml(t) {
     var n = _mc.night;
     if (!_mc.players) return '';
     var ps = _mc.players.filter(function (p) { return p.team === t.gameTeam; })
-        .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ar'); });
+        .sort(_mcByName);
     if (!ps.length) return '<p class="mc-muted">مفيش لاعيبة متسجلين في الفريق ده</p>';
     return '<div class="mc-check"><span class="mc-lbl">علّم على اللي حاضر:</span>' + ps.map(function (p) {
         var k = n.roster[p.phone], on = !!(k && k.teamId === t.id);
@@ -862,7 +869,8 @@ function _mcAwTopHtml() {
     return '<div class="mc-pts' + (pts < 0 ? ' neg' : '') + '"><span>كل ضغطة على اسم</span><b>⭐ ' + _mcPts(pts) + '</b>' + (note ? '<small>' + _mcEsc(note) + '</small>' : '') + '</div>' +
         '<div class="mc-row"><button class="mc-btn' + (ui.neg ? ' danger on' : '') + '" data-a="neg">' + (ui.neg ? '✕ إلغاء التصحيح' : '−٥ تصحيح') + '</button>' +
         '<button class="mc-btn' + (_mc.undoArmed ? ' danger' : '') + '" data-a="undo"' + (target ? '' : ' disabled') + '>' + _mcEsc(undoTxt) + '</button></div>' +
-        (last ? '<div class="mc-last">آخر نقطة: ' + _mcEsc(_mcPts(last.points) + ' ' + _mcAwardWho(last)) + (last.kind === 'undo' ? ' (تراجع)' : '') + '</div>' : '');
+        /* always one line, so the panel below never shifts after the first award */
+        '<div class="mc-last">آخر نقطة: ' + (last ? _mcEsc(_mcPts(last.points) + ' ' + _mcAwardWho(last)) + (last.kind === 'undo' ? ' (تراجع)' : '') : '—') + '</div>';
 }
 
 function _mcUndoTarget() {
@@ -957,7 +965,7 @@ function _mcRosterHtml() {
     [1, 2].forEach(function (l) { if (groups[l] && lv.indexOf(l) < 0) lv.push(l); });
     lv.sort();
     return lv.map(function (l) {
-        var ks = (groups[l] || []).sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'ar'); });
+        var ks = (groups[l] || []).sort(_mcByName);
         return '<div class="mc-rgroup"><div class="mc-lbl">' + (l === 1 ? 'حاضرين م١' : 'حاضرين م٢') + ' (' + _mcNum(ks.length) + ')</div><div class="mc-kidgrid">' +
             (ks.length ? ks.map(function (k) {
                 var t = k.teamId ? _mcTeam(k.teamId) : null;
@@ -1160,7 +1168,9 @@ _MC_A.tkind = function (d) { _mc.ui.kind = d.k || null; _mcRefresh(); };
 /* quiet: apply, save and sync now, but leave the projector (view + fx) to the caller. */
 function _mcGive(target, points, segment, quiet) {
     var n = _mc.night;
-    var key = (target.phone || 'T' + target.teamId) + '|' + points;
+    /* keyed on the target only: points change after the first tap (−٥ and دبل reset), so the second
+       tap of a double tap would otherwise get through with different points */
+    var key = target.phone || 'T' + target.teamId;
     if (_mc.lastGive.key === key && Date.now() - _mc.lastGive.at < MC_DOUBLE_TAP_MS) return null;
     var cur = n.current;
     var itemId = cur && cur.stage !== 'preview' ? cur.item.id : null;
@@ -1215,9 +1225,18 @@ function _mcTapKid(phone) {
     _mcGive({ phone: phone }, _mcPointsNow());
 }
 
-_MC_A.kid = function (d) { _mcTapKid(d.p); };
+/* Award taps (kid, team-chip, team, Enter): a second tap within MC_TAP_LOCK_MS is dropped, wherever it lands. */
+function _mcTapOk() {
+    var now = Date.now();
+    if (now - _mc.tapAt < MC_TAP_LOCK_MS) return false;
+    _mc.tapAt = now;
+    return true;
+}
+
+_MC_A.kid = function (d) { if (_mcTapOk()) _mcTapKid(d.p); };
 
 _MC_A.kidteam = function (d) {
+    if (!_mcTapOk()) return;
     var n = _mc.night, ph = d.p, p = n.roster[ph] || _mcPlayer(ph);
     if (!p) return;
     mtAddToRoster(n, p, d.t || null);
@@ -1228,7 +1247,7 @@ _MC_A.kidteam = function (d) {
 };
 _MC_A.choosex = function () { _mc.ui.choose = null; _mc.ui.pick = null; _mcRefresh(); };
 
-_MC_A.team = function (d) { _mcGive({ teamId: d.t }, _mcPointsNow()); };
+_MC_A.team = function (d) { if (_mcTapOk()) _mcGive({ teamId: d.t }, _mcPointsNow()); };
 
 _MC_A.neg = function () { _mc.ui.neg = !_mc.ui.neg; _mcRefresh(); };
 

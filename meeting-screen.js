@@ -70,7 +70,7 @@ function msBoot() {
     _msInitCursor();
     setInterval(_msTimerTick, 200);
     setInterval(_msBoardScrollTick, 40);
-    window.addEventListener('resize', _msFit);
+    window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(_msFit);
     if (typeof BroadcastChannel === 'undefined') {
         _msRenderIdle(null, 'المتصفح ده مش بيدعم ربط الشاشتين، افتحها من Chrome');
@@ -544,6 +544,7 @@ var _MS_FX = {
         });
         el.innerHTML = h + '</div></div>';
         _msBoardFxLayout(el);
+        _msFitNames(el, false);
         _msSfx('reveal');
         /* stays until the next view that changes something, or the next fx */
     },
@@ -585,7 +586,7 @@ function _msFxFull(kind) {
 
 /* Lay the full-screen board out in columns: as many rows per column as fit the height, each level
    as wide as its column count. Shrinks the rows (--bk) while a column would be too narrow for a name
-   (under 17vw), so fewer, wider columns hold the whole list. */
+   (under 20vw), so fewer, wider columns hold the whole list. */
 function _msBoardFxLayout(el) {
     var board = el.querySelector('.fx-board');
     var lvls = el.querySelectorAll('.fxb-lvl');
@@ -604,7 +605,7 @@ function _msBoardFxLayout(el) {
         }
         for (i = 0; i < lvls.length; i++) {
             var l = lvls[i].querySelector('.fxb-list');
-            if (l && l.clientWidth / (parseFloat(lvls[i].style.flexGrow) || 1) < innerWidth * 0.17) ok = false;
+            if (l && l.clientWidth / (parseFloat(lvls[i].style.flexGrow) || 1) < innerWidth * 0.2) ok = false;
         }
         if (ok) return;
     }
@@ -625,8 +626,30 @@ function _msBoardRowHtml(k, i, delay) {
 function _msRowInner(k, i) {
     return '<span class="mb-rk">' + _msRankHtml(k, i) + '</span>' +
         '<span class="mb-dot"' + (k.teamColor ? ' style="--tc:' + _msEsc(k.teamColor) + '"' : '') + '></span>' +
-        '<span class="mb-nm">' + _msEsc(k.name) + '</span>' +
-        '<span class="mb-st">' + _msNum(k.stars) + ' ⭐</span>';
+        '<span class="mb-nm">' + _msEsc(_msNameNoBreak(k.name)) + '</span>' +
+        '<span class="mb-st">' + _msNum(k.stars) + '<span class="s">⭐</span></span>';
+}
+
+/* Compound names («عبد الملاك», «أبو سيفين») stay together if a long name has to wrap. */
+function _msNameNoBreak(name) {
+    return String(name == null ? '' : name).replace(/(^|\s)(عبد|أبو|أبا|ابو)\s+/g, '$1$2\u00a0');
+}
+
+/* Fit every name in `root` on one line by shrinking its font, never below 2.4vh (about 26px at 1080p);
+   a name that still does not fit wraps to two lines (`allowWrap`) or keeps the floor size. */
+function _msFitNames(root, allowWrap) {
+    var floor = innerHeight * 0.024;
+    Array.prototype.forEach.call(root.querySelectorAll('.mb-nm'), function (el) {
+        el.style.fontSize = '';
+        el.classList.remove('wrap');
+        if (el.scrollWidth <= el.clientWidth + 1) return;
+        var f = parseFloat(getComputedStyle(el).fontSize);
+        while (f > floor && el.scrollWidth > el.clientWidth + 1) {
+            f = Math.max(floor, f - 1);
+            el.style.fontSize = f + 'px';
+        }
+        if (allowWrap && el.scrollWidth > el.clientWidth + 1) el.classList.add('wrap');
+    });
 }
 
 /* Returns true when the panel was shown or hidden (the stage width changed). */
@@ -698,6 +721,7 @@ function _msBoardSection(sec, kids, hits, newAward) {
         r.style.top = (firstTop[key] - listTop) + 'px';
         setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 600);
     });
+    _msFitNames(list, true); /* before measuring the new positions: a wrapped name makes its row taller */
     /* on an award, bring the highest recipient into view and hold there */
     var st = vp._as || (vp._as = { mode: 'pauseTop', until: Date.now() + MS_BOARD_PAUSE_MS, pos: 0 });
     if (newAward && hitRows.length) {

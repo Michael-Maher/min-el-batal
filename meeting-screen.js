@@ -70,7 +70,7 @@ function msBoot() {
     _msInitCursor();
     setInterval(_msTimerTick, 200);
     setInterval(_msBoardScrollTick, 40);
-    window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true); });
+    window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true, 2.8); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(_msFit);
     if (typeof BroadcastChannel === 'undefined') {
         _msRenderIdle(null, 'المتصفح ده مش بيدعم ربط الشاشتين، افتحها من Chrome');
@@ -544,7 +544,7 @@ var _MS_FX = {
         });
         el.innerHTML = h + '</div></div>';
         _msBoardFxLayout(el);
-        _msFitNames(el, false);
+        _msFitNames(el, false, 2.4);
         _msSfx('reveal');
         /* stays until the next view that changes something, or the next fx */
     },
@@ -635,10 +635,10 @@ function _msNameNoBreak(name) {
     return String(name == null ? '' : name).replace(/(^|\s)(عبد|أبو|أبا|ابو)\s+/g, '$1$2\u00a0');
 }
 
-/* Fit every name in `root` on one line by shrinking its font, never below 2.4vh (about 26px at 1080p);
-   a name that still does not fit wraps to two lines (`allowWrap`) or keeps the floor size. */
-function _msFitNames(root, allowWrap) {
-    var floor = innerHeight * 0.024;
+/* Fit every name in `root` on one line by shrinking its font, never below `floorVh` (2.8vh in the side
+   panel, about 30px at 1080p); a name that still does not fit wraps to two lines (`allowWrap`) or keeps the floor size. */
+function _msFitNames(root, allowWrap, floorVh) {
+    var floor = innerHeight * floorVh / 100;
     Array.prototype.forEach.call(root.querySelectorAll('.mb-nm'), function (el) {
         el.style.fontSize = '';
         el.classList.remove('wrap');
@@ -721,7 +721,7 @@ function _msBoardSection(sec, kids, hits, newAward) {
         r.style.top = (firstTop[key] - listTop) + 'px';
         setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 600);
     });
-    _msFitNames(list, true); /* before measuring the new positions: a wrapped name makes its row taller */
+    _msFitNames(list, true, 2.8); /* before measuring the new positions: a wrapped name makes its row taller */
     /* on an award, bring the highest recipient into view and hold there */
     var st = vp._as || (vp._as = { mode: 'pauseTop', until: Date.now() + MS_BOARD_PAUSE_MS, pos: 0 });
     if (newAward && hitRows.length) {

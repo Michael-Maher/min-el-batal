@@ -166,6 +166,15 @@ test('restore round-trip', function () {
     assert.strictEqual(c.mtRestore('null'), null);
 });
 
+test('restore rejects a partial night', function () {
+    var c = load();
+    assert.strictEqual(c.mtRestore('{"v":1}'), null);
+    assert.strictEqual(c.mtRestore('{"v":1,"teams":[],"awards":[],"roster":[]}'), null);
+    assert.strictEqual(c.mtRestore('{"v":1,"teams":{},"awards":[],"roster":{}}'), null);
+    assert.strictEqual(c.mtRestore('{"v":1,"teams":[],"awards":null,"roster":{}}'), null);
+    assert.ok(c.mtRestore('{"v":1,"teams":[],"awards":[],"roster":{}}'));
+});
+
 // ---- audience view ----
 var KINDS = ['mcq', 'tf', 'clues', 'verse', 'scenario', 'order', 'emoji', 'anagram', 'odd', 'deep', 'sixty', 'act', 'draw', 'taboo', 'hymn'];
 function fixture(k) {
@@ -552,6 +561,24 @@ test('search finds same-name kids', function () {
     assert.deepStrictEqual(plain(c.mtSearch(ps, '0')), []);
     assert.deepStrictEqual(plain(c.mtSearch(ps, '02').map(function (p) { return p.phone; })), ['02']);
     assert.strictEqual(c.mtSearch(ps, 'مين', 2).length, 2);
+});
+
+test('search: multi-word queries match name words in order', function () {
+    var c = loadPool([]);
+    var ps = [{ name: 'مينا عادل', phone: '01' }, { name: 'مينا سمير', phone: '02' }, { name: 'عادل مينا', phone: '03' }, { name: 'احمد رامي', phone: '04' }];
+    var ids = function (q) { return plain(c.mtSearch(ps, q).map(function (p) { return p.phone; })); };
+    assert.deepStrictEqual(ids('مينا ع'), ['01']);
+    assert.deepStrictEqual(ids('مينا  عادل'), ['01']);
+    assert.deepStrictEqual(ids('عادل م'), ['03']);
+    assert.deepStrictEqual(ids('أحمد ر'), ['04']);
+    assert.deepStrictEqual(ids('مينا ص'), []);
+});
+
+test('search: Arabic-Indic digits match phones', function () {
+    var c = loadPool([]);
+    var ps = [{ name: 'مينا', phone: '01012345678' }, { name: 'مارك', phone: '01299999999' }];
+    assert.deepStrictEqual(plain(c.mtSearch(ps, '٠١٠١').map(function (p) { return p.phone; })), ['01012345678']);
+    assert.deepStrictEqual(plain(c.mtSearch(ps, '۹۹۹').map(function (p) { return p.phone; })), ['01299999999']);
 });
 
 test('random pick uses roster first, then all, never excluded', function () {

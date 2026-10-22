@@ -291,6 +291,8 @@ function mtRestore(str) {
     var o;
     try { o = JSON.parse(str); } catch (e) { return null; }
     if (!o || typeof o !== 'object' || o.v !== 1) return null;
+    if (!Array.isArray(o.teams) || !Array.isArray(o.awards)) return null;
+    if (!o.roster || typeof o.roster !== 'object' || Array.isArray(o.roster)) return null;
     return o;
 }
 
@@ -496,16 +498,41 @@ function mtPickNext(pool, night, opts, history, rng) {
     return null;
 }
 
+/* Arabic-Indic (and Persian) digits to Latin, for phone matching. */
+function _mtLatinDigits(s) {
+    return String(s).replace(/[\u0660-\u0669\u06F0-\u06F9]/g, function (d) {
+        var c = d.charCodeAt(0);
+        return String(c - (c >= 0x06F0 ? 0x06F0 : 0x0660));
+    });
+}
+
+/* Every query word prefix-matches a name word, in order. Returns the index of the word the first
+   query word matched, or -1. */
+function _mtWordsMatch(words, qWords) {
+    for (var start = 0; start < words.length; start++) {
+        if (words[start].indexOf(qWords[0]) !== 0) continue;
+        var w = start + 1, ok = true;
+        for (var i = 1; i < qWords.length && ok; i++) {
+            while (w < words.length && words[w].indexOf(qWords[i]) !== 0) w++;
+            if (w >= words.length) ok = false; else w++;
+        }
+        if (ok) return start;
+    }
+    return -1;
+}
+
 function mtSearch(players, query, limit) {
     var q = mtNormalize(query);
     if (q.length < 2) return [];
-    var raw = String(query == null ? '' : query).trim();
+    var qWords = q.split(' ');
+    var raw = _mtLatinDigits(String(query == null ? '' : query).trim());
     var max = limit === undefined ? 8 : limit;
     var first = [], later = [], byPhone = [];
     (players || []).forEach(function (p) {
-        var words = mtNormalize(p.name).split(' ');
-        if (words[0].indexOf(q) === 0) first.push(p);
-        else if (words.some(function (w) { return w.indexOf(q) === 0; })) later.push(p);
+        var full = mtNormalize(p.name);
+        var at = full.indexOf(q) === 0 ? 0 : _mtWordsMatch(full.split(' '), qWords);
+        if (at === 0) first.push(p);
+        else if (at > 0) later.push(p);
         else if (String(p.phone || '').indexOf(raw) >= 0) byPhone.push(p);
     });
     return first.concat(later, byPhone).slice(0, max);

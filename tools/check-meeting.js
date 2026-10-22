@@ -159,6 +159,8 @@ test('restore round-trip', function () {
     c.mtUndoLast(n);
     var r = c.mtRestore(c.mtSerialize(n));
     assert.deepStrictEqual(plain(r), plain(n));
+    assert.ok(/^2026-10-26_[0-9a-z]{8,}$/.test(r.id), 'night id ' + r.id);
+    assert.strictEqual(r.id, n.id);
     assert.strictEqual(c.mtRestore('{"v":2}'), null);
     assert.strictEqual(c.mtRestore('nope'), null);
     assert.strictEqual(c.mtRestore('null'), null);
@@ -487,6 +489,7 @@ function makeDb() {
     var store = {}, db = { store: store, loseAck: false, failPhones: {}, events: [] };
     function setPath(obj, p, v) {
         var parts = p.split('.'), o = obj;
+        parts.forEach(function (x) { if (!x) throw new Error('invalid field path: ' + p); });
         for (var i = 0; i < parts.length - 1; i++) { if (typeof o[parts[i]] !== 'object' || o[parts[i]] === null) o[parts[i]] = {}; o = o[parts[i]]; }
         o[parts[parts.length - 1]] = v;
     }
@@ -514,13 +517,16 @@ function loadCloud() {
     var ctx = load();
     ctx.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'SERVER_TS'; } } } };
     ctx.Promise = Promise;
+    ctx.warns = [];
+    ctx.console = { log: console.log, warn: function () { ctx.warns.push([].slice.call(arguments).join(' ')); } };
     vm.runInContext(cloudSrc, ctx);
     return ctx;
 }
 function cloudTest(name, fn) {
-    pending.push(Promise.resolve().then(fn).then(function () { passed++; }, function (e) { failed++; console.log('FAIL ' + name + '\n     ' + e.message); }));
+    unsettled++;
+    pending.push(Promise.resolve().then(fn).then(function () { passed++; }, function (e) { failed++; console.log('FAIL ' + name + '\n     ' + e.message); }).then(function () { unsettled--; }));
 }
-var pending = [];
+var pending = [], unsettled = 0;
 function seed(db, phone, doc, lb) { db.store['players/' + phone] = doc; if (lb) db.store['leaderboard/' + phone] = lb; }
 
 test('cloud: season fields match game.js', function () {
@@ -547,7 +553,7 @@ cloudTest('cloud: award increments stars and log', function () {
 cloudTest('cloud: negative never below zero', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 3 });
-    return c.mcApplyAward(db, { key: 'k', phone: '01', points: -5, date: 'd', season: null }).then(function () {
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: -5, date: '2026-10-26', season: null }).then(function () {
         assert.strictEqual(db.store['players/01'].stars, 0);
     });
 });
@@ -555,7 +561,7 @@ cloudTest('cloud: negative never below zero', function () {
 cloudTest('cloud: missing leaderboard not created', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 3 });
-    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: 'd', season: null }).then(function () {
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: null }).then(function () {
         assert.strictEqual(db.store['leaderboard/01'], undefined);
     });
 });
@@ -563,7 +569,7 @@ cloudTest('cloud: missing leaderboard not created', function () {
 cloudTest('cloud: old-season kid keeps the award', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 900, gems: 40, scoreSeasonId: 'old', createdAt: '2026-01-01', season: { startStars: 500 } }, { stars: 900, gems: 40 });
-    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: 'd', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
         var d = db.store['players/01'];
         assert.strictEqual(d.stars, 5);
         assert.strictEqual(d.gems, 0);
@@ -577,7 +583,7 @@ cloudTest('cloud: old-season kid keeps the award', function () {
 cloudTest('cloud: joined after season start: plain increment', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 50, gems: 7, scoreSeasonId: '', createdAt: '2026-10-15' });
-    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: 'd', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
         var d = db.store['players/01'];
         assert.strictEqual(d.stars, 55);
         assert.strictEqual(d.gems, 7);
@@ -587,7 +593,7 @@ cloudTest('cloud: joined after season start: plain increment', function () {
 cloudTest('cloud: same key twice applies once', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 10 });
-    var a = { key: 'k', phone: '01', points: 5, date: 'd', season: null };
+    var a = { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: null };
     return c.mcApplyAward(db, a).then(function () { return c.mcApplyAward(db, a); }).then(function (r) {
         assert.strictEqual(r, 'duplicate');
         assert.strictEqual(db.store['players/01'].stars, 15);
@@ -596,7 +602,7 @@ cloudTest('cloud: same key twice applies once', function () {
 
 cloudTest('cloud: no-player rejects', function () {
     var c = loadCloud(), db = makeDb();
-    return c.mcApplyAward(db, { key: 'k', phone: 'zz', points: 5, date: 'd', season: null }).then(function () { throw new Error('should reject'); }, function (e) {
+    return c.mcApplyAward(db, { key: 'k', phone: 'zz', points: 5, date: '2026-10-26', season: null }).then(function () { throw new Error('should reject'); }, function (e) {
         assert.strictEqual(e.message, 'no-player');
     });
 });
@@ -668,12 +674,62 @@ cloudTest('cloud: no-player marked failed, not retried forever', function () {
 cloudTest('cloud: meetingAwardKeys capped at 40', function () {
     var c = loadCloud(), db = makeDb(), p = Promise.resolve();
     seed(db, '01', { stars: 0 });
-    for (var i = 0; i < 45; i++) (function (i) { p = p.then(function () { return c.mcApplyAward(db, { key: 'k' + i, phone: '01', points: 1, date: 'd', season: null }); }); })(i);
+    for (var i = 0; i < 45; i++) (function (i) { p = p.then(function () { return c.mcApplyAward(db, { key: 'k' + i, phone: '01', points: 1, date: '2026-10-26', season: null }); }); })(i);
     return p.then(function () {
         var k = db.store['players/01'].meetingAwardKeys;
         assert.strictEqual(k.length, 40);
         assert.strictEqual(k[39], 'k44');
         assert.strictEqual(db.store['players/01'].stars, 45);
+    });
+});
+
+cloudTest('cloud: same award index on two nights both apply', function () {
+    var c = loadCloud(), db = makeDb(), fc = flushCtx();
+    seed(db, '01', { stars: 0 });
+    var n1 = nightWith(c, ['01']), n2 = c.mtNewNight({ date: '2026-11-02', title: 't', levels: [1], filter: { subjects: [], lessons: {} }, kinds: [] });
+    c.mtMakeRandomTeams(n2, 2); kid(c, n2, '01', 'david');
+    c.mtAward(n1, { phone: '01' }, 5, null);
+    c.mtAward(n2, { phone: '01' }, 5, null);
+    assert.strictEqual(n1.awards[0].id, n2.awards[0].id);
+    assert.notStrictEqual(n1.id, n2.id);
+    return c.mcFlush(db, n1, fc).then(function () { return c.mcFlush(db, n2, fc); }).then(function () {
+        assert.strictEqual(db.store['players/01'].stars, 10);
+    });
+});
+
+cloudTest('cloud: flush reports lastError when stuck', function () {
+    var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01']), fc = flushCtx();
+    seed(db, '01', { stars: 0 });
+    c.mtAward(n, { phone: '01' }, 5, null);
+    db.failPhones['01'] = true;
+    return c.mcFlush(db, n, fc).then(function (r) {
+        assert.strictEqual(r.lastError.message, 'unavailable');
+        assert.strictEqual(c.warns.length, 1);
+        assert.strictEqual(c.mtPendingSyncs(n).length, 1);
+    });
+});
+
+cloudTest('cloud: bad date is rejected and surfaces as lastError', function () {
+    var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01']), fc = flushCtx();
+    seed(db, '01', { stars: 0 });
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '', season: null }).then(function () { throw new Error('should reject'); }, function (e) {
+        assert.strictEqual(e.message, 'bad-date');
+        assert.strictEqual(db.store['players/01'].stars, 0);
+        n.date = '';
+        c.mtAward(n, { phone: '01' }, 5, null);
+        return c.mcFlush(db, n, fc).then(function (r) { assert.strictEqual(r.lastError.message, 'bad-date'); });
+    });
+});
+
+cloudTest('cloud: award added during a flush is synced by that flush', function () {
+    var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01', '02']), fc = flushCtx(), added = false;
+    seed(db, '01', { stars: 0 }); seed(db, '02', { stars: 0 });
+    c.mtAward(n, { phone: '01' }, 5, null);
+    fc.onChange = function () { if (!added) { added = true; c.mtAward(n, { phone: '02' }, 3, null); } };
+    return c.mcFlush(db, n, fc).then(function (r) {
+        assert.strictEqual(r.applied, 2);
+        assert.strictEqual(db.store['players/02'].stars, 3);
+        assert.strictEqual(c.mtPendingSyncs(n).length, 0);
     });
 });
 
@@ -700,5 +756,9 @@ cloudTest('cloud: loaders, history and log', function () {
 });
 
 Promise.all(pending).then(function () {
-console.log(passed + ' passed, ' + failed + ' failed');
-process.exit(failed ? 1 : 0);});
+    console.log(passed + ' passed, ' + failed + ' failed');
+    process.exit(failed ? 1 : 0);
+});
+process.on('exit', function (code) {
+    if (unsettled > 0 && code === 0) { console.log('FAIL ' + unsettled + ' async test(s) never settled'); process.exitCode = 1; }
+});

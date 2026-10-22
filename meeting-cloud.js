@@ -46,6 +46,7 @@ function mcLoadSeason(db) {
 
 /* One transaction per kid per award. key makes retries (including after a lost ack) no-ops. */
 function mcApplyAward(db, o) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date || '')) return Promise.reject(new Error('bad-date'));
     var pRef = db.collection('players').doc(o.phone);
     var lRef = db.collection('leaderboard').doc(o.phone);
     return db.runTransaction(function (tx) {
@@ -93,10 +94,13 @@ function mcApplyAward(db, o) {
     });
 }
 
-/* Pushes every unsynced (award, kid) pair, oldest first, one at a time. Never throws. */
+/* Pushes every unsynced (award, kid) pair, oldest first, one at a time. Never throws.
+   Loops until nothing is pending (awards added mid-flush are included) or an error stops it.
+   Resolves {applied, failed, lastError?}; lastError means sync is stuck. */
 function mcFlush(db, night, ctx) {
     if (_mcFlushing) return _mcFlushing;
-    var applied = 0, failed = 0;
+    var applied = 0, failed = 0, lastError = null;
+    var nightKey = night.id || night.date;
     function byId(id) {
         for (var i = 0; i < night.awards.length; i++) if (night.awards[i].id === id) return night.awards[i];
         return null;
@@ -107,30 +111,41 @@ function mcFlush(db, night, ctx) {
         try { if (ctx.save) ctx.save(); } catch (e) {}
         try { if (ctx.onChange) ctx.onChange(); } catch (e) {}
     }
-    function step(list, i) {
-        if (i >= list.length) return Promise.resolve();
+    // Resolves true when the pass made progress and nothing stopped it.
+    function step(list, i, progressed) {
+        if (i >= list.length) return Promise.resolve(progressed);
         var s = list[i], award = byId(s.awardId);
-        if (!award) return step(list, i + 1);
-        return mcApplyAward(db, { key: s.awardId + '_' + s.phone, phone: s.phone, points: s.points, date: night.date, season: ctx.season })
+        if (!award) return step(list, i + 1, progressed);
+        return mcApplyAward(db, { key: nightKey + '_' + s.awardId + '_' + s.phone, phone: s.phone, points: s.points, date: night.date, season: ctx.season })
             .then(function (r) {
                 if (r === 'applied') applied++;
                 mark(award, s.phone, false);
-                return step(list, i + 1);
+                return step(list, i + 1, true);
             }, function (err) {
                 if (err && err.message === 'no-player') {
                     failed++;
                     mark(award, s.phone, true);
-                    return step(list, i + 1);
+                    return step(list, i + 1, true);
                 }
-                // network or other error: stop, leave the rest pending
+                lastError = { code: (err && err.code) || '', message: (err && err.message) || String(err) };
+                try { console.warn('meeting sync stopped:', lastError.code, lastError.message); } catch (e) {}
+                return false;
             });
     }
-    _mcFlushing = step(mtPendingSyncs(night), 0).then(function () {
+    function pass() {
+        var list = mtPendingSyncs(night);
+        if (!list.length) return Promise.resolve();
+        return step(list, 0, false).then(function (more) { if (more) return pass(); });
+    }
+    function done() {
         _mcFlushing = null;
-        return { applied: applied, failed: failed };
-    }, function () {
-        _mcFlushing = null;
-        return { applied: applied, failed: failed };
+        var r = { applied: applied, failed: failed };
+        if (lastError) r.lastError = lastError;
+        return r;
+    }
+    _mcFlushing = pass().then(done, function (e) {
+        lastError = { code: '', message: (e && e.message) || String(e) };
+        return done();
     });
     return _mcFlushing;
 }

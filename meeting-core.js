@@ -18,6 +18,7 @@ function mtNewNight(opts) {
     var f = opts.filter || {};
     return {
         v: 1,
+        id: (opts.date || '') + '_' + Math.random().toString(36).slice(2, 10).padEnd(8, '0') + Date.now().toString(36).slice(-3),
         date: opts.date || '',
         title: opts.title || '',
         levels: (opts.levels || [1, 2]).slice(),

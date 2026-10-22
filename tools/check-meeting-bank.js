@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* Dev-only schema and coverage check for meeting-bank.js (not shipped).
    Run: node tools/check-meeting-bank.js [--level 1|2]
-   Without --level it checks the station minimums of every level that has items. */
+   Without --level it checks the station and gen (fallback) minimums of every level that has items. */
 'use strict';
 var vm = require('vm'), fs = require('fs'), path = require('path');
 
@@ -25,6 +25,8 @@ var STATION_MIN = {
     2: { mcq: 3, tf: 2, clues: 2, verse: 2, scenario: 2, odd: 2, anagram: 2, deep: 4, sixty: 2, taboo: 2 }
 };
 var STATION_TOTAL_MIN = 23;
+/* Per-level minimums for the fallback pool (station null, id segment gen). */
+var GEN_MIN = { emoji: 6, act: 6, draw: 6, taboo: 6, order: 4, anagram: 6, hymn: 6 };
 var PROMPT_MAX = 120, SCENARIO_PROMPT_MAX = 220, ODD_ITEM_MAX = 25, ANAGRAM_MAX = 14, HINT_MAX = 20;
 
 var errors = [];
@@ -178,8 +180,13 @@ levels.forEach(function (l) {
         if (items.length < STATION_TOTAL_MIN) err(where, items.length + ' items, needs ' + STATION_TOTAL_MIN);
         [1, 2, 3].forEach(function (d) { if (!diff[d]) err(where, 'no difficulty ' + d + ' item'); });
     }
-    var gen = BANK.filter(function (it) { return it.level === l && it.station === null; }).length;
-    console.log('gen\t' + gen + ' items');
+    var gen = BANK.filter(function (it) { return it.level === l && it.station === null; });
+    var gby = {}, gdiff = { 1: 0, 2: 0, 3: 0 };
+    gen.forEach(function (it) { gby[it.kind] = (gby[it.kind] || 0) + 1; if (gdiff[it.difficulty] !== undefined) gdiff[it.difficulty]++; });
+    console.log(['gen'].concat(kindKeys.map(function (k) { return gby[k] || 0; }), [gen.length, gdiff[1] + '/' + gdiff[2] + '/' + gdiff[3]]).join('\t'));
+    Object.keys(GEN_MIN).forEach(function (k) {
+        if ((gby[k] || 0) < GEN_MIN[k]) err('level ' + l + ' gen', k + ' has ' + (gby[k] || 0) + ', needs ' + GEN_MIN[k]);
+    });
 });
 
 console.log('');

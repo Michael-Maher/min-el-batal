@@ -9,6 +9,11 @@ var MS_FIXED_TEXT = 'واحد من الفريق ييجي يشوف الكلمة �
 var MS_LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
 var MS_SEGMENT_ICON = { act: '🎭', draw: '🎨', taboo: '🤐' };
 var MS_RING_C = 282.74; /* 2 * PI * 45, the ring circle in meeting.html */
+/* Level identity: L1 warm, sunny and bouncy; L2 cool, sleek and electric. Same palettes as .lv1/.lv2 in meeting.html. */
+var MS_LV = {
+    1: { cls: 'lv1', tag: '🌟 مستوى أول', chip: '🌟 المستوى الأول', title: '🌟 أبطال المستوى الأول', colors: ['#ffd166', '#ff9f1c', '#ff6b35', '#fff3c4', '#ffe08a'] },
+    2: { cls: 'lv2', tag: '⚡ مستوى تاني', chip: '⚡ المستوى التاني', title: '⚡ أبطال المستوى التاني', colors: ['#a78bfa', '#6d5dfc', '#22d3ee', '#e0f7ff', '#818cf8'] }
+};
 
 var _ms = {
     ch: null, gotView: false, helloTimer: 0,
@@ -70,6 +75,7 @@ function msBoot() {
     _msInitCursor();
     setInterval(_msTimerTick, 200);
     setInterval(_msBoardScrollTick, 40);
+    _msSkyInit();
     window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true, 2.8); });
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(_msFit);
     if (typeof BroadcastChannel === 'undefined') {
@@ -125,13 +131,18 @@ function msRender(view) {
         _ms.stageKey = stageKey;
         var box = _msEl('ms-stage');
         box.classList.toggle('golden', !!(it && view.golden));
+        var tl = it && view.target ? view.target.level : null;
+        box.classList.toggle('t1', tl === 1);
+        box.classList.toggle('t2', tl === 2);
         if (!it) {
             _msRenderIdle(view);
         } else {
             _msEl('ms-item').innerHTML = _msItemHtml(it, revealed, { isNew: isNew, prev: prev });
-            if (isNew || justRevealed) { box.classList.remove('pop'); void box.offsetWidth; box.classList.add('pop'); }
+            if (isNew || justRevealed) { box.classList.remove('pop', 'sweep'); void box.offsetWidth; box.classList.add('pop'); }
+            if (isNew) box.classList.add('sweep');
         }
         _msFit();
+        if (justRevealed) _msRevealBurst(view);
     } else if (boardToggled) {
         _msFit(); /* the stage got narrower or wider */
     }
@@ -160,7 +171,13 @@ function _msRenderIdle(view, note) {
     else if (!view) sub = '<p>مستنيين شاشة التحكم…</p>';
     else if (view.stage === 'preview') sub = '<p class="ready">⏳ استعدوا… السؤال جاي!</p>';
     else sub = '<p>⭐ كل نقطة بتتحسب نجوم في حسابك ⭐</p>';
-    _msEl('ms-item').innerHTML = '<div class="ms-idle"><div class="ico">🏆</div><h1>' + _msEsc(title) + '</h1>' + sub + '</div>';
+    var levels = view && view.kids ? Object.keys(view.kids).filter(function (l) { return MS_LV[l]; }) : [];
+    var chips = levels.length ? '<div class="ms-idle-lv">' + levels.map(function (l) {
+        return '<span class="lvchip ' + MS_LV[l].cls + (l === '2' ? ' lv2-shine' : '') + '">' + MS_LV[l].chip + '</span>';
+    }).join('') + '</div>' : '';
+    _msEl('ms-item').innerHTML = '<div class="ms-idle"><div class="ms-idle-rays"></div>' +
+        '<img class="ms-logo" src="images/ui/logo-min-el-batal.webp" alt="مين البطل؟">' +
+        '<h1>' + _msEsc(title) + '</h1>' + sub + chips + '</div>';
 }
 
 function _msRenderTags(view, it) {
@@ -168,8 +185,9 @@ function _msRenderTags(view, it) {
     if (it) {
         var kind = (typeof MT_KINDS !== 'undefined' && MT_KINDS[it.kind]) ? MT_KINDS[it.kind].label : '';
         var t = view.target || {};
-        var lvl = _msLevelLabel(t.level);
-        h += '<span class="ms-tag">' + _msEsc(kind) + (lvl ? ' · <span class="lvl">' + _msEsc(lvl) + '</span>' : '') + '</span>';
+        h += '<span class="ms-tag">' + _msEsc(kind) + '</span>';
+        if (MS_LV[t.level]) h += '<span class="ms-tag lv ' + MS_LV[t.level].cls + '">' + MS_LV[t.level].tag + '</span>';
+        else if (t.level === 'all') h += '<span class="ms-tag lvall">🌟⚡ الكل</span>';
         if (view.golden) h += '<span class="ms-tag gold">🏅 السؤال الدهبي · ×٣</span>';
         if (t.mode === 'speed') h += '<span class="ms-tag mode">⚡ سؤال سرعة</span>';
         if (t.mode === 'team' && t.teamId) {
@@ -432,19 +450,34 @@ var _MS_FX = {
     award: function (fx, el) {
         var neg = (Number(fx.points) || 0) < 0;
         var tc = fx.teamColor || '#6C5CE7';
-        el.style.setProperty('--tc', tc);
-        el.innerHTML = '<div class="fx-dim"></div><div class="fx-burst"></div>' +
+        var L = MS_LV[fx.level];
+        /* the pop wears the kid's level; the team keeps its color on the chip */
+        if (L) el.classList.add('fx-award-' + L.cls, L.cls);
+        el.style.setProperty('--tc', L ? L.colors[1] : tc);
+        var extras = !L || neg ? '' : (fx.level === 2
+            ? '<div class="fx-bolt r">⚡</div><div class="fx-bolt l">⚡</div>'
+            : '<div class="fx-sun r">🌟</div><div class="fx-sun l">🌟</div>');
+        el.innerHTML = '<div class="fx-dim"></div><div class="fx-burst"></div>' + extras +
             '<div class="fx-card"><div class="fx-name">' + _msEsc(fx.name) + '</div>' +
-            '<div class="fx-pts' + (neg ? ' neg' : '') + '">⭐ ' + _msPts(fx.points) + '</div>' +
-            (fx.teamName ? '<div class="fx-team-chip">' + _msEsc(fx.teamName) + '</div>' : '') + '</div>';
+            '<div class="fx-pts' + (neg ? ' neg' : '') + '">' + (neg ? '⭐ ' : '<img class="fx-star-img" src="images/ui/ic-star.webp" alt="⭐"> ') + _msPts(fx.points) + '</div>' +
+            (L ? '<div class="fx-lvbadge ' + L.cls + (fx.level === 2 ? ' lv2-shine' : '') + '">' + L.chip + '</div>' : '') +
+            (fx.teamName ? '<div class="fx-team-chip" style="--tc:' + _msEsc(tc) + '">' + _msEsc(fx.teamName) + '</div>' : '') + '</div>';
         if (neg) { _msSfx('wrong'); }
-        else {
+        else if (fx.level === 2) {
+            _msSfx('zap');
             _msSfx('correct');
+            _msBurst(innerWidth / 2, innerHeight / 2, 90, L.colors, 'streak');
+            _msConfetti(40, 1400, L.colors, innerWidth * 0.12);
+            _msConfetti(40, 1400, L.colors, innerWidth * 0.88);
+        } else {
+            var cols = L ? L.colors : [tc, '#FFD700', '#ffffff'];
+            _msSfx('correct');
+            if (L) { _msBurst(innerWidth * 0.2, innerHeight * 0.85, 45, cols, 'star'); _msBurst(innerWidth * 0.8, innerHeight * 0.85, 45, cols, 'star'); }
             /* from both sides, so the name and the points in the middle stay clear */
-            _msConfetti(60, 1600, [tc, '#FFD700', '#ffffff'], innerWidth * 0.1);
-            _msConfetti(60, 1600, [tc, '#FFD700', '#ffffff'], innerWidth * 0.9);
+            _msConfetti(50, 1600, cols, innerWidth * 0.1);
+            _msConfetti(50, 1600, cols, innerWidth * 0.9);
         }
-        _msFxEndAfter(2100);
+        _msFxEndAfter(2300);
     },
     teamAward: function (fx, el) {
         var tc = fx.teamColor || '#6C5CE7';
@@ -535,9 +568,10 @@ var _MS_FX = {
     board: function (fx, el) {
         _msFxFull('board');
         var kids = (_ms.view && _ms.view.kids) || {};
-        var h = '<div class="fx-dim solid"></div><div class="fx-board"><div class="fxb-title"><span>🏅</span><span class="g">أوائل مسابقة النهارده</span></div><div class="fxb-levels">';
+        var h = '<div class="fx-dim fx-podium-bg"></div><div class="fx-board"><div class="fxb-title"><img src="images/ui/ic-trophy.webp" alt=""><span class="g">أوائل مسابقة النهارده</span></div><div class="fxb-levels">';
         Object.keys(kids).forEach(function (lvl) {
-            h += '<div class="fxb-lvl"><div class="fxb-h">' + _msEsc(_msLevelLabel(+lvl)) + '</div>';
+            var L = MS_LV[lvl];
+            h += '<div class="fxb-lvl' + (L ? ' ' + L.cls : '') + '"><div class="fxb-h"><span>' + (L ? L.title : _msEsc(_msLevelLabel(+lvl))) + '</span></div>';
             if (!kids[lvl].length) h += '<div class="fxb-empty">لسه مفيش ولاد</div>';
             else h += '<div class="fxb-list">' + kids[lvl].map(function (k, i) { return _msBoardRowHtml(k, i, i * 25); }).join('') + '</div>';
             h += '</div>';
@@ -553,13 +587,16 @@ var _MS_FX = {
         var kids = (fx.kids || []).slice(0, 3);
         var order = [1, 0, 2]; /* RTL: 2nd on the right, 1st in the middle, 3rd on the left */
         var medals = ['🥇', '🥈', '🥉'];
-        var h = '<div class="fx-dim"></div><div class="fx-rays"></div><div class="fx-col">' +
+        var h = '<div class="fx-dim fx-podium-bg"></div><div class="fx-rays"></div><div class="fx-col">' +
             _msTitle('🏆', 'أبطال الليلة') + '<div class="fx-podium">';
         order.forEach(function (r) {
             var k = kids[r];
             if (!k) return;
-            h += '<div class="fx-step s' + (r + 1) + '"><div class="md">' + medals[r] + '</div>' +
-                '<div class="nm">' + _msEsc(k.name) + '</div><div class="st">⭐ ' + _msNum(k.stars) + '</div>' +
+            var L = MS_LV[k.level || _msKidLevel(k.name)];
+            h += '<div class="fx-step s' + (r + 1) + (L ? ' ' + L.cls : '') + '"><div class="md">' + medals[r] + '</div>' +
+                '<div class="nm">' + _msEsc(k.name) + '</div>' +
+                (L ? '<div class="lvtag ' + L.cls + '">' + L.chip + '</div>' : '') +
+                '<div class="st">⭐ ' + _msNum(k.stars) + '</div>' +
                 '<div class="base">' + _msNum(r + 1) + '</div></div>';
         });
         h += '</div>';
@@ -576,6 +613,24 @@ var _MS_FX = {
         /* The podium stays until the next fx or a new item. */
     }
 };
+
+/* The podium payload has names only: the level comes from tonight's board when the name is unique there. */
+function _msKidLevel(name) {
+    var kids = (_ms.view && _ms.view.kids) || {}, found = [];
+    Object.keys(kids).forEach(function (l) {
+        kids[l].forEach(function (k) { if (k.name === name) found.push(l); });
+    });
+    return found.length === 1 ? found[0] : null;
+}
+
+/* Reveal: a small burst from the right answer, in the target level's colors. */
+function _msRevealBurst(view) {
+    var el = document.querySelector('#ms-item .ms-opt.right, #ms-item .ms-tf-res, #ms-item .ms-odd .ms-card.odd, #ms-item .ms-answer, #ms-item .ms-tiles');
+    if (!el) return;
+    var r = el.getBoundingClientRect();
+    var L = MS_LV[view.target && view.target.level];
+    _msBurst(r.left + r.width / 2, r.top + r.height / 2, 60, L ? L.colors : ['#00B894', '#7dffd9', '#FFD700', '#ffffff'], L && view.target.level === 2 ? 'streak' : 'star');
+}
 
 /* Podium and the full-screen board cover everything: the side panel hides behind them. */
 function _msFxFull(kind) {
@@ -624,7 +679,8 @@ function _msBoardRowHtml(k, i, delay) {
 }
 
 function _msRowInner(k, i) {
-    return '<span class="mb-rk">' + _msRankHtml(k, i) + '</span>' +
+    var medal = k.stars > 0 && i < 3;
+    return '<span class="mb-rk' + (medal ? ' md' : '') + '"><i>' + _msRankHtml(k, i) + '</i></span>' +
         '<span class="mb-dot"' + (k.teamColor ? ' style="--tc:' + _msEsc(k.teamColor) + '"' : '') + '></span>' +
         '<span class="mb-nm">' + _msEsc(_msNameNoBreak(k.name)) + '</span>' +
         '<span class="mb-st">' + _msNum(k.stars) + '<span class="s">⭐</span></span>';
@@ -674,8 +730,9 @@ function _msRenderBoard(view) {
     if (secs.getAttribute('data-l') !== levels.join(',')) {
         secs.setAttribute('data-l', levels.join(','));
         secs.innerHTML = levels.map(function (l) {
-            return '<section class="mb-sec" data-l="' + l + '"><div class="mb-h">' + _msEsc(_msLevelLabel(+l)) +
-                '</div><div class="mb-vp"><div class="mb-list"></div></div></section>';
+            var L = MS_LV[l];
+            return '<section class="mb-sec' + (L ? ' ' + L.cls : '') + '" data-l="' + l + '"><div class="mb-h"><span>' + (L ? L.title : _msEsc(_msLevelLabel(+l))) +
+                '</span></div><div class="mb-vp"><div class="mb-list"></div></div></section>';
         }).join('');
     }
     var hits = {};
@@ -863,6 +920,7 @@ function _msSfx(type) {
         case 'count': T(1046.5, 0.07, 'square', 0.08); T(1568, 0.09, 'triangle', 0.1, 0.04); break;
         case 'reveal': T(180, 0.25, 'sawtooth', 0.1); T(523.25, 0.18, 'triangle', 0.16, 0.1); T(783.99, 0.3, 'triangle', 0.14, 0.18); T(1046.5, 0.4, 'triangle', 0.12, 0.3); break;
         case 'correct': [659.25, 783.99, 987.77, 1318.5].forEach(function (f, i) { T(f, 0.22, 'triangle', 0.18, i * 0.08); }); T(1318.5, 0.5, 'sine', 0.08, 0.32); break;
+        case 'zap': [1760, 1318.5, 1975.5, 2637].forEach(function (f, i) { T(f, 0.06, 'square', 0.06, i * 0.035); }); T(220, 0.3, 'sawtooth', 0.05); break;
         case 'wrong': T(220, 0.18, 'sawtooth', 0.18); T(196, 0.3, 'sawtooth', 0.16, 0.1); break;
         case 'team': [261.63, 329.63, 392, 523.25].forEach(function (f, i) { T(f, 0.4, 'triangle', 0.2, i * 0.11); }); T(523.25, 0.9, 'sine', 0.1, 0.48); T(659.25, 0.9, 'sine', 0.08, 0.48); T(783.99, 0.9, 'sine', 0.07, 0.48); break;
         case 'tick': T(880, 0.08, 'square', 0.1); break;
@@ -886,7 +944,7 @@ function _msSfx(type) {
 
 var _msConf = { canvas: null, ctx: null, parts: [], raf: 0, until: 0 };
 
-function _msConfetti(count, durMs, colors, originX) {
+function _msConfCanvas() {
     var c = _msConf.canvas;
     if (!c) {
         c = _msConf.canvas = _msEl('ms-confetti');
@@ -896,6 +954,39 @@ function _msConfetti(count, durMs, colors, originX) {
         window.addEventListener('resize', resize);
     }
     c.classList.add('on');
+    return c;
+}
+
+/* A burst from (x, y): 'star' = round sunny stars that pop up and fall (L1), 'streak' = fast neon sparks that fade (L2). */
+function _msBurst(x, y, count, colors, shape) {
+    var c = _msConfCanvas(), k = innerHeight / 1080;
+    _msConf.until = Math.max(_msConf.until, performance.now() + 1500);
+    for (var i = 0; i < count; i++) {
+        var a = shape === 'streak' ? Math.random() * Math.PI * 2 : -Math.PI / 2 + (Math.random() - 0.5) * 2.2;
+        var v = (shape === 'streak' ? 9 + Math.random() * 14 : 7 + Math.random() * 9) * k;
+        _msConf.parts.push({
+            x: x, y: y, vx: Math.cos(a) * v, vy: Math.sin(a) * v,
+            g: shape === 'streak' ? 0.05 * k : 0.28 * k, drag: shape === 'streak' ? 0.94 : 0.985,
+            w: (shape === 'star' ? 14 + Math.random() * 14 : 3) * k, h: 0,
+            rot: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3,
+            color: colors[Math.floor(Math.random() * colors.length)], shape: shape,
+            life: shape === 'streak' ? 0.7 + Math.random() * 0.5 : 9
+        });
+    }
+    if (!_msConf.raf) _msConf.raf = requestAnimationFrame(_msConfettiTick);
+}
+
+function _msStarPath(ctx, r) {
+    ctx.beginPath();
+    for (var i = 0; i < 10; i++) {
+        var rr = i % 2 ? r * 0.45 : r, a = -Math.PI / 2 + i * Math.PI / 5;
+        ctx.lineTo(Math.cos(a) * rr, Math.sin(a) * rr);
+    }
+    ctx.closePath();
+}
+
+function _msConfetti(count, durMs, colors, originX) {
+    var c = _msConfCanvas();
     _msConf.until = Math.max(_msConf.until, performance.now() + durMs);
     colors = colors || ['#ffd700', '#d4a017', '#7c6af7', '#22c55e', '#ec4899', '#06b6d4', '#f59e0b', '#ef4444'];
     var ox = originX !== undefined ? originX : c.width / 2;
@@ -905,7 +996,7 @@ function _msConfetti(count, durMs, colors, originX) {
             vx: (Math.random() - 0.5) * 7, vy: 2 + Math.random() * 5, g: 0.12 + Math.random() * 0.08,
             w: 8 + Math.random() * 8, h: 12 + Math.random() * 9,
             rot: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 0.32,
-            color: colors[Math.floor(Math.random() * colors.length)], round: Math.random() < 0.4
+            color: colors[Math.floor(Math.random() * colors.length)], shape: Math.random() < 0.4 ? 'round' : 'rect', drag: 1, life: 99
         });
     }
     if (!_msConf.raf) _msConf.raf = requestAnimationFrame(_msConfettiTick);
@@ -916,13 +1007,29 @@ function _msConfettiTick() {
     ctx.clearRect(0, 0, c.width, c.height);
     for (var i = ps.length - 1; i >= 0; i--) {
         var p = ps[i];
-        p.x += p.vx; p.y += p.vy; p.vy += p.g; p.rot += p.vr;
-        if (p.y > c.height + 20) { ps.splice(i, 1); continue; }
+        p.vx *= p.drag; p.vy = p.vy * p.drag + p.g;
+        p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life -= 1 / 60;
+        if (p.y > c.height + 30 || p.life <= 0) { ps.splice(i, 1); continue; }
+        if (p.shape === 'streak') {
+            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalAlpha = Math.min(1, p.life * 1.6);
+            ctx.strokeStyle = p.color;
+            ctx.lineWidth = p.w;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(p.x, p.y);
+            ctx.lineTo(p.x - p.vx * 3, p.y - p.vy * 3);
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            continue;
+        }
         ctx.save();
         ctx.translate(p.x, p.y);
         ctx.rotate(p.rot);
         ctx.fillStyle = p.color;
-        if (p.round) { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); }
+        if (p.shape === 'star') { _msStarPath(ctx, p.w / 2); ctx.fill(); }
+        else if (p.shape === 'round') { ctx.beginPath(); ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2); ctx.fill(); }
         else ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
     }
@@ -938,6 +1045,66 @@ function _msConfettiStop() {
     if (!_msConf.canvas) return;
     _msConf.parts = [];
     _msConf.until = 0;
+}
+
+/* ---------- drifting light particles behind the stage ---------- */
+
+/* About 70 soft glows drifting up at ~30 fps from three pre-rendered sprites; stops while the window is hidden. */
+var _msSky = { c: null, ctx: null, parts: [], sprites: [], raf: 0, last: 0 };
+
+function _msSkyInit() {
+    var c = _msEl('ms-sky');
+    if (!c || !c.getContext) return;
+    _msSky.c = c;
+    _msSky.ctx = c.getContext('2d');
+    ['255,255,255', '255,210,110', '170,150,255'].forEach(function (rgb) {
+        var s = document.createElement('canvas');
+        s.width = s.height = 64;
+        var g = s.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+        gr.addColorStop(0, 'rgba(' + rgb + ',1)');
+        gr.addColorStop(0.18, 'rgba(' + rgb + ',.85)');
+        gr.addColorStop(0.45, 'rgba(' + rgb + ',.18)');
+        gr.addColorStop(1, 'rgba(' + rgb + ',0)');
+        g.fillStyle = gr;
+        g.fillRect(0, 0, 64, 64);
+        _msSky.sprites.push(s);
+    });
+    var resize = function () { c.width = innerWidth; c.height = innerHeight; };
+    resize();
+    window.addEventListener('resize', resize);
+    for (var i = 0; i < 70; i++) _msSky.parts.push(_msSkyPart(true));
+    document.addEventListener('visibilitychange', function () {
+        if (document.hidden) { cancelAnimationFrame(_msSky.raf); _msSky.raf = 0; }
+        else if (!_msSky.raf) _msSky.raf = requestAnimationFrame(_msSkyTick);
+    });
+    _msSky.raf = requestAnimationFrame(_msSkyTick);
+}
+
+function _msSkyPart(anywhere) {
+    var k = innerHeight / 1080;
+    return {
+        x: Math.random() * innerWidth, y: anywhere ? Math.random() * innerHeight : innerHeight + 20,
+        s: (8 + Math.random() * Math.random() * 34) * k, vy: (0.15 + Math.random() * 0.55) * k,
+        sw: Math.random() * Math.PI * 2, tw: Math.random() * Math.PI * 2, sp: Math.floor(Math.random() * 3)
+    };
+}
+
+function _msSkyTick(ts) {
+    _msSky.raf = requestAnimationFrame(_msSkyTick);
+    if (ts - _msSky.last < 33) return;
+    _msSky.last = ts;
+    var ctx = _msSky.ctx, c = _msSky.c;
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (var i = 0; i < _msSky.parts.length; i++) {
+        var p = _msSky.parts[i];
+        p.y -= p.vy * 2;
+        p.sw += 0.02;
+        p.tw += 0.06;
+        if (p.y < -40) { _msSky.parts[i] = _msSkyPart(false); continue; }
+        ctx.globalAlpha = 0.25 + 0.45 * (0.5 + 0.5 * Math.sin(p.tw));
+        ctx.drawImage(_msSky.sprites[p.sp], p.x + Math.sin(p.sw) * 18 - p.s / 2, p.y - p.s / 2, p.s, p.s);
+    }
+    ctx.globalAlpha = 1;
 }
 
 /* ---------- fullscreen button + cursor ---------- */

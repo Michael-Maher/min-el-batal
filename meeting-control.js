@@ -1200,7 +1200,7 @@ function _mcAwardFx(a) {
         _mcFx({ type: 'teamAward', teamName: t ? t.name : '', teamColor: t ? t.color : '', points: a.points });
     } else {
         var k = _mc.night.roster[a.phones[0]];
-        _mcFx({ type: 'award', name: k ? k.name : '', points: a.points, teamName: t ? t.name : '', teamColor: t ? t.color : '' });
+        _mcFx({ type: 'award', name: k ? k.name : '', points: a.points, teamName: t ? t.name : '', teamColor: t ? t.color : '', level: k ? k.level : null });
     }
 }
 

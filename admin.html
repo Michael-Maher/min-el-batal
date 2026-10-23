@@ -1474,6 +1474,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
         <button class="nav-btn" onclick="goPage('posts')"><i class="fas fa-newspaper"></i> المنشورات</button>
         <button class="nav-btn" onclick="goPage('selfie')"><i class="fas fa-camera-retro"></i> تحدي السيلفي</button>
         <button class="nav-btn" onclick="goPage('attendance')"><i class="fas fa-qrcode"></i> الحضور</button>
+        <button class="nav-btn" onclick="goPage('meeting')"><i class="fas fa-tv"></i> مسابقة الاجتماع</button>
         <button class="nav-btn" onclick="goPage('learncfg')"><i class="fas fa-book-open"></i> محتوى الدروس</button>
         <button class="nav-btn" onclick="goPage('questions')" id="nav-questions"><i class="fas fa-comments"></i> الأسئلة <span class="nav-badge" id="nav-questions-badge" style="display:none">0</span></button>
         <button class="nav-btn" onclick="goPage('locks')" id="nav-locks"><i class="fas fa-lock"></i> الإقفال والإتاحة</button>
@@ -1617,6 +1618,20 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
       </div>
       <div id="att-admin-list"><div class="loading"><i class="fas fa-spinner fa-spin"></i></div></div>
       <div id="att-report" style="display:none"></div>
+    </div>
+
+    <!-- MEETING GAME launcher -->
+    <div class="page" id="page-meeting">
+      <div class="ph"><h2><i class="fas fa-tv" style="color:var(--accent2)"></i> مسابقة الاجتماع</h2><p>شغّل المسابقة على البروجيكتور: شاشة تحكم ليك وشاشة للولاد. النقط بتتضاف نجوم في حساب كل ولد.</p></div>
+      <div class="card" style="padding:18px">
+        <ol style="margin:0 0 16px;padding-right:20px;line-height:2;font-size:14px">
+          <li>افتح شاشة التحكم من الزر تحت.</li>
+          <li>دوس «افتح شاشة الولاد».</li>
+          <li>اسحب نافذة الولاد على شاشة البروجيكتور.</li>
+          <li>خلّيها ملء الشاشة.</li>
+        </ol>
+        <button class="btn bp" style="font-size:16px;padding:14px 26px" onclick="window.open('/meeting.html','_blank')"><i class="fas fa-tv"></i> افتح شاشة التحكم</button>
+      </div>
     </div>
 
     <div class="page" id="page-selfie">
@@ -2230,7 +2245,8 @@ const PAGES = [
   { key:'tqbank',   label:'بنك أسئلة البطولة', icon:'fa-database' },
   { key:'posts',    label:'المنشورات',        icon:'fa-bullhorn' },
   { key:'selfie',   label:'تحدي السيلفي',     icon:'fa-camera-retro' },
-  { key:'attendance', label:'الحضور',           icon:'fa-qrcode' }
+  { key:'attendance', label:'الحضور',           icon:'fa-qrcode' },
+  { key:'meeting',  label:'مسابقة الاجتماع',  icon:'fa-tv' }
 ];
 function defaultPerms(){ var p={}; PAGES.forEach(function(x){ p[x.key]=true; }); return p; }
 function hasPerm(key){
@@ -3257,8 +3273,8 @@ async function refreshAll() { await loadAll(); toast('تم التحديث ✓','
 // ════════════════════════════════
 //  NAV
 // ════════════════════════════════
-const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات',selfie:'تحدي السيلفي',learncfg:'محتوى الدروس',attendance:'الحضور'};
-const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين',selfie:'تحديات أحلى سيلفي للفرق',learncfg:'تحرير فيديوهات ونصوص الدروس',attendance:'QR الاجتماعات وكشف الحضور'};
+const PTITLES={insights:'الإحصائيات',players:'اللاعبين',teams:'الفرق',rewards:'طلبات الجوائز',rooms:'غرف المنافسة',announce:'الإعلانات',questions:'الأسئلة',locks:'الإقفال والإتاحة',reports:'التقارير',admins:'إدارة الأدمنز',tournaments:'كاس مين البطل',tqbank:'بنك أسئلة البطولة','tour-console':'وحدة التحكم المباشر',posts:'المنشورات',selfie:'تحدي السيلفي',learncfg:'محتوى الدروس',attendance:'الحضور',meeting:'مسابقة الاجتماع'};
+const PSUBS  ={insights:'نظرة عامة',players:'إدارة اللاعبين',teams:'إدارة الفرق',rewards:'استبدالات اللاعبين',rooms:'الغرف النشطة',announce:'إشعارات للاعبين',questions:'أسئلة اللاعبين',locks:'فتح وغلق المراحل والدروس',reports:'التقارير والسلوكيات',admins:'قبول وإدارة الأدمنز',tournaments:'إنشاء وإدارة البطولات',tqbank:'الأسئلة المستخدمة في البطولات','tour-console':'إدارة بطولة جارية',posts:'إدارة منشورات اللاعبين',selfie:'تحديات أحلى سيلفي للفرق',learncfg:'تحرير فيديوهات ونصوص الدروس',attendance:'QR الاجتماعات وكشف الحضور',meeting:'شاشة عرض للاجتماع ونقط حقيقية'};
 function goPage(name) {
   // Permission gate (admins-page is gated separately by being hidden from non-supers)
   // tour-console inherits tournaments perm
@@ -4254,6 +4270,19 @@ function renderActivityTab(p){
     html+='</div>';
   }
 
+  // ── Meeting stars (meetingLog: date -> stars) ──
+  const mlog=p.meetingLog||{};
+  const mDates=Object.keys(mlog).sort().reverse();
+  let mHtml='';
+  if(mDates.length){
+    const mTotal=mDates.reduce(function(s,d){return s+(Number(mlog[d])||0);},0);
+    mHtml+=mDates.map(function(d){return _dgi(esc(d),'+'+(Number(mlog[d])||0)+' ⭐');}).join('');
+    mHtml='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'+mHtml+'</div><div style="margin-top:10px;font-weight:700;font-size:13px">الإجمالي: '+mTotal+' ⭐</div>';
+  } else {
+    mHtml='<div style="font-size:13px;color:var(--muted)">لسه مخدش نجوم من الاجتماع</div>';
+  }
+  html+=_sec('نجوم الاجتماع','🎉',mHtml);
+
   return html;
 }
 
@@ -4689,9 +4718,9 @@ function rptTab(name){
 const EV_LBL = {
   login:'دخول', subject_open:'فتح مادة', lesson_start:'بدء درس',
   answer:'إجابة سؤال', reward_redeem:'استبدال جائزة', admin_action:'إجراء أدمن',
-  player_report_submitted:'إرسال بلاغ', logout:'خروج'
+  player_report_submitted:'إرسال بلاغ', logout:'خروج', meeting_award:'نجوم الاجتماع'
 };
-function evIcon(t){return {login:'🔐',subject_open:'📚',lesson_start:'🎓',answer:'❓',reward_redeem:'🎁',admin_action:'🛡️',player_report_submitted:'🚩',logout:'👋'}[t]||'•';}
+function evIcon(t){return {login:'🔐',subject_open:'📚',lesson_start:'🎓',answer:'❓',reward_redeem:'🎁',admin_action:'🛡️',player_report_submitted:'🚩',logout:'👋',meeting_award:'🎉'}[t]||'•';}
 
 function renderAuditReport(){
   const body = document.getElementById('rpt-body');
@@ -4739,6 +4768,7 @@ function renderAuditReport(){
     else if (e.type==='reward_redeem') detail = (data.name||'') + ' (⭐'+((data.cost||{}).stars||0)+' 💎'+((data.cost||{}).gems||0)+')';
     else if (e.type==='admin_action') detail = (data.action||'') + (data.reason?' — '+data.reason:'');
     else if (e.type==='player_report_submitted') detail = 'عن: '+(data.reportedPhone||'');
+    else if (e.type==='meeting_award') detail = (data.points>0?'+':'')+data.points+' ⭐ · '+(data.teamName||'فردي')+(data.reason==='undo'?' (تراجع)':'');
     return `<tr>
       <td style="white-space:nowrap;font-size:11px;color:var(--muted)">${dt}</td>
       <td style="white-space:nowrap"><span style="font-size:16px;margin-left:5px">${evIcon(e.type)}</span>${EV_LBL[e.type]||e.type}${sub}</td>

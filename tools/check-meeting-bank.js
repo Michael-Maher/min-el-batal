@@ -28,6 +28,8 @@ var STATION_TOTAL_MIN = 23;
 /* Per-level minimums for the fallback pool (station null, id segment gen). */
 var GEN_MIN = { emoji: 6, act: 6, draw: 6, taboo: 6, order: 4, anagram: 6, hymn: 6 };
 var PROMPT_MAX = 120, SCENARIO_PROMPT_MAX = 220, ODD_ITEM_MAX = 25, ANAGRAM_MAX = 14, HINT_MAX = 20;
+/* Scenario options: the right one must not give itself away by length. */
+var SCENARIO_LONGEST_MAX = 0.4, SCENARIO_RATIO_MAX = 1.3;
 
 var errors = [];
 function err(id, msg) { errors.push((id || '(no id)') + ': ' + msg); }
@@ -147,6 +149,23 @@ function checkItem(it, ids) {
     checkKind(it);
 }
 
+/* Share of scenario items whose correct option is the strictly longest; fails above SCENARIO_LONGEST_MAX.
+   Any correct option longer than SCENARIO_RATIO_MAX times the longest distractor fails too. */
+function checkScenarioLengths(l) {
+    var sc = BANK.filter(function (it) { return it.level === l && it.kind === 'scenario' && Array.isArray(it.options) && Number.isInteger(it.correct) && it.options[it.correct]; });
+    if (!sc.length) return;
+    var longest = 0;
+    sc.forEach(function (it) {
+        var c = it.options[it.correct].length, mx = 0;
+        it.options.forEach(function (o, k) { if (k !== it.correct && o.length > mx) mx = o.length; });
+        if (c > mx) longest++;
+        if (mx && c > SCENARIO_RATIO_MAX * mx) err(it.id, 'correct option is ' + (c / mx).toFixed(2) + 'x the longest distractor (max ' + SCENARIO_RATIO_MAX + ')');
+    });
+    var share = longest / sc.length;
+    console.log('scenario: correct option is the longest in ' + longest + '/' + sc.length + ' (' + Math.round(share * 100) + '%, max ' + Math.round(SCENARIO_LONGEST_MAX * 100) + '%)');
+    if (share > SCENARIO_LONGEST_MAX) err('level ' + l + ' scenario', 'correct option is the longest in ' + Math.round(share * 100) + '% of items');
+}
+
 /* ---- run ---- */
 var argLevel = null, li = process.argv.indexOf('--level');
 if (li >= 0) {
@@ -187,6 +206,7 @@ levels.forEach(function (l) {
     Object.keys(GEN_MIN).forEach(function (k) {
         if ((gby[k] || 0) < GEN_MIN[k]) err('level ' + l + ' gen', k + ' has ' + (gby[k] || 0) + ', needs ' + GEN_MIN[k]);
     });
+    checkScenarioLengths(l);
 });
 
 console.log('');

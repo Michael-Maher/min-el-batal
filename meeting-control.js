@@ -12,6 +12,9 @@ var MC_LOAD_STUCK_MS = 30000;
 var MC_DOUBLE_TAP_MS = 1200;  /* same kid or team again: ignored this long */
 var MC_TAP_LOCK_MS = 400;     /* any award tap: the next one is ignored this long (layout may have shifted) */
 var MC_DEFAULT_TITLE = 'مسابقة الاجتماع';
+var MC_SCREEN_URL = 'meeting.html?view=screen';
+var MC_SCREEN_NAME = 'meb-screen';
+var MC_SCREEN_FEATURES = 'popup,width=1280,height=720';
 var MC_SCREEN_NOTE = 'دوس ‹ملء الشاشة› في شاشة الولاد عشان الصوت والشاشة الكاملة';
 var MC_BIBLE = { 1: 'l1_bible', 2: 'l2_bible' };
 var MC_LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
@@ -1411,10 +1414,15 @@ _MC_A.mute = function () {
     _mcRefresh();
 };
 
+/* A popup window (not a tab) so the host can drag it to the projector. Opening by name first with no
+   URL returns an already-open screen untouched: reloading it would drop fullscreen and the sound unlock. */
 _MC_A.screen = function () {
-    var w = null;
-    try { w = window.open('meeting.html?view=screen', 'meb-screen'); } catch (e) { w = null; }
+    var w = null, ours = false;
+    try { w = window.open('', MC_SCREEN_NAME, MC_SCREEN_FEATURES); } catch (e) { w = null; }
     if (!w) { _mcToast('المتصفح منع فتح الشاشة: اسمح بالـ popups للصفحة دي', 5000); return; }
+    try { ours = /\/meeting(\.html)?$/.test(w.location.pathname) && /[?&]view=screen(&|$)/.test(w.location.search); } catch (e) { ours = false; }
+    if (!ours) { try { w.location.href = MC_SCREEN_URL; } catch (e) { /* navigation refused: the screen stays as it is */ } }
+    try { w.focus(); } catch (e) { /* focus may be refused */ }
     var note = _mcEl('mc-screennote');
     if (note) note.textContent = '📺 ' + MC_SCREEN_NOTE;
     _mcToast('📺 ' + MC_SCREEN_NOTE, 7000);

@@ -640,6 +640,7 @@ function makeDb() {
         get: function () { var docs = Object.keys(store).filter(function (k) { return k.indexOf(c + '/') === 0; }).map(function (k) { var id = k.slice(c.length + 1); return { id: id, data: function () { return JSON.parse(JSON.stringify(store[k])); } }; });
             return Promise.resolve({ forEach: function (f) { docs.forEach(f); } }); } }; };
     db.runTransaction = function (fn) {
+        if (db.hang) return new Promise(function () {});
         var writes = [];
         var tx = { get: function (r) { return r.get(); }, update: function (r, data) { writes.push([r, data]); } };
         return Promise.resolve(fn(tx)).then(function (res) {
@@ -647,6 +648,9 @@ function makeDb() {
             writes.forEach(function (w) { var d = store[w[0].key]; Object.keys(w[1]).forEach(function (p) { setPath(d, p, w[1][p]); }); });
             if (writes.length && db.loseAck) throw new Error('lost-ack');
             return res;
+        }).then(function (res) {
+            /* lateMs: the commit lands, but its ack arrives only after this delay. */
+            return db.lateMs ? new Promise(function (r) { setTimeout(function () { r(res); }, db.lateMs); }) : res;
         });
     };
     return db;
@@ -655,6 +659,7 @@ function loadCloud() {
     var ctx = load();
     ctx.firebase = { firestore: { FieldValue: { serverTimestamp: function () { return 'SERVER_TS'; } } } };
     ctx.Promise = Promise;
+    ctx.setTimeout = setTimeout; ctx.clearTimeout = clearTimeout;
     ctx.warns = [];
     ctx.console = { log: console.log, warn: function () { ctx.warns.push([].slice.call(arguments).join(' ')); } };
     vm.runInContext(cloudSrc, ctx);
@@ -666,6 +671,7 @@ function cloudTest(name, fn) {
 }
 var pending = [], unsettled = 0;
 function seed(db, phone, doc, lb) { db.store['players/' + phone] = doc; if (lb) db.store['leaderboard/' + phone] = lb; }
+function seedSeason(db, s) { db.store['gameContent/season'] = s; }
 
 test('cloud: season fields match game.js', function () {
     var c = loadCloud(), g = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
@@ -707,7 +713,8 @@ cloudTest('cloud: missing leaderboard not created', function () {
 cloudTest('cloud: old-season kid keeps the award', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 900, gems: 40, scoreSeasonId: 'old', createdAt: '2026-01-01', season: { startStars: 500 } }, { stars: 900, gems: 40 });
-    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
+    seedSeason(db, { id: 's2', startedAt: '2026-10-11' });
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26' }).then(function () {
         var d = db.store['players/01'];
         assert.strictEqual(d.stars, 5);
         assert.strictEqual(d.gems, 0);
@@ -721,10 +728,91 @@ cloudTest('cloud: old-season kid keeps the award', function () {
 cloudTest('cloud: joined after season start: plain increment', function () {
     var c = loadCloud(), db = makeDb();
     seed(db, '01', { stars: 50, gems: 7, scoreSeasonId: '', createdAt: '2026-10-15' });
-    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
+    seedSeason(db, { id: 's2', startedAt: '2026-10-11' });
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26' }).then(function () {
         var d = db.store['players/01'];
         assert.strictEqual(d.stars, 55);
         assert.strictEqual(d.gems, 7);
+    });
+});
+
+cloudTest('cloud: season read inside the transaction, not the one passed in', function () {
+    var c = loadCloud(), db = makeDb();
+    seed(db, '01', { stars: 900, scoreSeasonId: 's1', createdAt: '2026-01-01' }, { stars: 900 });
+    seedSeason(db, { id: 's1', startedAt: '2026-09-01' });
+    var a = function (k) { return { key: k, phone: '01', points: 5, date: '2026-10-26', season: { id: 's1', startedAt: '2026-09-01' } }; };
+    return c.mcApplyAward(db, a('k1')).then(function () {
+        assert.strictEqual(db.store['players/01'].stars, 905);
+        /* An admin starts a new season mid-night: the next award starts the kid's new season. */
+        seedSeason(db, { id: 's2', startedAt: '2026-10-26T18:00:00Z' });
+        return c.mcApplyAward(db, a('k2'));
+    }).then(function () {
+        var d = db.store['players/01'];
+        assert.strictEqual(d.stars, 5);
+        assert.strictEqual(d.scoreSeasonId, 's2');
+        assert.strictEqual(db.store['leaderboard/01'].stars, 5);
+    });
+});
+
+cloudTest('cloud: no season doc means a plain increment', function () {
+    var c = loadCloud(), db = makeDb();
+    seed(db, '01', { stars: 10, scoreSeasonId: 'old', createdAt: '2026-01-01' });
+    return c.mcApplyAward(db, { key: 'k', phone: '01', points: 5, date: '2026-10-26', season: { id: 's2', startedAt: '2026-10-11' } }).then(function () {
+        assert.strictEqual(db.store['players/01'].stars, 15);
+        assert.strictEqual(db.store['players/01'].scoreSeasonId, 'old');
+    });
+});
+
+cloudTest('cloud: hung transaction times out, clears the flush, next flush works', function () {
+    var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01']), fc = flushCtx();
+    c.MC_TX_TIMEOUT_MS = 20;
+    seed(db, '01', { stars: 0 });
+    c.mtAward(n, { phone: '01' }, 5, null);
+    db.hang = true;
+    var first = c.mcFlush(db, n, fc);
+    return first.then(function (r) {
+        assert.strictEqual(r.lastError.code, 'timeout');
+        assert.strictEqual(r.applied, 0);
+        assert.strictEqual(c.mtPendingSyncs(n).length, 1);
+        assert.strictEqual(c._mcFlushing, null);
+        db.hang = false;
+        var second = c.mcFlush(db, n, fc);
+        assert.notStrictEqual(second, first);
+        return second;
+    }).then(function (r) {
+        assert.strictEqual(r.applied, 1);
+        assert.strictEqual(r.lastError, undefined);
+        assert.strictEqual(c.mtPendingSyncs(n).length, 0);
+        assert.strictEqual(db.store['players/01'].stars, 5);
+    });
+});
+
+cloudTest('cloud: timed-out transaction that commits late applies once', function () {
+    var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01']), fc = flushCtx();
+    c.MC_TX_TIMEOUT_MS = 20;
+    seed(db, '01', { stars: 0 });
+    c.mtAward(n, { phone: '01' }, 5, null);
+    db.lateMs = 60;
+    return c.mcFlush(db, n, fc).then(function (r) {
+        assert.strictEqual(r.lastError.code, 'timeout');
+        db.lateMs = 0;
+        return new Promise(function (res) { setTimeout(res, 80); });
+    }).then(function () {
+        return c.mcFlush(db, n, fc);
+    }).then(function (r) {
+        assert.strictEqual(r.applied, 0);
+        assert.strictEqual(c.mtPendingSyncs(n).length, 0);
+        assert.strictEqual(db.store['players/01'].stars, 5);
+    });
+});
+
+cloudTest('cloud: mcTimeout passes values and rejects stuck promises', function () {
+    var c = loadCloud();
+    return c.mcTimeout(Promise.resolve(7), 50).then(function (v) {
+        assert.strictEqual(v, 7);
+        return c.mcTimeout(new Promise(function () {}), 10);
+    }).then(function () { throw new Error('should reject'); }, function (e) {
+        assert.strictEqual(e.code, 'timeout');
     });
 });
 

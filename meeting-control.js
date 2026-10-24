@@ -206,7 +206,8 @@ function _mcCache(patch) {
 function _mcLoadPlayers() {
     if (_mc.playersAt && Date.now() - _mc.playersAt < MC_LOAD_STUCK_MS) return;
     _mc.playersAt = Date.now();
-    mcLoadPlayers(window.db).then(function (ps) {
+    /* A read that never settles counts as an error, so _mcRetry asks again. */
+    mcTimeout(mcLoadPlayers(window.db), MC_LOAD_STUCK_MS).then(function (ps) {
         _mc.playersAt = 0; _mc.players = ps; _mc.playersErr = '';
         _mcCache({ players: ps });
         _mcRefresh();
@@ -220,7 +221,7 @@ function _mcLoadPlayers() {
 function _mcLoadTeams() {
     if (_mc.teamsAt && Date.now() - _mc.teamsAt < MC_LOAD_STUCK_MS) return;
     _mc.teamsAt = Date.now();
-    mcLoadTeams(window.db).then(function (ts) {
+    mcTimeout(mcLoadTeams(window.db), MC_LOAD_STUCK_MS).then(function (ts) {
         _mc.teamsAt = 0; _mc.gameTeams = ts.filter(function (t) { return t.name; }); _mc.teamsErr = '';
         _mcCache({ teams: _mc.gameTeams });
         _mcRefresh();
@@ -261,7 +262,7 @@ function _mcSync() {
     _mc.sync.busy = true;
     _mcSyncPaint();
     var flushing;
-    try { flushing = mcFlush(window.db, n, { season: _mc.season, save: _mcSave, onChange: _mcSyncChanged }); }
+    try { flushing = mcFlush(window.db, n, { save: _mcSave, onChange: _mcSyncChanged }); }
     catch (e) { flushing = Promise.resolve({ lastError: { code: '', message: _mcErrText(e) } }); }
     flushing.then(function (r) {
         _mc.sync.busy = false;

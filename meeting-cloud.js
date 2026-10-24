@@ -4,6 +4,7 @@
 // Must equal SCORE_SEASON_FIELDS in game.js (asserted by tools/check-meeting.js).
 var MC_SEASON_FIELDS = ['stars', 'gems', 'xp', 'streak', 'bestStreak', 'totalCorrect', 'totalAnswered', 'gamesPlayed', 'perfectLevels', 'blitzWeeklyScore'];
 var MC_KEYS_KEPT = 40;
+var MC_TX_TIMEOUT_MS = 30000;  /* one award transaction; a hung one would block every later sync */
 var _mcFlushing = null;
 
 // Same parsing as game.js _seasonMs.
@@ -13,6 +14,14 @@ function _mcMs(v) {
     if (typeof v === 'string') return Date.parse(v) || 0;
     if (v.seconds) return v.seconds * 1000;
     return +v || 0;
+}
+
+/* Rejects with {code:'timeout'} if p has not settled within ms. The abandoned call may still finish later. */
+function mcTimeout(p, ms) {
+    var timer;
+    return Promise.race([p, new Promise(function (resolve, reject) {
+        timer = setTimeout(function () { var e = new Error('مفيش رد من السيرفر'); e.code = 'timeout'; reject(e); }, ms);
+    })]).then(function (v) { clearTimeout(timer); return v; }, function (e) { clearTimeout(timer); throw e; });
 }
 
 function mcLoadPlayers(db) {
@@ -44,59 +53,62 @@ function mcLoadSeason(db) {
     });
 }
 
-/* One transaction per kid per award. key makes retries (including after a lost ack) no-ops. */
+/* One transaction per kid per award. key makes retries (including after a lost ack) no-ops.
+   The season doc is read inside the transaction, so a season an admin starts mid-night applies at once. */
 function mcApplyAward(db, o) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(o.date || '')) return Promise.reject(new Error('bad-date'));
     var pRef = db.collection('players').doc(o.phone);
     var lRef = db.collection('leaderboard').doc(o.phone);
+    var sRef = db.collection('gameContent').doc('season');
     return db.runTransaction(function (tx) {
-        return tx.get(pRef).then(function (pSnap) {
-            return tx.get(lRef).then(function (lSnap) {
-                if (!pSnap.exists) throw new Error('no-player');
-                var doc = pSnap.data() || {};
-                var keys = doc.meetingAwardKeys || [];
-                if (keys.indexOf(o.key) >= 0) return 'duplicate';
+        return Promise.all([tx.get(sRef), tx.get(pRef), tx.get(lRef)]).then(function (snaps) {
+            var sSnap = snaps[0], pSnap = snaps[1], lSnap = snaps[2];
+            if (!pSnap.exists) throw new Error('no-player');
+            var doc = pSnap.data() || {};
+            var keys = doc.meetingAwardKeys || [];
+            if (keys.indexOf(o.key) >= 0) return 'duplicate';
 
-                var season = o.season;
-                var stale = !!(season && season.id && doc.scoreSeasonId !== season.id);
-                if (stale) {
-                    var joined = _mcMs(doc.createdAt);
-                    if (joined && joined >= _mcMs(season.startedAt)) stale = false;
-                }
-                var base = stale ? 0 : (doc.stars || 0);
-                var newStars = Math.max(0, base + o.points);
-                var log = doc.meetingLog || {};
-                var nextKeys = keys.concat([o.key]).slice(-MC_KEYS_KEPT);
+            var season = sSnap.exists ? (sSnap.data() || null) : null;
+            var stale = !!(season && season.id && doc.scoreSeasonId !== season.id);
+            if (stale) {
+                var joined = _mcMs(doc.createdAt);
+                if (joined && joined >= _mcMs(season.startedAt)) stale = false;
+            }
+            var base = stale ? 0 : (doc.stars || 0);
+            var newStars = Math.max(0, base + o.points);
+            var log = doc.meetingLog || {};
+            var nextKeys = keys.concat([o.key]).slice(-MC_KEYS_KEPT);
 
-                var upd = {
-                    stars: newStars,
-                    meetingAwardKeys: nextKeys,
-                    syncId: Math.random().toString(36).slice(2) + Date.now().toString(36),
-                    lastUpdated: new Date().toISOString()
-                };
-                upd['meetingLog.' + o.date] = (log[o.date] || 0) + o.points;
-                var lUpd = { stars: newStars };
-                if (stale) {
-                    var lDoc = lSnap.exists ? (lSnap.data() || {}) : {};
-                    MC_SEASON_FIELDS.forEach(function (k) {
-                        upd[k] = 0;
-                        if (lSnap.exists && k !== 'stars' && lDoc[k] !== undefined) lUpd[k] = 0;
-                    });
-                    upd.stars = newStars;
-                    upd.scoreSeasonId = season.id;
-                    if (doc.season) upd['season.startStars'] = 0;
-                }
-                tx.update(pRef, upd);
-                if (lSnap.exists) tx.update(lRef, lUpd);
-                return 'applied';
-            });
+            var upd = {
+                stars: newStars,
+                meetingAwardKeys: nextKeys,
+                syncId: Math.random().toString(36).slice(2) + Date.now().toString(36),
+                lastUpdated: new Date().toISOString()
+            };
+            upd['meetingLog.' + o.date] = (log[o.date] || 0) + o.points;
+            var lUpd = { stars: newStars };
+            if (stale) {
+                var lDoc = lSnap.exists ? (lSnap.data() || {}) : {};
+                MC_SEASON_FIELDS.forEach(function (k) {
+                    upd[k] = 0;
+                    if (lSnap.exists && k !== 'stars' && lDoc[k] !== undefined) lUpd[k] = 0;
+                });
+                upd.stars = newStars;
+                upd.scoreSeasonId = season.id;
+                if (doc.season) upd['season.startStars'] = 0;
+            }
+            tx.update(pRef, upd);
+            if (lSnap.exists) tx.update(lRef, lUpd);
+            return 'applied';
         });
     });
 }
 
 /* Pushes every unsynced (award, kid) pair, oldest first, one at a time. Never throws.
    Loops until nothing is pending (awards added mid-flush are included) or an error stops it.
-   Resolves {applied, failed, lastError?}; lastError means sync is stuck. */
+   Resolves {applied, failed, lastError?}; lastError means sync is stuck. A transaction that has not
+   settled after MC_TX_TIMEOUT_MS stops the pass with code 'timeout'; if it commits later, the retry
+   finds its key and counts it as a duplicate. */
 function mcFlush(db, night, ctx) {
     if (_mcFlushing) return _mcFlushing;
     var applied = 0, failed = 0, lastError = null;
@@ -116,7 +128,7 @@ function mcFlush(db, night, ctx) {
         if (i >= list.length) return Promise.resolve(progressed);
         var s = list[i], award = byId(s.awardId);
         if (!award) return step(list, i + 1, progressed);
-        return mcApplyAward(db, { key: nightKey + '_' + s.awardId + '_' + s.phone, phone: s.phone, points: s.points, date: night.date, season: ctx.season })
+        return mcTimeout(mcApplyAward(db, { key: nightKey + '_' + s.awardId + '_' + s.phone, phone: s.phone, points: s.points, date: night.date }), MC_TX_TIMEOUT_MS)
             .then(function (r) {
                 if (r === 'applied') applied++;
                 mark(award, s.phone, false);

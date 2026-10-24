@@ -1630,7 +1630,7 @@ tbody tr:hover{background:rgba(244,213,107,.10)!important}
           <li>اسحب نافذة الولاد على شاشة البروجيكتور.</li>
           <li>خلّيها ملء الشاشة.</li>
         </ol>
-        <button class="btn bp" style="font-size:16px;padding:14px 26px" onclick="window.open('/meeting.html','_blank')"><i class="fas fa-tv"></i> افتح شاشة التحكم</button>
+        <button class="btn bp" style="font-size:16px;padding:14px 26px" onclick="openMeetingControl()"><i class="fas fa-tv"></i> افتح شاشة التحكم</button>
       </div>
     </div>
 
@@ -4276,7 +4276,7 @@ function renderActivityTab(p){
   let mHtml='';
   if(mDates.length){
     const mTotal=mDates.reduce(function(s,d){return s+(Number(mlog[d])||0);},0);
-    mHtml+=mDates.map(function(d){return _dgi(esc(d),'+'+(Number(mlog[d])||0)+' ⭐');}).join('');
+    mHtml+=mDates.map(function(d){const v=Number(mlog[d])||0;return _dgi(esc(d),(v>0?'+':'')+v+' ⭐');}).join('');
     mHtml='<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px">'+mHtml+'</div><div style="margin-top:10px;font-weight:700;font-size:13px">الإجمالي: '+mTotal+' ⭐</div>';
   } else {
     mHtml='<div style="font-size:13px;color:var(--muted)">لسه مخدش نجوم من الاجتماع</div>';
@@ -6672,6 +6672,17 @@ function exportCSV(){
 // ════════════════════════════════
 function closeM(id){document.getElementById(id).style.display='none';}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+// Meeting game control window, by name: a second click focuses the open one instead of a second
+// control that would overwrite the first one's night (and an open one is not reloaded).
+function openMeetingControl(){
+  let w=null;
+  try{w=window.open('','meb-control');}catch(e){w=null;}
+  if(!w){toast('المتصفح منع فتح الصفحة: اسمح بالـ popups','err');return;}
+  let ours=false;
+  try{ours=/\/meeting(\.html)?$/.test(w.location.pathname)&&!/[?&]view=screen(&|$)/.test(w.location.search);}catch(e){ours=false;}
+  if(!ours){try{w.location.href='/meeting.html';}catch(e){}}
+  try{w.focus();}catch(e){}
+}
 function toast(msg,type){const el=document.getElementById('toast');el.textContent=msg;el.className='toast show '+(type||'');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('show'),3000);}
 
 // ════════════════════════════════

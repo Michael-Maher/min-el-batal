@@ -22,6 +22,8 @@ Live: https://min-el-batal.web.app
 | `style.css` | All player CSS. Single file, ~14k lines |
 | `admin.html` | Single-file admin panel — HTML + CSS + JS. ~7.4k lines. Separate auth from the game (admin accounts in `admins` collection) |
 | `tournament.html` / `tournament-live.html` | Tournament admin views ("كاس مين البطل") |
+| `meeting.html` (+ `meeting-control.js`, `meeting-screen.js`) | Monday meeting live game «مسابقة الاجتماع»: control window for the host, `?view=screen` projector window, synced over BroadcastChannel. Opened from admin page «مسابقة الاجتماع» (perm `meeting`). Spec: `docs/superpowers/specs/2026-10-22-meeting-live-game-design.md` |
+| `meeting-core.js` / `meeting-cloud.js` / `meeting-bank.js` | Meeting game pure logic / Firestore awards (idempotent, season-safe transaction on `players`+`leaderboard`, `players.meetingLog`, `gameContent/meetingHistory`) / 650 Bible items |
 | `firebase.json` | Hosting + Firestore + Functions config. Hosting `public: '.'`. Rewrites all routes to `index.html`, except `/admin.html` |
 | `firestore.rules` | Most collections `allow read, write: if true` (no Firebase Auth, app trusts the client). Notification collections have narrow rules, see Notifications |
 | `firestore.indexes.json` | Composite index: `notifications` (`audience` ASC, `createdAt` DESC) |
@@ -136,6 +138,7 @@ The user generally runs deploys themselves. Don't deploy without being asked.
 
 ## Checks
 
+- `node tools/check-meeting.js`, `node tools/check-meeting-bank.js` — meeting game logic and content
 - `cd functions && npm test` — notification logic (`node --test`)
 - `node tools/check-notifications.js`, `node tools/check-cloud-save.js` — vm-stub checks for game code
 - `firebase emulators:exec --only firestore "node tools/check-rules.js"` — rules; needs JDK 21

@@ -43,7 +43,7 @@ function _mcFreshUi() {
         target: { level: 1, mode: 'individual', teamId: null }, kind: null,
         sq: '', sqLevel: 'all', neg: false, choose: null, pick: null, bet: null, wheelMsg: '',
         editor: false, editKid: null, teamQ: {}, msg: '', clearAsk: false, lastMsg: '',
-        gender: 'boys', renTeam: null, renVal: ''
+        renTeam: null, renVal: '', newName: '', iconTeam: null
     };
 }
 
@@ -162,10 +162,18 @@ function _mcWire() {
         if (fn) { if (b.tagName === 'A') e.preventDefault(); fn(b.dataset, b); }
     });
     root.addEventListener('input', _mcOnInput);
+    /* the color picker reports on close, so the card does not repaint under an open picker */
+    root.addEventListener('change', function (e) {
+        var id = e.target.id || '', t = id.indexOf('mc-tc-') === 0 ? _mcTeam(id.slice(6)) : null;
+        if (t && /^#[0-9a-f]{6}$/i.test(e.target.value)) { t.color = e.target.value; _mcCommit(); }
+    });
     root.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && e.target.id === 'mc-sq') {
             var r = _mcAwardResults();
             if (r.length === 1) { e.preventDefault(); if (_mcTapOk()) _mcTapKid(r[0].phone); }
+        } else if (e.key === 'Enter' && e.target.id === 'mc-newteam') {
+            e.preventDefault();
+            _MC_A.newteam();
         } else if (e.target.id && e.target.id.indexOf('mc-tn-') === 0 && (e.key === 'Enter' || e.key === 'Escape')) {
             e.preventDefault();
             if (e.key === 'Enter') _MC_A.renok({ t: e.target.id.slice(6) });
@@ -544,28 +552,25 @@ function _mcKindsHtml() {
 
 function _mcTeamEdHtml() {
     var n = _mc.night, h = '';
-    var randomLeft = 6 - n.teams.length;
-    h += '<div class="mc-ted-add">';
-    if (randomLeft > 0) {
-        h += '<span class="mc-lbl">فرق عشوائية:</span>' +
-            '<button class="mc-chip' + (_mc.ui.gender === 'boys' ? ' on' : '') + '" data-a="gender" data-v="boys">👦 ولاد (قديسين)</button>' +
-            '<button class="mc-chip' + (_mc.ui.gender === 'girls' ? ' on' : '') + '" data-a="gender" data-v="girls">👧 بنات (قديسات)</button><span class="mc-sep"></span>';
-        if (!n.teams.length) {
-            for (var c = 2; c <= 6; c++) h += '<button class="mc-chip" data-a="rteams" data-v="' + c + '">' + _mcNum(c) + ' فرق</button>';
-        } else {
-            h += '<button class="mc-chip" data-a="rteams" data-v="1">＋ فريق ' + (_mc.ui.gender === 'girls' ? 'بنات' : 'ولاد') + '</button>';
-        }
+    var full = n.teams.length >= MT_MAX_TEAMS;
+    /* new teams for tonight and teams from the game are separate: either can be added any time, up to MT_MAX_TEAMS in all */
+    h += '<div class="mc-ted-sec"><span class="mc-lbl">➕ فرق جديدة للسهرة:</span>';
+    if (full) h += '<span class="mc-muted">فيه ' + _mcNum(MT_MAX_TEAMS) + ' فرق، ده أقصى عدد يبان على الشاشة. شيل فريق عشان تضيف غيره.</span>';
+    else {
+        h += '<button class="mc-chip" data-a="rteams" data-g="boys"' + (mtPresetsLeft(n, 'boys') ? '' : ' disabled') + '>＋ 👦 فريق ولاد (اسم قديس)</button>' +
+            '<button class="mc-chip" data-a="rteams" data-g="girls"' + (mtPresetsLeft(n, 'girls') ? '' : ' disabled') + '>＋ 👧 فريق بنات (اسم قديسة)</button>' +
+            '<span class="mc-sep"></span><input id="mc-newteam" class="mc-newteam" type="text" maxlength="30" autocomplete="off" placeholder="✍️ أو اكتب اسم الفريق اللي عايزه…" value="' + _mcEsc(_mc.ui.newName) + '">' +
+            '<button class="mc-btn sm pri" data-a="newteam">＋ ضيفه</button>';
     }
     h += '</div>';
     var gts = _mc.gameTeams;
-    h += '<div class="mc-ted-add"><span class="mc-lbl">فرق اللعبة:</span>';
+    h += '<div class="mc-ted-sec"><span class="mc-lbl">🎮 فرق اللعبة:</span>';
     if (!gts) h += _mc.teamsErr ? '<span class="mc-muted">مقدرناش نجيب الفرق</span> <button class="mc-btn sm" data-a="reloadteams">حاول تاني</button>' : '<span class="mc-muted">⏳ بنحمّل…</span>';
     else if (!gts.length) h += '<span class="mc-muted">مفيش فرق في اللعبة</span>';
     else gts.forEach(function (g, i) {
         var used = n.teams.some(function (t) { return t.source === 'game' && t.gameTeam === g.name; });
-        if (n.teams.length >= 6 && !used) return;
-        h += '<button class="mc-chip' + (used ? ' on' : '') + '" data-a="gteam" data-i="' + i + '"' + (used ? ' disabled' : '') + '>' +
-            '<span class="dot" style="--tc:' + _mcEsc(g.color || '#555') + '"></span>' + _mcEsc(g.name) + (g.level ? ' <small>' + _mcLvl(g.level) + '</small>' : '') + '</button>';
+        h += '<button class="mc-chip' + (used ? ' on' : '') + '" data-a="gteam" data-i="' + i + '"' + (used || full ? ' disabled' : '') + '>' +
+            '<span class="dot" style="--tc:' + _mcEsc(g.color || '#555') + '"></span>' + _mcEsc(g.name) + (g.level ? ' <small>' + _mcLvl(g.level) + '</small>' : '') + (used ? ' ✓' : '') + '</button>';
     });
     h += '</div>';
 
@@ -589,10 +594,16 @@ function _mcTeamCardHtml(t) {
     }
     var lvl = t ? '<button class="mc-chip sm lvset' + (t.level ? ' on' : '') + '" data-a="teamlvl" data-t="' + _mcEsc(t.id) + '" title="مستوى الفريق">' +
         (t.level === 1 ? 'م١' : t.level === 2 ? 'م٢' : 'م١ + م٢') + '</button>' : '';
-    var h = '<div class="mc-tcard" style="--tc:' + _mcEsc(t ? t.color : '#7f8c8d') + '"><div class="mc-tcard-h">' +
-        '<span class="ico">' + _mcEsc(t ? t.icon : '🙋') + '</span>' + name + lvl +
+    var ico = t ? '<button class="mc-ticon" data-a="icon" data-t="' + _mcEsc(t.id) + '" title="غيّر الشكل">' + _mcEsc(t.icon) + '</button>' +
+        '<input id="mc-tc-' + _mcEsc(t.id) + '" class="mc-tcolor" type="color" value="' + _mcEsc(t.color) + '" title="غيّر اللون">' : '<span class="ico">🙋</span>';
+    var h = '<div class="mc-tcard" style="--tc:' + _mcEsc(t ? t.color : '#7f8c8d') + '"><div class="mc-tcard-h">' + ico + name + lvl +
         '<small>' + _mcNum(kids.length) + ' ولد</small>' +
         (t && !awarded ? '<button class="mc-x" data-a="delteam" data-t="' + _mcEsc(t.id) + '" title="شيل الفريق">✕</button>' : '') + '</div>';
+    if (t && ui.iconTeam === t.id) {
+        h += '<div class="mc-icons">' + MT_TEAM_ICONS.map(function (ic) {
+            return '<button class="' + (ic === t.icon ? 'on' : '') + '" data-a="seticon" data-t="' + _mcEsc(t.id) + '" data-v="' + _mcEsc(ic) + '">' + ic + '</button>';
+        }).join('') + '</div>';
+    }
     h += '<div class="mc-kids">';
     kids.forEach(function (k) {
         var open = _mc.ui.editKid === k.phone;
@@ -1530,12 +1541,30 @@ _MC_A.kind = function (d) {
     _mcCommit();
 };
 
+function _mcNewTeamLevel() { var n = _mc.night; return n.levels.length === 1 ? n.levels[0] : 0; }
+
 _MC_A.rteams = function (d) {
-    var n = _mc.night;
-    mtMakeRandomTeams(n, Number(d.v), _mc.ui.gender, n.levels.length === 1 ? n.levels[0] : 0);
+    mtMakeRandomTeams(_mc.night, 1, d.g, _mcNewTeamLevel());
     _mcCommit();
 };
-_MC_A.gender = function (d) { _mc.ui.gender = d.v === 'girls' ? 'girls' : 'boys'; _mcRefresh(); };
+
+_MC_A.newteam = function () {
+    var name = String(_mc.ui.newName || '').trim().replace(/\s+/g, ' ');
+    if (!name) { _mcToast('اكتب اسم الفريق الأول'); var e = _mcEl('mc-newteam'); if (e) e.focus(); return; }
+    if (!mtAddCustomTeam(_mc.night, { name: name, level: _mcNewTeamLevel() })) return;
+    _mc.ui.newName = '';
+    _mcCommit();
+    var inp = _mcEl('mc-newteam');
+    if (inp) { inp.value = ''; inp.focus(); }
+};
+
+_MC_A.icon = function (d) { _mc.ui.iconTeam = _mc.ui.iconTeam === d.t ? null : d.t; _mcRefresh(); };
+_MC_A.seticon = function (d) {
+    var t = _mcTeam(d.t);
+    if (t && MT_TEAM_ICONS.indexOf(d.v) >= 0) t.icon = d.v;
+    _mc.ui.iconTeam = null;
+    _mcCommit();
+};
 
 /* م١ → م٢ → both levels → م١ */
 _MC_A.teamlvl = function (d) {
@@ -1578,7 +1607,7 @@ _MC_A.guest = function (d) {
 
 _MC_A.gteam = function (d) {
     var n = _mc.night, g = (_mc.gameTeams || [])[Number(d.i)];
-    if (!g || n.teams.length >= 6) return;
+    if (!g || n.teams.length >= MT_MAX_TEAMS) return;
     if (n.teams.some(function (t) { return t.source === 'game' && t.gameTeam === g.name; })) return;
     var t = mtAddGameTeam(n, { name: g.name, color: g.color, logo: g.logo, level: g.level });
     /* game-team kids already here move over only when the host ticks them */
@@ -1728,6 +1757,8 @@ function _mcOnInput(e) {
         var tid = id.slice(6);
         _mc.ui.teamQ[tid] = el.value;
         _mcPaint('mc-tr-' + tid, _mcTeamResultsHtml(tid));
+    } else if (id === 'mc-newteam') {
+        _mc.ui.newName = el.value;
     } else if (id.indexOf('mc-tn-') === 0) {
         _mc.ui.renVal = el.value;
     } else if (id === 'mc-title') {

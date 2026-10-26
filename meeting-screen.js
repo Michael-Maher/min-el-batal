@@ -226,7 +226,7 @@ function _msRenderTeams(view) {
             '<div class="ico">' + _msEsc(t.icon || '🛡️') + '</div>' +
             '<div class="tx"><div class="nm">' + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</div>' +
             '<div class="sc' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</div></div>' +
-            (L ? '<span class="tlv ' + L.cls + '">' + (t.level === 1 ? '🌟 مستوى أول' : '⚡ مستوى تاني') + '</span>' : '') + '</div>';
+            (L ? '<span class="tlv ' + L.cls + '">' + (t.level === 1 ? '🌟 <i>مستوى </i>أول' : '⚡ <i>مستوى </i>تاني') + '</span>' : '') + '</div>';
     });
     var el = _msEl('ms-teams');
     /* Rebuild only on change so the crown and bump animations do not restart on timer-only views. */
@@ -235,6 +235,7 @@ function _msRenderTeams(view) {
         el.setAttribute('data-k', key);
         el.classList.toggle('has-turn', !!turnId);
         el.classList.toggle('many', teams.length > 4);
+        el.classList.toggle('crowd', teams.length > 6);
         el.innerHTML = h;
         _msFitTeamNames();
     }

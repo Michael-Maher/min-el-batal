@@ -23,8 +23,11 @@ var MT_TEAM_PRESETS = {
         { id: 'justina', name: 'فريق القديسة يوستينا', icon: '📖' }
     ]
 };
-/* A new random team takes the first color no team of the night has. */
-var MT_TEAM_COLORS = ['#e74c3c', '#3498db', '#1f9d55', '#e0a800', '#9b59b6', '#e67e22'];
+var MT_MAX_TEAMS = 8;
+/* A new team takes the first color no team of the night has. */
+var MT_TEAM_COLORS = ['#e74c3c', '#3498db', '#1f9d55', '#e0a800', '#9b59b6', '#e67e22', '#e84393', '#00b5ad'];
+/* Icons the host can pick for a team. */
+var MT_TEAM_ICONS = ['⭐', '🛡️', '👑', '🦁', '🦅', '🐉', '🔥', '⚡', '🌟', '🌹', '🕊️', '⚓', '🏆', '📖', '✝️', '🕯️', '⚔️', '🐪', '🌊', '🌾'];
 var MT_GUEST_PREFIX = 'guest_';
 
 function mtNewNight(opts) {
@@ -55,15 +58,13 @@ function _mtTeam(night, id) {
     return null;
 }
 
-/* count = how many teams to add; first call yields at least 2, total never exceeds 6.
+/* Adds `count` (at least 1) saint-named teams, never past MT_MAX_TEAMS teams in all.
    gender = 'boys' | 'girls' picks the saint names; level = 1 | 2 | 0 (both levels). */
 function mtMakeRandomTeams(night, count, gender, level) {
-    var n = Math.floor(Number(count)) || 0;
-    var min = night.teams.length ? 1 : 2;
-    n = Math.max(min, Math.min(6, n));
+    var n = Math.max(1, Math.floor(Number(count)) || 0);
     var presets = MT_TEAM_PRESETS[gender] || MT_TEAM_PRESETS.boys;
     var added = [];
-    for (var i = 0; i < presets.length && added.length < n && night.teams.length < 6; i++) {
+    for (var i = 0; i < presets.length && added.length < n && night.teams.length < MT_MAX_TEAMS; i++) {
         var p = presets[i];
         if (_mtTeam(night, p.id)) continue;
         var t = { id: p.id, name: p.name, color: _mtFreeColor(night), icon: p.icon, source: 'random', gameTeam: '', gender: gender === 'girls' ? 'girls' : 'boys', level: _mtLevel(level), score: 0 };
@@ -79,6 +80,22 @@ function _mtFreeColor(night) {
         if (!night.teams.some(function (t) { return String(t.color).toLowerCase() === c; })) return c;
     }
     return MT_TEAM_COLORS[night.teams.length % MT_TEAM_COLORS.length];
+}
+
+/* Saint names of that gender not used tonight. */
+function mtPresetsLeft(night, gender) {
+    return (MT_TEAM_PRESETS[gender] || []).filter(function (p) { return !_mtTeam(night, p.id); }).length;
+}
+
+/* A team named by the host. Returns null once the night has MT_MAX_TEAMS teams. */
+function mtAddCustomTeam(night, o) {
+    if (night.teams.length >= MT_MAX_TEAMS) return null;
+    var k = 1;
+    while (_mtTeam(night, 'custom' + k)) k++;
+    var t = { id: 'custom' + k, name: String(o.name || '').trim() || 'فريق ' + (night.teams.length + 1), color: _mtFreeColor(night), icon: o.icon || '⭐',
+        source: 'custom', gameTeam: '', gender: '', level: _mtLevel(o.level), score: 0 };
+    night.teams.push(t);
+    return t;
 }
 
 function _mtLevel(l) { l = Number(l); return l === 1 || l === 2 ? l : 0; }

@@ -40,7 +40,7 @@ test('teams: random teams use the saint presets of the gender', function () {
     assert.strictEqual(n.teams[4].gender, 'girls');
     assert.strictEqual(n.teams[4].level, 2);
     assert.strictEqual(n.teams[4].color, '#9b59b6', 'first color no team has');
-    c.mtMakeRandomTeams(n, 9, 'girls');
+    c.mtMakeRandomTeams(n, 1, 'girls');
     assert.strictEqual(n.teams.length, 6);
     assert.strictEqual(n.teams[5].id, 'marina');
     assert.strictEqual(n.teams[5].level, 0, 'no level given: both levels');
@@ -74,10 +74,27 @@ test('guests: tonight only, never synced, not found by id', function () {
     assert.strictEqual(c.mtSearch(src, 'st').length, 0);
 });
 
-test('teams: first call clamps to at least 2', function () {
+test('teams: adds exactly the count asked, up to 8 teams in all', function () {
     var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1], filter: { subjects: [], lessons: {} }, kinds: [] });
-    c.mtMakeRandomTeams(n, 0);
-    assert.strictEqual(n.teams.length, 2);
+    c.mtMakeRandomTeams(n, 1, 'boys');
+    assert.strictEqual(n.teams.length, 1);
+    c.mtMakeRandomTeams(n, 0, 'boys');
+    assert.strictEqual(n.teams.length, 2, 'at least one');
+    assert.strictEqual(c.mtPresetsLeft(n, 'boys'), 4);
+    c.mtMakeRandomTeams(n, 9, 'girls');
+    assert.strictEqual(n.teams.length, 8);
+    assert.strictEqual(new Set(n.teams.map(function (t) { return t.color; })).size, 8);
+    assert.strictEqual(c.mtAddCustomTeam(n, { name: 'x' }), null);
+});
+
+test('teams: custom team keeps the host name and level, next to game teams', function () {
+    var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1, 2], filter: { subjects: [], lessons: {} }, kinds: [] });
+    for (var i = 0; i < 6; i++) c.mtAddGameTeam(n, { name: 'g' + i, color: '#111' });
+    var t = c.mtAddCustomTeam(n, { name: ' أسود الإيمان ', level: 2 });
+    assert.strictEqual(t.id, 'custom1'); assert.strictEqual(t.name, 'أسود الإيمان'); assert.strictEqual(t.level, 2);
+    assert.strictEqual(t.source, 'custom'); assert.strictEqual(t.icon, '⭐');
+    assert.strictEqual(c.mtAddCustomTeam(n, {}).name, 'فريق ٨'.replace('٨', '8'));
+    assert.strictEqual(n.teams.length, 8);
 });
 
 test('roster: game-team kid auto-placed', function () {

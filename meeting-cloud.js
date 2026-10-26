@@ -177,7 +177,7 @@ function mcLogAward(db, award, o) {
     try {
         var ind = award.kind === 'individual';
         return db.collection('playerEvents').add({
-            playerPhone: ind ? award.phones[0] : '',
+            playerPhone: ind && !mtIsGuest(award.phones[0]) ? award.phones[0] : '',
             playerName: (ind ? o.kidName : o.teamName) || '',
             team: o.teamName || '',
             type: 'meeting_award',

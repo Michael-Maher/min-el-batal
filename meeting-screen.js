@@ -76,8 +76,8 @@ function msBoot() {
     setInterval(_msTimerTick, 200);
     setInterval(_msBoardScrollTick, 40);
     _msSkyInit();
-    window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true, 2.8); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(_msFit);
+    window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true, 2.8); _msFitTeamNames(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { _msFit(); _msFitTeamNames(); });
     if (typeof BroadcastChannel === 'undefined') {
         _msRenderIdle(null, 'المتصفح ده مش بيدعم ربط الشاشتين، افتحها من Chrome');
         return;
@@ -126,7 +126,8 @@ function msRender(view) {
     _msRenderTeams(view);
     var boardToggled = _msRenderBoard(view);
 
-    var stageKey = JSON.stringify([it, it ? stage : view.stage, !!view.golden, it ? '' : (view.title || '')]);
+    var turn = _msTurnTeam(view);
+    var stageKey = JSON.stringify([it, it ? stage : view.stage, !!view.golden, it ? '' : (view.title || ''), it || !turn ? '' : turn.id + turn.name]);
     if (stageKey !== _ms.stageKey) {
         _ms.stageKey = stageKey;
         var box = _msEl('ms-stage');
@@ -164,14 +165,27 @@ function msRender(view) {
     _msTimerTick();
 }
 
+/* The team whose turn it is (a team question is up or being prepared), or null. */
+function _msTurnTeam(view) {
+    var t = view && view.stage && view.target;
+    if (!t || t.mode !== 'team' || !t.teamId) return null;
+    var teams = view.teams || [];
+    for (var i = 0; i < teams.length; i++) if (teams[i].id === t.teamId) return teams[i];
+    return null;
+}
+
 function _msRenderIdle(view, note) {
     var title = (view && view.title) || 'مسابقة الاجتماع';
-    var sub;
+    var sub, turn = _msTurnTeam(view);
     if (note) sub = '<p>' + _msEsc(note) + '</p>';
     else if (!view) sub = '<p>مستنيين شاشة التحكم…</p>';
-    else if (view.stage === 'preview') sub = '<p class="ready">⏳ استعدوا… السؤال جاي!</p>';
+    else if (view.stage === 'preview') {
+        sub = '<p class="ready">⏳ استعدوا… السؤال جاي!</p>';
+        if (turn) sub += '<p class="turn" style="--tc:' + _msEsc(turn.color) + '">🎯 السؤال الجاي لـ <b>' + _msEsc(turn.name) + '</b></p>';
+    }
     else sub = '<p>⭐ كل نقطة بتتحسب نجوم في حسابك ⭐</p>';
-    var levels = view && view.kids ? Object.keys(view.kids).filter(function (l) { return MS_LV[l]; }) : [];
+    /* the turn line takes the room of the level chips */
+    var levels = view && view.kids && !(view.stage === 'preview' && turn) ? Object.keys(view.kids).filter(function (l) { return MS_LV[l]; }) : [];
     var chips = levels.length ? '<div class="ms-idle-lv">' + levels.map(function (l) {
         return '<span class="lvchip ' + MS_LV[l].cls + (l === '2' ? ' lv2-shine' : '') + '">' + MS_LV[l].chip + '</span>';
     }).join('') + '</div>' : '';
@@ -189,14 +203,10 @@ function _msRenderTags(view, it) {
         if (MS_LV[t.level]) h += '<span class="ms-tag lv ' + MS_LV[t.level].cls + '">' + MS_LV[t.level].tag + '</span>';
         else if (t.level === 'all') h += '<span class="ms-tag lvall">🌟⚡ الكل</span>';
         if (view.golden) h += '<span class="ms-tag gold">🏅 السؤال الدهبي · ×٣</span>';
-        if (t.mode === 'speed') h += '<span class="ms-tag mode">⚡ سؤال سرعة</span>';
-        if (t.mode === 'team' && t.teamId) {
-            var teams = view.teams || [];
-            for (var i = 0; i < teams.length; i++) {
-                if (teams[i].id !== t.teamId) continue;
-                h += '<span class="ms-tag mode" style="--tc:' + _msEsc(teams[i].color) + '"><span class="dot"></span>دور ' + _msEsc(teams[i].name) + '</span>';
-            }
-        }
+        var turn = _msTurnTeam(view);
+        if (turn) h += '<span class="ms-tag turn" style="--tc:' + _msEsc(turn.color) + '">🎯 دور ' + _msEsc(turn.name) + '</span>';
+        else if (t.mode === 'speed') h += '<span class="ms-tag mode">⚡ سؤال سرعة: أول واحد يرفع إيده</span>';
+        else if (t.mode === 'individual') h += '<span class="ms-tag mode">🙋 سؤال فردي</span>';
     }
     var el = _msEl('ms-tags');
     if (el.innerHTML !== h) el.innerHTML = h;
@@ -204,24 +214,29 @@ function _msRenderTags(view, it) {
 
 function _msRenderTeams(view) {
     var teams = view.teams || [];
-    var h = '', deltas = [];
+    var turn = _msTurnTeam(view), turnId = turn ? turn.id : null;
+    var h = '';
     teams.forEach(function (t) {
         var old = _ms.scores[t.id];
         var d = old === undefined ? 0 : t.score - old;
-        if (d) deltas.push(t.id);
-        h += '<div class="ms-team' + (t.id === view.leaderId ? ' lead' : '') + '" style="--tc:' + _msEsc(t.color) + '">' +
-            (t.id === view.leaderId ? '<div class="crown">👑</div>' : '') +
+        var L = MS_LV[t.level];
+        h += '<div class="ms-team' + (t.id === view.leaderId ? ' lead' : '') + (t.id === turnId ? ' turn' : '') + '" style="--tc:' + _msEsc(t.color) + '">' +
+            (t.id === turnId ? '<div class="turnb">🎯 دوركم</div>' : t.id === view.leaderId ? '<div class="crown">👑</div>' : '') +
             (d ? '<div class="delta' + (d < 0 ? ' neg' : '') + '">' + _msPts(d) + '</div>' : '') +
             '<div class="ico">' + _msEsc(t.icon || '🛡️') + '</div>' +
             '<div class="tx"><div class="nm">' + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</div>' +
-            '<div class="sc' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</div></div></div>';
+            '<div class="sc' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</div></div>' +
+            (L ? '<span class="tlv ' + L.cls + '">' + (t.level === 1 ? '🌟 مستوى أول' : '⚡ مستوى تاني') + '</span>' : '') + '</div>';
     });
     var el = _msEl('ms-teams');
     /* Rebuild only on change so the crown and bump animations do not restart on timer-only views. */
-    var key = JSON.stringify([teams, view.leaderId]);
+    var key = JSON.stringify([teams, view.leaderId, turnId]);
     if (el.getAttribute('data-k') !== key) {
         el.setAttribute('data-k', key);
+        el.classList.toggle('has-turn', !!turnId);
+        el.classList.toggle('many', teams.length > 4);
         el.innerHTML = h;
+        _msFitTeamNames();
     }
     _ms.scores = {};
     teams.forEach(function (t) { _ms.scores[t.id] = t.score; });
@@ -705,6 +720,22 @@ function _msFitNames(root, allowWrap, floorVh) {
             el.style.fontSize = f + 'px';
         }
         if (allowWrap && el.scrollWidth > el.clientWidth + 1) el.classList.add('wrap');
+    });
+}
+
+/* Team names: one line at the biggest size that fits, down to 2.4vh; a longer name wraps to two
+   lines, and a single word still too wide shrinks on down to 1.6vh. */
+function _msFitTeamNames() {
+    var floor = innerHeight * 0.024, last = innerHeight * 0.016;
+    Array.prototype.forEach.call(document.querySelectorAll('#ms-teams .nm'), function (el) {
+        el.style.fontSize = '';
+        el.classList.remove('wrap');
+        var f = parseFloat(getComputedStyle(el).fontSize);
+        var over = function () { return el.scrollWidth > el.clientWidth + 1; };
+        while (f > floor && over()) { f = Math.max(floor, f - 1); el.style.fontSize = f + 'px'; }
+        if (!over()) return;
+        el.classList.add('wrap');
+        while (f > last && over()) { f = Math.max(last, f - 1); el.style.fontSize = f + 'px'; }
     });
 }
 

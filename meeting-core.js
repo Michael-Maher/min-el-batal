@@ -4,14 +4,28 @@ var MT_POINTS = 5;
 var MT_GOLDEN_POINTS = 15;
 var MT_STORAGE_KEY = 'meb_meeting_night';
 
-var MT_TEAM_PRESETS = [
-    { id: 'david', name: 'فريق داود', color: '#e74c3c', icon: '🦁' },
-    { id: 'moses', name: 'فريق موسى', color: '#3498db', icon: '🌊' },
-    { id: 'joseph', name: 'فريق يوسف', color: '#1f9d55', icon: '🌾' },
-    { id: 'daniel', name: 'فريق دانيال', color: '#e0a800', icon: '🔥' },
-    { id: 'esther', name: 'فريق أستير', color: '#9b59b6', icon: '👑' },
-    { id: 'paul', name: 'فريق بولس', color: '#e67e22', icon: '⚓' }
-];
+/* Random teams are named after saints: boys' teams after saints, girls' teams after women saints. */
+var MT_TEAM_PRESETS = {
+    boys: [
+        { id: 'george', name: 'فريق مارجرجس', icon: '🐉' },
+        { id: 'mina', name: 'فريق مارمينا', icon: '🐪' },
+        { id: 'mercurius', name: 'فريق أبو سيفين', icon: '⚔️' },
+        { id: 'antony', name: 'فريق الأنبا أنطونيوس', icon: '🏜️' },
+        { id: 'kyrillos', name: 'فريق البابا كيرلس', icon: '🕯️' },
+        { id: 'mark', name: 'فريق مارمرقس', icon: '🦁' }
+    ],
+    girls: [
+        { id: 'demiana', name: 'فريق القديسة دميانة', icon: '🌹' },
+        { id: 'marina', name: 'فريق القديسة مارينا', icon: '🌟' },
+        { id: 'rebecca', name: 'فريق القديسة رفقة', icon: '🕊️' },
+        { id: 'verena', name: 'فريق القديسة فيرينا', icon: '🏺' },
+        { id: 'barbara', name: 'فريق القديسة بربارة', icon: '🏰' },
+        { id: 'justina', name: 'فريق القديسة يوستينا', icon: '📖' }
+    ]
+};
+/* A new random team takes the first color no team of the night has. */
+var MT_TEAM_COLORS = ['#e74c3c', '#3498db', '#1f9d55', '#e0a800', '#9b59b6', '#e67e22'];
+var MT_GUEST_PREFIX = 'guest_';
 
 function mtNewNight(opts) {
     opts = opts || {};
@@ -41,28 +55,51 @@ function _mtTeam(night, id) {
     return null;
 }
 
-/* count = how many teams to add; first call yields at least 2, total never exceeds 6. */
-function mtMakeRandomTeams(night, count) {
+/* count = how many teams to add; first call yields at least 2, total never exceeds 6.
+   gender = 'boys' | 'girls' picks the saint names; level = 1 | 2 | 0 (both levels). */
+function mtMakeRandomTeams(night, count, gender, level) {
     var n = Math.floor(Number(count)) || 0;
     var min = night.teams.length ? 1 : 2;
     n = Math.max(min, Math.min(6, n));
+    var presets = MT_TEAM_PRESETS[gender] || MT_TEAM_PRESETS.boys;
     var added = [];
-    for (var i = 0; i < MT_TEAM_PRESETS.length && added.length < n && night.teams.length < 6; i++) {
-        var p = MT_TEAM_PRESETS[i];
+    for (var i = 0; i < presets.length && added.length < n && night.teams.length < 6; i++) {
+        var p = presets[i];
         if (_mtTeam(night, p.id)) continue;
-        var t = { id: p.id, name: p.name, color: p.color, icon: p.icon, source: 'random', gameTeam: '', score: 0 };
+        var t = { id: p.id, name: p.name, color: _mtFreeColor(night), icon: p.icon, source: 'random', gameTeam: '', gender: gender === 'girls' ? 'girls' : 'boys', level: _mtLevel(level), score: 0 };
         night.teams.push(t);
         added.push(t);
     }
     return added;
 }
 
+function _mtFreeColor(night) {
+    for (var i = 0; i < MT_TEAM_COLORS.length; i++) {
+        var c = MT_TEAM_COLORS[i];
+        if (!night.teams.some(function (t) { return String(t.color).toLowerCase() === c; })) return c;
+    }
+    return MT_TEAM_COLORS[night.teams.length % MT_TEAM_COLORS.length];
+}
+
+function _mtLevel(l) { l = Number(l); return l === 1 || l === 2 ? l : 0; }
+
 function mtAddGameTeam(night, o) {
     var k = 1;
     while (_mtTeam(night, 'game' + k)) k++;
-    var t = { id: 'game' + k, name: o.name, color: o.color || '#555555', icon: o.logo || '🛡️', source: 'game', gameTeam: o.name, score: 0 };
+    var t = { id: 'game' + k, name: o.name, color: o.color || '#555555', icon: o.logo || '🛡️', source: 'game', gameTeam: o.name, gender: '', level: _mtLevel(o.level), score: 0 };
     night.teams.push(t);
     return t;
+}
+
+function mtIsGuest(phone) { return String(phone).indexOf(MT_GUEST_PREFIX) === 0; }
+
+/* A kid with no game account: on tonight's roster under a made-up id, stars for tonight only. */
+function mtAddGuest(night, name, level, teamId) {
+    var k = 1;
+    while (night.roster[MT_GUEST_PREFIX + k]) k++;
+    var kid = mtAddToRoster(night, { phone: MT_GUEST_PREFIX + k, name: String(name).trim(), level: level }, teamId || null);
+    kid.guest = true;
+    return kid;
 }
 
 function mtAddToRoster(night, p, teamId) {
@@ -167,11 +204,12 @@ function mtTopKids(night, n) {
         .map(function (x) { return x.k; });
 }
 
+/* Guests have no game account: their stars never sync. */
 function mtPendingSyncs(night) {
     var out = [];
     night.awards.forEach(function (a) {
         a.phones.forEach(function (ph) {
-            if (!a.synced[ph]) out.push({ awardId: a.id, phone: ph, points: a.points });
+            if (!a.synced[ph] && !mtIsGuest(ph)) out.push({ awardId: a.id, phone: ph, points: a.points });
         });
     });
     return out;
@@ -270,7 +308,7 @@ function mtAudienceView(night) {
     var leaderId = st.length && st[0].score > 0 && (st.length < 2 || st[1].score < st[0].score) ? st[0].id : null;
     return {
         title: night.title,
-        teams: night.teams.map(function (t) { return { id: t.id, name: t.name, color: t.color, icon: t.icon, score: t.score }; }),
+        teams: night.teams.map(function (t) { return { id: t.id, name: t.name, color: t.color, icon: t.icon, level: t.level || 0, score: t.score }; }),
         leaderId: leaderId,
         item: cur ? _mtItemView(cur.item, cur) : null,
         stage: cur ? cur.stage : null,
@@ -533,7 +571,7 @@ function mtSearch(players, query, limit) {
         var at = full.indexOf(q) === 0 ? 0 : _mtWordsMatch(full.split(' '), qWords);
         if (at === 0) first.push(p);
         else if (at > 0) later.push(p);
-        else if (String(p.phone || '').indexOf(raw) >= 0) byPhone.push(p);
+        else if (!mtIsGuest(p.phone) && String(p.phone || '').indexOf(raw) >= 0) byPhone.push(p);
     });
     return first.concat(later, byPhone).slice(0, max);
 }

@@ -18,26 +18,60 @@ function test(name, fn) { try { fn(); passed++; } catch (e) { failed++; console.
 
 function freshNight(ctx) {
     var n = ctx.mtNewNight({ date: '2026-10-26', title: 'ليلة', levels: [1, 2], filter: { subjects: [], lessons: {} }, kinds: ['mcq'] });
-    ctx.mtMakeRandomTeams(n, 4);
+    ctx.mtMakeRandomTeams(n, 4, 'boys');
     return n;
 }
 function kid(ctx, n, phone, team) {
     return ctx.mtAddToRoster(n, { phone: phone, name: 'k' + phone, level: 1, team: '' }, team);
 }
 
-test('teams: 4 random teams use the first 4 presets', function () {
+test('teams: random teams use the saint presets of the gender', function () {
     var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1], filter: { subjects: [], lessons: {} }, kinds: [] });
-    c.mtMakeRandomTeams(n, 4);
-    assert.deepStrictEqual(plain(n.teams.map(function (t) { return t.id; })), ['david', 'moses', 'joseph', 'daniel']);
-    c.mtMakeRandomTeams(n, 1);
-    assert.strictEqual(n.teams[4].id, 'esther');
-    assert.strictEqual(n.teams.length, 5);
-    c.mtMakeRandomTeams(n, 9);
-    assert.strictEqual(n.teams.length, 6);
-    assert.strictEqual(n.teams[5].id, 'paul');
-    assert.strictEqual(n.teams[0].name, 'فريق داود');
+    c.mtMakeRandomTeams(n, 4, 'boys', 1);
+    assert.deepStrictEqual(plain(n.teams.map(function (t) { return t.id; })), ['george', 'mina', 'mercurius', 'antony']);
+    assert.strictEqual(n.teams[0].name, 'فريق مارجرجس');
     assert.strictEqual(n.teams[0].color, '#e74c3c');
     assert.strictEqual(n.teams[0].source, 'random');
+    assert.strictEqual(n.teams[0].gender, 'boys');
+    assert.strictEqual(n.teams[0].level, 1);
+    c.mtMakeRandomTeams(n, 1, 'girls', 2);
+    assert.strictEqual(n.teams[4].id, 'demiana');
+    assert.strictEqual(n.teams[4].name, 'فريق القديسة دميانة');
+    assert.strictEqual(n.teams[4].gender, 'girls');
+    assert.strictEqual(n.teams[4].level, 2);
+    assert.strictEqual(n.teams[4].color, '#9b59b6', 'first color no team has');
+    c.mtMakeRandomTeams(n, 9, 'girls');
+    assert.strictEqual(n.teams.length, 6);
+    assert.strictEqual(n.teams[5].id, 'marina');
+    assert.strictEqual(n.teams[5].level, 0, 'no level given: both levels');
+    var colors = n.teams.map(function (t) { return t.color; });
+    assert.strictEqual(new Set(colors).size, 6, 'mixed genders never share a color');
+});
+
+test('teams: game team keeps its level', function () {
+    var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1, 2], filter: { subjects: [], lessons: {} }, kinds: [] });
+    assert.strictEqual(c.mtAddGameTeam(n, { name: 'أ', level: 2 }).level, 2);
+    assert.strictEqual(c.mtAddGameTeam(n, { name: 'ب' }).level, 0);
+    assert.strictEqual(c.mtAudienceView(n).teams[0].level, 2);
+});
+
+test('guests: tonight only, never synced, not found by id', function () {
+    var c = load(), n = freshNight(c);
+    var g = c.mtAddGuest(n, ' يوسف ', 2, 'george');
+    var g2 = c.mtAddGuest(n, 'يوسف', 1, null);
+    assert.strictEqual(g.phone, 'guest_1'); assert.strictEqual(g2.phone, 'guest_2');
+    assert.strictEqual(g.name, 'يوسف'); assert.strictEqual(g.level, 2); assert.strictEqual(g.teamId, 'george'); assert.strictEqual(g.guest, true);
+    assert.ok(c.mtIsGuest('guest_1')); assert.ok(!c.mtIsGuest('01012345678'));
+    kid(c, n, '01', 'george');
+    c.mtAward(n, { phone: 'guest_1' }, 5, 'a');
+    c.mtAward(n, { teamId: 'george' }, 5, 'b');
+    assert.strictEqual(n.roster.guest_1.stars, 10);
+    assert.strictEqual(n.teams[0].score, 10);
+    assert.deepStrictEqual(plain(c.mtPendingSyncs(n).map(function (s) { return s.phone; })), ['01']);
+    assert.strictEqual(c.mtAudienceView(n).kids[2][0].name, 'يوسف');
+    var src = [{ phone: 'guest_1', name: 'يوسف', level: 2 }];
+    assert.strictEqual(c.mtSearch(src, 'يوس').length, 1);
+    assert.strictEqual(c.mtSearch(src, 'st').length, 0);
 });
 
 test('teams: first call clamps to at least 2', function () {
@@ -58,7 +92,7 @@ test('roster: game-team kid auto-placed', function () {
 
 test('award individual', function () {
     var c = load(), n = freshNight(c);
-    kid(c, n, '01', 'david');
+    kid(c, n, '01', 'george');
     var a = c.mtAward(n, { phone: '01' }, 5, 'x');
     assert.strictEqual(n.roster['01'].stars, 5);
     assert.strictEqual(n.teams[0].score, 5);
@@ -68,8 +102,8 @@ test('award individual', function () {
 
 function teamAwardNight(c) {
     var n = freshNight(c);
-    kid(c, n, '01', 'david'); kid(c, n, '02', 'david'); kid(c, n, '03', 'moses');
-    c.mtAward(n, { teamId: 'david' }, 5, 'y');
+    kid(c, n, '01', 'george'); kid(c, n, '02', 'george'); kid(c, n, '03', 'mina');
+    c.mtAward(n, { teamId: 'george' }, 5, 'y');
     return n;
 }
 
@@ -83,7 +117,7 @@ test('award team goes to roster members only', function () {
 
 test('multiplier', function () {
     var c = load(), n = freshNight(c);
-    kid(c, n, '01', 'david');
+    kid(c, n, '01', 'george');
     n.current = { golden: false };
     n.multiplier = 2;
     assert.strictEqual(c.mtPointsForCurrent(n), 10);
@@ -109,7 +143,7 @@ test('undo reverses team award', function () {
 
 test('second undo skips the undo and the undone award', function () {
     var c = load(), n = freshNight(c);
-    kid(c, n, '01', 'david');
+    kid(c, n, '01', 'george');
     c.mtAward(n, { phone: '01' }, 5, 'a');
     c.mtAward(n, { phone: '01' }, 5, 'b');
     c.mtUndoLast(n);
@@ -122,9 +156,9 @@ test('second undo skips the undo and the undone award', function () {
 
 test('screen score never touches stars', function () {
     var c = load(), n = teamAwardNight(c);
-    c.mtScreenScore(n, 'david', -5);
+    c.mtScreenScore(n, 'george', -5);
     assert.strictEqual(n.teams[0].score, 0);
-    c.mtScreenScore(n, 'david', -5);
+    c.mtScreenScore(n, 'george', -5);
     assert.strictEqual(n.teams[0].score, -5);
     assert.strictEqual(n.roster['01'].stars, 5);
     assert.strictEqual(n.roster['03'].stars, 0);
@@ -132,18 +166,18 @@ test('screen score never touches stars', function () {
 
 test('standings and top kids', function () {
     var c = load(), n = freshNight(c);
-    kid(c, n, '01', 'david'); kid(c, n, '02', 'moses');
+    kid(c, n, '01', 'george'); kid(c, n, '02', 'mina');
     c.mtAward(n, { phone: '02' }, 5, 'a'); c.mtAward(n, { phone: '02' }, 5, 'b'); c.mtAward(n, { phone: '01' }, 5, 'c');
-    assert.strictEqual(c.mtStandings(n)[0].id, 'moses');
+    assert.strictEqual(c.mtStandings(n)[0].id, 'mina');
     assert.deepStrictEqual(plain(c.mtTopKids(n, 1).map(function (k) { return k.phone; })), ['02']);
 });
 
 test('pending syncs', function () {
     var c = load(), n = freshNight(c);
-    kid(c, n, '01', 'david'); kid(c, n, '02', 'david');
+    kid(c, n, '01', 'george'); kid(c, n, '02', 'george');
     var a1 = c.mtAward(n, { phone: '01' }, 5, 'a');
     a1.synced['01'] = true;
-    var a2 = c.mtAward(n, { teamId: 'david' }, 5, 'b');
+    var a2 = c.mtAward(n, { teamId: 'george' }, 5, 'b');
     var p = plain(c.mtPendingSyncs(n));
     assert.deepStrictEqual(p, [
         { awardId: a2.id, phone: '01', points: 5 },
@@ -294,17 +328,17 @@ test('audience view options', function () {
 
 test('audience view header: teams, leader, timer', function () {
     var c = load(), n = freshNight(c);
-    kid(c, n, '01', 'moses');
+    kid(c, n, '01', 'mina');
     var v = c.mtAudienceView(n);
     assert.strictEqual(v.item, null); assert.strictEqual(v.stage, null); assert.strictEqual(v.leaderId, null);
     assert.strictEqual(v.title, 'ليلة');
     c.mtAward(n, { phone: '01' }, 5, 'a');
     n.current = { item: fixture('deep'), target: { level: 1, mode: 'speed', teamId: null }, stage: 'shown', clueIdx: 0, optionsShown: 0, timerEndsAt: 123, timerSec: 20, golden: true, count: 0 };
     v = c.mtAudienceView(n);
-    assert.strictEqual(v.leaderId, 'moses');
+    assert.strictEqual(v.leaderId, 'mina');
     assert.strictEqual(v.timerEndsAt, 123); assert.strictEqual(v.timerSec, 20); assert.strictEqual(v.golden, true);
     assert.strictEqual(v.target.mode, 'speed');
-    assert.deepStrictEqual(Object.keys(v.teams[0]).sort(), ['color', 'icon', 'id', 'name', 'score']);
+    assert.deepStrictEqual(Object.keys(v.teams[0]).sort(), ['color', 'icon', 'id', 'level', 'name', 'score']);
 });
 
 
@@ -312,10 +346,10 @@ test('audience view header: teams, leader, timer', function () {
 
 function boardNight(c) {
     var n = freshNight(c);
-    ['01011111111', '01022222222', '01033333333'].forEach(function (ph) { kid(c, n, ph, 'david'); });
-    kid(c, n, '01044444444', 'moses');
+    ['01011111111', '01022222222', '01033333333'].forEach(function (ph) { kid(c, n, ph, 'george'); });
+    kid(c, n, '01044444444', 'mina');
     kid(c, n, '01055555555', null);
-    c.mtAddToRoster(n, { phone: '01266666666', name: 'بيشوي', level: 2, team: '' }, 'moses');
+    c.mtAddToRoster(n, { phone: '01266666666', name: 'بيشوي', level: 2, team: '' }, 'mina');
     c.mtAddToRoster(n, { phone: '01277777777', name: 'أبانوب', level: 2, team: '' }, null);
     return n;
 }
@@ -379,7 +413,7 @@ test('audience kids: an undo moves a kid back down', function () {
 
 test('audience view never carries a phone', function () {
     var c = load(), n = boardNight(c);
-    c.mtAward(n, { teamId: 'david' }, 5, 'a');
+    c.mtAward(n, { teamId: 'george' }, 5, 'a');
     c.mtAward(n, { phone: '01055555555' }, 5, 'b');
     c.mtUndoLast(n);
     Object.keys(n.roster).forEach(function (ph, i) { n.roster[ph].name = 'ولد ' + i; }); /* fixture names embed the phone */
@@ -395,7 +429,7 @@ test('audience lastAward: individual, team, undo', function () {
     assert.strictEqual(c.mtAudienceView(n).lastAward, null);
     var a = c.mtAward(n, { phone: '01044444444' }, 5, 'a');
     assert.deepStrictEqual(plain(c.mtAudienceView(n).lastAward), { id: a.id, keys: [c.mtHash('01044444444')] });
-    var t = c.mtAward(n, { teamId: 'david' }, 5, 'b');
+    var t = c.mtAward(n, { teamId: 'george' }, 5, 'b');
     var team = [c.mtHash('01011111111'), c.mtHash('01022222222'), c.mtHash('01033333333')];
     assert.deepStrictEqual(plain(c.mtAudienceView(n).lastAward), { id: t.id, keys: team });
     var u = c.mtUndoLast(n);
@@ -835,7 +869,7 @@ cloudTest('cloud: no-player rejects', function () {
 
 function nightWith(ctx, phones) {
     var n = freshNight(ctx);
-    phones.forEach(function (p) { kid(ctx, n, p, 'david'); });
+    phones.forEach(function (p) { kid(ctx, n, p, 'george'); });
     return n;
 }
 function flushCtx() { return { season: null, saves: 0, changes: 0, save: function () { this.saves++; }, onChange: function () { this.changes++; } }; }
@@ -860,7 +894,7 @@ cloudTest('cloud: lost ack then retry applies once', function () {
 cloudTest('cloud: flush stops on network error and resumes', function () {
     var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01', '02', '03']), fc = flushCtx();
     ['01', '02', '03'].forEach(function (p) { seed(db, p, { stars: 0 }); });
-    c.mtAward(n, { teamId: 'david' }, 5, null);
+    c.mtAward(n, { teamId: 'george' }, 5, null);
     db.failPhones['02'] = true;
     return c.mcFlush(db, n, fc).then(function (r) {
         assert.strictEqual(r.applied, 1);
@@ -888,7 +922,7 @@ cloudTest('cloud: flush after restore', function () {
 cloudTest('cloud: no-player marked failed, not retried forever', function () {
     var c = loadCloud(), db = makeDb(), n = nightWith(c, ['01', '02']), fc = flushCtx();
     seed(db, '02', { stars: 0 });
-    var a = c.mtAward(n, { teamId: 'david' }, 5, null);
+    var a = c.mtAward(n, { teamId: 'george' }, 5, null);
     return c.mcFlush(db, n, fc).then(function (r) {
         assert.strictEqual(r.failed, 1);
         assert.deepStrictEqual(plain(a.failed), ['01']);
@@ -913,7 +947,7 @@ cloudTest('cloud: same award index on two nights both apply', function () {
     var c = loadCloud(), db = makeDb(), fc = flushCtx();
     seed(db, '01', { stars: 0 });
     var n1 = nightWith(c, ['01']), n2 = c.mtNewNight({ date: '2026-11-02', title: 't', levels: [1], filter: { subjects: [], lessons: {} }, kinds: [] });
-    c.mtMakeRandomTeams(n2, 2); kid(c, n2, '01', 'david');
+    c.mtMakeRandomTeams(n2, 2); kid(c, n2, '01', 'george');
     c.mtAward(n1, { phone: '01' }, 5, null);
     c.mtAward(n2, { phone: '01' }, 5, null);
     assert.strictEqual(n1.awards[0].id, n2.awards[0].id);

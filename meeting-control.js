@@ -42,7 +42,8 @@ function _mcFreshUi() {
     return {
         target: { level: 1, mode: 'individual', teamId: null }, kind: null,
         sq: '', sqLevel: 'all', neg: false, choose: null, pick: null, bet: null, wheelMsg: '',
-        editor: false, editKid: null, teamQ: {}, msg: '', clearAsk: false, lastMsg: ''
+        editor: false, editKid: null, teamQ: {}, msg: '', clearAsk: false, lastMsg: '',
+        gender: 'boys', renTeam: null, renVal: ''
     };
 }
 
@@ -61,6 +62,7 @@ function _mcNum(n) {
 function _mcPts(n) { n = Number(n) || 0; return (n < 0 ? '−' : '+') + _mcNum(Math.abs(n)); }
 function _mcEl(id) { return document.getElementById(id); }
 function _mcLvl(l) { return l === 1 ? 'م١' : l === 2 ? 'م٢' : 'الكل'; }
+function _mcTeamLvl(t) { return t && (t.level === 1 || t.level === 2) ? ' <small class="lv">' + _mcLvl(t.level) + '</small>' : ''; }
 
 function _mcToday() {
     try {
@@ -164,6 +166,10 @@ function _mcWire() {
         if (e.key === 'Enter' && e.target.id === 'mc-sq') {
             var r = _mcAwardResults();
             if (r.length === 1) { e.preventDefault(); if (_mcTapOk()) _mcTapKid(r[0].phone); }
+        } else if (e.target.id && e.target.id.indexOf('mc-tn-') === 0 && (e.key === 'Enter' || e.key === 'Escape')) {
+            e.preventDefault();
+            if (e.key === 'Enter') _MC_A.renok({ t: e.target.id.slice(6) });
+            else { _mc.ui.renTeam = null; _mcRefresh(); }
         } else if (e.key === 'Escape' && _mc.ui && _mc.ui.editor) {
             _mc.ui.editor = false; _mcRefresh();
         }
@@ -541,11 +547,13 @@ function _mcTeamEdHtml() {
     var randomLeft = 6 - n.teams.length;
     h += '<div class="mc-ted-add">';
     if (randomLeft > 0) {
+        h += '<span class="mc-lbl">فرق عشوائية:</span>' +
+            '<button class="mc-chip' + (_mc.ui.gender === 'boys' ? ' on' : '') + '" data-a="gender" data-v="boys">👦 ولاد (قديسين)</button>' +
+            '<button class="mc-chip' + (_mc.ui.gender === 'girls' ? ' on' : '') + '" data-a="gender" data-v="girls">👧 بنات (قديسات)</button><span class="mc-sep"></span>';
         if (!n.teams.length) {
-            h += '<span class="mc-lbl">فرق عشوائية للسهرة:</span>';
             for (var c = 2; c <= 6; c++) h += '<button class="mc-chip" data-a="rteams" data-v="' + c + '">' + _mcNum(c) + ' فرق</button>';
         } else {
-            h += '<button class="mc-chip" data-a="rteams" data-v="1">＋ فريق عشوائي</button>';
+            h += '<button class="mc-chip" data-a="rteams" data-v="1">＋ فريق ' + (_mc.ui.gender === 'girls' ? 'بنات' : 'ولاد') + '</button>';
         }
     }
     h += '</div>';
@@ -574,15 +582,22 @@ function _mcTeamCardHtml(t) {
         .filter(function (k) { return (k.teamId || null) === (t ? t.id : null); })
         .sort(_mcByName);
     var awarded = t && n.awards.some(function (a) { return a.teamId === t.id; });
+    var name = t ? '<button class="mc-tname" data-a="ren" data-t="' + _mcEsc(t.id) + '" title="غيّر الاسم">' + _mcEsc(t.name) + ' <i>✏️</i></button>' : '<b>من غير فريق</b>';
+    if (t && ui.renTeam === t.id) {
+        name = '<input id="mc-tn-' + _mcEsc(t.id) + '" class="mc-tname-in" type="text" maxlength="30" value="' + _mcEsc(ui.renVal) + '">' +
+            '<button class="mc-btn sm" data-a="renok" data-t="' + _mcEsc(t.id) + '">✓</button>';
+    }
+    var lvl = t ? '<button class="mc-chip sm lvset' + (t.level ? ' on' : '') + '" data-a="teamlvl" data-t="' + _mcEsc(t.id) + '" title="مستوى الفريق">' +
+        (t.level === 1 ? 'م١' : t.level === 2 ? 'م٢' : 'م١ + م٢') + '</button>' : '';
     var h = '<div class="mc-tcard" style="--tc:' + _mcEsc(t ? t.color : '#7f8c8d') + '"><div class="mc-tcard-h">' +
-        '<span class="ico">' + _mcEsc(t ? t.icon : '🙋') + '</span><b>' + _mcEsc(t ? t.name : 'من غير فريق') + '</b>' +
+        '<span class="ico">' + _mcEsc(t ? t.icon : '🙋') + '</span>' + name + lvl +
         '<small>' + _mcNum(kids.length) + ' ولد</small>' +
         (t && !awarded ? '<button class="mc-x" data-a="delteam" data-t="' + _mcEsc(t.id) + '" title="شيل الفريق">✕</button>' : '') + '</div>';
     h += '<div class="mc-kids">';
     kids.forEach(function (k) {
         var open = _mc.ui.editKid === k.phone;
         h += '<span class="mc-kchip' + (open ? ' open' : '') + '"><button data-a="editkid" data-p="' + _mcEsc(k.phone) + '">' + _mcEsc(k.name) +
-            ' <small>' + _mcLvl(k.level) + '</small></button></span>';
+            ' <small>' + _mcLvl(k.level) + '</small>' + (k.guest ? ' <small>اسم بس</small>' : '') + '</button></span>';
         if (open) {
             h += '<span class="mc-move">نقله لـ: ' + n.teams.filter(function (x) { return x.id !== k.teamId; }).map(function (x) {
                 return '<button class="mc-tdot" style="--tc:' + _mcEsc(x.color) + '" data-a="movekid" data-p="' + _mcEsc(k.phone) + '" data-t="' + _mcEsc(x.id) + '">' + _mcEsc(x.icon) + ' ' + _mcEsc(x.name.replace(/^فريق\s+/, '')) + '</button>';
@@ -616,10 +631,12 @@ function _mcGameChecklistHtml(t) {
 function _mcTeamResultsHtml(id) {
     var q = _mc.ui.teamQ[id] || '';
     if (mtNormalize(q).length < 2) return '';
-    if (!_mc.players && !Object.keys(_mc.night.roster).length) return _mcPlayersStateHtml();
     var n = _mc.night;
+    var t = _mcTeam(id), lv = t && t.level ? t.level : n.levels.length === 1 ? n.levels[0] : 0;
+    var guest = _mcGuestBtnsHtml(q, lv, id);
+    if (!_mc.players && !Object.keys(n.roster).length) return _mcPlayersStateHtml() + guest;
     var res = mtSearch(_mcSearchSource('all'), q, 6);
-    if (!res.length) return '<p class="mc-muted">مفيش حد بالاسم ده</p>';
+    if (!res.length) return '<p class="mc-muted">مفيش حد بالاسم ده في اللعبة</p>' + guest;
     return res.map(function (p) {
         var k = n.roster[p.phone], tn = k ? _mcKidTeamName(k) : '';
         var here = k && (k.teamId || 'none') === id;
@@ -627,7 +644,20 @@ function _mcTeamResultsHtml(id) {
             '<b>' + _mcEsc(p.name) + '</b><small class="lv">' + _mcLvl(p.level) + '</small>' +
             (k ? '<small>' + (tn ? 'في ' + _mcEsc(tn) : 'حاضر') + '</small>' : (p.team ? '<small>' + _mcEsc(p.team) + '</small>' : '')) +
             (here ? '<small>✓</small>' : '') + '</button>';
-    }).join('');
+    }).join('') + guest;
+}
+
+/* Add the typed name as a kid with no game account (stars count for tonight only).
+   level 0 = ask: one button per night level. Hidden once a guest with that name is here. */
+function _mcGuestBtnsHtml(q, level, where) {
+    var n = _mc.night, name = String(q || '').trim().replace(/\s+/g, ' ');
+    if (mtNormalize(name).length < 2) return '';
+    var dup = Object.keys(n.roster).some(function (ph) { return n.roster[ph].guest && mtNormalize(n.roster[ph].name) === mtNormalize(name); });
+    if (dup) return '';
+    var lvls = level ? [level] : n.levels.slice().sort();
+    return '<div class="mc-guest"><span class="mc-muted">مش لاقيه؟ ضيفه اسم بس (من غير أكونت، نجومه للسهرة بس):</span>' + lvls.map(function (l) {
+        return '<button class="mc-btn sm" data-a="guest" data-l="' + l + '" data-t="' + _mcEsc(where) + '">➕ ' + _mcEsc(name) + ' <small>' + _mcLvl(l) + '</small></button>';
+    }).join('') + '</div>';
 }
 
 /* Everyone the host can find: game players plus anyone on tonight's roster the player list lacks. */
@@ -660,12 +690,25 @@ function _mcPlayBtnsHtml() {
 function _mcStripHtml() {
     var n = _mc.night;
     if (!n.teams.length) return '';
-    var lead = mtAudienceView(n).leaderId;
+    var lead = mtAudienceView(n).leaderId, turn = _mcTurnTeamId();
     return mtStandings(n).map(function (t) {
         var kids = Object.keys(n.roster).filter(function (ph) { return n.roster[ph].teamId === t.id; }).length;
-        return '<div class="mc-steam' + (t.id === lead ? ' lead' : '') + '" style="--tc:' + _mcEsc(t.color) + '"><span class="ico">' + _mcEsc(t.icon) + '</span>' +
-            '<span class="nm">' + _mcEsc(t.name) + (t.id === lead ? ' 👑' : '') + '</span><b>' + _mcNum(t.score) + '</b><small>' + _mcNum(kids) + ' ولد</small></div>';
+        return '<div class="mc-steam' + (t.id === lead ? ' lead' : '') + (t.id === turn ? ' turn' : '') + '" style="--tc:' + _mcEsc(t.color) + '"><span class="ico">' + _mcEsc(t.icon) + '</span>' +
+            '<span class="nm">' + (t.id === turn ? '🎯 ' : '') + _mcEsc(t.name) + (t.id === lead ? ' 👑' : '') + _mcTeamLvl(t) + '</span><b>' + _mcNum(t.score) + '</b><small>' + _mcNum(kids) + ' ولد</small></div>';
     }).join('');
+}
+
+/* The team whose turn it is: the current question's, else the one picked for the next question. */
+function _mcTurnTeamId() {
+    var cur = _mc.night.current, t = cur ? cur.target : _mc.ui.target;
+    return t && t.mode === 'team' ? t.teamId : null;
+}
+
+/* Give the turn to a team; its level (when it has one tonight) becomes the question level. */
+function _mcTurnTo(id) {
+    var t = _mc.ui.target, tm = _mcTeam(id);
+    t.teamId = tm ? id : null;
+    if (tm && tm.level && _mc.night.levels.indexOf(tm.level) >= 0) t.level = tm.level;
 }
 
 function _mcTargetLevels() {
@@ -690,7 +733,7 @@ function _mcTargetHtml() {
     }).join('');
     if (t.mode === 'team') {
         h += '<span class="mc-sep"></span>' + n.teams.map(function (x) {
-            return '<button class="mc-chip team' + (t.teamId === x.id ? ' on' : '') + '" style="--tc:' + _mcEsc(x.color) + '" data-a="tteam" data-t="' + _mcEsc(x.id) + '">' + _mcEsc(x.icon) + ' ' + _mcEsc(x.name.replace(/^فريق\s+/, '')) + '</button>';
+            return '<button class="mc-chip team' + (t.teamId === x.id ? ' on' : '') + '" style="--tc:' + _mcEsc(x.color) + '" data-a="tteam" data-t="' + _mcEsc(x.id) + '">' + _mcEsc(x.icon) + ' ' + _mcEsc(x.name.replace(/^فريق\s+/, '')) + _mcTeamLvl(x) + '</button>';
         }).join('');
     }
     h += '</div></div>';
@@ -937,17 +980,18 @@ function _mcAwardResults() {
 function _mcResultsHtml() {
     var n = _mc.night, ui = _mc.ui;
     if (mtNormalize(ui.sq).length < 2) return '';
-    if (!_mc.players && !Object.keys(n.roster).length) return _mcPlayersStateHtml();
+    var guest = _mcGuestBtnsHtml(ui.sq, ui.sqLevel === 'all' ? 0 : ui.sqLevel, 'play');
+    if (!_mc.players && !Object.keys(n.roster).length) return _mcPlayersStateHtml() + guest;
     var res = _mcAwardResults(), pts = _mcPointsNow();
     var h = _mc.playersErr ? _mcPlayersStateHtml() : '';
-    if (!res.length) return h + '<p class="mc-muted">مفيش حد بالاسم ده في ' + (ui.sqLevel === 'all' ? 'المستويين' : _mcLvl(ui.sqLevel)) + '</p>';
+    if (!res.length) return h + '<p class="mc-muted">مفيش حد بالاسم ده في ' + (ui.sqLevel === 'all' ? 'المستويين' : _mcLvl(ui.sqLevel)) + '</p>' + guest;
     return h + res.map(function (p) {
         var k = n.roster[p.phone], t = k && k.teamId ? _mcTeam(k.teamId) : null;
         return '<button class="mc-res" data-a="kid" data-p="' + _mcEsc(p.phone) + '"><b>' + _mcEsc(p.name) + '</b><small class="lv">' + _mcLvl(p.level) + '</small>' +
             (t ? '<span class="mc-tag" style="--tc:' + _mcEsc(t.color) + '">' + _mcEsc(t.name) + '</span>' : (p.team ? '<small>' + _mcEsc(p.team) + '</small>' : '')) +
             (k ? '<small>⭐ ' + _mcNum(k.stars) + '</small>' : '<small>مش في الحضور</small>') +
             '<span class="pts' + (pts < 0 ? ' neg' : '') + '">' + _mcPts(pts) + '</span></button>';
-    }).join('');
+    }).join('') + guest;
 }
 
 function _mcTeamBtnsHtml() {
@@ -1161,10 +1205,10 @@ _MC_A.tlevel = function (d) { _mc.ui.target.level = d.v === 'all' ? 'all' : Numb
 _MC_A.tmode = function (d) {
     var t = _mc.ui.target;
     t.mode = d.v;
-    if (t.mode === 'team' && !_mcTeam(t.teamId)) t.teamId = _mc.night.teams.length ? _mc.night.teams[0].id : null;
+    if (t.mode === 'team') _mcTurnTo(_mcTeam(t.teamId) ? t.teamId : _mc.night.teams.length ? _mc.night.teams[0].id : null);
     _mcRefresh();
 };
-_MC_A.tteam = function (d) { _mc.ui.target.teamId = d.t; _mcRefresh(); };
+_MC_A.tteam = function (d) { _mcTurnTo(d.t); _mcRefresh(); };
 _MC_A.tkind = function (d) { _mc.ui.kind = d.k || null; _mcRefresh(); };
 
 /* ---------- actions: awards ---------- */
@@ -1354,7 +1398,8 @@ _MC_A.wheel = function () {
         mtScreenScore(n, lead.id, -amt);
         msg = last.name + ' خد ' + _mcNum(amt) + ' من ' + lead.name + ' (على الشاشة بس)';
     } else if (o.id === 'rescue') {
-        _mc.ui.target = { level: _mc.ui.target.level, mode: 'team', teamId: last.id };
+        _mc.ui.target.mode = 'team';
+        _mcTurnTo(last.id);
         msg = 'السؤال الجاي إنقاذ لـ ' + last.name + ' (اتظبط في «مين يجاوب»)';
     }
     _mc.ui.wheelMsg = msg;
@@ -1486,15 +1531,56 @@ _MC_A.kind = function (d) {
 };
 
 _MC_A.rteams = function (d) {
-    mtMakeRandomTeams(_mc.night, Number(d.v));
+    var n = _mc.night;
+    mtMakeRandomTeams(n, Number(d.v), _mc.ui.gender, n.levels.length === 1 ? n.levels[0] : 0);
     _mcCommit();
+};
+_MC_A.gender = function (d) { _mc.ui.gender = d.v === 'girls' ? 'girls' : 'boys'; _mcRefresh(); };
+
+/* م١ → م٢ → both levels → م١ */
+_MC_A.teamlvl = function (d) {
+    var t = _mcTeam(d.t);
+    if (!t) return;
+    t.level = t.level === 1 ? 2 : t.level === 2 ? 0 : 1;
+    _mcCommit();
+};
+
+_MC_A.ren = function (d) {
+    var t = _mcTeam(d.t);
+    if (!t) return;
+    _mc.ui.renTeam = t.id;
+    _mc.ui.renVal = t.name;
+    _mcRefresh();
+    var inp = _mcEl('mc-tn-' + t.id);
+    if (inp) { inp.focus(); try { inp.select(); } catch (e) { /* ignore */ } }
+};
+_MC_A.renok = function (d) {
+    var t = _mcTeam(d.t), name = String(_mc.ui.renVal || '').trim().replace(/\s+/g, ' ');
+    _mc.ui.renTeam = null;
+    if (t && name) t.name = name;
+    _mcCommit();
+};
+
+/* data-t: a team id or 'none' (setup team cards), or 'play' (the award search: then award as a tap). */
+_MC_A.guest = function (d) {
+    var n = _mc.night, play = d.t === 'play', name = play ? _mc.ui.sq : _mc.ui.teamQ[d.t];
+    name = String(name || '').trim().replace(/\s+/g, ' ');
+    if (mtNormalize(name).length < 2) return;
+    if (play && _mc.ui.neg) { _mcToast('التصحيح بس للي خدوا نقط النهارده'); return; }
+    if (play && !_mcTapOk()) return;
+    var kid = mtAddGuest(n, name, Number(d.l) === 2 ? 2 : 1, play || d.t === 'none' ? null : d.t);
+    if (play) { _mcSave(); _mcView(); _mcTapKid(kid.phone); return; }
+    _mc.ui.teamQ[d.t] = '';
+    _mcCommit();
+    var inp = _mcEl('mc-ts-' + d.t);
+    if (inp) { inp.value = ''; inp.focus(); }
 };
 
 _MC_A.gteam = function (d) {
     var n = _mc.night, g = (_mc.gameTeams || [])[Number(d.i)];
     if (!g || n.teams.length >= 6) return;
     if (n.teams.some(function (t) { return t.source === 'game' && t.gameTeam === g.name; })) return;
-    var t = mtAddGameTeam(n, { name: g.name, color: g.color, logo: g.logo });
+    var t = mtAddGameTeam(n, { name: g.name, color: g.color, logo: g.logo, level: g.level });
     /* game-team kids already here move over only when the host ticks them */
     if (!/^#[0-9a-f]{3,8}$/i.test(t.color || '')) t.color = '#7f8c8d';
     if (!t.icon || t.icon.length > 8) t.icon = '🛡️';
@@ -1642,6 +1728,8 @@ function _mcOnInput(e) {
         var tid = id.slice(6);
         _mc.ui.teamQ[tid] = el.value;
         _mcPaint('mc-tr-' + tid, _mcTeamResultsHtml(tid));
+    } else if (id.indexOf('mc-tn-') === 0) {
+        _mc.ui.renVal = el.value;
     } else if (id === 'mc-title') {
         n.title = el.value.trim() || MC_DEFAULT_TITLE;
         _mcSave(); _mcView();

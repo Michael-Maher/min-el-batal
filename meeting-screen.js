@@ -215,13 +215,14 @@ function _msRenderTags(view, it) {
 function _msRenderTeams(view) {
     var teams = view.teams || [];
     var turn = _msTurnTeam(view), turnId = turn ? turn.id : null;
+    var nextId = turnId && view.nextTeamId !== turnId ? view.nextTeamId : null;
     var h = '';
     teams.forEach(function (t) {
         var old = _ms.scores[t.id];
         var d = old === undefined ? 0 : t.score - old;
         var L = MS_LV[t.level];
-        h += '<div class="ms-team' + (t.id === view.leaderId ? ' lead' : '') + (t.id === turnId ? ' turn' : '') + '" style="--tc:' + _msEsc(t.color) + '">' +
-            (t.id === turnId ? '<div class="turnb">🎯 دوركم</div>' : t.id === view.leaderId ? '<div class="crown">👑</div>' : '') +
+        h += '<div class="ms-team' + (t.id === view.leaderId ? ' lead' : '') + (t.id === turnId ? ' turn' : '') + (t.id === nextId ? ' next' : '') + '" style="--tc:' + _msEsc(t.color) + '">' +
+            (t.id === turnId ? '<div class="turnb">🎯 دوركم</div>' : t.id === nextId ? '<div class="turnb next">⏭ بعدهم</div>' : t.id === view.leaderId ? '<div class="crown">👑</div>' : '') +
             (d ? '<div class="delta' + (d < 0 ? ' neg' : '') + '">' + _msPts(d) + '</div>' : '') +
             '<div class="ico">' + _msEsc(t.icon || '🛡️') + '</div>' +
             '<div class="tx"><div class="nm">' + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</div>' +
@@ -230,7 +231,7 @@ function _msRenderTeams(view) {
     });
     var el = _msEl('ms-teams');
     /* Rebuild only on change so the crown and bump animations do not restart on timer-only views. */
-    var key = JSON.stringify([teams, view.leaderId, turnId]);
+    var key = JSON.stringify([teams, view.leaderId, turnId, nextId]);
     if (el.getAttribute('data-k') !== key) {
         el.setAttribute('data-k', key);
         el.classList.toggle('has-turn', !!turnId);

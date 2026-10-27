@@ -154,6 +154,27 @@ test('teams: logos and colors match game.js', function () {
     });
 });
 
+test('turns: go round in team order; next team only while turns go round', function () {
+    var c = load(), n = freshNight(c);
+    assert.strictEqual(n.turnMode, 'auto');
+    var ids = n.teams.map(function (t) { return t.id; });
+    assert.strictEqual(c.mtNextTeamId(n, ids[0]), ids[1]);
+    assert.strictEqual(c.mtNextTeamId(n, ids[3]), ids[0], 'wraps');
+    assert.strictEqual(c.mtNextTeamId(n, 'gone'), ids[0]);
+    n.current = { item: { id: 'x', kind: 'deep', prompt: 'p' }, target: { level: 1, mode: 'team', teamId: ids[2] }, stage: 'shown', timerEndsAt: 0, timerSec: 0, golden: false };
+    assert.strictEqual(c.mtAudienceView(n).nextTeamId, ids[3]);
+    n.current.nextTeamId = ids[0];
+    assert.strictEqual(c.mtAudienceView(n).nextTeamId, ids[0], 'host picked who is next');
+    n.turnMode = 'manual';
+    assert.strictEqual(c.mtAudienceView(n).nextTeamId, ids[0]);
+    delete n.current.nextTeamId;
+    assert.strictEqual(c.mtAudienceView(n).nextTeamId, null);
+    delete n.turnMode;
+    assert.ok(c.mtTurnAuto(n), 'old saved nights go round');
+    n.current.target.mode = 'individual';
+    assert.strictEqual(c.mtAudienceView(n).nextTeamId, null);
+});
+
 test('roster: game-team kid auto-placed', function () {
     var c = load(), n = freshNight(c);
     var t = c.mtAddGameTeam(n, { name: 'مارمرقس', color: '#111', logo: '⚔️' });

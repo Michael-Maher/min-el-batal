@@ -60,7 +60,8 @@ function mtNewNight(opts) {
         skipped: [],
         multiplier: 1,
         lastKind: null,
-        excluded: []
+        excluded: [],
+        turnMode: 'auto'
     };
 }
 
@@ -188,6 +189,26 @@ function mtSetTeam(night, phone, teamId) {
 
 function mtRemoveFromRoster(night, phone) {
     delete night.roster[phone];
+}
+
+/* Team turns go round in the order the teams were added. turnMode 'auto' (or unset, for nights saved
+   before turns existed) moves the turn on after each team question; 'manual' leaves it to the host. */
+function mtTurnAuto(night) { return night.turnMode !== 'manual'; }
+
+function mtNextTeamId(night, teamId) {
+    var ts = night.teams;
+    if (!ts.length) return null;
+    for (var i = 0; i < ts.length; i++) if (ts[i].id === teamId) return ts[(i + 1) % ts.length].id;
+    return ts[0].id;
+}
+
+/* The team up after the current team question: the one the host picked for next, else (turns going
+   round) the next in order. Null when no team question is up. */
+function mtTurnNext(night) {
+    var cur = night.current, t = cur && cur.target;
+    if (!t || t.mode !== 'team' || !t.teamId) return null;
+    if (cur.nextTeamId && _mtTeam(night, cur.nextTeamId)) return cur.nextTeamId;
+    return mtTurnAuto(night) && night.teams.length > 1 ? mtNextTeamId(night, t.teamId) : null;
 }
 
 function mtPointsForCurrent(night) {
@@ -376,6 +397,7 @@ function mtAudienceView(night) {
         item: cur ? _mtItemView(cur.item, cur) : null,
         stage: cur ? cur.stage : null,
         target: cur ? cur.target : null,
+        nextTeamId: mtTurnNext(night),
         timerEndsAt: cur ? cur.timerEndsAt : 0,
         timerSec: cur ? cur.timerSec : 0,
         golden: cur ? !!cur.golden : false,

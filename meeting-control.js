@@ -838,12 +838,22 @@ function _mcTargetHtml() {
         var dis = m[0] === 'team' && !n.teams.length;
         return '<button class="mc-chip' + (t.mode === m[0] ? ' on' : '') + '" data-a="tmode" data-v="' + m[0] + '"' + (dis ? ' disabled' : '') + '>' + m[1] + '</button>';
     }).join('');
-    if (t.mode === 'team') {
-        h += '<span class="mc-sep"></span>' + n.teams.map(function (x) {
-            return '<button class="mc-chip team' + (t.teamId === x.id ? ' on' : '') + '" style="--tc:' + _mcEsc(x.color) + '" data-a="tteam" data-t="' + _mcEsc(x.id) + '">' + _mcEsc(x.icon) + ' ' + _mcEsc(x.name.replace(/^فريق\s+/, '')) + _mcTeamLvl(x) + '</button>';
-        }).join('');
-    }
     h += '</div></div>';
+    if (t.mode === 'team') {
+        var auto = mtTurnAuto(n), cur = n.current, live = cur && cur.stage !== 'preview';
+        var playing = live && cur.target && cur.target.mode === 'team' ? cur.target.teamId : null;
+        /* while a team question is up, the chip marked «الجاي» is the team after it; otherwise the lit chip is up next */
+        var next = playing ? mtTurnNext(n) : null;
+        h += '<div class="mc-trow"><span class="mc-lbl">الدور</span><div class="mc-chips">' +
+            '<button class="mc-chip' + (auto ? ' on' : '') + '" data-a="turnmode" data-v="auto" title="بعد كل سؤال فريق، الدور بيروح للفريق اللي بعده">🔄 بالدور</button>' +
+            '<button class="mc-chip' + (!auto ? ' on' : '') + '" data-a="turnmode" data-v="manual" title="الدور بيفضل على الفريق اللي تختاره">✋ أنا أختار</button>' +
+            '<span class="mc-sep"></span>' + n.teams.map(function (x) {
+                var on = playing ? x.id === playing : t.teamId === x.id;
+                return '<button class="mc-chip team' + (on ? ' on' : '') + '" style="--tc:' + _mcEsc(x.color) + '" data-a="tteam" data-t="' + _mcEsc(x.id) + '">' +
+                    (x.id === playing ? '🎯 ' : '') + _mcEsc(x.icon) + ' ' + _mcEsc(x.name.replace(/^فريق\s+/, '')) + _mcTeamLvl(x) + (x.id === next ? ' <small class="lv">الجاي</small>' : '') + '</button>';
+            }).join('') + '</div></div>';
+        h += '<p class="mc-muted mc-turnnote">' + (auto ? '🔄 الدور بيلف لوحده بعد كل سؤال فريق بالترتيب ده. دوس على أي فريق عشان تغيّر الدور، والباقي يكمّل بعده.' : '✋ الدور بيفضل على الفريق اللي مختاره لحد ما تغيّره.') + '</p>';
+    }
     var counts = _mcKindCounts(_mcPickLevel(t.level)), kinds = mtAvailableKinds(_mc.pool, n);
     if (ui.kind && !counts[ui.kind]) ui.kind = null;
     h += '<div class="mc-trow"><span class="mc-lbl">الفقرة</span><div class="mc-chips sm"><button class="mc-chip' + (!ui.kind ? ' on' : '') + '" data-a="tkind" data-k="">🎲 عشوائي</button>' +
@@ -1163,7 +1173,12 @@ function _mcLeaveCurrent() {
     var n = _mc.night, cur = n.current;
     if (!cur) return;
     if (cur.stage === 'preview') { if (n.skipped.indexOf(cur.item.id) < 0) n.skipped.push(cur.item.id); }
-    else _mcMarkUsed(cur.item);
+    else {
+        _mcMarkUsed(cur.item);
+        /* a team question was played: the team picked for next, or (turns going round) the next in order, is up */
+        var next = mtTurnNext(n);
+        if (next && _mc.ui.target.mode === 'team') _mcTurnTo(next);
+    }
 }
 
 function _mcPickItem(golden) {
@@ -1315,7 +1330,26 @@ _MC_A.tmode = function (d) {
     if (t.mode === 'team') _mcTurnTo(_mcTeam(t.teamId) ? t.teamId : _mc.night.teams.length ? _mc.night.teams[0].id : null);
     _mcRefresh();
 };
-_MC_A.tteam = function (d) { _mcTurnTo(d.t); _mcRefresh(); };
+/* Picking a team: while a team question is up it plays next; on a preview it takes this question
+   (a new one when its level differs); otherwise it gets the next question. */
+_MC_A.tteam = function (d) {
+    var n = _mc.night, cur = n.current, tm = _mcTeam(d.t);
+    if (!tm) return;
+    var team = cur && cur.target && cur.target.mode === 'team';
+    if (team && cur.stage !== 'preview') {
+        cur.nextTeamId = d.t;
+        _mcCommit();
+        return;
+    }
+    _mcTurnTo(d.t);
+    if (team && cur.stage === 'preview') {
+        if (!tm.level || cur.target.level === tm.level || cur.target.level === 'all') { cur.target.teamId = d.t; _mcCommit(); }
+        else _mcNext(cur.golden);
+        return;
+    }
+    _mcRefresh();
+};
+_MC_A.turnmode = function (d) { _mc.night.turnMode = d.v === 'manual' ? 'manual' : 'auto'; _mcCommit(); };
 _MC_A.tkind = function (d) { _mc.ui.kind = d.k || null; _mcRefresh(); };
 
 /* ---------- actions: awards ---------- */

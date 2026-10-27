@@ -19,6 +19,7 @@ var MC_SCREEN_NOTE = 'دوس ‹ملء الشاشة› في شاشة الولا�
 var MC_BIBLE = { 1: 'l1_bible', 2: 'l2_bible' };
 var MC_LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
 var MC_PICK_NAMES = 8;
+var MC_WORTH = [5, 10, 15, 20, 30];  /* quick choices for what a question is worth */
 var MC_WHEEL = [
     { id: 'double', label: 'النقط دبل في السؤال الجاي' },
     { id: 'gift', label: '٥ نجوم هدية لحد عشوائي من الحاضرين' },
@@ -890,7 +891,7 @@ function _mcItemHtml() {
         '<span class="mc-badge">' + _mcEsc(MT_KINDS[k] ? MT_KINDS[k].label : k) + ' · ' + _mcLvl(t.level) + '</span>' +
         (t.mode === 'speed' ? '<span class="mc-badge">⚡ سرعة</span>' : '') +
         (team ? '<span class="mc-badge" style="--tc:' + _mcEsc(team.color) + '">دور ' + _mcEsc(team.name) + '</span>' : '') +
-        (cur.golden ? '<span class="mc-badge gold">🏅 السؤال الدهبي · ١٥ نجمة</span>' : '') +
+        (cur.golden ? '<span class="mc-badge gold">🏅 السؤال الدهبي · ' + _mcNum(mtPointsForCurrent(n)) + ' نجمة</span>' : '') +
         '<span class="mc-stage ' + stage[0] + '">' + stage[1] + '</span><span id="mc-timer" class="mc-timer"></span></div>';
     h += '<div class="mc-ibody">' + _mcItemBodyHtml(it, cur) + '</div>';
     var ans = _mcAnswerText(it);
@@ -1019,19 +1020,25 @@ function _mcExtraHtml() {
 /* ---------- play: award panel ---------- */
 
 function _mcPointsNow() {
-    return _mc.ui.neg ? -MT_POINTS : mtPointsForCurrent(_mc.night);
+    return _mc.ui.neg ? -mtBasePoints(_mc.night) : mtPointsForCurrent(_mc.night);
 }
 
 function _mcAwTopHtml() {
     var n = _mc.night, ui = _mc.ui, pts = _mcPointsNow();
-    var note = ui.neg ? 'تصحيح: الضغطة الجاية بتشيل ٥' : (n.current && n.current.golden ? 'السؤال الدهبي' : n.multiplier > 1 ? 'دبل!' : '');
+    var base = mtBasePoints(n);
+    var note = ui.neg ? 'خصم: الضغطة الجاية بتشيل ' + _mcNum(base) : (n.current && n.current.golden ? 'السؤال الدهبي ×٣' : n.multiplier > 1 ? 'دبل!' : '');
     var last = null;
     for (var i = n.awards.length - 1; i >= 0 && !last; i--) last = n.awards[i];
     var undoTxt = '↩ تراجع آخر نقطة';
     var target = _mcUndoTarget();
     if (_mc.undoArmed && Date.now() - _mc.undoArmed < 4000 && target) undoTxt = 'متأكد؟ تراجع عن ' + _mcPts(target.points) + ' ' + _mcAwardWho(target);
     return '<div class="mc-pts' + (pts < 0 ? ' neg' : '') + '"><span>كل ضغطة على اسم</span><b>⭐ ' + _mcPts(pts) + '</b>' + (note ? '<small>' + _mcEsc(note) + '</small>' : '') + '</div>' +
-        '<div class="mc-row"><button class="mc-btn' + (ui.neg ? ' danger on' : '') + '" data-a="neg">' + (ui.neg ? '✕ إلغاء التصحيح' : '−٥ تصحيح') + '</button>' +
+        '<div class="mc-row mc-worth"><span class="mc-lbl">السؤال بكام؟</span>' + MC_WORTH.map(function (v) {
+            return '<button class="mc-chip' + (v === base ? ' on' : '') + '" data-a="worth" data-v="' + v + '">' + _mcNum(v) + '</button>';
+        }).join('') +
+        '<span class="mc-counter"><button class="mc-btn sm" data-a="worth" data-v="' + Math.max(1, base - 1) + '">−</button><b>' + _mcNum(base) + '</b>' +
+        '<button class="mc-btn sm" data-a="worth" data-v="' + Math.min(100, base + 1) + '">+</button></span></div>' +
+        '<div class="mc-row"><button class="mc-btn' + (ui.neg ? ' danger on' : ' danger') + '" data-a="neg">' + (ui.neg ? '✕ إلغاء الخصم' : '➖ خصم ' + _mcNum(base)) + '</button>' +
         '<button class="mc-btn' + (_mc.undoArmed ? ' danger' : '') + '" data-a="undo"' + (target ? '' : ' disabled') + '>' + _mcEsc(undoTxt) + '</button></div>' +
         /* always one line, so the panel below never shifts after the first award */
         '<div class="mc-last">آخر نقطة: ' + (last ? _mcEsc(_mcPts(last.points) + ' ' + _mcAwardWho(last)) + (last.kind === 'undo' ? ' (تراجع)' : '') : '—') + '</div>';
@@ -1224,7 +1231,7 @@ function _mcNext(golden) {
     _mcSetCurrent(it, keepGolden);
     _mc.ui.choose = null;
     _mcCommit();
-    if (keepGolden) _mcFx({ type: 'golden' });
+    if (keepGolden) _mcFx({ type: 'golden', points: mtPointsForCurrent(n), base: mtBasePoints(n) });
 }
 
 var _MC_A = {};
@@ -1436,6 +1443,13 @@ _MC_A.choosex = function () { _mc.ui.choose = null; _mc.ui.pick = null; _mcRefre
 _MC_A.team = function (d) { if (_mcTapOk()) _mcGive({ teamId: d.t }, _mcPointsNow()); };
 
 _MC_A.neg = function () { _mc.ui.neg = !_mc.ui.neg; _mcRefresh(); };
+/* What a right answer is worth from now on (golden and دبل multiply it); a خصم takes the same off. */
+_MC_A.worth = function (d) {
+    var v = Math.floor(Number(d.v));
+    if (!(v >= 1 && v <= 100)) return;
+    _mc.night.points = v;
+    _mcCommit();
+};
 
 _MC_A.undo = function () {
     if (!_mc.undoArmed || Date.now() - _mc.undoArmed > 4000) {
@@ -1521,7 +1535,7 @@ _MC_A.wheel = function () {
     var mult = n.multiplier;
     if (o.id === 'double') {
         n.multiplier = 2;
-        msg = 'النقط دبل في السؤال الجاي (' + _mcPts(MT_POINTS * 2) + ')';
+        msg = 'النقط دبل في السؤال الجاي (' + _mcPts(mtBasePoints(n) * 2) + ')';
     } else if (o.id === 'gift') {
         var ph = roster[Math.floor(Math.random() * roster.length)];
         msg = '٥ نجوم هدية لـ ' + n.roster[ph].name;
@@ -1853,6 +1867,8 @@ _MC_A.start = function () {
     n.started = true;
     _mc.ui.msg = '';
     _mc.ui.target = { level: n.levels[0], mode: 'individual', teamId: null };
+    /* with teams, the night starts on team turns: the first team is up */
+    if (n.teams.length) { _mc.ui.target.mode = 'team'; _mcTurnTo(n.teams[0].id); }
     _mcSave();
     _mcPhase('play');
     _mcView();

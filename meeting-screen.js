@@ -22,11 +22,8 @@ var _ms = {
     lastTick: -1, timeoutFor: 0,
     muted: false, sfxAt: {},
     fxGen: 0, fxTimers: [], fxActive: false, fxFull: '', fxFullView: '',
-    boardKey: '', boardOn: false, lastAwardId: undefined
+    boardOn: false
 };
-var MS_BOARD_HOLD_MS = 6000;   /* after an award the panel stays on the recipients this long */
-var MS_BOARD_PAUSE_MS = 3500;  /* auto-scroll pause at the top and at the bottom */
-var MS_BOARD_ROWS_PER_S = 0.7; /* auto-scroll speed */
 
 /* ---------- helpers ---------- */
 
@@ -47,6 +44,12 @@ function _msPts(n) {
 }
 
 function _msEl(id) { return document.getElementById(id); }
+
+function _msTeamById(id) {
+    var teams = (_ms.view && _ms.view.teams) || [];
+    for (var i = 0; i < teams.length; i++) if (teams[i].id === id) return teams[i];
+    return null;
+}
 
 function _msTeamByName(name) {
     var teams = (_ms.view && _ms.view.teams) || [];
@@ -74,10 +77,9 @@ function msBoot() {
     _msInitFullscreen();
     _msInitCursor();
     setInterval(_msTimerTick, 200);
-    setInterval(_msBoardScrollTick, 40);
     _msSkyInit();
-    window.addEventListener('resize', function () { _msFit(); _msFitNames(_msEl('mb-secs'), true, 2.8); _msFitTeamNames(); });
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { _msFit(); _msFitTeamNames(); });
+    window.addEventListener('resize', function () { _msFit(); _msFitTeamBoard(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { _msFit(); _msFitTeamBoard(); });
     if (typeof BroadcastChannel === 'undefined') {
         _msRenderIdle(null, 'المتصفح ده مش بيدعم ربط الشاشتين، افتحها من Chrome');
         return;
@@ -122,9 +124,8 @@ function msRender(view) {
     if (_ms.fxActive && (sig !== _ms.itemSig || (_ms.fxFull === 'board' && JSON.stringify(view) !== _ms.fxFullView))) _msFxClear();
 
     _ms.view = view;
-    _msRenderTags(view, it);
-    _msRenderTeams(view);
-    var boardToggled = _msRenderBoard(view);
+    var tagsChanged = _msRenderTags(view, it);
+    var boardToggled = _msRenderTeams(view) || tagsChanged;
 
     var turn = _msTurnTeam(view);
     var stageKey = JSON.stringify([it, it ? stage : view.stage, !!view.golden, it ? '' : (view.title || ''), it || !turn ? '' : turn.id + turn.name]);
@@ -199,54 +200,66 @@ function _msRenderTags(view, it) {
     if (it) {
         var kind = (typeof MT_KINDS !== 'undefined' && MT_KINDS[it.kind]) ? MT_KINDS[it.kind].label : '';
         var t = view.target || {};
-        h += '<span class="ms-tag">' + _msEsc(kind) + '</span>';
+        h += '<span class="ms-tag">' + _msEsc(kind) + (view.points ? ' <span class="pts">· ⭐ ' + _msNum(view.points) + '</span>' : '') + '</span>';
         if (MS_LV[t.level]) h += '<span class="ms-tag lv ' + MS_LV[t.level].cls + '">' + MS_LV[t.level].tag + '</span>';
         else if (t.level === 'all') h += '<span class="ms-tag lvall">🌟⚡ الكل</span>';
         if (view.golden) h += '<span class="ms-tag gold">🏅 السؤال الدهبي · ×٣</span>';
-        var turn = _msTurnTeam(view);
-        if (turn) h += '<span class="ms-tag turn" style="--tc:' + _msEsc(turn.color) + '">🎯 دور ' + _msEsc(turn.name) + '</span>';
+        var turn = _msTurnTeam(view), up = view.stage === 'revealed' ? _msTeamById(view.nextTeamId) : null;
+        /* once the answer is up, the team after this one gets ready */
+        if (up) h += '<span class="ms-tag nextup" style="--tc:' + _msEsc(up.color) + '">⏭ الدور الجاي: ' + _msEsc(up.name) + '، جهّزوا نفسكم</span>';
+        else if (turn) h += '<span class="ms-tag turn" style="--tc:' + _msEsc(turn.color) + '">🎯 دور ' + _msEsc(turn.name) + '</span>';
         else if (t.mode === 'speed') h += '<span class="ms-tag mode">⚡ سؤال سرعة: أول واحد يرفع إيده</span>';
         else if (t.mode === 'individual') h += '<span class="ms-tag mode">🙋 سؤال فردي</span>';
     }
     var el = _msEl('ms-tags');
-    if (el.innerHTML !== h) el.innerHTML = h;
+    if (el.innerHTML === h) return false;
+    el.innerHTML = h;
+    return true; /* the top row may have changed height */
 }
 
+/* The side panel: tonight's teams, one section per level, each by score. Returns true when the panel
+   was shown or hidden (the stage width changed). */
 function _msRenderTeams(view) {
     var teams = view.teams || [];
+    var on = teams.length > 0;
+    var toggled = on !== _ms.boardOn;
+    _ms.boardOn = on;
+    _msEl('ms').classList.toggle('board', on);
     var turn = _msTurnTeam(view), turnId = turn ? turn.id : null;
     var nextId = turnId && view.nextTeamId !== turnId ? view.nextTeamId : null;
-    var h = '';
-    teams.forEach(function (t) {
-        var old = _ms.scores[t.id];
-        var d = old === undefined ? 0 : t.score - old;
-        var L = MS_LV[t.level];
-        h += '<div class="ms-team' + (t.id === view.leaderId ? ' lead' : '') + (t.id === turnId ? ' turn' : '') + (t.id === nextId ? ' next' : '') + '" style="--tc:' + _msEsc(t.color) + '">' +
-            (t.id === turnId ? '<div class="turnb">🎯 دوركم</div>' : t.id === nextId ? '<div class="turnb next">⏭ بعدهم</div>' : t.id === view.leaderId ? '<div class="crown">👑</div>' : '') +
-            (d ? '<div class="delta' + (d < 0 ? ' neg' : '') + '">' + _msPts(d) + '</div>' : '') +
-            '<div class="ico">' + _msEsc(t.icon || '🛡️') + '</div>' +
-            '<div class="tx"><div class="nm">' + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</div>' +
-            '<div class="sc' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</div></div>' +
-            (L ? '<span class="tlv ' + L.cls + '">' + (t.level === 1 ? '🌟 <i>مستوى </i>أول' : '⚡ <i>مستوى </i>تاني') + '</span>' : '') + '</div>';
-    });
-    var el = _msEl('ms-teams');
-    /* Rebuild only on change so the crown and bump animations do not restart on timer-only views. */
-    var key = JSON.stringify([teams, view.leaderId, turnId, nextId]);
-    if (el.getAttribute('data-k') !== key) {
-        el.setAttribute('data-k', key);
-        el.classList.toggle('has-turn', !!turnId);
-        el.classList.toggle('many', teams.length > 4);
-        el.classList.toggle('crowd', teams.length > 6);
-        /* more than 8 teams: rows of up to 8, filled evenly */
-        var rows = Math.ceil(teams.length / 8);
-        el.classList.toggle('rows', rows > 1);
-        el.style.setProperty('--per', Math.ceil(teams.length / Math.max(1, rows)));
-        el.innerHTML = h;
-        _msFitTeamNames();
-        _msFit(); /* the team bar may have grown or shrunk, and the stage with it */
-    }
+    var deltas = {};
+    teams.forEach(function (t) { var old = _ms.scores[t.id]; if (old !== undefined && t.score !== old) deltas[t.id] = t.score - old; });
     _ms.scores = {};
     teams.forEach(function (t) { _ms.scores[t.id] = t.score; });
+
+    var el = _msEl('mb-secs');
+    /* Rebuild only on change so the turn glow and the deltas do not restart on timer-only views. */
+    var key = JSON.stringify([teams, view.leaderId, turnId, nextId]);
+    if (el.getAttribute('data-k') === key) return toggled;
+    el.setAttribute('data-k', key);
+    el.classList.toggle('has-turn', !!turnId);
+
+    var groups = {};
+    teams.forEach(function (t, i) { var l = MS_LV[t.level] ? t.level : 0; (groups[l] = groups[l] || []).push({ t: t, i: i }); });
+    var levels = Object.keys(groups).sort(function (a, b) { return (Number(a) || 9) - (Number(b) || 9); });
+    el.innerHTML = levels.map(function (l) {
+        var L = MS_LV[l], rows = groups[l].sort(function (a, b) { return (b.t.score - a.t.score) || (a.i - b.i); });
+        return '<section class="mb-sec' + (L ? ' ' + L.cls : '') + '" style="flex-grow:' + (rows.length + 1.2) + '"><div class="mb-h"><span>' +
+            (L ? (Number(l) === 1 ? '🌟 فرق المستوى الأول' : '⚡ فرق المستوى التاني') : 'الفرق') + '</span></div><div class="tb-list">' +
+            rows.map(function (x, r) {
+                var t = x.t, d = deltas[t.id], medal = t.score > 0 && r < 3;
+                var tag = t.id === turnId ? '🎯 دوركم' : t.id === nextId ? '⏭ بعدهم' : '';
+                return '<div class="mb-row tb-row' + (medal ? ' r' + (r + 1) : '') + (t.id === turnId ? ' turn' : '') + (t.id === nextId ? ' next' : '') + '" style="--tc:' + _msEsc(t.color) + '">' +
+                    '<span class="mb-rk' + (medal ? ' md' : '') + '"><i>' + (medal ? ['🥇', '🥈', '🥉'][r] : _msNum(r + 1)) + '</i></span>' +
+                    '<span class="tb-ico">' + _msEsc(t.icon || '🛡️') + '</span>' +
+                    '<span class="tb-tx"><span class="tb-nm">' + (t.id === view.leaderId ? '👑 ' : '') + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</span>' +
+                    (tag ? '<span class="tb-tag">' + tag + '</span>' : '') + '</span>' +
+                    '<span class="mb-st' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</span>' +
+                    (d ? '<span class="tb-delta' + (d < 0 ? ' neg' : '') + '">' + _msPts(d) + '</span>' : '') + '</div>';
+            }).join('') + '</div></section>';
+    }).join('');
+    _msFitTeamBoard();
+    return toggled;
 }
 
 function _msItemHtml(it, rev, a) {
@@ -582,7 +595,7 @@ var _MS_FX = {
     golden: function (fx, el) {
         el.innerHTML = '<div class="fx-dim"></div><div class="fx-rays"></div><div class="fx-col">' +
             '<div class="fx-medal">🏅</div>' + _msTitle('', 'السؤال الدهبي') +
-            '<div class="fx-sub">⭐ ١٥ نجمة بدل ٥!</div></div>';
+            '<div class="fx-sub">⭐ ' + _msNum(fx.points || 15) + ' نجمة بدل ' + _msNum(fx.base || 5) + '!</div></div>';
         _msSfx('golden');
         _msConfetti(150, 2000, ['#FFD700', '#FFE875', '#D4A017', '#ffffff']);
         _msFxEndAfter(3400);
@@ -730,141 +743,20 @@ function _msFitNames(root, allowWrap, floorVh) {
     });
 }
 
-/* Team names: one line at the biggest size that fits, down to 2.4vh; a longer name wraps to two
-   lines, and a single word still too wide shrinks on down to 1.6vh. */
-function _msFitTeamNames() {
-    var floor = innerHeight * 0.024, last = innerHeight * 0.016;
-    Array.prototype.forEach.call(document.querySelectorAll('#ms-teams .nm'), function (el) {
+/* Row height per level section: as tall as fits (3.6vh to 8.5vh), then each team name shrinks to one line. */
+function _msFitTeamBoard() {
+    var vh = innerHeight / 100;
+    Array.prototype.forEach.call(document.querySelectorAll('#mb-secs .tb-list'), function (list) {
+        var n = list.children.length;
+        if (!n) return;
+        var gap = parseFloat(getComputedStyle(list).rowGap) || 0;
+        var rh = Math.max(3.6 * vh, Math.min(8.5 * vh, (list.clientHeight - gap * (n - 1)) / n));
+        list.style.setProperty('--rh', rh.toFixed(1) + 'px');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#mb-secs .tb-nm'), function (el) {
         el.style.fontSize = '';
-        el.classList.remove('wrap');
         var f = parseFloat(getComputedStyle(el).fontSize);
-        var over = function () { return el.scrollWidth > el.clientWidth + 1; };
-        while (f > floor && over()) { f = Math.max(floor, f - 1); el.style.fontSize = f + 'px'; }
-        if (!over()) return;
-        el.classList.add('wrap');
-        while (f > last && over()) { f = Math.max(last, f - 1); el.style.fontSize = f + 'px'; }
-    });
-}
-
-/* Returns true when the panel was shown or hidden (the stage width changed). */
-function _msRenderBoard(view) {
-    var kids = view.kids || {};
-    var levels = Object.keys(kids);
-    var total = 0;
-    levels.forEach(function (l) { total += kids[l].length; });
-    var on = total > 0;
-    var toggled = on !== _ms.boardOn;
-    _ms.boardOn = on;
-    _msEl('ms').classList.toggle('board', on);
-
-    var la = view.lastAward || null;
-    var newAward = !!la && _ms.lastAwardId !== undefined && la.id !== _ms.lastAwardId;
-    _ms.lastAwardId = la ? la.id : null;
-    var key = JSON.stringify(kids);
-    if (key === _ms.boardKey && !newAward) return toggled;
-    _ms.boardKey = key;
-
-    var secs = _msEl('mb-secs');
-    if (secs.getAttribute('data-l') !== levels.join(',')) {
-        secs.setAttribute('data-l', levels.join(','));
-        secs.innerHTML = levels.map(function (l) {
-            var L = MS_LV[l];
-            return '<section class="mb-sec' + (L ? ' ' + L.cls : '') + '" data-l="' + l + '"><div class="mb-h"><span>' + (L ? L.title : _msEsc(_msLevelLabel(+l))) +
-                '</span></div><div class="mb-vp"><div class="mb-list"></div></div></section>';
-        }).join('');
-    }
-    var hits = {};
-    if (newAward) la.keys.forEach(function (k) { hits[k] = true; });
-    levels.forEach(function (l) {
-        _msBoardSection(secs.querySelector('.mb-sec[data-l="' + l + '"]'), kids[l], hits, newAward);
-    });
-    return toggled;
-}
-
-/* Update one level's rows in place, keyed by kid key, with a FLIP slide to the new order. */
-function _msBoardSection(sec, kids, hits, newAward) {
-    var vp = sec.querySelector('.mb-vp'), list = sec.querySelector('.mb-list');
-    var old = {}, firstTop = {};
-    Array.prototype.forEach.call(list.querySelectorAll('.mb-row[data-k]'), function (r) {
-        old[r.getAttribute('data-k')] = r;
-        firstTop[r.getAttribute('data-k')] = r.getBoundingClientRect().top;
-    });
-    var seen = {}, hitRows = [];
-    kids.forEach(function (k, i) {
-        var row = old[k.key];
-        var isNew = !row;
-        if (isNew) {
-            row = document.createElement('div');
-            row.setAttribute('data-k', k.key);
-        }
-        var prevStars = row.getAttribute('data-s');
-        row.className = 'mb-row' + (k.stars > 0 && i < 3 ? ' r' + (i + 1) : '') + (k.stars > 0 ? '' : ' zero') + (isNew && _ms.boardOn && list.children.length ? ' enter' : '');
-        row.innerHTML = _msRowInner(k, i);
-        if (prevStars !== null && +prevStars !== k.stars) row.querySelector('.mb-st').classList.add('bump');
-        row.setAttribute('data-s', k.stars);
-        list.appendChild(row); /* appending in order is the reorder */
-        seen[k.key] = true;
-        if (hits[k.key]) hitRows.push(row);
-    });
-    /* rows of kids no longer listed fade out where they were */
-    var listTop = list.getBoundingClientRect().top;
-    Object.keys(old).forEach(function (key) {
-        if (seen[key]) return;
-        var r = old[key];
-        r.removeAttribute('data-k');
-        r.className += ' gone';
-        r.style.top = (firstTop[key] - listTop) + 'px';
-        setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 600);
-    });
-    _msFitNames(list, true, 2.8); /* before measuring the new positions: a wrapped name makes its row taller */
-    /* on an award, bring the highest recipient into view and hold there */
-    var st = vp._as || (vp._as = { mode: 'pauseTop', until: Date.now() + MS_BOARD_PAUSE_MS, pos: 0 });
-    if (newAward && hitRows.length) {
-        var target = hitRows[0].offsetTop - (vp.clientHeight - hitRows[0].offsetHeight) / 2;
-        st.pos = Math.max(0, Math.min(vp.scrollHeight - vp.clientHeight, target));
-        vp.scrollTop = st.pos;
-        st.mode = 'hold';
-        st.until = Date.now() + MS_BOARD_HOLD_MS;
-    }
-    /* FLIP: rows that moved start at their old place and slide to the new one */
-    Object.keys(firstTop).forEach(function (key) {
-        if (!seen[key]) return;
-        var r = old[key];
-        var dy = firstTop[key] - r.getBoundingClientRect().top;
-        if (!dy) return;
-        r.style.transition = 'none';
-        r.style.transform = 'translateY(' + dy + 'px)';
-        void r.offsetWidth;
-        r.style.transition = 'transform .8s cubic-bezier(.2,.8,.2,1)';
-        r.style.transform = '';
-    });
-    hitRows.forEach(function (r) { r.classList.remove('hit'); void r.offsetWidth; r.classList.add('hit'); });
-}
-
-/* Slow auto-scroll for levels with more kids than fit: pause at the top, glide down, pause, glide back. */
-function _msBoardScrollTick() {
-    if (!_ms.boardOn) return;
-    var now = Date.now();
-    Array.prototype.forEach.call(document.querySelectorAll('#mb-secs .mb-vp'), function (vp) {
-        var st = vp._as || (vp._as = { mode: 'pauseTop', until: now + MS_BOARD_PAUSE_MS, pos: 0 });
-        var max = vp.scrollHeight - vp.clientHeight;
-        if (max <= 1) { if (vp.scrollTop) vp.scrollTop = 0; st.pos = 0; return; }
-        var row = vp.querySelector('.mb-row');
-        var step = (row ? row.offsetHeight * 1.12 : 40) * MS_BOARD_ROWS_PER_S * 0.04;
-        if (st.mode === 'hold' || st.mode === 'pauseTop' || st.mode === 'pauseBottom') {
-            if (now < st.until) return;
-            st.mode = st.mode === 'pauseBottom' ? 'up' : (st.pos >= max - 1 ? 'pauseBottom' : 'down');
-            if (st.mode === 'pauseBottom') st.until = now + MS_BOARD_PAUSE_MS;
-            return;
-        }
-        if (st.mode === 'down') {
-            st.pos = Math.min(max, st.pos + step);
-            if (st.pos >= max) { st.mode = 'pauseBottom'; st.until = now + MS_BOARD_PAUSE_MS; }
-        } else {
-            st.pos = Math.max(0, st.pos - step * 4);
-            if (st.pos <= 0) { st.mode = 'pauseTop'; st.until = now + MS_BOARD_PAUSE_MS; }
-        }
-        vp.scrollTop = st.pos;
+        while (f > 1.6 * vh && el.scrollWidth > el.clientWidth + 1) { f -= 1; el.style.fontSize = f + 'px'; }
     });
 }
 

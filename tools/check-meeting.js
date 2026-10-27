@@ -223,6 +223,22 @@ test('multiplier', function () {
     assert.strictEqual(c.mtPointsForCurrent(n), 15);
 });
 
+test('question worth set by the host', function () {
+    var c = load(), n = freshNight(c);
+    assert.strictEqual(n.points, 5);
+    n.points = 10;
+    n.current = { golden: false };
+    assert.strictEqual(c.mtPointsForCurrent(n), 10);
+    n.multiplier = 2;
+    assert.strictEqual(c.mtPointsForCurrent(n), 20);
+    n.multiplier = 1; n.current.golden = true;
+    assert.strictEqual(c.mtPointsForCurrent(n), 30, 'golden is three questions');
+    delete n.points;
+    assert.strictEqual(c.mtBasePoints(n), 5, 'old saved nights');
+    n.points = 'x';
+    assert.strictEqual(c.mtBasePoints(n), 5);
+});
+
 test('undo reverses team award', function () {
     var c = load(), n = teamAwardNight(c);
     var u = c.mtUndoLast(n);

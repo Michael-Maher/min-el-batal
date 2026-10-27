@@ -1,7 +1,7 @@
 /* Meeting night core: state, teams, awards, audience projection.
    Pure logic: no DOM, no Firestore. Shared by the control window and the projector window. */
-var MT_POINTS = 5;
-var MT_GOLDEN_POINTS = 15;
+var MT_POINTS = 5;          /* a question's worth unless the host sets night.points */
+var MT_GOLDEN_FACTOR = 3;    /* the golden question is worth three questions */
 var MT_STORAGE_KEY = 'meb_meeting_night';
 
 /* Random teams are named after saints: boys' teams after saints, girls' teams after women saints. */
@@ -61,7 +61,8 @@ function mtNewNight(opts) {
         multiplier: 1,
         lastKind: null,
         excluded: [],
-        turnMode: 'auto'
+        turnMode: 'auto',
+        points: MT_POINTS
     };
 }
 
@@ -211,9 +212,16 @@ function mtTurnNext(night) {
     return mtTurnAuto(night) && night.teams.length > 1 ? mtNextTeamId(night, t.teamId) : null;
 }
 
+/* What the host set a question to be worth (MT_POINTS on nights saved before it could be set). */
+function mtBasePoints(night) {
+    var p = Math.floor(Number(night.points));
+    return p > 0 ? p : MT_POINTS;
+}
+
 function mtPointsForCurrent(night) {
-    if (night.current && night.current.golden) return MT_GOLDEN_POINTS;
-    return MT_POINTS * (night.multiplier || 1);
+    var base = mtBasePoints(night);
+    if (night.current && night.current.golden) return base * MT_GOLDEN_FACTOR;
+    return base * (night.multiplier || 1);
 }
 
 function _mtTeamPhones(night, teamId) {
@@ -401,6 +409,7 @@ function mtAudienceView(night) {
         timerEndsAt: cur ? cur.timerEndsAt : 0,
         timerSec: cur ? cur.timerSec : 0,
         golden: cur ? !!cur.golden : false,
+        points: cur ? mtPointsForCurrent(night) : 0,
         kids: _mtBoard(night),
         lastAward: _mtLastAward(night)
     };

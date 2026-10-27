@@ -30,7 +30,9 @@ test('teams: random teams use the saint presets of the gender', function () {
     c.mtMakeRandomTeams(n, 4, 'boys', 1);
     assert.deepStrictEqual(plain(n.teams.map(function (t) { return t.id; })), ['george', 'mina', 'mercurius', 'antony']);
     assert.strictEqual(n.teams[0].name, 'فريق مارجرجس');
-    assert.strictEqual(n.teams[0].color, '#e74c3c');
+    assert.strictEqual(n.teams[0].color, '#6C5CE7');
+    assert.strictEqual(n.teams[0].icon, '⚔️');
+    assert.strictEqual(n.teams[1].icon, '🛡️', 'next free game logo');
     assert.strictEqual(n.teams[0].source, 'random');
     assert.strictEqual(n.teams[0].gender, 'boys');
     assert.strictEqual(n.teams[0].level, 1);
@@ -39,11 +41,11 @@ test('teams: random teams use the saint presets of the gender', function () {
     assert.strictEqual(n.teams[4].name, 'فريق القديسة دميانة');
     assert.strictEqual(n.teams[4].gender, 'girls');
     assert.strictEqual(n.teams[4].level, 2);
-    assert.strictEqual(n.teams[4].color, '#9b59b6', 'first color no team has');
+    assert.strictEqual(n.teams[4].color, '#FDCB6E', 'first game color no team has');
     c.mtMakeRandomTeams(n, 1, 'girls');
     assert.strictEqual(n.teams.length, 6);
     assert.strictEqual(n.teams[5].id, 'marina');
-    assert.strictEqual(n.teams[5].level, 0, 'no level given: both levels');
+    assert.strictEqual(n.teams[5].level, 0, 'no level given: not set yet');
     var colors = n.teams.map(function (t) { return t.color; });
     assert.strictEqual(new Set(colors).size, 6, 'mixed genders never share a color');
 });
@@ -57,10 +59,10 @@ test('teams: game team keeps its level', function () {
 
 test('guests: tonight only, never synced, not found by id', function () {
     var c = load(), n = freshNight(c);
-    var g = c.mtAddGuest(n, ' يوسف ', 2, 'george');
+    var g = c.mtAddGuest(n, ' يوسف ', 1, 'george');
     var g2 = c.mtAddGuest(n, 'يوسف', 1, null);
     assert.strictEqual(g.phone, 'guest_1'); assert.strictEqual(g2.phone, 'guest_2');
-    assert.strictEqual(g.name, 'يوسف'); assert.strictEqual(g.level, 2); assert.strictEqual(g.teamId, 'george'); assert.strictEqual(g.guest, true);
+    assert.strictEqual(g.name, 'يوسف'); assert.strictEqual(g.level, 1); assert.strictEqual(g.teamId, 'george'); assert.strictEqual(g.guest, true);
     assert.ok(c.mtIsGuest('guest_1')); assert.ok(!c.mtIsGuest('01012345678'));
     kid(c, n, '01', 'george');
     c.mtAward(n, { phone: 'guest_1' }, 5, 'a');
@@ -68,33 +70,88 @@ test('guests: tonight only, never synced, not found by id', function () {
     assert.strictEqual(n.roster.guest_1.stars, 10);
     assert.strictEqual(n.teams[0].score, 10);
     assert.deepStrictEqual(plain(c.mtPendingSyncs(n).map(function (s) { return s.phone; })), ['01']);
-    assert.strictEqual(c.mtAudienceView(n).kids[2][0].name, 'يوسف');
+    assert.strictEqual(c.mtAudienceView(n).kids[1][0].name, 'يوسف');
     var src = [{ phone: 'guest_1', name: 'يوسف', level: 2 }];
     assert.strictEqual(c.mtSearch(src, 'يوس').length, 1);
     assert.strictEqual(c.mtSearch(src, 'st').length, 0);
 });
 
-test('teams: adds exactly the count asked, up to 8 teams in all', function () {
+test('teams: adds exactly the count asked, no limit in all', function () {
     var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1], filter: { subjects: [], lessons: {} }, kinds: [] });
-    c.mtMakeRandomTeams(n, 1, 'boys');
+    c.mtMakeRandomTeams(n, 1, 'boys', 1);
     assert.strictEqual(n.teams.length, 1);
-    c.mtMakeRandomTeams(n, 0, 'boys');
+    c.mtMakeRandomTeams(n, 0, 'boys', 1);
     assert.strictEqual(n.teams.length, 2, 'at least one');
-    assert.strictEqual(c.mtPresetsLeft(n, 'boys'), 4);
-    c.mtMakeRandomTeams(n, 9, 'girls');
-    assert.strictEqual(n.teams.length, 8);
-    assert.strictEqual(new Set(n.teams.map(function (t) { return t.color; })).size, 8);
-    assert.strictEqual(c.mtAddCustomTeam(n, { name: 'x' }), null);
+    c.mtMakeRandomTeams(n, 14, 'girls', 1);
+    assert.strictEqual(n.teams.length, 16);
+    assert.strictEqual(n.teams[13].name, 'فريق القديسة ثيؤدورا', 'twelve women saints');
+    assert.strictEqual(n.teams[14].name, 'فريق ١', 'then numbered');
+    assert.strictEqual(n.teams[15].name, 'فريق ٢');
+    for (var i = 0; i < 2; i++) assert.ok(c.mtAddCustomTeam(n, { name: 'x' + i }));
+    assert.strictEqual(n.teams.length, 18);
+    assert.strictEqual(new Set(n.teams.slice(0, 12).map(function (t) { return t.color; })).size, 12, 'the 12 game colors before any repeats');
+    assert.strictEqual(new Set(n.teams.slice(0, 16).map(function (t) { return t.icon; })).size, 16, 'the 16 game logos before any repeats');
+    assert.strictEqual(c.mtAddCustomTeam(n, {}).name, 'فريق ٣');
 });
 
-test('teams: custom team keeps the host name and level, next to game teams', function () {
+test('teams: a team never mixes levels', function () {
     var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1, 2], filter: { subjects: [], lessons: {} }, kinds: [] });
-    for (var i = 0; i < 6; i++) c.mtAddGameTeam(n, { name: 'g' + i, color: '#111' });
+    var t1 = c.mtMakeRandomTeams(n, 1, 'boys', 1)[0], t2 = c.mtMakeRandomTeams(n, 1, 'boys', 2)[0];
+    var g = c.mtAddGameTeam(n, { name: 'ج', level: 2 });
+    var a = c.mtAddToRoster(n, { phone: '01', name: 'أ', level: 1, team: 'ج' });
+    assert.strictEqual(a.teamId, null, 'game team of the other level: no auto-place');
+    var b = c.mtAddToRoster(n, { phone: '02', name: 'ب', level: 2, team: 'ج' });
+    assert.strictEqual(b.teamId, g.id);
+    assert.strictEqual(c.mtAddToRoster(n, { phone: '03', name: 'ت', level: 1 }, t2.id).teamId, null);
+    assert.strictEqual(c.mtSetTeam(n, '01', t2.id), false);
+    assert.strictEqual(n.roster['01'].teamId, null);
+    assert.strictEqual(c.mtSetTeam(n, '01', t1.id), true);
+    assert.strictEqual(n.roster['01'].teamId, t1.id);
+    assert.strictEqual(c.mtSetTeam(n, '01', null), true);
+    assert.strictEqual(n.roster['01'].teamId, null);
+    var u = c.mtAddCustomTeam(n, { name: 'بلا مستوى' });
+    assert.strictEqual(u.level, 0);
+    assert.strictEqual(c.mtSetTeam(n, '01', u.id), true);
+    assert.strictEqual(u.level, 1, 'takes its first kid level');
+    assert.strictEqual(c.mtSetTeam(n, '02', u.id), false);
+});
+
+test('teams: split picked kids evenly into new teams of their level', function () {
+    var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1, 2], filter: { subjects: [], lessons: {} }, kinds: [] });
+    var phones = [];
+    for (var i = 0; i < 7; i++) { c.mtAddToRoster(n, { phone: 'p' + i, name: 'n' + i, level: 1 }); phones.push('p' + i); }
+    c.mtAddToRoster(n, { phone: 'q', name: 'q', level: 2 });
+    var ts = c.mtSplitIntoTeams(n, phones.concat(['q']), 3, 'girls', 1, Math.random);
+    assert.strictEqual(ts.length, 3);
+    ts.forEach(function (t) { assert.strictEqual(t.level, 1); assert.strictEqual(t.gender, 'girls'); });
+    var sizes = ts.map(function (t) { return phones.filter(function (ph) { return n.roster[ph].teamId === t.id; }).length; }).sort();
+    assert.deepStrictEqual(plain(sizes), [2, 2, 3]);
+    assert.strictEqual(n.roster.q.teamId, null, 'other level untouched');
+    assert.strictEqual(c.mtSplitIntoTeams(n, ['p0', 'p1'], 5, 'boys', 1, Math.random).length, 2, 'never more teams than kids');
+});
+
+test('teams: custom team keeps the host name and level', function () {
+    var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1, 2], filter: { subjects: [], lessons: {} }, kinds: [] });
     var t = c.mtAddCustomTeam(n, { name: ' أسود الإيمان ', level: 2 });
     assert.strictEqual(t.id, 'custom1'); assert.strictEqual(t.name, 'أسود الإيمان'); assert.strictEqual(t.level, 2);
-    assert.strictEqual(t.source, 'custom'); assert.strictEqual(t.icon, '⭐');
-    assert.strictEqual(c.mtAddCustomTeam(n, {}).name, 'فريق ٨'.replace('٨', '8'));
-    assert.strictEqual(n.teams.length, 8);
+    assert.strictEqual(t.source, 'custom'); assert.strictEqual(t.icon, '⚔️'); assert.strictEqual(t.color, '#6C5CE7');
+});
+
+test('teams: game team keeps its own color and logo, else the next free default', function () {
+    var c = load(), n = c.mtNewNight({ date: 'd', title: 't', levels: [1], filter: { subjects: [], lessons: {} }, kinds: [] });
+    var a = c.mtAddGameTeam(n, { name: 'أ', color: '#123456', logo: '🦁' });
+    assert.strictEqual(a.color, '#123456'); assert.strictEqual(a.icon, '🦁');
+    var b = c.mtAddGameTeam(n, { name: 'ب', color: 'red', logo: '' });
+    assert.strictEqual(b.color, '#6C5CE7'); assert.strictEqual(b.icon, '⚔️');
+});
+
+test('teams: logos and colors match game.js', function () {
+    var c = load(), g = fs.readFileSync(path.join(__dirname, '..', 'game.js'), 'utf8');
+    ['TEAM_LOGOS', 'TEAM_COLORS'].forEach(function (k) {
+        var m = new RegExp('var ' + k + ' = (\\[[^\\]]*\\])').exec(g);
+        assert.ok(m, k + ' found in game.js');
+        assert.deepStrictEqual(plain(c['MT_' + k.replace('TEAM_', 'TEAM_')]), JSON.parse(m[1].replace(/'/g, '"')), k);
+    });
 });
 
 test('roster: game-team kid auto-placed', function () {
@@ -386,7 +443,7 @@ test('audience kids: every kid per level, zero stars included, row shape', funct
     v = c.mtAudienceView(n);
     assert.deepStrictEqual(plain(v.kids[1].slice(0, 2)), [
         { key: c.mtHash('01055555555'), name: 'k01055555555', teamColor: null, stars: 15 },
-        { key: c.mtHash('01044444444'), name: 'k01044444444', teamColor: '#3498db', stars: 10 }
+        { key: c.mtHash('01044444444'), name: 'k01044444444', teamColor: '#00CEC9', stars: 10 }
     ]);
     assert.strictEqual(v.kids[1].length, 5);
     assert.deepStrictEqual(boardKeys(v, 2), [c.mtHash('01277777777'), c.mtHash('01266666666')]);

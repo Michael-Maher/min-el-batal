@@ -34,7 +34,7 @@ var _mc = {
     season: null, seasonOk: false, seasonErr: '', seasonAt: 0,
     night: null, saved: null, pool: [], phase: '', lessons: {},
     muted: false, sync: { busy: false, lastError: null },
-    lastGive: { key: '', at: 0 }, tapAt: 0, undoArmed: 0, wheelTimers: [],
+    lastGive: { key: '', at: 0 }, tapAt: 0, undoArmed: 0, wheelTimers: [], dragPh: null,
     ui: null
 };
 
@@ -42,8 +42,8 @@ function _mcFreshUi() {
     return {
         target: { level: 1, mode: 'individual', teamId: null }, kind: null,
         sq: '', sqLevel: 'all', neg: false, choose: null, pick: null, bet: null, wheelMsg: '',
-        editor: false, editKid: null, teamQ: {}, msg: '', clearAsk: false, lastMsg: '',
-        renTeam: null, renVal: '', newName: '', iconTeam: null
+        editor: false, editKid: null, ciQ: '', sel: {}, splitG: 'boys', msg: '', clearAsk: false, lastMsg: '',
+        renTeam: null, renVal: '', newName: {}, iconTeam: null
     };
 }
 
@@ -162,18 +162,39 @@ function _mcWire() {
         if (fn) { if (b.tagName === 'A') e.preventDefault(); fn(b.dataset, b); }
     });
     root.addEventListener('input', _mcOnInput);
-    /* the color picker reports on close, so the card does not repaint under an open picker */
-    root.addEventListener('change', function (e) {
-        var id = e.target.id || '', t = id.indexOf('mc-tc-') === 0 ? _mcTeam(id.slice(6)) : null;
-        if (t && /^#[0-9a-f]{6}$/i.test(e.target.value)) { t.color = e.target.value; _mcCommit(); }
+    root.addEventListener('dragstart', function (e) {
+        var c = e.target.closest && e.target.closest('[data-drag]');
+        if (!c) return;
+        _mc.dragPh = c.getAttribute('data-drag');
+        try { e.dataTransfer.setData('text/plain', _mc.dragPh); e.dataTransfer.effectAllowed = 'move'; } catch (x) { /* old browser */ }
     });
+    root.addEventListener('dragover', function (e) {
+        var z = e.target.closest && e.target.closest('[data-drop]');
+        if (!_mcDropOk(z)) return;
+        e.preventDefault();
+        if (!z.classList.contains('mc-over')) { _mcDragClear(); z.classList.add('mc-over'); }
+    });
+    root.addEventListener('drop', function (e) {
+        var z = e.target.closest && e.target.closest('[data-drop]');
+        if (!_mcDropOk(z)) return;
+        e.preventDefault();
+        var ph = _mc.dragPh;
+        _mc.dragPh = null;
+        _mcDragClear();
+        if (mtSetTeam(_mc.night, ph, z.getAttribute('data-drop') || null)) { delete _mc.ui.sel[ph]; _mc.ui.editKid = null; _mcCommit(); }
+    });
+    root.addEventListener('dragend', function () { _mc.dragPh = null; _mcDragClear(); });
     root.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && e.target.id === 'mc-sq') {
             var r = _mcAwardResults();
             if (r.length === 1) { e.preventDefault(); if (_mcTapOk()) _mcTapKid(r[0].phone); }
-        } else if (e.key === 'Enter' && e.target.id === 'mc-newteam') {
+        } else if (e.key === 'Enter' && e.target.id.indexOf('mc-nt-') === 0) {
             e.preventDefault();
-            _MC_A.newteam();
+            _MC_A.newteam({ l: e.target.id.slice(6) });
+        } else if (e.key === 'Enter' && e.target.id === 'mc-ci') {
+            /* one match not checked in yet: Enter checks them in */
+            var cr = _mcCheckInResults().filter(function (p) { return !_mc.night.roster[p.phone]; });
+            if (cr.length === 1) { e.preventDefault(); _MC_A.checkin({ p: cr[0].phone }); }
         } else if (e.target.id && e.target.id.indexOf('mc-tn-') === 0 && (e.key === 'Enter' || e.key === 'Escape')) {
             e.preventDefault();
             if (e.key === 'Enter') _MC_A.renok({ t: e.target.id.slice(6) });
@@ -551,81 +572,135 @@ function _mcKindsHtml() {
 /* ---------- teams + rosters editor (setup, and a modal during play) ---------- */
 
 function _mcTeamEdHtml() {
-    var n = _mc.night, h = '';
-    var full = n.teams.length >= MT_MAX_TEAMS;
-    /* new teams for tonight and teams from the game are separate: either can be added any time, up to MT_MAX_TEAMS in all */
-    h += '<div class="mc-ted-sec"><span class="mc-lbl">➕ فرق جديدة للسهرة:</span>';
-    if (full) h += '<span class="mc-muted">فيه ' + _mcNum(MT_MAX_TEAMS) + ' فرق، ده أقصى عدد يبان على الشاشة. شيل فريق عشان تضيف غيره.</span>';
-    else {
-        h += '<button class="mc-chip" data-a="rteams" data-g="boys"' + (mtPresetsLeft(n, 'boys') ? '' : ' disabled') + '>＋ 👦 فريق ولاد (اسم قديس)</button>' +
-            '<button class="mc-chip" data-a="rteams" data-g="girls"' + (mtPresetsLeft(n, 'girls') ? '' : ' disabled') + '>＋ 👧 فريق بنات (اسم قديسة)</button>' +
-            '<span class="mc-sep"></span><input id="mc-newteam" class="mc-newteam" type="text" maxlength="30" autocomplete="off" placeholder="✍️ أو اكتب اسم الفريق اللي عايزه…" value="' + _mcEsc(_mc.ui.newName) + '">' +
-            '<button class="mc-btn sm pri" data-a="newteam">＋ ضيفه</button>';
-    }
-    h += '</div>';
+    var n = _mc.night, ui = _mc.ui, h = '';
+    h += '<div class="mc-ci"><input id="mc-ci" type="search" autocomplete="off" placeholder="✍️ سجّل اللي جه: اكتب اسمه…" value="' + _mcEsc(ui.ciQ) + '">' +
+        '<div id="mc-ci-res" class="mc-tres">' + _mcCheckInResultsHtml() + '</div></div>';
     var gts = _mc.gameTeams;
     h += '<div class="mc-ted-sec"><span class="mc-lbl">🎮 فرق اللعبة:</span>';
     if (!gts) h += _mc.teamsErr ? '<span class="mc-muted">مقدرناش نجيب الفرق</span> <button class="mc-btn sm" data-a="reloadteams">حاول تاني</button>' : '<span class="mc-muted">⏳ بنحمّل…</span>';
     else if (!gts.length) h += '<span class="mc-muted">مفيش فرق في اللعبة</span>';
-    else gts.forEach(function (g, i) {
-        var used = n.teams.some(function (t) { return t.source === 'game' && t.gameTeam === g.name; });
-        h += '<button class="mc-chip' + (used ? ' on' : '') + '" data-a="gteam" data-i="' + i + '"' + (used || full ? ' disabled' : '') + '>' +
-            '<span class="dot" style="--tc:' + _mcEsc(g.color || '#555') + '"></span>' + _mcEsc(g.name) + (g.level ? ' <small>' + _mcLvl(g.level) + '</small>' : '') + (used ? ' ✓' : '') + '</button>';
-    });
+    else {
+        h += '<span class="mc-muted">بتظهر لوحدها لما حد منها يتسجل، أو ضيفها من هنا:</span>';
+        gts.forEach(function (g, i) {
+            var used = n.teams.some(function (t) { return t.source === 'game' && t.gameTeam === g.name; });
+            h += '<button class="mc-chip' + (used ? ' on' : '') + '" data-a="gteam" data-i="' + i + '"' + (used ? ' disabled' : '') + '>' +
+                '<span class="dot" style="--tc:' + _mcEsc(g.color || '#555') + '"></span>' + _mcEsc(g.logo || '') + ' ' + _mcEsc(g.name) + (g.level ? ' <small>' + _mcLvl(g.level) + '</small>' : '') + (used ? ' ✓' : '') + '</button>';
+        });
+    }
     h += '</div>';
-
-    h += '<div class="mc-tcards">';
-    n.teams.forEach(function (t) { h += _mcTeamCardHtml(t); });
-    h += _mcTeamCardHtml(null);
-    h += '</div>';
+    var unset = n.teams.filter(function (t) { return !t.level; });
+    if (unset.length) {
+        h += '<section class="mc-lvsec"><div class="mc-lvsec-h"><b>❔ فرق لسه من غير مستوى</b><small>اختار مستوى كل فريق، أو حط فيه ولد ويبقى على مستواه</small></div><div class="mc-tcards">' +
+            unset.map(function (t) { return _mcTeamCardHtml(t); }).join('') + '</div></section>';
+    }
+    _mcEdLevels().forEach(function (l) { h += _mcLevelSecHtml(l); });
     return h;
 }
 
-function _mcTeamCardHtml(t) {
-    var n = _mc.night, ui = _mc.ui, id = t ? t.id : 'none';
-    var kids = Object.keys(n.roster).map(function (ph) { return n.roster[ph]; })
-        .filter(function (k) { return (k.teamId || null) === (t ? t.id : null); })
+/* Levels the editor shows: tonight's, plus any level a kid or a team here has. */
+function _mcEdLevels() {
+    var n = _mc.night, on = {};
+    n.levels.forEach(function (l) { on[l] = true; });
+    Object.keys(n.roster).forEach(function (ph) { on[n.roster[ph].level] = true; });
+    n.teams.forEach(function (t) { if (t.level) on[t.level] = true; });
+    return [1, 2].filter(function (l) { return on[l]; });
+}
+
+function _mcLevelKids(l, teamId) {
+    var n = _mc.night;
+    return Object.keys(n.roster).map(function (ph) { return n.roster[ph]; })
+        .filter(function (k) { return k.level === l && (k.teamId || null) === teamId; })
         .sort(_mcByName);
-    var awarded = t && n.awards.some(function (a) { return a.teamId === t.id; });
-    var name = t ? '<button class="mc-tname" data-a="ren" data-t="' + _mcEsc(t.id) + '" title="غيّر الاسم">' + _mcEsc(t.name) + ' <i>✏️</i></button>' : '<b>من غير فريق</b>';
-    if (t && ui.renTeam === t.id) {
+}
+
+/* One level: its kids with no team (pick some, move them or make random teams of them), then its teams. */
+function _mcLevelSecHtml(l) {
+    var n = _mc.night, ui = _mc.ui;
+    var teams = n.teams.filter(function (t) { return t.level === l; });
+    var pool = _mcLevelKids(l, null);
+    var all = Object.keys(n.roster).filter(function (ph) { return n.roster[ph].level === l; }).length;
+    var sel = pool.filter(function (k) { return ui.sel[k.phone]; });
+    var h = '<section class="mc-lvsec lv' + l + '"><div class="mc-lvsec-h"><b>' + (l === 1 ? '🌟 المستوى الأول' : '⚡ المستوى التاني') + '</b>' +
+        '<small>' + _mcNum(all) + ' حاضر · ' + _mcNum(teams.length) + ' فريق</small></div>';
+    h += '<div class="mc-pool" data-drop="" data-l="' + l + '"><div class="mc-pool-h"><b>🙋 من غير فريق (' + _mcNum(pool.length) + ')</b>';
+    if (pool.length) h += sel.length === pool.length ? '<button class="mc-btn sm" data-a="selnone" data-l="' + l + '">الغي الاختيار</button>' : '<button class="mc-btn sm" data-a="selall" data-l="' + l + '">اختار الكل</button>';
+    h += '</div><div class="mc-kids">';
+    h += pool.length ? pool.map(function (k) {
+        var on = !!ui.sel[k.phone];
+        return '<button class="mc-pchip' + (on ? ' on' : '') + '" draggable="true" data-drag="' + _mcEsc(k.phone) + '" data-a="selkid" data-p="' + _mcEsc(k.phone) + '">' +
+            '<span class="box">' + (on ? '✓' : '') + '</span>' + _mcEsc(k.name) + (k.guest ? ' <small>اسم بس</small>' : '') + '</button>';
+    }).join('') : '<span class="mc-muted">' + (all ? 'كل اللي جم في فرق' : 'لسه محدش اتسجل من المستوى ده') + '</span>';
+    h += '</div>';
+    if (sel.length) {
+        var maxT = Math.min(8, sel.length);
+        h += '<div class="mc-selbar"><b>اخترت ' + _mcNum(sel.length) + '</b>';
+        if (teams.length) h += '<span class="mc-lbl">انقلهم لـ:</span>' + teams.map(function (t) {
+            return '<button class="mc-chip team" style="--tc:' + _mcEsc(t.color) + '" data-a="selmove" data-t="' + _mcEsc(t.id) + '" data-l="' + l + '">' + _mcEsc(t.icon) + ' ' + _mcEsc(t.name.replace(/^فريق\s+/, '')) + '</button>';
+        }).join('');
+        h += '<span class="mc-sep"></span><span class="mc-lbl">أو اعمل منهم فرق عشوائية:</span>' +
+            '<button class="mc-chip' + (ui.splitG === 'boys' ? ' on' : '') + '" data-a="splitg" data-v="boys">👦 قديسين</button>' +
+            '<button class="mc-chip' + (ui.splitG === 'girls' ? ' on' : '') + '" data-a="splitg" data-v="girls">👧 قديسات</button>';
+        for (var c = 1; c <= maxT; c++) h += '<button class="mc-chip" data-a="selsplit" data-v="' + c + '" data-l="' + l + '">' + (c === 1 ? 'فريق واحد' : _mcNum(c) + ' فرق') + '</button>';
+        h += '<button class="mc-btn sm danger" data-a="selrm" data-l="' + l + '">شيلهم من الحضور</button></div>';
+    }
+    h += '</div><div class="mc-tcards">' + teams.map(function (t) { return _mcTeamCardHtml(t); }).join('') + _mcNewTeamCardHtml(l) + '</div></section>';
+    return h;
+}
+
+function _mcNewTeamCardHtml(l) {
+    var v = _mc.ui.newName[l] || '';
+    return '<div class="mc-tcard new"><b>＋ فريق جديد ' + _mcLvl(l) + '</b><div class="mc-chips">' +
+        '<button class="mc-chip" data-a="rteams" data-g="boys" data-l="' + l + '">👦 ولاد (اسم قديس)</button>' +
+        '<button class="mc-chip" data-a="rteams" data-g="girls" data-l="' + l + '">👧 بنات (اسم قديسة)</button></div>' +
+        '<div class="mc-row"><input id="mc-nt-' + l + '" class="mc-newteam" type="text" maxlength="30" autocomplete="off" placeholder="✍️ أو اكتب الاسم اللي عايزه…" value="' + _mcEsc(v) + '">' +
+        '<button class="mc-btn sm pri" data-a="newteam" data-l="' + l + '">ضيفه</button></div></div>';
+}
+
+function _mcTeamCardHtml(t) {
+    var n = _mc.night, ui = _mc.ui;
+    var kids = _mcLevelKids(t.level || 0, t.id);
+    if (!t.level) kids = Object.keys(n.roster).map(function (ph) { return n.roster[ph]; }).filter(function (k) { return k.teamId === t.id; });
+    var awarded = n.awards.some(function (a) { return a.teamId === t.id; });
+    var name = '<button class="mc-tname" data-a="ren" data-t="' + _mcEsc(t.id) + '" title="غيّر الاسم">' + _mcEsc(t.name) + ' <i>✏️</i></button>';
+    if (ui.renTeam === t.id) {
         name = '<input id="mc-tn-' + _mcEsc(t.id) + '" class="mc-tname-in" type="text" maxlength="30" value="' + _mcEsc(ui.renVal) + '">' +
             '<button class="mc-btn sm" data-a="renok" data-t="' + _mcEsc(t.id) + '">✓</button>';
     }
-    var lvl = t ? '<button class="mc-chip sm lvset' + (t.level ? ' on' : '') + '" data-a="teamlvl" data-t="' + _mcEsc(t.id) + '" title="مستوى الفريق">' +
-        (t.level === 1 ? 'م١' : t.level === 2 ? 'م٢' : 'م١ + م٢') + '</button>' : '';
-    var ico = t ? '<button class="mc-ticon" data-a="icon" data-t="' + _mcEsc(t.id) + '" title="غيّر الشكل">' + _mcEsc(t.icon) + '</button>' +
-        '<input id="mc-tc-' + _mcEsc(t.id) + '" class="mc-tcolor" type="color" value="' + _mcEsc(t.color) + '" title="غيّر اللون">' : '<span class="ico">🙋</span>';
-    var h = '<div class="mc-tcard" style="--tc:' + _mcEsc(t ? t.color : '#7f8c8d') + '"><div class="mc-tcard-h">' + ico + name + lvl +
+    var ico = '<button class="mc-ticon' + (ui.iconTeam === t.id ? ' on' : '') + '" data-a="icon" data-t="' + _mcEsc(t.id) + '" title="غيّر اللوجو واللون">' + _mcEsc(t.icon) + '<i>🎨</i></button>';
+    var h = '<div class="mc-tcard" style="--tc:' + _mcEsc(t.color) + '"' + (t.level ? ' data-drop="' + _mcEsc(t.id) + '" data-l="' + t.level + '"' : '') + '><div class="mc-tcard-h">' + ico + name +
         '<small>' + _mcNum(kids.length) + ' ولد</small>' +
-        (t && !awarded ? '<button class="mc-x" data-a="delteam" data-t="' + _mcEsc(t.id) + '" title="شيل الفريق">✕</button>' : '') + '</div>';
-    if (t && ui.iconTeam === t.id) {
-        h += '<div class="mc-icons">' + MT_TEAM_ICONS.map(function (ic) {
+        (!awarded ? '<button class="mc-x" data-a="delteam" data-t="' + _mcEsc(t.id) + '" title="شيل الفريق">✕</button>' : '') + '</div>';
+    if (!t.level) {
+        h += '<div class="mc-row"><span class="mc-lbl">المستوى:</span><button class="mc-chip" data-a="teamlvl" data-t="' + _mcEsc(t.id) + '" data-v="1">م١</button>' +
+            '<button class="mc-chip" data-a="teamlvl" data-t="' + _mcEsc(t.id) + '" data-v="2">م٢</button></div>';
+    }
+    if (ui.iconTeam === t.id) {
+        h += '<div class="mc-icons"><span class="mc-lbl">اللوجو:</span>' + MT_TEAM_LOGOS.map(function (ic) {
             return '<button class="' + (ic === t.icon ? 'on' : '') + '" data-a="seticon" data-t="' + _mcEsc(t.id) + '" data-v="' + _mcEsc(ic) + '">' + ic + '</button>';
+        }).join('') + '</div><div class="mc-icons"><span class="mc-lbl">اللون:</span>' + MT_TEAM_COLORS.map(function (c) {
+            return '<button class="sw' + (c.toLowerCase() === String(t.color).toLowerCase() ? ' on' : '') + '" style="--sw:' + c + '" data-a="setcolor" data-t="' + _mcEsc(t.id) + '" data-v="' + c + '"></button>';
         }).join('') + '</div>';
     }
     h += '<div class="mc-kids">';
     kids.forEach(function (k) {
-        var open = _mc.ui.editKid === k.phone;
-        h += '<span class="mc-kchip' + (open ? ' open' : '') + '"><button data-a="editkid" data-p="' + _mcEsc(k.phone) + '">' + _mcEsc(k.name) +
-            ' <small>' + _mcLvl(k.level) + '</small>' + (k.guest ? ' <small>اسم بس</small>' : '') + '</button></span>';
+        var open = ui.editKid === k.phone;
+        h += '<span class="mc-kchip' + (open ? ' open' : '') + '"><button draggable="true" data-drag="' + _mcEsc(k.phone) + '" data-a="editkid" data-p="' + _mcEsc(k.phone) + '">' + _mcEsc(k.name) +
+            (k.guest ? ' <small>اسم بس</small>' : '') + '</button></span>';
         if (open) {
-            h += '<span class="mc-move">نقله لـ: ' + n.teams.filter(function (x) { return x.id !== k.teamId; }).map(function (x) {
+            h += '<span class="mc-move">نقله لـ: ' + n.teams.filter(function (x) { return x.id !== k.teamId && x.level === k.level; }).map(function (x) {
                 return '<button class="mc-tdot" style="--tc:' + _mcEsc(x.color) + '" data-a="movekid" data-p="' + _mcEsc(k.phone) + '" data-t="' + _mcEsc(x.id) + '">' + _mcEsc(x.icon) + ' ' + _mcEsc(x.name.replace(/^فريق\s+/, '')) + '</button>';
             }).join('') +
-                (k.teamId ? '<button class="mc-tdot" data-a="movekid" data-p="' + _mcEsc(k.phone) + '" data-t="">من غير فريق</button>' : '') +
+                '<button class="mc-tdot" data-a="movekid" data-p="' + _mcEsc(k.phone) + '" data-t="">من غير فريق</button>' +
                 '<button class="mc-tdot danger" data-a="rmkid" data-p="' + _mcEsc(k.phone) + '">شيل من الحضور</button></span>';
         }
     });
-    if (!kids.length) h += '<span class="mc-muted">' + (t ? 'لسه مفيش ولاد' : 'كل الحاضرين في فرق') + '</span>';
+    if (!kids.length) h += '<span class="mc-muted">لسه مفيش ولاد. اسحب ولد هنا.</span>';
     h += '</div>';
-    if (t && t.source === 'game') h += _mcGameChecklistHtml(t);
-    var q = ui.teamQ[id] || '';
-    h += '<input id="mc-ts-' + _mcEsc(id) + '" class="mc-tsearch" type="search" autocomplete="off" placeholder="➕ ضيف بالاسم…" value="' + _mcEsc(q) + '">' +
-        '<div id="mc-tr-' + _mcEsc(id) + '" class="mc-tres">' + _mcTeamResultsHtml(id) + '</div>';
+    if (t.source === 'game') h += _mcGameChecklistHtml(t);
     return h + '</div>';
 }
 
+/* The game team's registered players: tick who came (they are checked in like from the search). */
 function _mcGameChecklistHtml(t) {
     var n = _mc.night;
     if (!_mc.players) return '';
@@ -633,29 +708,50 @@ function _mcGameChecklistHtml(t) {
         .sort(_mcByName);
     if (!ps.length) return '<p class="mc-muted">مفيش لاعيبة متسجلين في الفريق ده</p>';
     return '<div class="mc-check"><span class="mc-lbl">علّم على اللي حاضر:</span>' + ps.map(function (p) {
-        var k = n.roster[p.phone], on = !!(k && k.teamId === t.id);
-        return '<button class="mc-chk' + (on ? ' on' : '') + '" data-a="gcheck" data-p="' + _mcEsc(p.phone) + '" data-t="' + _mcEsc(t.id) + '">' +
+        var on = !!n.roster[p.phone];
+        return '<button class="mc-chk' + (on ? ' on' : '') + '" data-a="gcheck" data-p="' + _mcEsc(p.phone) + '">' +
             '<span class="box">' + (on ? '✓' : '') + '</span>' + _mcEsc(p.name) + ' <small>' + _mcLvl(p.level) + '</small></button>';
     }).join('') + '</div>';
 }
 
-function _mcTeamResultsHtml(id) {
-    var q = _mc.ui.teamQ[id] || '';
+function _mcCheckInResults() {
+    if (mtNormalize(_mc.ui.ciQ).length < 2) return [];
+    return mtSearch(_mcSearchSource('all'), _mc.ui.ciQ, 8);
+}
+
+function _mcCheckInResultsHtml() {
+    var n = _mc.night, q = _mc.ui.ciQ;
     if (mtNormalize(q).length < 2) return '';
-    var n = _mc.night;
-    var t = _mcTeam(id), lv = t && t.level ? t.level : n.levels.length === 1 ? n.levels[0] : 0;
-    var guest = _mcGuestBtnsHtml(q, lv, id);
+    var guest = _mcGuestBtnsHtml(q, 0, 'ci');
     if (!_mc.players && !Object.keys(n.roster).length) return _mcPlayersStateHtml() + guest;
-    var res = mtSearch(_mcSearchSource('all'), q, 6);
+    var res = _mcCheckInResults();
     if (!res.length) return '<p class="mc-muted">مفيش حد بالاسم ده في اللعبة</p>' + guest;
     return res.map(function (p) {
         var k = n.roster[p.phone], tn = k ? _mcKidTeamName(k) : '';
-        var here = k && (k.teamId || 'none') === id;
-        return '<button class="mc-res sm" data-a="tadd" data-p="' + _mcEsc(p.phone) + '" data-t="' + _mcEsc(id) + '"' + (here ? ' disabled' : '') + '>' +
+        return '<button class="mc-res sm" data-a="checkin" data-p="' + _mcEsc(p.phone) + '"' + (k ? ' disabled' : '') + '>' +
             '<b>' + _mcEsc(p.name) + '</b><small class="lv">' + _mcLvl(p.level) + '</small>' +
-            (k ? '<small>' + (tn ? 'في ' + _mcEsc(tn) : 'حاضر') + '</small>' : (p.team ? '<small>' + _mcEsc(p.team) + '</small>' : '')) +
-            (here ? '<small>✓</small>' : '') + '</button>';
+            (p.team ? '<small>' + _mcEsc(p.team) + '</small>' : '') +
+            (k ? '<small>✓ حاضر' + (tn ? ' في ' + _mcEsc(tn) : '') + '</small>' : '') + '</button>';
     }).join('') + guest;
+}
+
+/* Check a kid in: a game player joins their game team (added to the night if it is not here yet) when
+   it is of their level; anyone else waits with no team, in their level. */
+function _mcCheckIn(p) {
+    var n = _mc.night, kid = n.roster[p.phone];
+    if (kid) return kid;
+    var lvl = p.level === 2 ? 2 : 1, teamId = null;
+    if (p.team) {
+        var t = null;
+        n.teams.forEach(function (x) { if (!t && x.source === 'game' && x.gameTeam === p.team) t = x; });
+        if (!t) {
+            var g = null;
+            (_mc.gameTeams || []).forEach(function (x) { if (!g && x.name === p.team) g = x; });
+            if (g && (!g.level || g.level === lvl)) t = mtAddGameTeam(n, { name: g.name, color: g.color, logo: g.logo, level: g.level || lvl });
+        }
+        if (t && mtFits({ level: lvl }, t)) teamId = t.id;
+    }
+    return mtAddToRoster(n, p, teamId);
 }
 
 /* Add the typed name as a kid with no game account (stars count for tonight only).
@@ -964,8 +1060,8 @@ function _mcPickHtml() {
             '<button class="mc-x" data-a="choosex">✕</button></div>';
         if (kid && kid.teamId) {
             h += '<button class="mc-btn go big wide" data-a="kid" data-p="' + _mcEsc(ph) + '">⭐ ' + _mcPts(pts) + ' لـ ' + _mcEsc(pl.name) + '</button>';
-        } else if (n.teams.length) {
-            h += '<p class="mc-muted">لسه مش في فريق: اختار فريقه وياخد ' + _mcPts(pts) + '</p><div class="mc-chips">' + n.teams.map(function (t) {
+        } else if (n.teams.some(function (t) { return mtFits({ level: pl.level === 2 ? 2 : 1 }, t); })) {
+            h += '<p class="mc-muted">لسه مش في فريق: اختار فريقه وياخد ' + _mcPts(pts) + '</p><div class="mc-chips">' + n.teams.filter(function (t) { return mtFits({ level: pl.level === 2 ? 2 : 1 }, t); }).map(function (t) {
                 return '<button class="mc-chip team" style="--tc:' + _mcEsc(t.color) + '" data-a="kidteam" data-p="' + _mcEsc(ph) + '" data-t="' + _mcEsc(t.id) + '">' + _mcEsc(t.icon) + ' ' + _mcEsc(t.name.replace(/^فريق\s+/, '')) + '</button>';
             }).join('') + '<button class="mc-chip" data-a="kidteam" data-p="' + _mcEsc(ph) + '" data-t="">من غير فريق</button></div>';
         } else {
@@ -1269,16 +1365,13 @@ function _mcTapKid(phone) {
     var p = kid || _mcPlayer(phone);
     if (!p) return;
     if (!kid && ui.neg) { _mcToast('التصحيح بس للي خدوا نقط النهارده'); return; }
-    if (!kid) {
-        var gt = n.teams.some(function (t) { return t.source === 'game' && p.team && t.gameTeam === p.team; });
-        if (gt) kid = mtAddToRoster(n, p);
-    }
-    if ((!kid || !kid.teamId) && n.teams.length && !ui.neg) {
+    if (!kid) kid = _mcCheckIn(p);
+    var fit = n.teams.some(function (t) { return mtFits(kid, t); });
+    if (!kid.teamId && fit && !ui.neg) {
         ui.choose = phone;
-        _mcRefresh();
+        _mcCommit(); /* the tap checked the kid in */
         return;
     }
-    if (!kid) kid = mtAddToRoster(n, p);
     ui.choose = null;
     if (ui.pick && ui.pick.phone === phone) ui.pick = null;
     _mcGive({ phone: phone }, _mcPointsNow());
@@ -1298,7 +1391,7 @@ _MC_A.kidteam = function (d) {
     if (!_mcTapOk()) return;
     var n = _mc.night, ph = d.p, p = n.roster[ph] || _mcPlayer(ph);
     if (!p) return;
-    mtAddToRoster(n, p, d.t || null);
+    _mcCheckIn(p);
     if (d.t) mtSetTeam(n, ph, d.t);
     _mc.ui.choose = null;
     if (_mc.ui.pick && _mc.ui.pick.phone === ph) _mc.ui.pick = null;
@@ -1363,7 +1456,7 @@ _MC_A.pick = function () {
 _MC_A.pickyes = function () {
     var n = _mc.night, p = _mc.ui.pick;
     if (!p) return;
-    if (!n.roster[p.phone]) mtAddToRoster(n, n.roster[p.phone] || _mcPlayer(p.phone) || { phone: p.phone, name: p.name, level: p.level, team: '' });
+    if (!n.roster[p.phone]) _mcCheckIn(_mcPlayer(p.phone) || { phone: p.phone, name: p.name, level: p.level, team: '' });
     p.here = true;
     _mcCommit();
 };
@@ -1541,36 +1634,36 @@ _MC_A.kind = function (d) {
     _mcCommit();
 };
 
-function _mcNewTeamLevel() { var n = _mc.night; return n.levels.length === 1 ? n.levels[0] : 0; }
-
 _MC_A.rteams = function (d) {
-    mtMakeRandomTeams(_mc.night, 1, d.g, _mcNewTeamLevel());
+    mtMakeRandomTeams(_mc.night, 1, d.g, Number(d.l));
     _mcCommit();
 };
 
-_MC_A.newteam = function () {
-    var name = String(_mc.ui.newName || '').trim().replace(/\s+/g, ' ');
-    if (!name) { _mcToast('اكتب اسم الفريق الأول'); var e = _mcEl('mc-newteam'); if (e) e.focus(); return; }
-    if (!mtAddCustomTeam(_mc.night, { name: name, level: _mcNewTeamLevel() })) return;
-    _mc.ui.newName = '';
+_MC_A.newteam = function (d) {
+    var l = Number(d.l), name = String(_mc.ui.newName[l] || '').trim().replace(/\s+/g, ' ');
+    if (!name) { _mcToast('اكتب اسم الفريق الأول'); var e = _mcEl('mc-nt-' + l); if (e) e.focus(); return; }
+    mtAddCustomTeam(_mc.night, { name: name, level: l });
+    _mc.ui.newName[l] = '';
     _mcCommit();
-    var inp = _mcEl('mc-newteam');
-    if (inp) { inp.value = ''; inp.focus(); }
 };
 
 _MC_A.icon = function (d) { _mc.ui.iconTeam = _mc.ui.iconTeam === d.t ? null : d.t; _mcRefresh(); };
 _MC_A.seticon = function (d) {
     var t = _mcTeam(d.t);
-    if (t && MT_TEAM_ICONS.indexOf(d.v) >= 0) t.icon = d.v;
-    _mc.ui.iconTeam = null;
+    if (t && MT_TEAM_LOGOS.indexOf(d.v) >= 0) t.icon = d.v;
+    _mcCommit();
+};
+_MC_A.setcolor = function (d) {
+    var t = _mcTeam(d.t);
+    if (t && MT_TEAM_COLORS.indexOf(d.v) >= 0) t.color = d.v;
     _mcCommit();
 };
 
-/* م١ → م٢ → both levels → م١ */
+/* Only for a team with no level and no kids yet: a team's level never changes under its kids. */
 _MC_A.teamlvl = function (d) {
-    var t = _mcTeam(d.t);
-    if (!t) return;
-    t.level = t.level === 1 ? 2 : t.level === 2 ? 0 : 1;
+    var t = _mcTeam(d.t), n = _mc.night;
+    if (!t || t.level || Object.keys(n.roster).some(function (ph) { return n.roster[ph].teamId === t.id; })) return;
+    t.level = Number(d.v) === 2 ? 2 : 1;
     _mcCommit();
 };
 
@@ -1590,29 +1683,88 @@ _MC_A.renok = function (d) {
     _mcCommit();
 };
 
-/* data-t: a team id or 'none' (setup team cards), or 'play' (the award search: then award as a tap). */
+/* data-t: 'ci' (check-in: the kid waits with no team) or 'play' (the award search: then award as a tap). */
 _MC_A.guest = function (d) {
-    var n = _mc.night, play = d.t === 'play', name = play ? _mc.ui.sq : _mc.ui.teamQ[d.t];
+    var n = _mc.night, play = d.t === 'play', name = play ? _mc.ui.sq : _mc.ui.ciQ;
     name = String(name || '').trim().replace(/\s+/g, ' ');
     if (mtNormalize(name).length < 2) return;
     if (play && _mc.ui.neg) { _mcToast('التصحيح بس للي خدوا نقط النهارده'); return; }
     if (play && !_mcTapOk()) return;
-    var kid = mtAddGuest(n, name, Number(d.l) === 2 ? 2 : 1, play || d.t === 'none' ? null : d.t);
+    var kid = mtAddGuest(n, name, Number(d.l) === 2 ? 2 : 1, null);
     if (play) { _mcSave(); _mcView(); _mcTapKid(kid.phone); return; }
-    _mc.ui.teamQ[d.t] = '';
-    _mcCommit();
-    var inp = _mcEl('mc-ts-' + d.t);
-    if (inp) { inp.value = ''; inp.focus(); }
+    _mcCheckedIn(kid);
 };
+
+_MC_A.checkin = function (d) {
+    var p = _mc.night.roster[d.p] || _mcPlayer(d.p);
+    if (!p || _mc.night.roster[d.p]) return;
+    _mcCheckedIn(_mcCheckIn(p));
+};
+
+/* After a check-in: say where the kid went, clear the box for the next one. */
+function _mcCheckedIn(kid) {
+    var t = kid.teamId ? _mcTeam(kid.teamId) : null;
+    _mc.ui.ciQ = '';
+    _mcCommit();
+    _mcToast('✓ ' + kid.name + (t ? ' في ' + t.name : ' (' + _mcLvl(kid.level) + '، من غير فريق)'));
+    var inp = _mcEl('mc-ci');
+    if (inp) { inp.value = ''; inp.focus(); }
+}
+
+/* ---- picking kids with no team: move them, or make random teams of them ---- */
+
+function _mcSelIn(l) {
+    var n = _mc.night;
+    return Object.keys(_mc.ui.sel).filter(function (ph) { var k = n.roster[ph]; return k && !k.teamId && k.level === l; });
+}
+_MC_A.selkid = function (d) {
+    if (_mc.ui.sel[d.p]) delete _mc.ui.sel[d.p]; else _mc.ui.sel[d.p] = true;
+    _mcRefresh();
+};
+_MC_A.selall = function (d) {
+    _mcLevelKids(Number(d.l), null).forEach(function (k) { _mc.ui.sel[k.phone] = true; });
+    _mcRefresh();
+};
+_MC_A.selnone = function (d) {
+    _mcSelIn(Number(d.l)).forEach(function (ph) { delete _mc.ui.sel[ph]; });
+    _mcRefresh();
+};
+_MC_A.splitg = function (d) { _mc.ui.splitG = d.v === 'girls' ? 'girls' : 'boys'; _mcRefresh(); };
+_MC_A.selmove = function (d) {
+    var n = _mc.night;
+    _mcSelIn(Number(d.l)).forEach(function (ph) { if (mtSetTeam(n, ph, d.t)) delete _mc.ui.sel[ph]; });
+    _mcCommit();
+};
+_MC_A.selsplit = function (d) {
+    var n = _mc.night, l = Number(d.l), phs = _mcSelIn(l);
+    var ts = mtSplitIntoTeams(n, phs, Number(d.v), _mc.ui.splitG, l, Math.random);
+    phs.forEach(function (ph) { delete _mc.ui.sel[ph]; });
+    _mcCommit();
+    if (ts.length) _mcToast('✓ ' + _mcNum(ts.length) + ' فرق جديدة من ' + _mcNum(phs.length) + ' ولد');
+};
+_MC_A.selrm = function (d) {
+    var n = _mc.night, phs = _mcSelIn(Number(d.l));
+    var stars = phs.filter(function (ph) { return n.roster[ph].stars; });
+    if (stars.length && !confirm('فيه ' + _mcNum(stars.length) + ' منهم خدوا نجوم النهارده. تشيلهم من الحضور؟')) return;
+    phs.forEach(function (ph) { mtRemoveFromRoster(n, ph); delete _mc.ui.sel[ph]; });
+    _mcCommit();
+};
+
+/* Drag a kid onto a team card or their level's «من غير فريق» box; other levels refuse the drop. */
+function _mcDropOk(z) {
+    var k = _mc.dragPh && _mc.night ? _mc.night.roster[_mc.dragPh] : null;
+    return !!(z && k && Number(z.getAttribute('data-l')) === k.level);
+}
+function _mcDragClear() {
+    Array.prototype.forEach.call(document.querySelectorAll('.mc-over'), function (x) { x.classList.remove('mc-over'); });
+}
 
 _MC_A.gteam = function (d) {
     var n = _mc.night, g = (_mc.gameTeams || [])[Number(d.i)];
-    if (!g || n.teams.length >= MT_MAX_TEAMS) return;
+    if (!g) return;
     if (n.teams.some(function (t) { return t.source === 'game' && t.gameTeam === g.name; })) return;
-    var t = mtAddGameTeam(n, { name: g.name, color: g.color, logo: g.logo, level: g.level });
+    mtAddGameTeam(n, { name: g.name, color: g.color, logo: g.logo, level: g.level });
     /* game-team kids already here move over only when the host ticks them */
-    if (!/^#[0-9a-f]{3,8}$/i.test(t.color || '')) t.color = '#7f8c8d';
-    if (!t.icon || t.icon.length > 8) t.icon = '🛡️';
     _mcCommit();
 };
 
@@ -1627,34 +1779,24 @@ _MC_A.delteam = function (d) {
     _mcCommit();
 };
 
-_MC_A.tadd = function (d) {
-    var n = _mc.night, p = n.roster[d.p] || _mcPlayer(d.p);
-    if (!p) return;
-    var teamId = d.t === 'none' ? null : d.t;
-    mtAddToRoster(n, p, teamId);
-    if (!teamId) mtSetTeam(n, d.p, null);
-    _mc.ui.teamQ[d.t] = '';
-    _mcCommit();
-    var inp = _mcEl('mc-ts-' + d.t);
-    if (inp) { inp.value = ''; inp.focus(); }
-};
-
 _MC_A.gcheck = function (d) {
     var n = _mc.night, k = n.roster[d.p];
-    if (k && k.teamId === d.t) {
+    if (k) {
         if (k.stars && !confirm(k.name + ' معاه ' + _mcNum(k.stars) + ' نجمة النهارده. تشيله من الحضور؟')) return;
         mtRemoveFromRoster(n, d.p);
+        delete _mc.ui.sel[d.p];
     } else {
-        var p = k || _mcPlayer(d.p);
+        var p = _mcPlayer(d.p);
         if (!p) return;
-        mtAddToRoster(n, p, d.t);
+        _mcCheckIn(p);
     }
     _mcCommit();
 };
 
 _MC_A.editkid = function (d) { _mc.ui.editKid = _mc.ui.editKid === d.p ? null : d.p; _mcRefresh(); };
 _MC_A.movekid = function (d) {
-    mtSetTeam(_mc.night, d.p, d.t || null);
+    if (!mtSetTeam(_mc.night, d.p, d.t || null)) _mcToast('الفريق ده من مستوى تاني');
+    delete _mc.ui.sel[d.p];
     _mc.ui.editKid = null;
     _mcCommit();
 };
@@ -1753,12 +1895,11 @@ function _mcOnInput(e) {
     if (id === 'mc-sq') {
         _mc.ui.sq = el.value;
         _mcPaint('mc-res', _mcResultsHtml());
-    } else if (id.indexOf('mc-ts-') === 0) {
-        var tid = id.slice(6);
-        _mc.ui.teamQ[tid] = el.value;
-        _mcPaint('mc-tr-' + tid, _mcTeamResultsHtml(tid));
-    } else if (id === 'mc-newteam') {
-        _mc.ui.newName = el.value;
+    } else if (id === 'mc-ci') {
+        _mc.ui.ciQ = el.value;
+        _mcPaint('mc-ci-res', _mcCheckInResultsHtml());
+    } else if (id.indexOf('mc-nt-') === 0) {
+        _mc.ui.newName[id.slice(6)] = el.value;
     } else if (id.indexOf('mc-tn-') === 0) {
         _mc.ui.renVal = el.value;
     } else if (id === 'mc-title') {

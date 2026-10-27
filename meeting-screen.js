@@ -236,8 +236,13 @@ function _msRenderTeams(view) {
         el.classList.toggle('has-turn', !!turnId);
         el.classList.toggle('many', teams.length > 4);
         el.classList.toggle('crowd', teams.length > 6);
+        /* more than 8 teams: rows of up to 8, filled evenly */
+        var rows = Math.ceil(teams.length / 8);
+        el.classList.toggle('rows', rows > 1);
+        el.style.setProperty('--per', Math.ceil(teams.length / Math.max(1, rows)));
         el.innerHTML = h;
         _msFitTeamNames();
+        _msFit(); /* the team bar may have grown or shrunk, and the stage with it */
     }
     _ms.scores = {};
     teams.forEach(function (t) { _ms.scores[t.id] = t.score; });

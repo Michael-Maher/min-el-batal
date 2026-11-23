@@ -621,6 +621,18 @@ test('pick prefers lesson, then fallback, then oldest', function () {
     assert.strictEqual(c.mtPickNext(pool, n, { level: 1, kind: 'mcq' }, { st: '2026-10-01', fb: '2026-09-01' }, r).id, 'fb');
 });
 
+test('hand pick: choosable list and take', function () {
+    var c = loadPool([bankItem('a'), bankItem('b'), bankItem('e', { kind: 'emoji', prompt: 'E', answer: 'X' })]);
+    var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c), r = lcg(7);
+    n.usedTonight.push('a');
+    assert.strictEqual(c.mtChoosable(pool, n, 1, 'mcq').map(function (x) { return x.id; }).join(), 'b');
+    assert.strictEqual(c.mtTakeItem(pool, n, 'a', r), null);
+    var it = c.mtTakeItem(pool, n, 'b', r);
+    assert.strictEqual(it.id, 'b');
+    assert.strictEqual(it.options[it.correct], 'c');
+    assert.strictEqual(c.mtTakeItem(pool, n, 'nope', r), null);
+});
+
 test('pick skips usedTonight and skipped', function () {
     var c = loadPool([bankItem('a'), bankItem('b'), bankItem('c')]);
     var pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]), n = poolNight(c), r = lcg(2);

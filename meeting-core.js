@@ -720,11 +720,23 @@ function _mtChoose(cands, history, rng) {
     return tier.length ? _mtPick(tier, rng) : null;
 }
 
-function _mtPickOnce(pool, night, level, kind, difficulty, history, rng) {
-    var cands = pool.filter(function (it) {
+/* Pool items of `level` and `kind` not used or skipped tonight. */
+function mtChoosable(pool, night, level, kind) {
+    return pool.filter(function (it) {
         return it.level === level && it.kind === kind &&
             !_mtInList(night.usedTonight, it.id) && !_mtInList(night.skipped, it.id);
     });
+}
+
+/* The host picked item `id` by hand: prepared like a drawn one, or null if it is gone tonight. */
+function mtTakeItem(pool, night, id, rng) {
+    if (_mtInList(night.usedTonight, id) || _mtInList(night.skipped, id)) return null;
+    for (var i = 0; i < pool.length; i++) if (pool[i].id === id) return _mtPrepare(pool[i], rng);
+    return null;
+}
+
+function _mtPickOnce(pool, night, level, kind, difficulty, history, rng) {
+    var cands = mtChoosable(pool, night, level, kind);
     if (difficulty) {
         var d = cands.filter(function (it) { return it.difficulty === difficulty; });
         if (d.length) cands = d;

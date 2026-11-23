@@ -208,6 +208,8 @@ function _mcWire() {
             e.preventDefault();
             if (e.key === 'Enter') _MC_A.renok({ t: e.target.id.slice(6) });
             else { _mc.ui.renTeam = null; _mcRefresh(); }
+        } else if (e.key === 'Escape' && _mc.ui && _mc.ui.qp) {
+            _mc.ui.qp = false; _mcRefresh();
         } else if (e.key === 'Escape' && _mc.ui && _mc.ui.editor) {
             _mc.ui.editor = false; _mcRefresh();
         }
@@ -469,7 +471,11 @@ function _mcMount() {
             '<div id="mc-res"></div><div id="mc-tbtn"></div><div id="mc-roster"></div><div id="mc-failed"></div>' +
             '</aside></main>' +
             '<div id="mc-modal" class="mc-modal"><div class="mc-modal-box"><div class="mc-modal-head"><h3>👥 الفرق والحضور</h3>' +
-            '<button class="mc-btn" data-a="editor">✓ خلاص</button></div><div id="mc-teamed"></div></div></div>';
+            '<button class="mc-btn" data-a="editor">✓ خلاص</button></div><div id="mc-teamed"></div></div></div>' +
+            '<div id="mc-qp" class="mc-modal"><div class="mc-modal-box"><div class="mc-modal-head"><h3 id="mc-qph"></h3>' +
+            '<button class="mc-btn" data-a="qpick">✕ اقفل</button></div><div id="mc-qpk" class="mc-chips sm"></div>' +
+            '<input id="mc-qpq" class="mc-qpq" type="search" autocomplete="off" placeholder="🔎 دوّر في الأسئلة أو الإجابات…">' +
+            '<div id="mc-qpl" class="mc-qpl"></div></div></div>';
     } else if (_mc.phase === 'end') {
         h = _mcHeadHtml('آخر السهرة') + '<main class="mc-endwrap"><div id="mc-end" class="mc-card"></div></main>';
     }
@@ -506,6 +512,13 @@ function _mcRefresh() {
         _mcPaint('mc-failed', _mcFailedHtml());
         var m = _mcEl('mc-modal');
         if (m) m.classList.toggle('on', !!_mc.ui.editor);
+        var qp = _mcEl('mc-qp');
+        if (qp) qp.classList.toggle('on', !!_mc.ui.qp);
+        if (_mc.ui.qp) {
+            _mcPaint('mc-qph', '📋 اختار السؤال بإيدك · ' + _mcLvl(_mc.ui.target.level));
+            _mcPaint('mc-qpk', _mcQpKindsHtml());
+            _mcPaint('mc-qpl', _mcQpListHtml());
+        }
         if (_mc.ui.editor) _mcPaint('mc-teamed', _mcTeamEdHtml());
     } else if (ph === 'end') {
         _mcPaint('mc-h-btns', '');
@@ -878,6 +891,7 @@ function _mcTargetHtml() {
             return '<button class="mc-chip' + (ui.kind === k ? ' on' : '') + '" data-a="tkind" data-k="' + k + '"' + (c ? '' : ' disabled') + '>' + _mcEsc(MT_KINDS[k].label) + ' <small>' + _mcNum(c) + '</small></button>';
         }).join('') + '</div></div>';
     h += '<div class="mc-row mc-next"><button class="mc-btn go big" data-a="next">⏭ السؤال الجاي</button>' +
+        '<button class="mc-btn" data-a="qpick">📋 اختار بإيدي</button>' +
         '<button class="mc-btn gold" data-a="golden">🏅 السؤال الدهبي</button></div>';
     h += '<div class="mc-row mc-surp"><button class="mc-btn" data-a="wheel">🎡 عجلة الحظ</button>' +
         '<button class="mc-btn" data-a="bet">🎰 الرهان</button>' +
@@ -1458,6 +1472,81 @@ _MC_A.tteam = function (d) {
 };
 _MC_A.turnmode = function (d) { _mc.night.turnMode = d.v === 'manual' ? 'manual' : 'auto'; _mcCommit(); };
 _MC_A.tkind = function (d) { _mc.ui.kind = d.k || null; _mcRefresh(); };
+
+/* ---------- picking a question by hand ---------- */
+
+function _mcQpLevel() { return _mcPickLevel(_mc.ui.target.level); }
+
+function _mcQpKinds() {
+    var counts = _mcKindCounts(_mcQpLevel());
+    return mtAvailableKinds(_mc.pool, _mc.night).filter(function (k) { return counts[k]; });
+}
+
+function _mcQpKindsHtml() {
+    var counts = _mcKindCounts(_mcQpLevel());
+    return '<span class="mc-lbl">النوع</span>' + _mcQpKinds().map(function (k) {
+        return '<button class="mc-chip' + (_mc.ui.qpKind === k ? ' on' : '') + '" data-a="qpkind" data-k="' + k + '">' +
+            _mcEsc(MT_KINDS[k].label) + ' <small>' + _mcNum(counts[k]) + '</small></button>';
+    }).join('');
+}
+
+/* What the host reads to recognize an item in the list. */
+function _mcItemTitle(it) {
+    switch (it.kind) {
+        case 'hymn': return '🎵 ' + (it.firstLine || '');
+        case 'act': case 'draw': case 'taboo': return it.secret || '';
+        case 'anagram': return 'حروف متلخبطة' + (it.hint ? ' (' + it.hint + ')' : '');
+        case 'clues': return (it.clues || []).join(' · ');
+        case 'odd': return (it.items || []).join('، ');
+        default: return it.prompt || '';
+    }
+}
+
+function _mcQpListHtml() {
+    var ui = _mc.ui, k = ui.qpKind;
+    if (!k) return '<p class="mc-muted">اختار النوع الأول.</p>';
+    var q = mtNormalize(ui.qpQ || '');
+    var items = mtChoosable(_mc.pool, _mc.night, _mcQpLevel(), k).slice().sort(function (a, b) {
+        var sa = typeof a.station === 'number' ? a.station : 99, sb = typeof b.station === 'number' ? b.station : 99;
+        return (sa - sb) || ((a.difficulty || 0) - (b.difficulty || 0));
+    });
+    if (q) items = items.filter(function (it) { return mtNormalize(_mcItemTitle(it) + ' ' + _mcAnswerText(it)).indexOf(q) >= 0; });
+    if (!items.length) return '<p class="mc-muted">' + (q ? 'مفيش سؤال فيه الكلام ده.' : 'خلصت أسئلة النوع ده الليلة.') + '</p>';
+    return items.map(function (it) {
+        var st = typeof it.station === 'number' ? 'محطة ' + _mcNum(it.station + 1) : 'عام';
+        var ans = it.kind === 'order' ? '' : _mcAnswerText(it);
+        return '<button class="mc-qpi" data-a="qtake" data-id="' + _mcEsc(it.id) + '">' +
+            '<span class="mc-qpm">' + st + (it.difficulty ? ' · ' + ['', 'سهل', 'متوسط', 'صعب'][it.difficulty] : '') + '</span>' +
+            '<span class="mc-qpt">' + _mcEsc(_mcItemTitle(it)) + '</span>' +
+            (ans ? '<span class="mc-qpa">✔ ' + _mcEsc(ans) + '</span>' : '') + '</button>';
+    }).join('');
+}
+
+_MC_A.qpick = function () {
+    var ui = _mc.ui;
+    ui.qp = !ui.qp;
+    if (ui.qp) {
+        var kinds = _mcQpKinds();
+        if (kinds.indexOf(ui.qpKind) < 0) ui.qpKind = kinds.indexOf(ui.kind) >= 0 ? ui.kind : kinds[0] || null;
+        ui.qpQ = '';
+        var inp = _mcEl('mc-qpq');
+        if (inp) inp.value = '';
+    }
+    _mcRefresh();
+    if (ui.qp) { var f = _mcEl('mc-qpq'); if (f) f.focus(); }
+};
+_MC_A.qpkind = function (d) { _mc.ui.qpKind = d.k; _mcRefresh(); };
+/* The chosen item goes up as a preview for the current target, like «السؤال الجاي». */
+_MC_A.qtake = function (d) {
+    var n = _mc.night, it = mtTakeItem(_mc.pool, n, d.id, Math.random);
+    if (!it) { _mcToast('السؤال ده اتسأل خلاص الليلة.', 2500); _mcRefresh(); return; }
+    _mcLeaveCurrent();
+    _mcSetCurrent(it, false);
+    n.current.randomKind = false;
+    _mc.ui.qp = false;
+    _mc.ui.choose = null;
+    _mcCommit();
+};
 
 /* ---------- actions: awards ---------- */
 
@@ -2048,6 +2137,9 @@ function _mcOnInput(e) {
     } else if (id === 'mc-ci') {
         _mc.ui.ciQ = el.value;
         _mcPaint('mc-ci-res', _mcCheckInResultsHtml());
+    } else if (id === 'mc-qpq') {
+        _mc.ui.qpQ = el.value;
+        _mcPaint('mc-qpl', _mcQpListHtml());
     } else if (id.indexOf('mc-nt-') === 0) {
         _mc.ui.newName[id.slice(6)] = el.value;
     } else if (id.indexOf('mc-tn-') === 0) {

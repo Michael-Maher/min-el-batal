@@ -75,13 +75,16 @@ Reads use `players.select(...)` on the small fields only (docs hold base64 media
 - Tokens: `initPushNotifications` writes `pushTokens/{token}` (owner = phone) and deletes legacy `players.fcmToken`;
   `logout()` deletes the device's token doc. Fix: token save no longer rebuilds `notifPrefs` (it dropped `social`).
 - Single display: messages are data-only (no `webpush.notification`); the service workers display them. `sw.js` and
-  `admin-sw.js` `onBackgroundMessage` are the only callers of `showNotification`, so each push shows once. `notificationclick` opens/focuses the app with `?n=<base64 link>`; the open app
+  `admin-sw.js` `push` listeners are the only callers of `showNotification`, so each push shows once, app open or not.
+  The Firebase SDK's SW handler is not used: it shows nothing while any same-origin page is visible (admin panel
+  included), and iOS revokes subscriptions that receive pushes without a notification.
+- `admin.html` uses its own Firebase web app (`appId` ...69585fa47aecfa5da4b664, "Min El Batal Admin"). The SDK
+  stores one token per appId per origin, so a shared appId made the panel and the game delete each other's token. `notificationclick` opens/focuses the app with `?n=<base64 link>`; the open app
   receives a `postMessage` instead. `openNotifLink(link)` routes `screen` → existing openers (`openQuestionThread`,
   `l1OpenSubject`/`l1StartStation`, `openLevel2Subject`/`startLevel2Lesson`, `openSelfieChallenge`, duel join by
   code, `autoJoinRoom`, Bible reading screen, `tournament-live.html`), respecting the `showScreen` lock gate.
 - Bell on the home hub: unread badge = items with `createdAt > notifSeenAt`; panel lists the last 30 for
   `audience in [phone, 'all', 'level_<playerLevelOf>']`; opening it sets `notifSeenAt`; tapping an item → `openNotifLink`.
-  Foreground `onMessage` shows a toast and bumps the badge.
 - `lastBibleDate`: set when a `bibleReadingLog` entry is saved; backfilled from the newest log key on load.
 - Invite a teammate: in the duel waiting screen and the compete room lobby, «ادعي حد من فريقك» lists team members
   (`teams.members`, excluding self) → writes `invites`. Existing `compete_invite` handler is replaced by the generic route.

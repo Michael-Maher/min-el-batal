@@ -1,25 +1,15 @@
-// Admin panel service worker: displays data-only pushes and opens the right admin page on tap.
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
-firebase.initializeApp({
-    apiKey: "AIzaSyDZXv7nmtJ5tqSLmvrxQ1F4WuoHmBxttuY",
-    authDomain: "min-el-batal.firebaseapp.com",
-    projectId: "min-el-batal",
-    storageBucket: "min-el-batal.firebasestorage.app",
-    messagingSenderId: "743794480493",
-    appId: "1:743794480493:web:74c8ef6a444e29f7a4b664"
-});
-var messaging = firebase.messaging();
+// Admin panel service worker: always displays data-only pushes (no Firebase SDK handler, see sw.js)
+// and opens the right admin page on tap.
 self.addEventListener('install', function() { self.skipWaiting(); });
 self.addEventListener('activate', function(e) { e.waitUntil(self.clients.claim()); });
 
-messaging.onBackgroundMessage(function(payload) {
-    if (payload.notification) return;
-    var d = payload.data || {};
-    return self.registration.showNotification(d.title || 'لوحة مين البطل', {
+self.addEventListener('push', function(event) {
+    var d = {};
+    try { d = (event.data && event.data.json() || {}).data || {}; } catch (e) {}
+    event.waitUntil(self.registration.showNotification(d.title || 'لوحة مين البطل', {
         body: d.body || '', icon: '/images/icon/app-192.png', badge: '/images/Logo-192.png',
         dir: 'rtl', lang: 'ar', tag: d.tag || undefined, renotify: !!d.tag, data: { link: d.link || '' }
-    });
+    }));
 });
 
 self.addEventListener('notificationclick', function(event) {

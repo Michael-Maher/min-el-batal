@@ -2,9 +2,6 @@
 // مين البطل؟ - Service Worker (PWA + Push Notifications)
 // ============================================================
 
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
-importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
-
 // --- Cache Config ---
 var CACHE_NAME = 'min-el-batal-v48';
 var STATIC_ASSETS = [
@@ -75,23 +72,13 @@ var CDN_ASSETS = [
     'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'
 ];
 
-// --- Firebase Init (for background push) ---
-firebase.initializeApp({
-    apiKey: "AIzaSyDZXv7nmtJ5tqSLmvrxQ1F4WuoHmBxttuY",
-    authDomain: "min-el-batal.firebaseapp.com",
-    projectId: "min-el-batal",
-    storageBucket: "min-el-batal.firebasestorage.app",
-    messagingSenderId: "743794480493",
-    appId: "1:743794480493:web:74c8ef6a444e29f7a4b664"
-});
-
-var messaging = firebase.messaging();
-
-// --- Background Push Handler: messages are data-only, so this is the only display ---
-messaging.onBackgroundMessage(function(payload) {
-    if (payload.notification) return;   // FCM already displayed it
-    var d = payload.data || {};
-    return self.registration.showNotification(d.title || 'مين البطل؟', {
+// --- Push: messages are data-only; always show them. The Firebase SDK's own handler is not used:
+// it shows nothing while any page of this site is visible (admin panel included), and iOS revokes
+// the subscription of a site that receives pushes without showing a notification.
+self.addEventListener('push', function(event) {
+    var d = {};
+    try { d = (event.data && event.data.json() || {}).data || {}; } catch (e) {}
+    event.waitUntil(self.registration.showNotification(d.title || 'مين البطل؟', {
         body: d.body || 'عندك إشعار جديد!',
         icon: '/images/icon/app-192.png',
         badge: '/images/Logo-192.png',
@@ -101,7 +88,7 @@ messaging.onBackgroundMessage(function(payload) {
         renotify: !!d.tag,   // a second invite/answer with the same tag still rings
         vibrate: [200, 100, 200],
         data: { link: d.link || '' }
-    });
+    }));
 });
 
 // --- Notification Click: open the place the notification is about ---

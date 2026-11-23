@@ -18270,7 +18270,6 @@ if ('serviceWorker' in navigator) {
 // --- Push Notifications (Firebase Cloud Messaging) ---
 var fcmToken = null;
 var FCM_VAPID_KEY = 'BCK-Gml28B9WpWb_umCHAwmVqNP6FFptoLLLxWpfQwGkNc7zC_ixVRNYQL5t2Ls4lG3v_pa42WCZ9jQeCNtN3tk';
-var _fcmOnMessageBound = false;
 
 function initPushNotifications() {
     if (typeof firebase === 'undefined' || !firebase.messaging) {
@@ -18303,16 +18302,7 @@ function initPushNotifications() {
         console.warn('[FCM] Token error:', err);
     });
 
-    // Handle foreground messages: one in-app toast (the OS shows nothing while the app is open)
-    if (_fcmOnMessageBound) return;
-    _fcmOnMessageBound = true;
-    messaging.onMessage(function(payload) {
-        var d = payload.data || {};
-        var title = d.title || (payload.notification && payload.notification.title) || 'مين البطل؟';
-        var body = d.body || (payload.notification && payload.notification.body) || '';
-        showToast(title + (body ? ' — ' + body : ''), 'info');
-        if (typeof refreshNotifBadgeSoon === 'function') refreshNotifBadgeSoon();
-    });
+    // sw.js shows every push, app open or not; the bell inbox updates through its own listener
 }
 
 // ---- Push tokens: one doc per device in pushTokens (owner = phone); removed on logout ----
@@ -18428,7 +18418,6 @@ function unsubscribeNotifInbox() {
     _notifItems = [];
     updateNotifBadge();
 }
-function refreshNotifBadgeSoon() { updateNotifBadge(); }   // the onSnapshot listener delivers the item itself
 function updateNotifBadge() {
     var el = document.getElementById('gx-notif-badge');
     if (!el) return;

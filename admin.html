@@ -2217,7 +2217,9 @@ firebase.initializeApp({
   projectId:"min-el-batal",
   storageBucket:"min-el-batal.firebasestorage.app",
   messagingSenderId:"743794480493",
-  appId:"1:743794480493:web:74c8ef6a444e29f7a4b664"
+  // own web app ("Min El Batal Admin"): the browser keeps one push token per appId, so sharing the
+  // game's appId made the panel and the game delete each other's token on the same device
+  appId:"1:743794480493:web:69585fa47aecfa5da4b664"
 });
 const db = firebase.firestore();
 db.settings({ experimentalForceLongPolling: true, experimentalAutoDetectLongPolling: false });

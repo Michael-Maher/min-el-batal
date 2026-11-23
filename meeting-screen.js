@@ -9,6 +9,9 @@ var MS_FIXED_TEXT = 'واحد من الفريق ييجي يشوف الكلمة �
 var MS_LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
 var MS_SEGMENT_ICON = { act: '🎭', draw: '🎨', taboo: '🤐' };
 var MS_RING_C = 282.74; /* 2 * PI * 45, the ring circle in meeting.html */
+var MS_CHEERS = ['برافو عليك! 👏', 'إجابة جامدة! 🔥', 'الله ينوّر! ✨', 'بطل! 🦸', 'عاش يا بطل! 💪', 'أحسنت! 🌟', 'مفيش كلام! 😎', 'كده الشغل! 🎯', 'ربنا يباركك! 🙏', 'ممتاز! 🏆'];
+var MS_TEAM_CHEERS = ['فريق جامد! 🔥', 'عاش يا أبطال! 💪', 'برافو عليكم! 👏', 'كده الشغل يا فريق! 🎯', 'الله ينوّر عليكم! ✨', 'فريق بطل! 🏆'];
+var MS_SPLASH_MS = 1900;
 /* Level identity: L1 warm, sunny and bouncy; L2 cool, sleek and electric. Same palettes as .lv1/.lv2 in meeting.html. */
 var MS_LV = {
     1: { cls: 'lv1', tag: '🌟 مستوى أول', chip: '🌟 المستوى الأول', title: '🌟 أبطال المستوى الأول', colors: ['#ffd166', '#ff9f1c', '#ff6b35', '#fff3c4', '#ffe08a'] },
@@ -123,7 +126,10 @@ function msRender(view) {
        The full-screen board stays only until the next view that changes anything. */
     if (_ms.fxActive && (sig !== _ms.itemSig || (_ms.fxFull === 'board' && JSON.stringify(view) !== _ms.fxFullView))) _msFxClear();
 
+    /* a question going up (not a swap of one already up) gets the mode splash */
+    if (isNew && stage === 'shown' && _ms.stage !== 'shown') _msModeSplash(view);
     _ms.view = view;
+    _msModeClass(view, it);
     var tagsChanged = _msRenderTags(view, it);
     var boardToggled = _msRenderTeams(view) || tagsChanged;
 
@@ -207,9 +213,11 @@ function _msRenderTags(view, it) {
         var turn = _msTurnTeam(view), up = view.stage === 'revealed' ? _msTeamById(view.nextTeamId) : null;
         /* once the answer is up, the team after this one gets ready */
         if (up) h += '<span class="ms-tag nextup" style="--tc:' + _msEsc(up.color) + '">⏭ الدور الجاي: ' + _msEsc(up.name) + '، جهّزوا نفسكم</span>';
-        else if (turn) h += '<span class="ms-tag turn" style="--tc:' + _msEsc(turn.color) + '">🎯 دور ' + _msEsc(turn.name) + '</span>';
-        else if (t.mode === 'speed') h += '<span class="ms-tag mode">⚡ سؤال سرعة: أول واحد يرفع إيده</span>';
-        else if (t.mode === 'individual') h += '<span class="ms-tag mode">🙋 سؤال فردي</span>';
+        else if (turn) h += '<span class="ms-tag turn m-team" style="--tc:' + _msEsc(turn.color) + '">👥 سؤال فريق · ' + _msEsc(turn.icon || '🎯') + ' دور ' + _msEsc(turn.name) + '</span>';
+        else if (t.mode === 'speed') h += '<span class="ms-tag m-speed">⚡ سؤال سرعة: أول واحد يرفع إيده!</span>';
+        else if (t.mode === 'individual') h += '<span class="ms-tag m-ind">🙋 سؤال فردي: جاوب لوحدك</span>';
+        var L = view.lifeline && typeof MT_LIFELINES !== 'undefined' ? MT_LIFELINES.filter(function (x) { return x.id === view.lifeline.id; })[0] : null;
+        if (L && view.stage === 'shown') h += '<span class="ms-tag life">🛟 ' + L.icon + ' ' + _msEsc(L.label) + '</span>';
     }
     var el = _msEl('ms-tags');
     if (el.innerHTML === h) return false;
@@ -253,13 +261,65 @@ function _msRenderTeams(view) {
                     '<span class="mb-rk' + (medal ? ' md' : '') + '"><i>' + (medal ? ['🥇', '🥈', '🥉'][r] : _msNum(r + 1)) + '</i></span>' +
                     '<span class="tb-ico">' + _msEsc(t.icon || '🛡️') + '</span>' +
                     '<span class="tb-tx"><span class="tb-nm">' + (t.id === view.leaderId ? '👑 ' : '') + _msEsc(String(t.name || '').replace(/^فريق\s+/, '')) + '</span>' +
-                    (tag ? '<span class="tb-tag">' + tag + '</span>' : '') + '</span>' +
+                    (tag ? '<span class="tb-tag">' + tag + '</span>' : '') + '</span>' + _msLifeIcons(t) +
                     '<span class="mb-st' + (d ? ' bump' : '') + '">' + _msNum(t.score) + '</span>' +
                     (d ? '<span class="tb-delta' + (d < 0 ? ' neg' : '') + '">' + _msPts(d) + '</span>' : '') + '</div>';
             }).join('') + '</div></section>';
     }).join('');
     _msFitTeamBoard();
     return toggled;
+}
+
+/* The four lifelines on a team's row; the used ones are crossed out. */
+function _msLifeIcons(t) {
+    if (typeof MT_LIFELINES === 'undefined') return '';
+    var used = t.used || [];
+    return '<span class="tb-life">' + MT_LIFELINES.map(function (l) {
+        return '<i class="' + (used.indexOf(l.id) >= 0 ? 'u' : '') + '">' + l.icon + '</i>';
+    }).join('') + '</span>';
+}
+
+/* Who answers this question: team (in the team's color), speed or individual. */
+function _msModeInfo(view) {
+    var t = view.target || {}, turn = _msTurnTeam(view);
+    if (turn) return { cls: 'm-team', icon: turn.icon || '👥', title: 'سؤال فريق', sub: 'دور ' + turn.name + '… اتشاوروا وجاوبوا مع بعض', tc: turn.color };
+    if (t.mode === 'speed') return { cls: 'm-speed', icon: '⚡', title: 'سؤال سرعة', sub: 'أول واحد يرفع إيده هو اللي يجاوب!', tc: '#ff9f1c' };
+    if (t.mode === 'individual') return { cls: 'm-ind', icon: '🙋', title: 'سؤال فردي', sub: 'كل واحد يجاوب لوحده من غير مساعدة', tc: '#00cec9' };
+    return null;
+}
+
+function _msModeClass(view, it) {
+    var box = _msEl('ms-stage'), m = it ? _msModeInfo(view) : null;
+    ['m-team', 'm-speed', 'm-ind'].forEach(function (c) { box.classList.toggle(c, !!m && m.cls === c); });
+    if (m) box.style.setProperty('--mc', m.tc); else box.style.removeProperty('--mc');
+}
+
+function _msModeSplash(view) {
+    var m = _msModeInfo(view), el = _msEl('ms-splash');
+    if (!m || !el) return;
+    clearTimeout(_ms.splashTimer);
+    el.className = 'on ' + m.cls;
+    el.style.setProperty('--mc', m.tc);
+    el.innerHTML = '<div class="sp-card"><div class="sp-ico">' + _msEsc(m.icon) + '</div><div class="sp-t">' + _msEsc(m.title) + '</div><div class="sp-s">' + _msEsc(m.sub) + '</div></div>';
+    _msSfx(m.cls === 'm-speed' ? 'zap' : 'whoosh');
+    _ms.splashTimer = setTimeout(function () { el.className = ''; el.innerHTML = ''; }, MS_SPLASH_MS);
+}
+
+function _msCheer(list) {
+    var i = Math.floor(Math.random() * list.length);
+    if (list[i] === _ms.lastCheer) i = (i + 1) % list.length;
+    _ms.lastCheer = list[i];
+    return list[i];
+}
+
+/* Bursts around the screen, one after another (dies with the fx). */
+function _msFireworks(n, colors, delay) {
+    for (var i = 0; i < n; i++) {
+        _msLater(function () {
+            _msBurst(innerWidth * (0.12 + Math.random() * 0.76), innerHeight * (0.12 + Math.random() * 0.4), 55, colors, Math.random() < 0.5 ? 'star' : 'streak');
+            _msSfx('boom');
+        }, (delay || 0) + i * 380);
+    }
 }
 
 function _msItemHtml(it, rev, a) {
@@ -305,8 +365,19 @@ function _msItemHtml(it, rev, a) {
             if (!rev) h += '<div class="ms-hint big">🤔 القصة دي إيه؟</div>';
             break;
         case 'deep':
+            h += '<div class="ms-kindbadge deep' + inCls + '">✍️ سؤال مقالي</div>';
             h += '<div class="ms-prompt' + inCls + '">' + _msEsc(it.prompt) + '</div>';
-            if (!rev) h += '<div class="ms-hint">💭 مفيش إجابة واحدة… فكّر وقول رأيك</div>';
+            if (!rev) h += '<div class="ms-hint">💭 فكّروا كويس وجاوبوا بالتفصيل… كل نقطة صح ليها نجوم</div>';
+            break;
+        case 'explain':
+            h += '<div class="ms-kindbadge explain' + inCls + '">🧠 اشرح وفسّر</div>';
+            h += '<div class="ms-prompt' + inCls + '">' + _msEsc(it.prompt) + '</div>';
+            if (!rev) h += '<div class="ms-hint">💭 اشرحوها بكلامكم إنتوا</div>';
+            break;
+        case 'ref':
+            h += '<div class="ms-kindbadge ref' + inCls + '">📖 افتحوا رسالة يعقوب</div>';
+            h += '<div class="ms-prompt' + inCls + '">' + _msEsc(it.prompt) + '</div>';
+            if (!rev) h += '<div class="ms-hint big">🔎 طلّعوا الشاهد: الإصحاح كام والآية كام؟</div>';
             break;
         case 'anagram':
             h += _msTilesHtml(rev && it.answer ? String(it.answer) : String(it.scrambled || ''), rev, a.isNew);
@@ -342,6 +413,7 @@ function _msItemHtml(it, rev, a) {
             if (!rev) h += '<div class="ms-hint big">' + _msEsc(MS_FIXED_TEXT) + '</div>';
             break;
     }
+    if (it.hint && !rev) h += '<div class="ms-lifehint">💡 ' + _msEsc(it.hint) + '</div>';
     if (rev) h += _msAnswerHtml(it);
     return h;
 }
@@ -353,6 +425,7 @@ function _msOptionsHtml(it, rev, a) {
     opts.forEach(function (o, i) {
         var cls = '';
         if (rev) cls = i === it.correct ? ' right' : ' dim';
+        else if ((it.removed || []).indexOf(i) >= 0) cls = ' gone';
         else if (i >= a.prev.opts) cls = ' in';
         h += '<div class="ms-opt' + cls + '"><span class="ms-letter">' + (MS_LETTERS[i] || _msNum(i + 1)) + '</span>' +
             '<span class="t">' + _msEsc(o) + '</span>' + (rev && i === it.correct ? '<span>✅</span>' : '') + '</div>';
@@ -379,9 +452,10 @@ function _msAnswerHtml(it) {
     var inPlace = { mcq: 1, scenario: 1, verse: 1, tf: 1, order: 1, odd: 1, anagram: 1 };
     var skipAnswer = inPlace[k] || (k === 'sixty' && it.list && it.list.length);
     if (!skipAnswer && it.answer !== undefined && it.answer !== '') {
-        var lbl = (k === 'act' || k === 'draw' || k === 'taboo') ? '🎯 الكلمة كانت' : (k === 'hymn' ? '🎶 التكملة' : '✨ الإجابة');
+        var lbl = (k === 'act' || k === 'draw' || k === 'taboo') ? '🎯 الكلمة كانت' : (k === 'hymn' ? '🎶 التكملة' : k === 'ref' ? '📍 الشاهد' : '✨ الإجابة');
         h += '<div class="ms-answer"><div class="lbl">' + lbl + '</div><div class="t">' + _msEsc(it.answer) + '</div></div>';
     }
+    if (k === 'ref' && it.verse) h += '<div class="ms-verse">«' + _msEsc(it.verse) + '»</div>';
     if (it.explain) h += '<div class="ms-explain">📖 ' + _msEsc(it.explain) + '</div>';
     return h;
 }
@@ -496,7 +570,9 @@ var _MS_FX = {
             '<div class="fx-card"><div class="fx-name">' + _msEsc(fx.name) + '</div>' +
             '<div class="fx-pts' + (neg ? ' neg' : '') + '">' + (neg ? '⭐ ' : '<img class="fx-star-img" src="images/ui/ic-star.webp" alt="⭐"> ') + _msPts(fx.points) + '</div>' +
             (L ? '<div class="fx-lvbadge ' + L.cls + (fx.level === 2 ? ' lv2-shine' : '') + '">' + L.chip + '</div>' : '') +
-            (fx.teamName ? '<div class="fx-team-chip" style="--tc:' + _msEsc(tc) + '">' + _msEsc(fx.teamName) + '</div>' : '') + '</div>';
+            (fx.teamName ? '<div class="fx-team-chip" style="--tc:' + _msEsc(tc) + '">' + _msEsc(fx.teamName) + '</div>' : '') +
+            (neg ? '' : '<div class="fx-cheer">' + _msEsc(_msCheer(MS_CHEERS)) + '</div>') + '</div>';
+        if (!neg) _msFireworks(2, L ? L.colors : [tc, '#FFD700', '#ffffff'], 700);
         if (neg) { _msSfx('wrong'); }
         else if (fx.level === 2) {
             _msSfx('zap');
@@ -522,9 +598,10 @@ var _MS_FX = {
             '<div class="fx-team-ico">' + _msEsc((t && t.icon) || '🛡️') + '</div>' +
             '<div class="fx-team-name">' + _msEsc(fx.teamName) + '</div>' +
             '<div class="fx-pts' + ((Number(fx.points) || 0) < 0 ? ' neg' : '') + '">⭐ ' + _msPts(fx.points) + '</div>' +
-            '<div class="fx-sub">لكل الفريق! 🎉</div></div>';
+            '<div class="fx-sub">لكل الفريق! 🎉</div>' +
+            ((Number(fx.points) || 0) > 0 ? '<div class="fx-cheer">' + _msEsc(_msCheer(MS_TEAM_CHEERS)) + '</div>' : '') + '</div>';
         if ((Number(fx.points) || 0) < 0) _msSfx('wrong');
-        else { _msSfx('team'); _msConfetti(160, 1800, [tc, '#FFD700', '#ffffff']); }
+        else { _msSfx('team'); _msConfetti(160, 1800, [tc, '#FFD700', '#ffffff']); _msFireworks(4, [tc, '#FFD700', '#ffffff'], 500); }
         _msFxEndAfter(2300);
     },
     reveal: function (fx, el) {
@@ -547,6 +624,38 @@ var _MS_FX = {
             _msConfetti(140, 1500);
             _msFxEndAfter(3600);
         });
+    },
+    kindWheel: function (fx, el) {
+        var outs = fx.outcomes || [];
+        if (!outs.length) { _msFxClear(); return; }
+        var idx = Math.max(0, Math.min(outs.length - 1, Math.floor(Number(fx.index) || 0)));
+        el.innerHTML = '<div class="fx-dim"></div><div class="fx-col">' +
+            _msTitle('🎲', 'السؤال الجاي عن إيه؟') +
+            '<div class="fx-wheel-row">' + _msWheelHtml(outs) + '</div></div>';
+        _msSfx('whoosh');
+        _msSpin(el.querySelector('.fx-wheel'), outs.length, idx, 3400, function () {
+            el.querySelector('.fx-wheel-row').insertAdjacentHTML('beforeend', '<div class="fx-result-wrap"><div class="fx-result">' + _msEsc(outs[idx]) + '</div></div>');
+            _msSfx('fanfare');
+            _msConfetti(90, 1300);
+            _msFxEndAfter(3000); /* the question normally replaces it sooner */
+        });
+    },
+    lifeline: function (fx, el) {
+        var tc = fx.teamColor || '#6C5CE7', it = _ms.view && _ms.view.item;
+        var sub = fx.id === 'ask' ? '⏱ +' + _msNum(typeof MT_ASK_SECONDS !== 'undefined' ? MT_ASK_SECONDS : 30) + ' ثانية… روحوا اسألوا بسرعة!'
+            : fx.id === 'swap' ? 'سؤال جديد طالع ليكم! 🔄'
+            : fx.id === 'fifty' ? 'إجابتين غلط اختفوا! ✂️'
+            : fx.hint ? '💡 ' + fx.hint
+            : it && it.options ? 'إجابة غلط اختفت! 💡' : 'تلميح زيادة ظهر! 💡';
+        el.style.setProperty('--tc', tc);
+        el.innerHTML = '<div class="fx-dim"></div><div class="fx-card fx-life">' +
+            '<div class="fx-life-ico">' + _msEsc(fx.icon || '🛟') + '</div>' +
+            '<div class="fx-life-team">' + _msEsc(fx.teamIcon || '') + ' ' + _msEsc(fx.teamName || '') + ' استخدموا</div>' +
+            '<div class="fx-life-name">«' + _msEsc(fx.label || '') + '»</div>' +
+            '<div class="fx-sub">' + _msEsc(sub) + '</div></div>';
+        _msSfx('lifeline');
+        _msBurst(innerWidth / 2, innerHeight / 2, 70, [tc, '#FFD700', '#ffffff'], 'star');
+        _msFxEndAfter(fx.hint ? 3600 : 2800);
     },
     pick: function (fx, el) {
         var names = (fx.names || []).filter(function (x) { return x; });
@@ -857,6 +966,8 @@ function _msSfx(type) {
         case 'tickUrgent': T(1320, 0.07, 'square', 0.14); T(660, 0.06, 'square', 0.08, 0.04); break;
         case 'timeout': T(330, 0.14, 'square', 0.15); T(330, 0.14, 'square', 0.15, 0.18); T(220, 0.4, 'sawtooth', 0.2, 0.36); break;
         case 'wheelTick': T(1500, 0.03, 'square', 0.07); break;
+        case 'boom': T(90, 0.35, 'sawtooth', 0.1); T(1200 + Math.random() * 600, 0.25, 'triangle', 0.05, 0.05); break;
+        case 'lifeline': [783.99, 987.77, 1174.66, 1567.98].forEach(function (f, i) { T(f, 0.18, 'sine', 0.15, i * 0.06); }); T(2093, 0.45, 'triangle', 0.08, 0.3); break;
         case 'whoosh': T(120, 0.25, 'sawtooth', 0.07); T(240, 0.3, 'triangle', 0.06, 0.08); break;
         case 'suspense': [220, 246.94, 261.63, 293.66, 329.63, 349.23, 392, 440].forEach(function (f, i) { T(f, 0.16, 'square', 0.07, i * 0.13); }); T(523.25, 0.7, 'triangle', 0.16, 1.05); break;
         case 'golden':

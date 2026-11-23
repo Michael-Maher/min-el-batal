@@ -321,7 +321,7 @@ test('restore rejects a partial night', function () {
 });
 
 // ---- audience view ----
-var KINDS = ['mcq', 'tf', 'clues', 'verse', 'scenario', 'order', 'emoji', 'anagram', 'odd', 'deep', 'sixty', 'act', 'draw', 'taboo', 'hymn'];
+var KINDS = ['mcq', 'tf', 'clues', 'verse', 'scenario', 'order', 'emoji', 'anagram', 'odd', 'deep', 'explain', 'ref', 'sixty', 'act', 'draw', 'taboo', 'hymn'];
 function fixture(k) {
     var it = { id: 'id_' + k, level: 1, subject: 'bible', station: 0, kind: k, difficulty: 1 };
     it.explain = 'EXP_' + k;
@@ -340,8 +340,10 @@ function fixture(k) {
             it.scrambled = 'SCR_anagram'; it.answer = 'ANS_anagram'; break;
         case 'odd':
             it.items = ['I1', 'I2', 'I3', 'I4']; it.odd = 2; it.answer = 'ANS_odd'; break;
-        case 'deep':
-            it.prompt = 'P_deep'; it.answer = 'ANS_deep'; break;
+        case 'deep': case 'explain':
+            it.prompt = 'P_' + k; it.answer = 'ANS_' + k; break;
+        case 'ref':
+            it.prompt = 'P_ref'; it.answer = 'يع ٣: ٥'; it.verse = 'VERSE_ref'; break;
         case 'sixty':
             it.prompt = 'P_sixty'; it.list = ['LST1', 'LST2', 'LST3']; it.answer = 'ANS_sixty'; break;
         case 'act': case 'draw':
@@ -449,7 +451,7 @@ test('audience view header: teams, leader, timer', function () {
     assert.strictEqual(v.leaderId, 'mina');
     assert.strictEqual(v.timerEndsAt, 123); assert.strictEqual(v.timerSec, 20); assert.strictEqual(v.golden, true);
     assert.strictEqual(v.target.mode, 'speed');
-    assert.deepStrictEqual(Object.keys(v.teams[0]).sort(), ['color', 'icon', 'id', 'level', 'name', 'score']);
+    assert.deepStrictEqual(Object.keys(v.teams[0]).sort(), ['color', 'icon', 'id', 'level', 'name', 'score', 'used']);
 });
 
 
@@ -747,9 +749,99 @@ test('timers and hash', function () {
     assert.strictEqual(c.mtTimerFor('mcq', 'individual'), 30);
     assert.strictEqual(c.mtTimerFor('tf', 'speed'), 10);
     assert.strictEqual(c.mtTimerFor('deep', 'speed'), 45);
-    assert.strictEqual(Object.keys(c.MT_KINDS).length, 15);
+    assert.strictEqual(Object.keys(c.MT_KINDS).length, 17);
     assert.ok(/^[0-9a-f]{8}$/.test(c.mtHash('abc')));
     assert.strictEqual(c.mtHash('a'), 'e40c292c');
+});
+
+
+/* ---- essay and understanding kinds, find-the-verse, weighted kinds, lifelines ---- */
+
+test('pool: deep items of difficulty 1-2 become «اشرح وفسّر», 3 stays essay', function () {
+    var bank = [
+        { id: 'd1', level: 1, subject: 'l1_bible', station: 0, kind: 'deep', difficulty: 1, prompt: 'p', answer: 'a', explain: 'e' },
+        { id: 'd3', level: 1, subject: 'l1_bible', station: 0, kind: 'deep', difficulty: 3, prompt: 'p', answer: 'a', explain: 'e' }
+    ];
+    var c = loadPool(bank), pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]);
+    assert.strictEqual(pool.filter(function (x) { return x.id === 'd1'; })[0].kind, 'explain');
+    assert.strictEqual(pool.filter(function (x) { return x.id === 'd3'; })[0].kind, 'deep');
+    assert.strictEqual(c.MT_KINDS.explain.label, 'اشرح وفسّر');
+    assert.strictEqual(c.MT_KINDS.ref.timer, 60);
+});
+
+test('kinds: a night saved before the new kinds follows deep and verse', function () {
+    var c = load();
+    var old = { kinds: ['deep', 'mcq'] };
+    assert.ok(c.mtKindOn(old, 'explain')); assert.ok(!c.mtKindOn(old, 'ref'));
+    assert.ok(c.mtKindOn({ kinds: ['verse'] }, 'ref'));
+    var fresh = c.mtNewNight({ date: 'd', title: 't', levels: [1], filter: {}, kinds: ['deep'] });
+    assert.ok(!c.mtKindOn(fresh, 'explain'), 'a new night decides every kind itself');
+});
+
+test('kinds: random picks favor essay and understanding questions', function () {
+    var bank = [];
+    ['mcq', 'odd', 'emoji', 'deep'].forEach(function (k, ki) {
+        for (var i = 0; i < 400; i++) bank.push({ id: k + i, level: 1, subject: 'l1_bible', station: 0, kind: k, difficulty: 3, prompt: 'p', options: ['a', 'b', 'c'], correct: 0, items: ['a', 'b', 'c', 'd'], odd: 0, answer: 'a', explain: 'e' });
+    });
+    var c = loadPool(bank), pool = c.mtBuildPool({ subjects: [], lessons: {} }, [1]);
+    var n = c.mtNewNight({ date: 'd', title: 't', levels: [1], filter: {}, kinds: ['mcq', 'odd', 'emoji', 'deep'] });
+    var seed = 7, rng = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    var deep = 0, total = 400;
+    for (var i = 0; i < total; i++) { var it = c.mtPickNext(pool, n, { level: 1 }, {}, rng); if (it.kind === 'deep') deep++; n.lastKind = null; }
+    assert.ok(deep / total > 0.35, 'deep came up ' + deep + ' of ' + total);
+});
+
+test('audience view: find-the-verse shows the verse only on reveal', function () {
+    var c = load(), n = viewNight(c, fixture('ref'), 'shown');
+    var s = JSON.stringify(c.mtAudienceView(n));
+    assert.ok(s.indexOf('VERSE_ref') < 0 && s.indexOf('يع ٣: ٥') < 0);
+    n.current.stage = 'revealed';
+    var v = c.mtAudienceView(n);
+    assert.strictEqual(v.item.verse, 'VERSE_ref'); assert.strictEqual(v.item.answer, 'يع ٣: ٥');
+});
+
+function llNight(c, kind) {
+    var n = viewNight(c, fixture(kind), 'shown');
+    n.current.target = { level: 1, mode: 'team', teamId: 'george' };
+    return n;
+}
+
+test('lifelines: each once per team, per night', function () {
+    var c = load(), n = llNight(c, 'mcq');
+    assert.ok(c.mtUseLifeline(n, 'george', 'ask'));
+    assert.ok(!c.mtUseLifeline(n, 'george', 'ask'), 'second time refused');
+    assert.ok(c.mtLifelineOk(n, 'mina', 'ask'), 'other teams still have it');
+    assert.deepStrictEqual(plain(c.mtAudienceView(n).teams[0].used), ['ask']);
+    assert.strictEqual(c.mtAudienceView(n).lifeline.id, 'ask');
+    n.current.stage = 'preview';
+    assert.ok(!c.mtLifelineOk(n, 'mina', 'ask'), 'not before the question is shown');
+});
+
+test('lifelines: fifty and hint remove wrong options, never the right one', function () {
+    var c = load(), n = llNight(c, 'mcq');
+    var seed = 3, rng = function () { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    assert.ok(c.mtUseLifeline(n, 'george', 'fifty', rng));
+    assert.strictEqual(n.current.removed.length, 2);
+    assert.ok(n.current.removed.indexOf(1) < 0, 'right option kept');
+    assert.ok(!c.mtLifelineOk(n, 'george', 'hint'), 'hint would leave one option: refused');
+    var v = c.mtAudienceView(n);
+    assert.strictEqual(v.item.removed.length, 2); assert.strictEqual(v.item.options.length, 4);
+    assert.ok(!/"correct":/.test(JSON.stringify(v)), 'still no answer');
+    var t = llNight(c, 'tf');
+    assert.ok(!c.mtLifelineOk(t, 'george', 'fifty')); assert.ok(!c.mtLifelineOk(t, 'george', 'hint'));
+});
+
+test('lifelines: hint per kind', function () {
+    var c = load(), n;
+    n = llNight(c, 'clues');
+    assert.ok(c.mtUseLifeline(n, 'george', 'hint')); assert.strictEqual(n.current.clueIdx, 1);
+    n = llNight(c, 'order');
+    assert.ok(c.mtUseLifeline(n, 'george', 'hint')); assert.ok(/ST1/.test(c.mtAudienceView(n).item.hint));
+    n = llNight(c, 'ref');
+    assert.ok(c.mtUseLifeline(n, 'george', 'hint')); assert.strictEqual(n.current.hint, 'الآية في الإصحاح ٣');
+    n = llNight(c, 'act');
+    assert.ok(!c.mtLifelineOk(n, 'george', 'hint'));
+    assert.ok(c.mtLifelineOk(n, 'george', 'swap'));
 });
 
 test('bank deps load standalone', function () {

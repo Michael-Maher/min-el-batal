@@ -20,6 +20,7 @@ var MC_BIBLE = { 1: 'l1_bible', 2: 'l2_bible' };
 var MC_LETTERS = ['أ', 'ب', 'ج', 'د', 'هـ', 'و', 'ز', 'ح'];
 var MC_PICK_NAMES = 8;
 var MC_WORTH = [5, 10, 15, 20, 30];  /* quick choices for what a question is worth */
+var MC_WORTH_MAX = 500;               /* the most a question can be set to by hand */
 var MC_WHEEL = [
     { id: 'double', label: 'النقط دبل في السؤال الجاي' },
     { id: 'gift', label: '٥ نجوم هدية لحد عشوائي من الحاضرين' },
@@ -28,6 +29,8 @@ var MC_WHEEL = [
 ];
 var MC_WHEEL_LAND_MS = 3600;  /* the screen wheel shows its result after ~3.4 s */
 var MC_WHEEL_GIFT_MS = 6500;  /* the gift award pop waits until the result has been read */
+var MC_KIND_SPIN_MS = 5200;   /* «🎲 عشوائي»: the kind wheel spins ~3.4 s, its result stays ~1.8 s, then the question */
+var MC_KIND_WHEEL_MAX = 8;    /* wedges on the kind wheel */
 
 var _mc = {
     wired: false, session: null, ch: null,
@@ -163,6 +166,8 @@ function _mcWire() {
         if (fn) { if (b.tagName === 'A') e.preventDefault(); fn(b.dataset, b); }
     });
     root.addEventListener('input', _mcOnInput);
+    /* the typed worth counts once the host presses Enter or leaves the box */
+    root.addEventListener('change', function (e) { if (e.target.id === 'mc-worth-in') _MC_A.worth({ v: e.target.value }); });
     root.addEventListener('dragstart', function (e) {
         var c = e.target.closest && e.target.closest('[data-drag]');
         if (!c) return;
@@ -186,7 +191,10 @@ function _mcWire() {
     });
     root.addEventListener('dragend', function () { _mc.dragPh = null; _mcDragClear(); });
     root.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter' && e.target.id === 'mc-sq') {
+        if (e.key === 'Enter' && e.target.id === 'mc-worth-in') {
+            e.preventDefault();
+            e.target.blur();
+        } else if (e.key === 'Enter' && e.target.id === 'mc-sq') {
             var r = _mcAwardResults();
             if (r.length === 1) { e.preventDefault(); if (_mcTapOk()) _mcTapKid(r[0].phone); }
         } else if (e.key === 'Enter' && e.target.id.indexOf('mc-nt-') === 0) {
@@ -366,7 +374,14 @@ function _mcPost(msg) {
     try { _mc.ch.postMessage(msg); } catch (e) { /* channel closed */ }
 }
 
-function _mcView() { if (_mc.night) _mcPost({ t: 'view', view: mtAudienceView(_mc.night) }); }
+function _mcView() {
+    var n = _mc.night;
+    if (!n) return;
+    var v = mtAudienceView(n), cur = n.current;
+    /* the kind wheel is still spinning: the kids see «استعدوا» behind it, not the question */
+    if (cur && cur.stage === 'shown' && cur.spinUntil > Date.now()) { v.item = null; v.stage = 'preview'; v.timerEndsAt = 0; }
+    _mcPost({ t: 'view', view: v });
+}
 function _mcFx(fx) { _mcPost({ t: 'fx', fx: fx }); }
 
 /* Every state change: persist, tell the projector, repaint. */
@@ -897,6 +912,7 @@ function _mcItemHtml() {
     var ans = _mcAnswerText(it);
     if (ans && k !== 'order' && k !== 'act' && k !== 'draw' && k !== 'taboo') h += '<div class="mc-ans"><span>✔ الإجابة</span>' + _mcEsc(ans) + '</div>';
     if (it.explain) h += '<div class="mc-explain"><span>💡 للشرح</span>' + _mcEsc(it.explain) + '</div>';
+    h += _mcLifeHtml(cur);
     h += '<div class="mc-iacts">' + _mcItemActsHtml(it, cur) + '</div>';
     h += '<div class="mc-imeta">' + _mcEsc(it.id || '') + (it.difficulty ? ' · صعوبة ' + _mcNum(it.difficulty) : '') + '</div></div>';
     return h;
@@ -910,8 +926,9 @@ function _mcItemBodyHtml(it, cur) {
         case 'mcq': case 'scenario': case 'verse': case 'tf':
             h += '<ol class="mc-opts">' + (it.options || []).map(function (o, i) {
                 var shown = k === 'tf' || st === 'revealed' || (live && i < (cur.optionsShown || 0));
-                return '<li class="' + (i === it.correct ? 'ok' : '') + (shown && live ? ' on' : '') + '"><span class="l">' + MC_LETTERS[i] + '</span>' + _mcEsc(o) +
-                    (i === it.correct ? ' <b>✔</b>' : '') + '</li>';
+                var gone = (cur.removed || []).indexOf(i) >= 0;
+                return '<li class="' + (i === it.correct ? 'ok' : '') + (shown && live ? ' on' : '') + (gone ? ' gone' : '') + '"><span class="l">' + MC_LETTERS[i] + '</span>' + _mcEsc(o) +
+                    (i === it.correct ? ' <b>✔</b>' : '') + (gone ? ' ✂️' : '') + '</li>';
             }).join('') + '</ol>';
             if (k !== 'tf' && st === 'shown') h += '<p class="mc-muted">ظاهر على الشاشة: ' + _mcNum(cur.optionsShown || 0) + ' من ' + _mcNum(it.options.length) + '</p>';
             break;
@@ -944,7 +961,11 @@ function _mcItemBodyHtml(it, cur) {
         case 'hymn':
             h += '<div class="mc-prompt">🎵 ' + _mcEsc(it.firstLine) + '</div>';
             break;
+        case 'ref':
+            h += '<p class="mc-muted">📖 يطلّعوا الشاهد من رسالة يعقوب. الآية:</p><div class="mc-secret">' + _mcEsc(it.verse) + '</div>';
+            break;
     }
+    if (cur.hint) h += '<p class="mc-muted">💡 التلميح على الشاشة: ' + _mcEsc(cur.hint) + '</p>';
     return h;
 }
 
@@ -1036,8 +1057,9 @@ function _mcAwTopHtml() {
         '<div class="mc-row mc-worth"><span class="mc-lbl">السؤال بكام؟</span>' + MC_WORTH.map(function (v) {
             return '<button class="mc-chip' + (v === base ? ' on' : '') + '" data-a="worth" data-v="' + v + '">' + _mcNum(v) + '</button>';
         }).join('') +
-        '<span class="mc-counter"><button class="mc-btn sm" data-a="worth" data-v="' + Math.max(1, base - 1) + '">−</button><b>' + _mcNum(base) + '</b>' +
-        '<button class="mc-btn sm" data-a="worth" data-v="' + Math.min(100, base + 1) + '">+</button></span></div>' +
+        '<span class="mc-counter"><button class="mc-btn sm" data-a="worth" data-v="' + Math.max(1, base - 1) + '">−</button>' +
+        '<input id="mc-worth-in" class="mc-worth-in" type="text" inputmode="numeric" maxlength="3" value="' + base + '" title="اكتب أي رقم واضغط Enter">' +
+        '<button class="mc-btn sm" data-a="worth" data-v="' + Math.min(MC_WORTH_MAX, base + 1) + '">+</button></span></div>' +
         '<div class="mc-row"><button class="mc-btn' + (ui.neg ? ' danger on' : ' danger') + '" data-a="neg">' + (ui.neg ? '✕ إلغاء الخصم' : '➖ خصم ' + _mcNum(base)) + '</button>' +
         '<button class="mc-btn' + (_mc.undoArmed ? ' danger' : '') + '" data-a="undo"' + (target ? '' : ' disabled') + '>' + _mcEsc(undoTxt) + '</button></div>' +
         /* always one line, so the panel below never shifts after the first award */
@@ -1214,7 +1236,8 @@ function _mcSetCurrent(it, golden) {
     n.current = {
         item: it, target: { level: t.level, mode: t.mode, teamId: t.mode === 'team' ? t.teamId : null },
         stage: 'preview', clueIdx: 0, optionsShown: 0, timerEndsAt: 0, timerLeft: null,
-        timerSec: mtTimerFor(it.kind, t.mode), golden: !!golden, count: 0
+        timerSec: mtTimerFor(it.kind, t.mode), golden: !!golden, count: 0,
+        randomKind: !_mc.ui.kind   /* «🎲 عشوائي»: the kids watch a wheel land on the kind */
     };
 }
 
@@ -1260,14 +1283,91 @@ _MC_A.skip = function () {
 _MC_A.show = function () {
     var n = _mc.night, cur = n.current;
     if (!cur || cur.stage !== 'preview') return;
+    var wheel = cur.randomKind ? _mcKindWheel(cur) : null, wait = wheel ? MC_KIND_SPIN_MS : 0;
     cur.stage = 'shown';
     cur.optionsShown = 0;
     cur.clueIdx = 0;
     cur.timerLeft = null;
-    cur.timerEndsAt = Date.now() + cur.timerSec * 1000;
+    cur.spinUntil = wait ? Date.now() + wait : 0;
+    cur.timerEndsAt = Date.now() + wait + cur.timerSec * 1000;
     n.lastKind = cur.item.kind;
     _mcCommit();
+    if (wheel) {
+        _mcFx({ type: 'kindWheel', outcomes: wheel.outcomes, index: wheel.index });
+        setTimeout(_mcView, wait + 50);
+    }
 };
+
+/* The kinds on the wheel: the picked one plus others that still have items for this level, shuffled. */
+function _mcKindWheel(cur) {
+    var k = cur.item.kind, counts = _mcKindCounts(_mcPickLevel(cur.target.level));
+    var others = mtAvailableKinds(_mc.pool, _mc.night).filter(function (x) { return x !== k && counts[x]; });
+    for (var i = others.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)), t = others[i]; others[i] = others[j]; others[j] = t; }
+    var kinds = others.slice(0, MC_KIND_WHEEL_MAX - 1);
+    if (!kinds.length) return null; /* only one kind left: nothing to spin */
+    kinds.splice(Math.floor(Math.random() * (kinds.length + 1)), 0, k);
+    return { outcomes: kinds.map(function (x) { return MT_KINDS[x].label; }), index: kinds.indexOf(k) };
+}
+
+/* ---------- lifelines (team questions) ---------- */
+
+function _mcLifeHtml(cur) {
+    var t = cur.target || {}, team = t.mode === 'team' && t.teamId ? _mcTeam(t.teamId) : null;
+    if (!team || cur.stage !== 'shown') return '';
+    var used = team.lifelines || {};
+    return '<div class="mc-life"><span class="mc-lbl">🛟 وسايل مساعدة ' + _mcEsc(team.name) + ' (كل واحدة مرة)</span><div class="mc-chips">' + MT_LIFELINES.map(function (l) {
+        var ok = mtLifelineOk(_mc.night, team.id, l.id);
+        return '<button class="mc-chip life' + (used[l.id] ? ' used' : '') + '" data-a="life" data-v="' + l.id + '"' + (ok ? '' : ' disabled') + '>' +
+            l.icon + ' ' + _mcEsc(l.label) + (used[l.id] ? ' <small>اتستخدمت</small>' : '') + '</button>';
+    }).join('') + '</div></div>';
+}
+
+_MC_A.life = function (d) {
+    var n = _mc.night, cur = n.current, tid = cur && cur.target ? cur.target.teamId : null, team = _mcTeam(tid);
+    var L = MT_LIFELINES.filter(function (x) { return x.id === d.v; })[0];
+    if (!team || !L || !mtUseLifeline(n, tid, L.id, Math.random)) return;
+    if (L.id === 'swap' && !_mcSwap()) {
+        delete team.lifelines.swap;
+        cur.lifeline = null;
+        _mcRefresh();
+        _mcToast('مفيش سؤال تاني ينفع بداله.', 3000);
+        return;
+    }
+    cur = n.current;
+    if (L.id === 'ask') {
+        if (cur.timerEndsAt) cur.timerEndsAt = Math.max(cur.timerEndsAt, Date.now()) + MT_ASK_SECONDS * 1000;
+        else cur.timerLeft = (cur.timerLeft || 0) + MT_ASK_SECONDS * 1000;
+        cur.timerSec += MT_ASK_SECONDS;
+    }
+    _mcCommit();
+    _mcFx({ type: 'lifeline', id: L.id, icon: L.icon, label: L.label, teamName: team.name, teamColor: team.color, teamIcon: team.icon, hint: cur.hint || '' });
+};
+
+/* «غيّر السؤال»: the question the team saw counts as used; a new one of the same kind and level goes up for them. */
+function _mcSwap() {
+    var n = _mc.night, cur = n.current;
+    var saveT = _mc.ui.target, saveK = _mc.ui.kind;
+    _mc.ui.target = { level: cur.target.level, mode: cur.target.mode, teamId: cur.target.teamId };
+    _mc.ui.kind = cur.item.kind;
+    var pushed = n.skipped.indexOf(cur.item.id) < 0;
+    if (pushed) n.skipped.push(cur.item.id); /* so the picker passes it over */
+    var it = _mcPickItem(cur.golden);
+    _mc.ui.target = saveT;
+    _mc.ui.kind = saveK;
+    if (pushed) n.skipped.pop();
+    if (!it) return false;
+    _mcMarkUsed(cur.item);
+    var target = cur.target, lifeline = cur.lifeline;
+    _mcSetCurrent(it, cur.golden);
+    var c = n.current;
+    c.target = target;
+    c.timerSec = mtTimerFor(it.kind, target.mode);
+    c.randomKind = false;
+    c.lifeline = lifeline;
+    c.stage = 'shown';
+    c.timerEndsAt = Date.now() + c.timerSec * 1000;
+    return true;
+}
 
 _MC_A.opt = function () {
     var cur = _mc.night.current;
@@ -1445,8 +1545,8 @@ _MC_A.team = function (d) { if (_mcTapOk()) _mcGive({ teamId: d.t }, _mcPointsNo
 _MC_A.neg = function () { _mc.ui.neg = !_mc.ui.neg; _mcRefresh(); };
 /* What a right answer is worth from now on (golden and دبل multiply it); a خصم takes the same off. */
 _MC_A.worth = function (d) {
-    var v = Math.floor(Number(d.v));
-    if (!(v >= 1 && v <= 100)) return;
+    var v = Math.floor(Number(String(d.v).replace(/[٠-٩]/g, function (c) { return c.charCodeAt(0) - 0x660; })));
+    if (!(v >= 1 && v <= MC_WORTH_MAX)) { _mcRefresh(); return; }
     _mc.night.points = v;
     _mcCommit();
 };

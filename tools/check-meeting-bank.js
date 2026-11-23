@@ -101,6 +101,12 @@ function checkKind(it) {
             checkPrompt(it);
             if (!str(it.answer)) err(it.id, 'answer missing');
             break;
+        case 'ref':
+            checkPrompt(it);
+            if (!/^يع [٠-٩]+: [٠-٩]+$/.test(it.answer || '')) err(it.id, 'answer must be a James reference like «يع ١: ٥»');
+            if (!str(it.verse)) err(it.id, 'verse missing');
+            if (it.level !== 2 || !(it.station >= 3 && it.station <= 7)) err(it.id, 'ref items belong to the James stations (level 2, stations 3-7)');
+            break;
         case 'sixty':
             checkPrompt(it);
             if (!Array.isArray(it.list) || it.list.length < 6 || !it.list.every(str)) err(it.id, 'list must have 6+ non-empty strings');

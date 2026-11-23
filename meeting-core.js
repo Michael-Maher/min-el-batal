@@ -52,6 +52,7 @@ function mtNewNight(opts) {
         levels: (opts.levels || [1, 2]).slice(),
         filter: { subjects: (f.subjects || []).slice(), lessons: JSON.parse(JSON.stringify(f.lessons || {})) },
         kinds: (opts.kinds || []).slice(),
+        kindsV2: true,
         teams: [],
         roster: {},
         current: null,
@@ -307,6 +308,94 @@ function mtPendingSyncs(night) {
     return out;
 }
 
+/* ---- lifelines: each team may use each one once a night ---- */
+
+var MT_LIFELINES = [
+    { id: 'hint', label: 'سهّلها', icon: '💡' },
+    { id: 'fifty', label: 'احذف إجابتين', icon: '✂️' },
+    { id: 'swap', label: 'غيّر السؤال', icon: '🔄' },
+    { id: 'ask', label: 'اسأل أنكل أو ميس', icon: '📞' }
+];
+var MT_ASK_SECONDS = 30;   /* «اسأل أنكل أو ميس» adds this much time */
+
+function mtLifelinesUsed(team) {
+    var out = [];
+    MT_LIFELINES.forEach(function (l) { if (team && team.lifelines && team.lifelines[l.id]) out.push(l.id); });
+    return out;
+}
+
+function _mtHasOptions(it) {
+    return (it.kind === 'mcq' || it.kind === 'scenario' || it.kind === 'verse') && it.options && it.options.length >= 3;
+}
+
+/* Wrong options still on screen (not removed by a lifeline). */
+function _mtWrongLeft(it, cur) {
+    var out = [];
+    it.options.forEach(function (o, i) { if (i !== it.correct && (cur.removed || []).indexOf(i) < 0) out.push(i); });
+    return out;
+}
+
+function _mtFirstWords(s, n) {
+    var w = String(s || '').split(/\s+/).filter(Boolean);
+    return w.slice(0, n).join(' ') + (w.length > n ? ' …' : '');
+}
+
+/* The hint «سهّلها» gives for an item, or '' when the kind has none.
+   (mcq-like kinds get one wrong option removed instead; clues get the next clue.) */
+function mtHintText(it) {
+    var k = it.kind, a = String(it.answer || '');
+    switch (k) {
+        case 'order': return it.steps && it.steps.length ? 'أول حاجة: «' + it.steps[0] + '»' : '';
+        case 'anagram': var l = a.replace(/\s+/g, ''); return l.length > 1 ? 'أول حرف «' + l.charAt(0) + '» وآخر حرف «' + l.charAt(l.length - 1) + '»' : '';
+        case 'emoji': case 'hymn': return a ? 'أول كلمة: «' + _mtFirstWords(a, 1).replace(' …', '') + '»' : '';
+        case 'odd':
+            var fine = (it.items || []).filter(function (x, i) { return i !== it.odd; });
+            return fine.length ? '«' + fine[0] + '» مش هو الغريب' : '';
+        case 'deep': case 'explain': return a ? 'الإجابة بتبدأ كده: ' + _mtFirstWords(a, 5) : '';
+        case 'sixty': return it.list && it.list.length > 1 ? 'زي: ' + it.list[0] + '، ' + it.list[1] : '';
+        case 'ref':
+            var m = /(\S+)\s*:/.exec(a);
+            return m ? 'الآية في الإصحاح ' + m[1].replace(/^[^0-9٠-٩]+/, '') : '';
+        default: return '';
+    }
+}
+
+/* Can `team` use lifeline `id` on the current item right now? */
+function mtLifelineOk(night, teamId, id) {
+    var t = _mtTeam(night, teamId), cur = night.current;
+    if (!t || !cur || cur.stage !== 'shown' || (t.lifelines && t.lifelines[id])) return false;
+    var it = cur.item;
+    switch (id) {
+        case 'fifty': return _mtHasOptions(it) && _mtWrongLeft(it, cur).length >= 2;
+        case 'hint':
+            if (_mtHasOptions(it)) return _mtWrongLeft(it, cur).length >= 2;
+            if (it.kind === 'clues') return (cur.clueIdx || 0) < it.clues.length - 1;
+            return !cur.hint && !!mtHintText(it);
+        case 'swap': case 'ask': return true;
+        default: return false;
+    }
+}
+
+/* Marks the lifeline used and applies what the core owns (removed options, hint, next clue).
+   «غيّر السؤال» and the extra time of «اسأل» are done by the control window. Returns true if used. */
+function mtUseLifeline(night, teamId, id, rng) {
+    if (!mtLifelineOk(night, teamId, id)) return false;
+    var t = _mtTeam(night, teamId), cur = night.current, it = cur.item;
+    t.lifelines = t.lifelines || {};
+    t.lifelines[id] = true;
+    if (id === 'fifty' || (id === 'hint' && _mtHasOptions(it))) {
+        var drop = _mtShuffle(_mtWrongLeft(it, cur), rng).slice(0, id === 'fifty' ? 2 : 1);
+        cur.removed = (cur.removed || []).concat(drop);
+        cur.optionsShown = it.options.length;
+    } else if (id === 'hint' && it.kind === 'clues') {
+        cur.clueIdx = Math.min(it.clues.length - 1, (cur.clueIdx || 0) + 1);
+    } else if (id === 'hint') {
+        cur.hint = mtHintText(it);
+    }
+    cur.lifeline = { id: id, teamId: teamId, at: Date.now() };
+    return true;
+}
+
 /* ---- audience projection: what the projector may see ---- */
 
 function _mtItemView(item, cur) {
@@ -330,8 +419,12 @@ function _mtItemView(item, cur) {
             v.prompt = item.prompt;
             v.steps = revealed ? item.steps.slice() : (item.shuffled || []).slice();
             break;
-        case 'emoji': case 'deep':
+        case 'emoji': case 'deep': case 'explain':
             v.prompt = item.prompt;
+            break;
+        case 'ref':
+            v.prompt = item.prompt;
+            if (revealed) v.verse = item.verse;
             break;
         case 'anagram':
             v.scrambled = item.scrambled;
@@ -352,6 +445,8 @@ function _mtItemView(item, cur) {
         default:
             break; /* act / draw / taboo: the screen shows fixed segment text only */
     }
+    if (cur.removed && cur.removed.length) v.removed = cur.removed.slice();
+    if (cur.hint) v.hint = cur.hint;
     if (revealed) {
         var ans = item.answer;
         if (ans === undefined && item.options && typeof item.correct === 'number') ans = item.options[item.correct];
@@ -400,7 +495,7 @@ function mtAudienceView(night) {
     var leaderId = st.length && st[0].score > 0 && (st.length < 2 || st[1].score < st[0].score) ? st[0].id : null;
     return {
         title: night.title,
-        teams: night.teams.map(function (t) { return { id: t.id, name: t.name, color: t.color, icon: t.icon, level: t.level || 0, score: t.score }; }),
+        teams: night.teams.map(function (t) { return { id: t.id, name: t.name, color: t.color, icon: t.icon, level: t.level || 0, score: t.score, used: mtLifelinesUsed(t) }; }),
         leaderId: leaderId,
         item: cur ? _mtItemView(cur.item, cur) : null,
         stage: cur ? cur.stage : null,
@@ -411,7 +506,8 @@ function mtAudienceView(night) {
         golden: cur ? !!cur.golden : false,
         points: cur ? mtPointsForCurrent(night) : 0,
         kids: _mtBoard(night),
-        lastAward: _mtLastAward(night)
+        lastAward: _mtLastAward(night),
+        lifeline: cur && cur.lifeline ? { id: cur.lifeline.id, teamId: cur.lifeline.teamId } : null
     };
 }
 
@@ -440,13 +536,29 @@ var MT_KINDS = {
     emoji:   { label: 'القصة بالإيموجي', timer: 30, bank: true },
     anagram: { label: 'الحروف المتلخبطة', timer: 30, bank: true },
     odd:     { label: 'مين الغريب؟', timer: 30, bank: true },
-    deep:    { label: 'سؤال عميق', timer: 90, bank: true },
+    explain: { label: 'اشرح وفسّر', timer: 60, bank: true },
+    deep:    { label: 'سؤال مقالي', timer: 90, bank: true },
+    ref:     { label: 'طلّع الشاهد', timer: 60, bank: true },
     sixty:   { label: '٦٠ ثانية', timer: 60, bank: true },
     act:     { label: 'مثّلها من غير كلام', timer: 45, bank: true },
     draw:    { label: 'ارسمها', timer: 60, bank: true },
     taboo:   { label: 'الكلمة الممنوعة', timer: 60, bank: true },
     hymn:    { label: 'كمّل اللحن / الترنيمة', timer: 30, bank: true }
 };
+
+/* How often a kind comes up when the host leaves the kind on «عشوائي» (default 1): understanding
+   and essay questions come up the most. */
+var MT_KIND_WEIGHT = { deep: 3, explain: 3, scenario: 2, ref: 2 };
+
+/* Kinds added after nights were first saved: a restored night that has no say about them follows
+   the kind they grew out of. */
+var MT_KIND_FOLLOWS = { explain: 'deep', ref: 'verse' };
+
+function mtKindOn(night, k) {
+    if (night.kinds.indexOf(k) >= 0) return true;
+    var from = MT_KIND_FOLLOWS[k];
+    return !!from && !night.kindsV2 && night.kinds.indexOf(from) >= 0;
+}
 
 function mtTimerFor(kind, mode) {
     var d = MT_KINDS[kind] ? MT_KINDS[kind].timer : 30;
@@ -546,6 +658,7 @@ function mtBuildPool(filter, levels) {
             if (want && want.length && !_mtInList(want, b.station)) return;
         }
         var it = JSON.parse(JSON.stringify(b));
+        if (it.kind === 'deep' && it.difficulty !== 3) it.kind = 'explain';
         if (it.kind === 'tf') {
             it.options = ['صح', 'غلط'];
             it.correct = it.answer === 'غلط' ? 1 : 0;
@@ -562,7 +675,15 @@ function mtBuildPool(filter, levels) {
 function mtAvailableKinds(pool, night) {
     var have = {};
     pool.forEach(function (it) { if (_mtInList(night.levels, it.level)) have[it.kind] = true; });
-    return night.kinds.filter(function (k) { return have[k]; });
+    return Object.keys(MT_KINDS).filter(function (k) { return have[k] && mtKindOn(night, k); });
+}
+
+/* Kinds in a random order where heavier kinds tend to come first (weighted shuffle). */
+function _mtWeightedOrder(kinds, rng) {
+    var r = _mtRng(rng);
+    return kinds.map(function (k) { return { k: k, key: Math.pow(r(), 1 / (MT_KIND_WEIGHT[k] || 1)) }; })
+        .sort(function (a, b) { return b.key - a.key; })
+        .map(function (x) { return x.k; });
 }
 
 function _mtPrepare(item, rng) {
@@ -621,7 +742,7 @@ function mtPickNext(pool, night, opts, history, rng) {
     } else {
         var avail = mtAvailableKinds(pool, night);
         var rest = avail.filter(function (k) { return k !== night.lastKind; });
-        kinds = _mtShuffle(rest, rng).concat(_mtInList(avail, night.lastKind) ? [night.lastKind] : []);
+        kinds = _mtWeightedOrder(rest, rng).concat(_mtInList(avail, night.lastKind) ? [night.lastKind] : []);
     }
     for (var i = 0; i < kinds.length; i++) {
         var it = _mtPickOnce(pool, night, level, kinds[i], opts.difficulty, history, rng);

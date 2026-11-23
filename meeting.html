@@ -615,6 +615,10 @@ button{font-family:inherit;cursor:pointer}
 .mc-opts li,.mc-clues li,.mc-steps li{padding:6px 10px;border-radius:9px;background:rgba(255,255,255,.04);border:1px solid var(--border);font-weight:700;opacity:.7}
 .mc-opts li.on,.mc-clues li.on{opacity:1;border-color:var(--teal)}
 .mc-opts li.ok{background:rgba(0,184,148,.16);border-color:var(--correct);opacity:1}
+.mc-opts li.gone{text-decoration:line-through;opacity:.4}
+.mc-life{display:flex;flex-direction:column;gap:6px;margin-top:10px;padding:8px 10px;border-radius:12px;border:1px dashed var(--gold);background:rgba(255,215,0,.06)}
+.mc-chip.life{font-weight:800}
+.mc-chip.life.used{opacity:.45;text-decoration:line-through}
 .mc-opts .l{display:inline-block;min-width:26px;font-weight:900;color:var(--gold-light)}
 .mc-clues{counter-reset:c}
 .mc-clues li::before{counter-increment:c;content:counter(c) '. ';font-weight:900;color:var(--gold-light)}
@@ -632,6 +636,7 @@ button{font-family:inherit;cursor:pointer}
 .mc-iacts .ghost{margin-inline-start:auto}
 .mc-tctl,.mc-counter{display:inline-flex;align-items:center;gap:6px}
 .mc-counter b{font-size:24px;min-width:40px;text-align:center;color:var(--gold)}
+.mc-worth-in{width:64px;font-size:22px;font-weight:800;text-align:center;color:var(--gold);background:transparent;border:2px solid var(--gold);border-radius:10px;padding:2px 4px;font-family:inherit}
 .mc-imeta{font-size:11px;color:var(--muted);direction:ltr;text-align:left}
 .mc-note-card{display:flex;align-items:center;gap:8px;font-weight:800;border-color:var(--gold)}
 .mc-bet{display:flex;flex-direction:column;gap:6px;border-color:var(--gold)}
@@ -689,6 +694,47 @@ button{font-family:inherit;cursor:pointer}
   .mc-aw{position:static;max-height:none}
   .mc-two{grid-template-columns:1fr}
 }
+
+/* who answers: a colored frame on the stage, a banner tag, and a splash when the question goes up */
+#ms-stage.m-team:not(.golden),#ms-stage.m-ind:not(.golden),#ms-stage.m-speed:not(.golden){border-width:.5vh;border-color:var(--mc);box-shadow:0 0 0 .4vh color-mix(in srgb,var(--mc) 35%,transparent),0 0 60px color-mix(in srgb,var(--mc) 45%,transparent),inset 0 0 80px color-mix(in srgb,var(--mc) 14%,transparent)}
+#ms-stage.m-speed{animation:msSpeedGlow 1s ease-in-out infinite}
+#ms-stage.m-speed.pop{animation:msStagePop .7s cubic-bezier(.34,1.56,.64,1),msSpeedGlow 1s ease-in-out .7s infinite}
+@keyframes msSpeedGlow{0%,100%{box-shadow:0 0 0 .4vh rgba(255,159,28,.35),0 0 40px rgba(255,159,28,.35)}50%{box-shadow:0 0 0 .7vh rgba(255,209,102,.6),0 0 90px rgba(255,159,28,.75)}}
+.ms-tag.m-team{font-size:2.5vw;color:#fff;background:var(--tc);border-color:#fff;box-shadow:0 0 30px var(--tc);animation:msPop .5s cubic-bezier(.34,1.56,.64,1),msTurn 1.6s ease-in-out infinite}
+.ms-tag.m-speed{font-size:2.5vw;color:#2a1400;background:linear-gradient(135deg,#ffd166,#ff9f1c);border-color:#fff3c4;box-shadow:0 0 30px rgba(255,159,28,.8);animation:msPop .5s cubic-bezier(.34,1.56,.64,1),msShake 1.2s ease-in-out .5s infinite}
+.ms-tag.m-ind{font-size:2.5vw;color:#00262a;background:linear-gradient(135deg,#7dffd9,#00cec9);border-color:#e0fffa;box-shadow:0 0 28px rgba(0,206,201,.7)}
+#ms.board .ms-tag.m-team,#ms.board .ms-tag.m-speed,#ms.board .ms-tag.m-ind{font-size:2vw}
+.ms-tag.life{font-size:1.8vw;color:#2a1c00;background:linear-gradient(135deg,#fff3b0,#ffd700);border-color:#fff}
+@keyframes msShake{0%,100%{transform:rotate(0)}20%{transform:rotate(-2deg) scale(1.04)}40%{transform:rotate(2deg) scale(1.04)}60%{transform:rotate(0)}}
+#ms-splash{position:fixed;inset:0;z-index:8500;pointer-events:none;display:none;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,color-mix(in srgb,var(--mc) 35%,rgba(5,8,25,.85)),rgba(5,8,25,.9) 70%)}
+#ms-splash.on{display:flex;animation:spLife 1.9s ease-in-out forwards}
+@keyframes spLife{0%{opacity:0}12%{opacity:1}80%{opacity:1}100%{opacity:0}}
+.sp-card{display:flex;flex-direction:column;align-items:center;gap:1.5vh;text-align:center;animation:spIn .6s cubic-bezier(.34,1.56,.64,1)}
+@keyframes spIn{0%{transform:scale(.3) rotate(-10deg);opacity:0}100%{transform:none;opacity:1}}
+.sp-ico{font-size:16vh;line-height:1;filter:drop-shadow(0 0 30px var(--mc))}
+.m-speed .sp-ico{animation:msShake .5s ease-in-out infinite}
+.sp-t{font-family:'Lalezar','Cairo',sans-serif;font-size:9vw;line-height:1.1;color:#fff;text-shadow:0 0 40px var(--mc),0 .6vh 0 color-mix(in srgb,var(--mc) 60%,#000)}
+.sp-s{font-size:3.2vw;font-weight:900;color:#fff;padding:1vh 3vw;border-radius:99px;background:color-mix(in srgb,var(--mc) 55%,rgba(10,14,39,.8));box-shadow:0 0 30px var(--mc)}
+/* kinds with their own badge */
+.ms-kindbadge{align-self:center;font-size:calc(var(--ok) * 2.6vw);font-weight:900;padding:.6vh 2vw;border-radius:99px;color:#fff;box-shadow:0 6px 22px rgba(0,0,0,.4)}
+.ms-kindbadge.deep{background:linear-gradient(135deg,#a78bfa,#6d5dfc)}
+.ms-kindbadge.explain{background:linear-gradient(135deg,#22d3ee,#0891b2)}
+.ms-kindbadge.ref{background:linear-gradient(135deg,#ffd166,#d4a017);color:#2a1c00;animation:msPop .5s cubic-bezier(.34,1.56,.64,1),lvBounce 2.4s ease-in-out .6s infinite}
+.ms-verse{max-width:100%;padding:1.4vh 2.6vw;border-radius:1.4vw;background:linear-gradient(135deg,rgba(255,215,0,.18),rgba(255,215,0,.05));border:3px solid var(--gold);font-size:calc(var(--ok) * 3.2vw);font-weight:800;line-height:1.6;color:#fff7d6;text-shadow:0 2px 8px rgba(0,0,0,.6);animation:msSlideUp .6s ease-out}
+/* lifelines on the stage */
+.ms-opt.gone{opacity:.18;filter:grayscale(1);text-decoration:line-through;transform:scale(.94);transition:opacity .5s,transform .5s,filter .5s}
+.ms-lifehint{align-self:center;max-width:100%;padding:1vh 2.4vw;border-radius:1.4vw;font-size:calc(var(--ok) * 3.2vw);font-weight:900;color:#2a1c00;background:linear-gradient(135deg,#fff3b0,#ffd700);box-shadow:0 0 30px rgba(255,215,0,.6);animation:msZoom .6s cubic-bezier(.34,1.56,.64,1)}
+.tb-life{flex-shrink:0;display:grid;grid-template-columns:repeat(2,auto);gap:0 .2vw;font-size:calc(var(--rh) * .24);line-height:1.15;margin-inline-start:.3vw}
+.tb-life i{font-style:normal}
+.tb-life i.u{opacity:.22;filter:grayscale(1)}
+.fx-life{gap:1.4vh}
+.fx-life-ico{font-size:14vh;line-height:1;animation:msZoom .6s cubic-bezier(.34,1.56,.64,1)}
+.fx-life-team{font-size:3.4vw;font-weight:900;color:#fff;text-shadow:0 0 24px var(--tc)}
+.fx-life-name{font-family:'Lalezar','Cairo',sans-serif;font-size:6.5vw;line-height:1.15;color:#FFE34D;text-shadow:0 0 40px rgba(255,215,0,.8),0 .5vh 0 #7a5200}
+/* cheers on a right answer */
+.fx-cheer{position:relative;z-index:1;margin-top:1vh;font-family:'Lalezar','Cairo',sans-serif;font-size:5vw;line-height:1.2;color:#fff;text-shadow:0 0 30px rgba(255,255,255,.6),0 .5vh 0 rgba(0,0,0,.45);animation:fxCheer .9s cubic-bezier(.34,1.56,.64,1) .35s both,fxCheerBob 1.2s ease-in-out 1.25s infinite}
+@keyframes fxCheer{0%{opacity:0;transform:scale(.2) rotate(-12deg)}100%{opacity:1;transform:none}}
+@keyframes fxCheerBob{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-.8vh) scale(1.05)}}
 </style>
 </head>
 <body>
@@ -713,6 +759,7 @@ button{font-family:inherit;cursor:pointer}
       <div id="mb-secs" class="tb-board"></div>
     </aside>
   </div>
+  <div id="ms-splash"></div>
   <div id="ms-fx"></div>
   <canvas id="ms-confetti"></canvas>
 </div>
